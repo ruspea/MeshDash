@@ -31,7 +31,15 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY --chown=meshdash:meshdash . .
 
 # Create data directory with proper permissions
-RUN mkdir -p /app/data && chown meshdash:meshdash /app/data
+# Seed the R3 bootstrap marker so the self-heal routine
+# knows this is a clean install, not a dirty R2→R3 overlay.
+RUN mkdir -p /app/data && \
+    touch /app/data/.r3_bootstrap_done && \
+    chown -R meshdash:meshdash /app/data
+
+# Allow the app to write to /app (self-heal backup dirs on
+# overlay upgrades; harmless on clean installs).
+RUN chmod 777 /app
 
 # Security hardening
 USER meshdash:meshdash
