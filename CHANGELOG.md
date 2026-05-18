@@ -33,6 +33,9 @@ Received-from-source attribution (RF/MQTT/LOCAL) with confidence scoring. Heuris
 ### Self-Healing Bootstrap
 R3.0 detects stale R2.x installations and repairs them automatically. Creates backups before any migration.
 
+### Docker
+Official `rusjpmd/meshdash-runner` Docker image with standalone mode (built-in `/setup` wizard) and C2 cloud setup. Auto-downloads the latest version on boot, auto-updates on restart, and migrates V2.0 data volumes automatically.
+
 ### Plugin System
 Drop-in folder architecture with FastAPI router, static file server, sidebar nav, and lifecycle management. Zero core modifications needed.
 
@@ -41,7 +44,7 @@ Five access tiers (off, heartbeat, monitor, read, operator, full) with HMAC-sign
 
 ## Known Issues
 
-- Docker deployment is disabled in this release. Use native Linux/Pi/Debian or Windows (WSL) installers.
+
 - WebSerial is configured from the dashboard settings page, not during initial setup.
 - Custom plugins from R2.x may need path updates for the new file structure. Plugins from the official store are compatible as-is.
 - Packet source attribution (RF/MQTT/LOCAL) is in beta. May misclassify in mixed RF/MQTT environments.
