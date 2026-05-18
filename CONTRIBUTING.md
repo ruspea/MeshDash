@@ -38,7 +38,7 @@ The easiest way to extend MeshDash is through the plugin system — no core modi
 
 ## Security Vulnerabilities
 
-Do not report security issues publicly. Email contact@meshdash.co.uk with details.
+Do not report security issues publicly. Email info@meshdash.co.uk with details.
 
 ## License
 

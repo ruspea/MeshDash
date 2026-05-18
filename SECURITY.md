@@ -12,7 +12,7 @@
 
 **Do not report security vulnerabilities through public GitHub issues.**
 
-Email: **contact@meshdash.co.uk**
+Email: **info@meshdash.co.uk**
 
 Include:
 - Description of the vulnerability
