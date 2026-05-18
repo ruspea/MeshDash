@@ -1,8 +1,16 @@
 <p align="center">
-  <img src="https://meshdash.co.uk/static/icons/meshdash-logo.png" alt="MeshDash" width="120" />
+  <img src="https://meshdash.co.uk/static/icons/meshdash-logo.png" alt="MeshDash" width="400" />
+</p>
+
+<p align="center">
+  <img src="https://meshdash.co.uk/static/icons/meshdash-tagline.png" alt="A complete Meshtastic Command & Control platform" width="600" />
 </p>
 
 <h1 align="center">MeshDash</h1>
+
+<p align="center">
+  <img src="https://meshdash.co.uk/static/icons/meshdash-hero.png" alt="The Meshtastic Dashboard built for operators" width="800" />
+</p>
 
 <p align="center">
   Open-source self-hosted Meshtastic Command & Control dashboard<br>
