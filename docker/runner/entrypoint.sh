@@ -4,31 +4,75 @@ set -e
 # ═══════════════════════════════════════════════════════════════════
 # MeshDash R3.0 Docker Runner — Entrypoint
 #
-# Boot sequence:
-#   1. Validate MD_SETUP_KEY and MD_SETUP_URL
-#   2. Query MeshDash server for target version + zip URL
-#   3. If update needed: download, extract, create /opt/venv from requirements.txt
-#   4. Fetch latest config
-#   5. Seed the R3 bootstrap marker (skip self-heal on clean Docker installs)
-#   6. Start MeshDash via /opt/venv/bin/python
+# Two boot modes:
+#
+#   C2 Mode (with MD_SETUP_KEY):
+#     1. Validate MD_SETUP_KEY and MD_SETUP_URL
+#     2. Query MeshDash server for target version + zip URL
+#     3. Download, extract, install deps, fetch config
+#     4. Start MeshDash
+#
+#   Standalone Mode (no MD_SETUP_KEY):
+#     1. Start MeshDash with no config
+#     2. App detects no users → shows /setup wizard
+#     3. User configures everything through the web UI
+#
+# Both modes seed data/.r3_bootstrap_done to skip self-heal.
+# Both modes build /opt/venv from requirements.txt if missing.
 # ═══════════════════════════════════════════════════════════════════
 
 echo "══════════════════════════════════════════════"
 echo "  🦀 MeshDash R3.0 Docker Runner"
 echo "══════════════════════════════════════════════"
 
-# ── 1. Validate Environment ──────────────────────────────────────
+# Default to 8000 for backward compatibility with V2.0 Docker commands.
+# Users can override with WEBSERVER_PORT env var if they want 8181.
+APP_PORT="${WEBSERVER_PORT:-8000}"
+
+# ── Mode detection ────────────────────────────────────────────────
 if [ -z "$MD_SETUP_KEY" ] || [ -z "$MD_SETUP_URL" ]; then
-    echo "[ERROR] Missing MD_SETUP_KEY or MD_SETUP_URL environment variables."
+    # ── Standalone Mode ──────────────────────────────────────────
+    echo "[INFO] No MD_SETUP_KEY set — starting in standalone mode"
+    echo "[INFO] Setup wizard will be available at http://localhost:$APP_PORT/setup"
     echo ""
-    echo "Set them with:"
-    echo "  -e MD_SETUP_KEY=\"MD-YOUR-KEY-HERE\""
-    echo "  -e MD_SETUP_URL=\"https://meshdash.co.uk/user_setup_core.php\""
-    echo ""
-    echo "Generate your key at: https://meshdash.co.uk/"
-    sleep 300
-    exit 1
+
+    # Ensure /opt/venv exists
+    if [ ! -d "/opt/venv" ] || [ ! -f "/opt/venv/bin/python3" ]; then
+        if [ -f "requirements.txt" ]; then
+            echo "[INFO] Building Python virtual environment (/opt/venv)..."
+            python3 -m venv /opt/venv
+            /opt/venv/bin/pip install --upgrade pip -q
+            echo "[INFO] Installing dependencies from requirements.txt..."
+            /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+        fi
+    fi
+
+    # Seed the R3 bootstrap marker
+    mkdir -p data
+    touch data/.r3_bootstrap_done
+
+    # Write a minimal config so PUBLIC_MODE=False (setup wizard shows)
+    # Without this, config.py defaults PUBLIC_MODE=True (no auth, no setup)
+    if [ ! -f ".mesh-dash_config" ]; then
+        cat > .mesh-dash_config << 'CONFIG'
+# MeshDash — Docker Standalone Mode
+# Configure your radio at http://localhost:8000/setup
+PUBLIC_MODE=False
+WEBSERVER_PORT=8000
+MESHTASTIC_CONNECTION_TYPE=SERIAL
+CONFIG
+    fi
+
+    echo "══════════════════════════════════════════════"
+    echo "  🚀 Starting MeshDash on port $APP_PORT"
+    echo "  📋 Open http://localhost:$APP_PORT/setup to configure"
+    echo "══════════════════════════════════════════════"
+    export PATH="/opt/venv/bin:$PATH"
+    exec /opt/venv/bin/python3 meshtastic_dashboard.py --host 0.0.0.0 --port "$APP_PORT"
 fi
+
+# ── C2 Mode ──────────────────────────────────────────────────────
+echo "[INFO] MD_SETUP_KEY detected — C2 cloud setup mode"
 
 # ── 2. Get Version Info from Server ──────────────────────────────
 echo "[INFO] Contacting MeshDash server for install info..."
@@ -96,13 +140,11 @@ if [ "$CURRENT_VERSION" != "$TARGET_VERSION" ] || [ ! -f "meshtastic_dashboard.p
 
     # Restore data directory
     if [ -d "/tmp/data_backup" ]; then
-        # Merge — keep existing data, add new files if any
         cp -rn /tmp/data_backup/* data/ 2>/dev/null || true
         rm -rf /tmp/data_backup
     fi
 
     # Build /opt/venv from the shipped requirements.txt
-    # This mirrors the app Dockerfile's build-time venv creation
     if [ -f "requirements.txt" ]; then
         echo "[INFO] Building Python virtual environment (/opt/venv)..."
         python3 -m venv /opt/venv
@@ -113,10 +155,12 @@ if [ "$CURRENT_VERSION" != "$TARGET_VERSION" ] || [ ! -f "meshtastic_dashboard.p
         echo "[WARN] No requirements.txt found — skipping dependency install"
     fi
 
-    # Seed the R3 bootstrap marker so the self-heal routine
-    # knows this is a clean Docker install, not a dirty R2→R3 overlay
+    # Seed the R3 bootstrap marker
     mkdir -p data
     touch data/.r3_bootstrap_done
+
+    # Mark C2-installed so setup wizard is skipped
+    touch data/c2_installed.flag
 
     # Mark version
     echo "$TARGET_VERSION" > version.tag
@@ -126,7 +170,6 @@ else
 fi
 
 # ── 5. Ensure /opt/venv exists ───────────────────────────────────
-# On restarts without an update, the venv should already be there
 if [ ! -d "/opt/venv" ] || [ ! -f "/opt/venv/bin/python3" ]; then
     if [ -f "requirements.txt" ]; then
         echo "[INFO] /opt/venv missing — rebuilding..."
@@ -142,18 +185,13 @@ curl -sf "${MD_SETUP_URL}?action=download_config&key=${MD_SETUP_KEY}" -o .mesh-d
     echo "[WARN] Could not download config — using existing config if present"
 }
 
-# Restore config backup if download failed and we had one
 if [ ! -s ".mesh-dash_config" ] && [ -f "/tmp/config_backup" ]; then
     cp /tmp/config_backup .mesh-dash_config
     rm -f /tmp/config_backup
     echo "[WARN] Using preserved config (server download failed)"
 fi
 
-# ── 7. Determine Port ────────────────────────────────────────────
-# Default to 8181 for R3.0+. Config may override.
-APP_PORT="${WEBSERVER_PORT:-8181}"
-
-# ── 8. Start MeshDash via /opt/venv ──────────────────────────────
+# ── 7. Start MeshDash ────────────────────────────────────────────
 echo "══════════════════════════════════════════════"
 echo "  🚀 Starting MeshDash on port $APP_PORT"
 echo "══════════════════════════════════════════════"
