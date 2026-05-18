@@ -1,0 +1,1261 @@
+<div class="vs" id="settings-view-root">
+  <div class="ch" style="border:none; padding:0;">
+    <div>
+      <span style="font-size:16px;font-weight:800;color:var(--txt);letter-spacing:1px;">SYSTEM CONFIGURATION</span>
+      <div style="font-size:10px;color:var(--txt3);margin-top:4px;">Core parameters for MeshDash and Hardware Communication.</div>
+    </div>
+    <div style="margin-left:auto; display:flex; gap:10px;">
+      <button class="btn btn-err" onclick="c2RestartServer()">⟳ RESTART SERVICE</button>
+      <button class="btn btn-acc" id="btn-save-settings" onclick="c2SaveSettings()">💾 SAVE CONFIG</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       CONNECTED RADIOS — now managed on Connection page
+       ═══════════════════════════════════════════════════════ -->
+  <div class="card" style="margin-bottom:0;">
+    <div class="ch" style="padding:14px 18px;">
+      <span class="ct" style="display:flex;align-items:center;gap:8px;">
+        <span style="color:var(--acc);">⬡</span> CONNECTED RADIOS
+      </span>
+      <button class="btn btn-acc" onclick="loadView('connection')" style="margin-left:auto;font-size:10px;padding:5px 14px;letter-spacing:.5px;">
+        <i class="fas fa-plug" style="margin-right:5px;"></i>MANAGE ON CONNECTION PAGE →
+      </button>
+    </div>
+    <div class="cb" style="padding:10px 18px;font-family:var(--mono);font-size:0.72rem;color:var(--txt3);">
+      Radio management (add, remove, switch, view stats) has moved to the <a href="#" onclick="loadView('connection');return false;" style="color:var(--acc);">Connection page</a>.
+    </div>
+  </div>
+
+  <div class="g2">
+    <!-- Node Connection (primary slot / node_0 config) -->
+    <div class="card">
+      <div class="ch"><span class="ct">Primary Radio Connection</span><span style="font-size:9px;color:var(--txt3);font-family:var(--mono);margin-left:8px;">node_0</span></div>
+      <div class="cb" style="display:flex;flex-direction:column;gap:16px">
+        <div>
+          <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">PROTOCOL</div>
+          <select class="inp mono" id="MESHTASTIC_CONNECTION_TYPE" onchange="c2ToggleSettingsFields()">
+            <option value="SERIAL">SERIAL (USB — server-side)</option>
+            <option value="TCP">TCP / NETWORK</option>
+            <option value="BLE">BLUETOOTH (BLE)</option>
+            <option value="WEBSERIAL">WEB SERIAL (USB — browser-direct) ⚡ BETA</option>
+            <option value="MQTT">MQTT (broker bridge) 📡</option>
+          </select>
+        </div>
+        <div id="grp-SERIAL">
+          <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">SERIAL PORT</div>
+          <input class="inp inp-mono" id="MESHTASTIC_SERIAL_PORT" placeholder="/dev/ttyACM0 or COM3">
+        </div>
+        <div id="grp-TCP" style="display:none;" class="g2">
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">HOST IP</div>
+            <input class="inp inp-mono" id="MESHTASTIC_HOST" placeholder="192.168.1.50">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">PORT</div>
+            <input class="inp inp-mono" type="number" id="MESHTASTIC_PORT" value="4403">
+          </div>
+        </div>
+        <div id="grp-BLE" style="display:none;">
+          <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">MAC ADDRESS</div>
+          <input class="inp inp-mono" id="MESHTASTIC_BLE_MAC" placeholder="AA:BB:CC:11:22:33">
+        </div>
+        <div id="grp-WEBSERIAL" style="display:none; flex-direction:column; gap:12px;">
+          <div id="ws-compat-banner" style="border-radius:5px; padding:12px 14px; font-size:10px; line-height:1.8; font-family:var(--mono);"></div>
+          <div style="background:rgba(0,200,245,0.05); border:1px solid rgba(0,200,245,0.18); border-radius:5px; padding:12px 14px; font-size:10px; color:var(--txt2); line-height:1.8;">
+            <b style="color:var(--acc);">How it works:</b><br>
+            Save this config and restart. The server will no longer try to open a serial port itself.
+            A <b style="color:var(--txt);">WEB SERIAL</b> button will appear in the topbar — click it to
+            open a guided wizard, pick your COM port, and the browser streams packets directly to the dashboard.<br><br>
+            <b style="color:var(--warn);">Requirements:</b> Chrome or Edge 89+ &nbsp;·&nbsp; HTTPS or localhost &nbsp;·&nbsp; USB cable to radio
+          </div>
+          <div id="ws-live-session-box" style="display:none; background:rgba(0,232,122,0.06); border:1px solid rgba(0,232,122,0.25); border-radius:5px; padding:12px 14px;">
+            <div style="font-size:9px;color:var(--ok);font-weight:800;letter-spacing:1.5px;margin-bottom:8px;">● ACTIVE SESSION</div>
+            <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:10px;font-family:var(--mono);" id="ws-live-session-grid"></div>
+            <button class="btn btn-err" onclick="window.WebSerialBridge?.disconnect()" style="margin-top:10px;font-size:10px;padding:5px 12px;">⏏ DISCONNECT PORT</button>
+          </div>
+        </div>
+
+        <!-- MQTT config group -->
+        <div id="grp-MQTT" style="display:none; flex-direction:column; gap:12px;">
+          <div style="background:rgba(0,200,245,0.05); border:1px solid rgba(0,200,245,0.18); border-radius:5px; padding:10px 14px; font-size:10px; color:var(--txt2); line-height:1.7; font-family:var(--mono);">
+            <b style="color:var(--acc);">MQTT Bridge Mode</b><br>
+            MeshDash connects to an MQTT broker and receives mesh packets published
+            by nodes or gateways. All channels, DMs, telemetry and node info are decoded
+            and stored exactly like a direct radio connection — source is tagged <b style="color:var(--acc);">MQTT</b>.<br><br>
+            <b style="color:var(--warn);">Note:</b> MQTT_NODE_ID is optional. Without it the slot runs in observer mode (receive-only).<br>
+            <b style="color:var(--warn);">Region:</b> The public Meshtastic broker rejects fully-wildcard subscriptions (region="#"). Use a specific region like EU_868 or US.
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">BROKER PRESET</div>
+            <select class="inp mono" id="MQTT_PRESET" onchange="_mqttApplyPreset(this.value)">
+              <option value="meshtastic_public">🌐 Meshtastic Public (mqtt.meshtastic.org)</option>
+              <option value="meshtastic_public_tls">🔒 Meshtastic Public TLS (port 8883)</option>
+              <option value="custom">⚙️ Custom Broker</option>
+            </select>
+          </div>
+          <div class="g2">
+            <div>
+              <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">BROKER HOST</div>
+              <input class="inp inp-mono" id="MQTT_BROKER" placeholder="mqtt.meshtastic.org">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">PORT</div>
+              <input class="inp inp-mono" type="number" id="MQTT_PORT" value="1883">
+            </div>
+          </div>
+          <div class="g2">
+            <div>
+              <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">USERNAME</div>
+              <input class="inp inp-mono" id="MQTT_USERNAME" placeholder="meshdev">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">PASSWORD</div>
+              <input class="inp inp-mono" type="password" id="MQTT_PASSWORD" placeholder="large4cats">
+            </div>
+          </div>
+          <div class="g2">
+            <div>
+              <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">REGION <span style="color:var(--txt3);font-weight:400">(e.g. EU_868, US)</span></div>
+              <input class="inp inp-mono" id="MQTT_REGION" placeholder="EU_868">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">CHANNEL <span style="color:var(--txt3);font-weight:400">(e.g. LongFast)</span></div>
+              <input class="inp inp-mono" id="MQTT_CHANNEL" placeholder="# (all channels)">
+            </div>
+          </div>
+          <div class="g2">
+            <div>
+              <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">MY NODE ID <span style="color:var(--txt3);font-weight:400">(optional)</span></div>
+              <input class="inp inp-mono" id="MQTT_NODE_ID" placeholder="!aabbccdd (leave blank = observer)">
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding-top:22px;">
+              <label class="tog"><input type="checkbox" id="MQTT_TLS"><span class="tog-sl"></span></label>
+              <span style="font-size:10px;color:var(--txt2);font-family:var(--mono);">ENABLE TLS/SSL</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Web Server & Auth -->
+    <div class="card">
+      <div class="ch"><span class="ct">Web Server & Auth</span></div>
+      <div class="cb" style="display:flex;flex-direction:column;gap:16px">
+        <div class="g2">
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">BIND HOST</div>
+            <input class="inp inp-mono" id="WEBSERVER_HOST" placeholder="0.0.0.0">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">MAIN PORT</div>
+            <input class="inp inp-mono" type="number" id="WEBSERVER_PORT">
+          </div>
+        </div>
+        <div class="g2">
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">SESSION TIMEOUT (MIN)</div>
+            <input class="inp inp-mono" type="number" id="AUTH_TOKEN_EXPIRE_MINUTES">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">ANALYZER PORT</div>
+            <input class="inp inp-mono" type="number" id="NETWORK_WEBSERVER_PORT">
+          </div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--err);margin-bottom:6px;font-weight:700">AUTH SECRET KEY (DANGER)</div>
+          <input class="inp inp-mono" type="password" id="AUTH_SECRET_KEY" placeholder="••••••••••••••••">
+        </div>
+      </div>
+    </div>
+
+    <!-- Privacy & Location -->
+    <div class="card">
+      <div class="ch"><span class="ct">Privacy & Location</span></div>
+      <div class="cb" style="display:flex;flex-direction:column;gap:16px;background:var(--bg3);">
+        <div style="background:var(--bg2); padding:12px; border:1px solid var(--bd2); border-radius:var(--r); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700; color:var(--txt); font-size:11px;">Broadcast Local Node</div>
+            <div style="font-size:9px; color:var(--txt3); margin-top:4px;">Share your position to the map</div>
+          </div>
+          <label class="tog"><input type="checkbox" id="SEND_LOCAL_NODE_LOCATION"><span class="tog-sl"></span></label>
+        </div>
+        <div style="background:var(--bg2); padding:12px; border:1px solid var(--bd2); border-radius:var(--r); display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700; color:var(--txt); font-size:11px;">Forward Other Nodes</div>
+            <div style="font-size:9px; color:var(--txt3); margin-top:4px;">Report locations of nodes you hear</div>
+          </div>
+          <label class="tog"><input type="checkbox" id="SEND_OTHER_NODES_LOCATION"><span class="tog-sl"></span></label>
+        </div>
+        <div style="background:var(--bg2); padding:12px; border:1px solid var(--bd2); border-radius:var(--r);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <div>
+              <div style="font-weight:700; color:var(--warn); font-size:11px;">Location Obfuscation</div>
+              <div style="font-size:9px; color:var(--txt3); margin-top:4px;">Randomly offset coordinates for privacy</div>
+            </div>
+            <label class="tog"><input type="checkbox" id="LOCATION_OFFSET_ENABLED" onchange="c2ToggleSettingsFields()"><span class="tog-sl"></span></label>
+          </div>
+          <div id="grp-OFFSET" style="display:none; margin-top:12px; border-top:1px dashed var(--bd); padding-top:12px;">
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">MAX OFFSET (METERS)</div>
+            <input class="inp inp-mono" type="number" step="10" id="LOCATION_OFFSET_METERS">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Storage & Engine -->
+    <div class="card">
+      <div class="ch"><span class="ct">Storage & Engine</span></div>
+      <div class="cb" style="display:flex;flex-direction:column;gap:16px">
+        <div class="g2">
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">MAIN DB PATH</div>
+            <input class="inp inp-mono" id="DB_PATH">
+            <input class="inp inp-mono" type="number" id="HISTORY_DAYS">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">RAM BUFFER</div>
+            <input class="inp inp-mono" type="number" id="MAX_PACKETS_MEMORY">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">LOG LEVEL</div>
+            <select class="inp mono" id="LOG_LEVEL">
+              <option value="DEBUG">DEBUG</option>
+              <option value="INFO">INFO</option>
+              <option value="WARNING">WARN</option>
+              <option value="ERROR">ERROR</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection Scheduler -->
+    <div class="card">
+      <div class="ch"><span class="ct">Connection Scheduler</span></div>
+      <div class="cb" style="display:flex;flex-direction:column;gap:16px">
+        <div class="g2">
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">MAX RECONNECT ATTEMPTS</div>
+            <input class="inp inp-mono" type="number" id="SCHEDULER_MAX_RETRIES">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">RETRY DELAY (SECONDS)</div>
+            <input class="inp inp-mono" type="number" id="SCHEDULER_RETRY_DELAY_SECONDS">
+          </div>
+        </div>
+        <div class="g2">
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">CONNECT TIMEOUT (SECONDS)</div>
+            <input class="inp inp-mono" type="number" step="0.1" id="SCHEDULER_CONNECT_TIMEOUT">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">READ/WRITE TIMEOUT (SECONDS)</div>
+            <input class="inp inp-mono" type="number" step="0.1" id="SCHEDULER_RW_TIMEOUT">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Remote C2 Access -->
+    <div class="card">
+      <div class="ch"><span class="ct">Remote C2 Access</span></div>
+      <div class="cb" style="display:flex;flex-direction:column;gap:14px">
+        <div style="background:var(--bg3); padding:14px; border:1px solid var(--bd2); border-radius:var(--r); display:flex; justify-content:space-between; align-items:center;">
+          <div style="flex:1">
+            <div style="font-weight:700; color:var(--txt); font-size:12px;">Enable Remote C2 Access</div>
+            <div style="font-size:9px; color:var(--txt3); margin-top:4px;">
+              Securely access and control your node remotely via<br>
+              <a href="https://meshdash.co.uk/user_dash.php" target="_blank" style="color:var(--acc);font-family:var(--mono);">meshdash.co.uk/user_dash.php</a>
+            </div>
+          </div>
+          <label class="tog"><input type="checkbox" id="REMOTE_C2"><span class="tog-sl"></span></label>
+        </div>
+        <div style="background:var(--bg3); padding:10px 14px; border:1px solid var(--bd2); border-radius:var(--r);">
+          <div style="font-size:9px;color:var(--txt3);margin-bottom:4px;font-family:var(--mono);">ACCESS LEVEL</div>
+          <select class="inp mono" id="C2_ACCESS_LEVEL" style="max-width:200px">
+            <option value="read">Read Only — view data, send messages</option>
+            <option value="full">Full Control — settings, console, OTA</option>
+          </select>
+        </div>
+        <div style="font-size:9px;color:var(--txt3);line-height:1.5;">
+          Your node heartbeat is always active — MeshDash checks in automatically every minute.
+          Enable <b style="color:var(--acc);">Community API</b> below to appear on the public map.
+        </div>
+      </div>
+    </div>
+
+    <!-- Community & Sharing → removed. Heartbeat is always active (registered via c2_api.php).
+         Community features are part of Remote C2 — enable REMOTE_C2 to appear on the map.
+    -->
+  </div>
+</div>
+
+    <!-- Heartbeat — always active, not configurable -->
+    <div class="card">
+      <div class="ch"><span class="ct">Heartbeat &amp; Health Check</span><span class="pill p-ok" style="font-size:10px">&#9679; ACTIVE</span></div>
+      <div class="cb" style="background:var(--bg3); padding:14px; border:1px solid var(--bd2); border-radius:0 0 var(--r) var(--r); font-size:11px; color:var(--txt2); line-height:1.6;">
+        MeshDash sends a heartbeat to <span style="font-family:var(--mono);color:var(--acc);">meshdash.co.uk</span> every 60 seconds.
+        Always active — keeps your node registered and ready for remote access.
+        <div style="font-size:9px;color:var(--txt3);margin-top:8px;font-family:var(--mono);">Heartbeat runs continuously — not configurable.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     ADD RADIO MODAL
+     ═══════════════════════════════════════════════════════ -->
+<div id="slot-add-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.75);align-items:center;justify-content:center;">
+  <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:8px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto;box-sizing:border-box;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--bd2);">
+      <span style="font-family:var(--mono);font-size:13px;font-weight:800;color:var(--txt);letter-spacing:1px;">ADD RADIO SLOT</span>
+      <button class="btn btn-sm" onclick="slotCloseAddModal()" style="min-width:auto;padding:3px 10px;">✕</button>
+    </div>
+    <div style="padding:20px;display:flex;flex-direction:column;gap:16px;">
+      <div>
+        <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">LABEL</div>
+        <input class="inp inp-mono" id="slot-add-label" placeholder="Remote Gateway, Rooftop Node…" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">PROTOCOL</div>
+        <select class="inp mono" id="slot-add-type" onchange="slotToggleAddFields()" style="width:100%;box-sizing:border-box;">
+          <option value="TCP">TCP / NETWORK</option>
+          <option value="SERIAL">SERIAL (server-side USB)</option>
+          <option value="BLE">BLUETOOTH (BLE)</option>
+          <option value="WEBSERIAL">WEB SERIAL (browser USB)</option>
+          <option value="MQTT">MQTT (broker bridge) 📡</option>
+          <option value="MESHCORE">MESHCORE ⬡</option>
+        </select>
+      </div>
+      <div id="slot-grp-TCP" style="display:flex;flex-direction:column;gap:12px;">
+        <div class="g2">
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">HOST / IP</div>
+            <input class="inp inp-mono" id="slot-add-host" placeholder="192.168.1.51" style="width:100%;box-sizing:border-box;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">PORT</div>
+            <input class="inp inp-mono" type="number" id="slot-add-port" value="4403" style="width:100%;box-sizing:border-box;">
+          </div>
+        </div>
+      </div>
+      <div id="slot-grp-SERIAL" style="display:none;">
+        <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">SERIAL PORT</div>
+        <input class="inp inp-mono" id="slot-add-serial" placeholder="/dev/ttyACM1 or COM4" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div id="slot-grp-BLE" style="display:none;">
+        <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">MAC ADDRESS</div>
+        <input class="inp inp-mono" id="slot-add-ble" placeholder="AA:BB:CC:11:22:33" style="width:100%;box-sizing:border-box;">
+      </div>
+      <div id="slot-grp-WEBSERIAL" style="display:none;background:rgba(0,200,245,0.05);border:1px solid rgba(0,200,245,0.18);border-radius:5px;padding:12px;font-size:10px;color:var(--txt2);line-height:1.7;font-family:var(--mono);">
+        Web Serial slots are browser-direct. After creating the slot, use the WEB SERIAL topbar button and specify the slot ID to connect.
+      </div>
+      <!-- MQTT fields for Add Radio modal -->
+      <div id="slot-grp-MQTT" style="display:none;flex-direction:column;gap:12px;">
+        <div>
+          <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">BROKER PRESET</div>
+          <select class="inp mono" id="slot-add-mqtt-preset" onchange="_slotMqttApplyPreset(this.value)" style="width:100%;box-sizing:border-box;">
+            <option value="meshtastic_public">🌐 Meshtastic Public (mqtt.meshtastic.org)</option>
+            <option value="meshtastic_public_tls">🔒 Meshtastic Public TLS (port 8883)</option>
+            <option value="custom">⚙️ Custom Broker</option>
+          </select>
+        </div>
+        <div class="g2">
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">BROKER HOST</div>
+            <input class="inp inp-mono" list="mqtt-broker-list" id="slot-add-mqtt-broker" placeholder="e.g. mqtt.meshtastic.org" value="mqtt.meshtastic.org" style="width:100%;box-sizing:border-box;">
+            <datalist id="mqtt-broker-list">
+              <option value="mqtt.meshtastic.org">Meshtastic Public</option>
+              <option value="mqtt.bayme.sh">Bay Area Mesh</option>
+              <option value="mqtt.austinmesh.org">Austin Mesh</option>
+              <option value="mqtt.chicagomesh.org">Chicago Mesh</option>
+              <option value="192.168.1.50">Local Network (Custom)</option>
+              <option value="localhost">Localhost</option>
+            </datalist>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">PORT</div>
+            <input class="inp inp-mono" type="number" id="slot-add-mqtt-port" value="1883" style="width:100%;box-sizing:border-box;">
+          </div>
+        </div>
+        <div class="g2">
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">USERNAME</div>
+            <input class="inp inp-mono" id="slot-add-mqtt-user" value="meshdev" style="width:100%;box-sizing:border-box;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">PASSWORD</div>
+            <input class="inp inp-mono" type="password" id="slot-add-mqtt-pass" value="large4cats" style="width:100%;box-sizing:border-box;">
+          </div>
+        </div>
+        <div class="g2">
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">REGION <span style="color:var(--txt3);font-weight:400">(e.g. EU_868)</span></div>
+            <input class="inp inp-mono" list="mqtt-region-list" id="slot-add-mqtt-region" placeholder="EU_868" value="EU_868" style="width:100%;box-sizing:border-box;">
+            <datalist id="mqtt-region-list">
+              <option value="#"># (All Regions)</option>
+              <option value="US_915">US_915</option>
+              <option value="EU_868">EU_868</option>
+              <option value="EU_433">EU_433</option>
+              <option value="CN_470">CN_470</option>
+              <option value="JP_433">JP_433</option>
+              <option value="ANZ_919">ANZ_919</option>
+              <option value="KR_920">KR_920</option>
+              <option value="TW_920">TW_920</option>
+              <option value="RU_920">RU_920</option>
+              <option value="IN_866">IN_866</option>
+              <option value="NZ_915">NZ_915</option>
+              <option value="TH_920">TH_920</option>
+              <option value="LORA_24">LORA_24</option>
+              <option value="UA_868">UA_868</option>
+            </datalist>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">CHANNEL <span style="color:var(--txt3);font-weight:400">(e.g. LongFast)</span></div>
+            <input class="inp inp-mono" list="mqtt-channel-list" id="slot-add-mqtt-channel" placeholder="LongFast or # (all)" value="#" style="width:100%;box-sizing:border-box;">
+            <datalist id="mqtt-channel-list">
+              <option value="#"># (All Channels)</option>
+              <option value="LongFast">LongFast</option>
+              <option value="LongSlow">LongSlow</option>
+              <option value="MedFast">MedFast</option>
+              <option value="MedSlow">MedSlow</option>
+              <option value="ShortFast">ShortFast</option>
+              <option value="ShortSlow">ShortSlow</option>
+              <option value="VeryLongSlow">VeryLongSlow</option>
+            </datalist>
+          </div>
+        </div>
+        <div class="g2">
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">MY NODE ID <span style="color:var(--txt3);font-weight:400">(optional)</span></div>
+            <input class="inp inp-mono" id="slot-add-mqtt-nodeid" placeholder="!aabbccdd" style="width:100%;box-sizing:border-box;">
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;padding-top:22px;">
+            <label class="tog"><input type="checkbox" id="slot-add-mqtt-tls"><span class="tog-sl"></span></label>
+            <span style="font-size:10px;color:var(--txt2);font-family:var(--mono);">TLS/SSL</span>
+          </div>
+        </div>
+        
+        <div style="border-top:1px solid var(--bd2); margin-top:4px; padding-top:16px;">
+          <div style="font-size:10px;color:var(--warn);margin-bottom:8px;font-weight:800;letter-spacing:1px;"><i class="fas fa-filter"></i> PUBLIC NETWORK FILTERS</div>
+          
+          <div style="background:rgba(255,168,38,0.1); border:1px solid rgba(255,168,38,0.3); border-radius:5px; padding:10px; font-size:9px; color:var(--warn); font-family:var(--mono); margin-bottom:12px; line-height:1.5;">
+            <b>Why use filters?</b> Public MQTT brokers broadcast thousands of packets per minute. To prevent browser lockups and database bloating, we highly recommend filtering out background noise (like telemetry and encrypted packets you can't read).
+          </div>
+          
+          <div style="margin-bottom:12px;">
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">FILTER PRESET</div>
+            <select class="inp mono" id="slot-add-mqtt-filter-preset" onchange="_slotMqttApplyFilterPreset(this.value)" style="width:100%;box-sizing:border-box;">
+              <option value="max">Maximum (Text Messages Only) — LEAST DATA</option>
+              <option value="standard" selected>Standard (Messages, Positions, NodeInfo) — RECOMMENDED</option>
+              <option value="minimal">Minimal (Keep Telemetry & Routing) — HEAVY DATA</option>
+              <option value="none">No Filters (Raw Firehose) — NOT RECOMMENDED</option>
+              <option value="custom">Custom Selection</option>
+            </select>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--txt2);font-family:var(--mono);cursor:pointer;">
+              <input type="checkbox" id="slot-add-mqtt-drop-telemetry" checked onchange="document.getElementById('slot-add-mqtt-filter-preset').value='custom'"> DROP TELEMETRY
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--txt2);font-family:var(--mono);cursor:pointer;">
+              <input type="checkbox" id="slot-add-mqtt-drop-neighbor" checked onchange="document.getElementById('slot-add-mqtt-filter-preset').value='custom'"> DROP NEIGHBORS
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--txt2);font-family:var(--mono);cursor:pointer;">
+              <input type="checkbox" id="slot-add-mqtt-drop-position" onchange="document.getElementById('slot-add-mqtt-filter-preset').value='custom'"> DROP POSITIONS
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--txt2);font-family:var(--mono);cursor:pointer;">
+              <input type="checkbox" id="slot-add-mqtt-drop-nodeinfo" onchange="document.getElementById('slot-add-mqtt-filter-preset').value='custom'"> DROP NODE INFO
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--warn);font-family:var(--mono);cursor:pointer;" title="Drops packets for channels you don't have the key for">
+              <input type="checkbox" id="slot-add-mqtt-drop-encrypted" checked onchange="document.getElementById('slot-add-mqtt-filter-preset').value='custom'"> DROP ENCRYPTED
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:10px;color:var(--txt2);font-family:var(--mono);cursor:pointer;">
+              <input type="checkbox" id="slot-add-mqtt-drop-routing" checked onchange="document.getElementById('slot-add-mqtt-filter-preset').value='custom'"> DROP ROUTING
+            </label>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- MeshCore fields for Add Radio modal -->
+      <div id="slot-grp-MESHCORE" style="display:none;flex-direction:column;gap:12px;">
+
+        <!-- Beta banner -->
+        <div style="background:rgba(255,168,38,0.08);border:1px solid rgba(255,168,38,0.5);border-radius:5px;padding:12px 14px;font-size:10px;font-family:var(--mono);line-height:1.8;">
+          <div style="color:#ffa826;font-weight:800;font-size:11px;letter-spacing:1px;margin-bottom:6px;">
+            ⚠ MESHCORE SUPPORT — BETA
+          </div>
+          <div style="color:var(--txt2);">
+            MeshCore is a separate mesh protocol from Meshtastic. MeshDash integrates it
+            via the <b style="color:var(--txt);">meshcore</b> Python library over Serial, TCP, or BLE.
+            This integration is in active development. <b style="color:#ffa826;">Please read the
+            capability and limitation notes below before connecting.</b>
+          </div>
+        </div>
+
+        <!-- What works -->
+        <div style="background:rgba(0,232,122,0.05);border:1px solid rgba(0,232,122,0.2);border-radius:5px;padding:12px 14px;font-size:10px;font-family:var(--mono);line-height:1.9;">
+          <div style="color:#00e87a;font-weight:700;margin-bottom:6px;">✓ WHAT WORKS</div>
+          <div style="color:var(--txt2);">
+            <span style="color:var(--ok);">●</span> <b>Receive channel messages</b> — all channels (0–7), displayed in the Channels view<br>
+            <span style="color:var(--ok);">●</span> <b>Receive direct messages</b> — DMs to your node appear in the DMs view<br>
+            <span style="color:var(--ok);">●</span> <b>Send channel broadcasts</b> — BROADCAST button works on all configured channels<br>
+            <span style="color:var(--ok);">●</span> <b>Send DMs</b> — to any node that has been seen via advertisement or contacts list<br>
+            <span style="color:var(--ok);">●</span> <b>Node discovery</b> — advertisements populate the node list and map<br>
+            <span style="color:var(--ok);">●</span> <b>GPS / map plotting</b> — nodes with location data appear on the map<br>
+            <span style="color:var(--ok);">●</span> <b>Battery &amp; telemetry</b> — battery level, voltage, uptime, noise floor displayed in overview<br>
+            <span style="color:var(--ok);">●</span> <b>Firmware &amp; radio info</b> — firmware version, frequency, bandwidth, spreading factor displayed<br>
+            <span style="color:var(--ok);">●</span> <b>Packet statistics</b> — RX/TX counts (flood vs direct) shown in analytics panel<br>
+            <span style="color:var(--ok);">●</span> <b>ACK delivery tracking</b> — tick marks update to delivered on DMs<br>
+            <span style="color:var(--ok);">●</span> <b>Auto-advertisement</b> — MeshDash announces your node on connect and every 10 min so others can reach you<br>
+            <span style="color:var(--ok);">●</span> <b>SNR/RSSI per-hop data</b> — RX_LOG events correlated to messages, attached to packet log entries<br>
+            <span style="color:var(--ok);">●</span> <b>Path / traceroute data</b> — PATH_UPDATE events translated to traceroute packets<br>
+            <span style="color:var(--ok);">●</span> <b>Multi-slot</b> — add multiple MeshCore nodes alongside Meshtastic and MQTT slots<br>
+            <span style="color:var(--ok);">●</span> <b>Auto-reconnect</b> — exponential backoff reconnection on disconnect<br>
+            <span style="color:var(--ok);">●</span> <b>Queued message replay</b> — messages stored on radio while disconnected are delivered on reconnect<br>
+            <span style="color:var(--ok);">●</span> <b>Scheduler &amp; auto-reply</b> — scheduled messages and auto-replies work correctly via MeshCore sendText
+          </div>
+        </div>
+
+        <!-- Known limitations -->
+        <div style="background:rgba(255,48,80,0.05);border:1px solid rgba(255,48,80,0.2);border-radius:5px;padding:12px 14px;font-size:10px;font-family:var(--mono);line-height:1.9;">
+          <div style="color:var(--err);font-weight:700;margin-bottom:6px;">✗ KNOWN LIMITATIONS</div>
+          <div style="color:var(--txt2);">
+            <span style="color:var(--err);">●</span> <b>DMs to completely unknown nodes may fail</b> — a node must have advertised at least once
+            while you were connected for its public key to be known. MeshDash mitigates this by broadcasting
+            your own advertisement on connect and every 10 minutes, so remote nodes automatically add
+            you to their contact list. Nodes that are offline and have never been seen cannot be reached.<br>
+
+            <span style="color:var(--err);">●</span> <b>Channel messages may not arrive on some firmware versions</b> — a confirmed bug in
+            nRF52840 Companion USB firmware v1.11.x causes <code>CHANNEL_MSG_RECV</code> events to not fire
+            from external devices. MeshDash works around this with a periodic
+            <code>get_msg()</code> fallback poll, but reception may still be unreliable on affected hardware.
+            Upgrade to the latest MeshCore firmware to resolve this.<br>
+
+            <span style="color:var(--err);">●</span> <b>Channel sender names anonymous on pre-V3 firmware</b> — older firmware embeds the
+            sender name as <code>"Name: message body"</code> in the text. MeshDash attempts to resolve
+            the sender via case-insensitive contact lookup; if no match is found, the sender appears
+            as a stable anonymous node per channel. V3 firmware sends the pubkey prefix directly and
+            resolves correctly.<br>
+
+            <span style="color:var(--err);">●</span> <b>No node-to-node DM interception (by design)</b> — unlike MQTT observer mode,
+            MeshCore companion radio connections only see messages addressed to or from your node.
+            Traffic between other nodes is not visible unless relayed through your radio. This is a
+            fundamental MeshCore protocol design decision, not a MeshDash limitation.<br>
+
+            <span style="color:var(--err);">●</span> <b>Device contact list is finite</b> — MeshCore radios store 50–350 contacts depending
+            on firmware version. Once full, new nodes cannot be added until old ones are pruned.
+            MeshDash cannot currently manage the device contact list (add/remove contacts).<br>
+
+            <span style="color:var(--err);">●</span> <b>Node IDs are 12 hex chars, not 8</b> — MeshCore identifies nodes by a 6-byte
+            public key prefix, displayed as <code style="color:var(--acc);">!a1b2c3d4e5f6</code>.
+            Meshtastic uses 8-char IDs. Cross-protocol DMs (Meshtastic ↔ MeshCore) are not supported —
+            they use incompatible key systems.<br>
+
+            <span style="color:var(--err);">●</span> <b>BLE transport is experimental</b> — BLE pairing behaviour varies by OS.
+            Linux requires prior device pairing via <code>bluetoothctl</code> before connecting.
+            macOS handles pairing via the system Bluetooth UI. BLE proxy connections do not support
+            PIN pairing. Range and stability depend on host Bluetooth hardware quality.<br>
+
+            <span style="color:var(--err);">●</span> <b>Serial on pseudo-ttys (socat) fails</b> — the MeshCore library sets RTS/DTR signals
+            on connect. Socat pseudo-ttys do not support hardware flow control ioctls and will error.
+            Use a real USB serial adapter (<code>/dev/ttyUSB0</code>, <code>/dev/ttyACM0</code>,
+            <code>COM3</code>). All genuine MeshCore hardware (Heltec, LilyGO, RAK) works correctly.<br>
+
+            <span style="color:var(--err);">●</span> <b>Admin commands not yet exposed in UI</b> — the MeshCore protocol supports remote
+            admin (login, radio config, set name/coords, reboot) via the library. MeshDash does not yet
+            expose these in the interface. MeshMonitor has this feature; it is on the MeshDash roadmap.
+          </div>
+        </div>
+
+        <!-- Transport selector -->
+        <div>
+          <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">TRANSPORT</div>
+          <select class="inp mono" id="slot-add-mc-transport" onchange="window._mcToggleTransport()" style="width:100%;box-sizing:border-box;">
+            <option value="serial">📟 Serial (USB) — recommended</option>
+            <option value="tcp">🌐 TCP / Network</option>
+            <option value="ble">📶 Bluetooth (BLE) — experimental</option>
+          </select>
+        </div>
+
+        <!-- Serial sub-fields -->
+        <div id="slot-mc-grp-serial" style="display:flex;flex-direction:column;gap:12px;">
+          <div class="g2">
+            <div>
+              <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">SERIAL PORT</div>
+              <input class="inp inp-mono" id="slot-add-mc-serial" placeholder="/dev/ttyUSB0 or COM3" style="width:100%;box-sizing:border-box;">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">BAUD RATE</div>
+              <input class="inp inp-mono" type="number" id="slot-add-mc-baud" value="115200" style="width:100%;box-sizing:border-box;">
+            </div>
+          </div>
+        </div>
+
+        <!-- TCP sub-fields -->
+        <div id="slot-mc-grp-tcp" style="display:none;flex-direction:column;gap:12px;">
+          <div class="g2">
+            <div>
+              <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">HOST / IP</div>
+              <input class="inp inp-mono" id="slot-add-mc-host" placeholder="192.168.1.100" style="width:100%;box-sizing:border-box;">
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">PORT</div>
+              <input class="inp inp-mono" type="number" id="slot-add-mc-port" value="4000" style="width:100%;box-sizing:border-box;">
+            </div>
+          </div>
+        </div>
+
+        <!-- BLE sub-fields -->
+        <div id="slot-mc-grp-ble" style="display:none;flex-direction:column;gap:12px;">
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">MAC ADDRESS <span style="color:var(--txt3);font-weight:400;">(leave blank to scan)</span></div>
+            <input class="inp inp-mono" id="slot-add-mc-ble-mac" placeholder="12:34:56:78:90:AB (optional)" style="width:100%;box-sizing:border-box;">
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--txt3);margin-bottom:6px;font-weight:700">PIN <span style="color:var(--txt3);font-weight:400;">(optional — leave blank if not set)</span></div>
+            <input class="inp inp-mono" id="slot-add-mc-ble-pin" placeholder="e.g. 123456" style="width:100%;box-sizing:border-box;">
+          </div>
+        </div>
+      </div>
+
+      <div id="slot-add-error" style="display:none;background:rgba(255,48,80,.1);border:1px solid rgba(255,48,80,.3);color:var(--err);padding:10px 12px;border-radius:5px;font-size:10px;font-family:var(--mono);"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--bd2);">
+      <button class="btn" onclick="slotCloseAddModal()">CANCEL</button>
+      <button class="btn btn-acc" id="slot-add-submit" onclick="slotSubmitAdd()">
+        <i class="fas fa-plug" style="margin-right:6px;"></i>CONNECT RADIO
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.slot-row {
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:12px 18px;
+    border-bottom:1px solid var(--bd2);
+    transition:background .15s;
+}
+.slot-row:last-child { border-bottom:none; }
+.slot-row:hover { background:rgba(0,200,245,.04); }
+.slot-dot {
+    width:8px;height:8px;border-radius:50%;flex-shrink:0;
+    transition:background .3s;
+}
+.slot-dot.connected   { background:#00e87a;box-shadow:0 0 6px #00e87a88; }
+.slot-dot.connecting  { background:#ffa826;animation:_slot-blink 1s infinite; }
+.slot-dot.disconnected{ background:var(--txt3); }
+@keyframes _slot-blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+.slot-meta { flex:1;min-width:0; }
+.slot-label { font-size:12px;font-weight:700;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.slot-sub   { font-size:9px;color:var(--txt3);font-family:var(--mono);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+.slot-badge {
+    font-size:8px;font-family:var(--mono);font-weight:700;
+    padding:2px 7px;border-radius:3px;letter-spacing:.5px;white-space:nowrap;
+}
+.slot-badge-primary { background:rgba(0,200,245,.15);color:var(--acc);border:1px solid rgba(0,200,245,.3); }
+.slot-badge-tcp     { background:rgba(176,96,255,.12);color:#b060ff;border:1px solid rgba(176,96,255,.3); }
+.slot-badge-serial  { background:rgba(255,168,38,.12);color:var(--warn);border:1px solid rgba(255,168,38,.3); }
+.slot-badge-ble     { background:rgba(70,240,240,.1);color:#46f0f0;border:1px solid rgba(70,240,240,.25); }
+.slot-badge-webserial{ background:rgba(0,232,122,.1);color:var(--ok);border:1px solid rgba(0,232,122,.25); }
+.slot-badge-mqtt    { background:rgba(0,200,245,.15);color:var(--acc);border:1px solid rgba(0,200,245,.35); }
+.slot-stat { font-size:9px;font-family:var(--mono);color:var(--txt3);white-space:nowrap; }
+.slot-stat strong { color:var(--txt2); }
+.slot-active-indicator {
+    font-size:8px;font-family:var(--mono);font-weight:800;
+    padding:2px 8px;border-radius:3px;
+    background:rgba(0,232,122,.15);color:var(--ok);border:1px solid rgba(0,232,122,.3);
+    letter-spacing:.5px;
+}
+</style>
+
+<style>
+/* ── Settings Mobile Responsive ── */
+@media (max-width: 640px) {
+    /* Header row */
+    .vs > .ch { flex-wrap: wrap; gap: 8px; padding: 10px 12px !important; }
+    .vs > .ch > div:last-child { margin-left: 0; width: 100%; display: flex; gap: 6px; }
+    .vs > .ch > div:last-child > button { flex: 1; }
+
+    /* Cards: reduce padding */
+    .vs .card { margin-bottom: 8px !important; }
+    .vs .ch { padding: 10px 12px !important; }
+    .vs .cb { padding: 10px 12px !important; }
+
+    /* g2 grids stack */
+    .vs .g2 { grid-template-columns: 1fr !important; }
+
+    /* Toggle switches: min 44px touch target */
+    .tog { width: 48px; height: 26px; }
+    .tog-sl::after { width: 18px; height: 18px; top: 4px; left: 4px; }
+    .tog input:checked + .tog-sl::after { transform: translateX(22px); }
+
+    /* Inputs and selects */
+    .vs .inp { font-size: 14px !important; min-height: 40px; }
+    .vs select.inp { min-height: 40px; }
+
+    /* Privacy toggles: full width */
+    .vs .cb > div[style*="display:flex;justify-content:space-between"],
+    .vs .cb > div[style*="display: flex; justify-content: space-between"] { flex-direction: row; align-items: center; gap: 10px; }
+
+    /* Slot rows in add modal: make them wrap */
+    .slot-row { flex-wrap: wrap; gap: 6px; padding: 8px 12px; }
+    .slot-meta { min-width: auto; }
+    .slot-badge, .slot-active-indicator { font-size: 7px; padding: 1px 5px; }
+    .slot-stat { font-size: 8px; }
+
+    /* Add radio modal: full width */
+    #slot-add-modal > div { width: 100% !important; max-width: 100vw !important; border-radius: 0 !important; max-height: 100vh !important; }
+    #slot-add-modal > div > div:last-child { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+    .vs > .ch > div:first-child > span { font-size: 13px !important; }
+    .vs .cb { padding: 8px 10px !important; }
+    .slot-row { padding: 6px 10px; }
+    .slot-label { font-size: 11px; }
+    .slot-sub { font-size: 8px; }
+}
+</style>
+
+<script>
+/* ── Slot state ── */
+var _slots = {};
+var _activeSlotId = window._activeSlotId || 'node_0';
+
+/* ── MQTT preset data ── */
+var _MQTT_PRESETS = {
+    meshtastic_public: {
+        broker: 'mqtt.meshtastic.org', port: 1883,
+        username: 'meshdev', password: 'large4cats', tls: false,
+        region: 'EU_868',
+    },
+    meshtastic_public_tls: {
+        broker: 'mqtt.meshtastic.org', port: 8883,
+        username: 'meshdev', password: 'large4cats', tls: true,
+        region: 'EU_868',
+    },
+    custom: { broker: '', port: 1883, username: '', password: '', tls: false, region: '' },
+};
+
+/* Apply a preset to the primary-radio MQTT fields */
+window._mqttApplyPreset = function(preset) {
+    var p = _MQTT_PRESETS[preset] || _MQTT_PRESETS.meshtastic_public;
+    var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+    var setChk = function(id, v) { var el = document.getElementById(id); if (el) el.checked = !!v; };
+    set('MQTT_BROKER', p.broker);
+    set('MQTT_PORT', p.port);
+    set('MQTT_USERNAME', p.username);
+    set('MQTT_PASSWORD', p.password);
+    setChk('MQTT_TLS', p.tls);
+    set('MQTT_REGION', p.region || 'EU_868');
+};
+
+/* Apply a preset to the Add Radio modal MQTT fields */
+window._slotMqttApplyPreset = function(preset) {
+    var p = _MQTT_PRESETS[preset] || _MQTT_PRESETS.meshtastic_public;
+    var set = function(id, v) { var el = document.getElementById(id); if (el) el.value = v; };
+    var setChk = function(id, v) { var el = document.getElementById(id); if (el) el.checked = !!v; };
+    set('slot-add-mqtt-broker', p.broker);
+    set('slot-add-mqtt-port', p.port);
+    set('slot-add-mqtt-user', p.username);
+    set('slot-add-mqtt-pass', p.password);
+    setChk('slot-add-mqtt-tls', p.tls);
+    set('slot-add-mqtt-region', p.region || 'EU_868');
+};
+
+/* Apply a filter preset to the Add Radio modal */
+window._slotMqttApplyFilterPreset = function(preset) {
+    var setChk = function(id, v) { var el = document.getElementById(id); if (el) el.checked = !!v; };
+    if (preset === 'max') {
+        setChk('slot-add-mqtt-drop-telemetry', true);
+        setChk('slot-add-mqtt-drop-neighbor', true);
+        setChk('slot-add-mqtt-drop-position', true);
+        setChk('slot-add-mqtt-drop-nodeinfo', true);
+        setChk('slot-add-mqtt-drop-encrypted', true);
+        setChk('slot-add-mqtt-drop-routing', true);
+    } else if (preset === 'standard') {
+        setChk('slot-add-mqtt-drop-telemetry', true);
+        setChk('slot-add-mqtt-drop-neighbor', true);
+        setChk('slot-add-mqtt-drop-position', false);
+        setChk('slot-add-mqtt-drop-nodeinfo', false);
+        setChk('slot-add-mqtt-drop-encrypted', true);
+        setChk('slot-add-mqtt-drop-routing', true);
+    } else if (preset === 'minimal') {
+        setChk('slot-add-mqtt-drop-telemetry', false);
+        setChk('slot-add-mqtt-drop-neighbor', true); // Neighbors are massive, still drop
+        setChk('slot-add-mqtt-drop-position', false);
+        setChk('slot-add-mqtt-drop-nodeinfo', false);
+        setChk('slot-add-mqtt-drop-encrypted', true);
+        setChk('slot-add-mqtt-drop-routing', false);
+    } else if (preset === 'none') {
+        setChk('slot-add-mqtt-drop-telemetry', false);
+        setChk('slot-add-mqtt-drop-neighbor', false);
+        setChk('slot-add-mqtt-drop-position', false);
+        setChk('slot-add-mqtt-drop-nodeinfo', false);
+        setChk('slot-add-mqtt-drop-encrypted', false);
+        setChk('slot-add-mqtt-drop-routing', false);
+    }
+};
+
+/* ── Refresh slot list ── */
+window.slotRefresh = async function slotRefresh() {
+    try {
+        const r = await fetch('/api/slots', { cache: 'no-store' });
+        if (!r.ok) return;
+        _slots = await r.json();
+        slotRender();
+    } catch (e) {}
+}
+
+window.slotRender = function slotRender() {
+    const container = document.getElementById('slot-list-container');
+    const badge     = document.getElementById('slot-count-badge');
+    if (!container) return;
+
+    const ids = Object.keys(_slots);
+    if (badge) badge.textContent = ids.length + (ids.length === 1 ? ' slot' : ' slots');
+
+    if (!ids.length) {
+        container.innerHTML = '<div style="text-align:center;padding:32px;color:var(--txt3);font-family:var(--mono);font-size:10px;"><i class="fas fa-satellite-dish" style="font-size:22px;color:var(--bd2);margin-bottom:10px;display:block;"></i>No radios configured.</div>';
+        return;
+    }
+
+    container.innerHTML = ids.map(sid => {
+        const s      = _slots[sid];
+        const isPrim = sid === 'node_0';
+        const isAct  = sid === _activeSlotId;
+        const st     = (s.connection_status || '').toLowerCase();
+        const dotCls = s.is_ready ? 'connected' : (st.includes('init') || st.includes('connect') ? 'connecting' : 'disconnected');
+
+        var proto = (s.connection_type || 'TCP').toUpperCase();
+        const badgeClass = 'slot-badge slot-badge-' + proto.toLowerCase();
+
+        // DB size display for non-primary slots
+        var dbTxt = '';
+        if (!isPrim && s.db_size_mb != null) {
+            dbTxt = s.db_size_mb >= 0.1
+                ? s.db_size_mb.toFixed(1) + ' MB'
+                : (Math.round((s.db_size_mb * 1024))) + ' KB';
+            dbTxt = '<div class="slot-stat" title="Database size on disk"><strong>' + dbTxt + '</strong> db</div>';
+        }
+
+        return '<div class="slot-row" data-slot-id="' + sid + '">' +
+            '<div class="slot-dot ' + dotCls + '"></div>' +
+            '<div class="slot-meta">' +
+                '<div class="slot-label">' + window.escapeHtml(s.label || sid) + '</div>' +
+                '<div class="slot-sub">' + window.escapeHtml(sid) +
+                    (s.local_node_id ? ' · ' + window.escapeHtml(s.local_node_id) : '') +
+                    (proto === 'MQTT' ? ' · 📡 MQTT' : '') +
+                    (proto === 'MESHCORE' ? ' · ⬡ MeshCore' : '') +
+                '</div>' +
+            '</div>' +
+            '<span class="' + badgeClass + '">' + proto + '</span>' +
+            (isPrim ? '<span class="slot-badge slot-badge-primary">PRIMARY</span>' : '') +
+            (isAct  ? '<span class="slot-active-indicator">● ACTIVE</span>' : '') +
+            '<div class="slot-stat"><strong>' + (s.node_count || 0) + '</strong> nodes</div>' +
+            '<div class="slot-stat"><strong>' + (s.packets_session || 0) + '</strong> pkts</div>' +
+            dbTxt +
+            (!isAct ? '<button class="btn btn-sm" style="font-size:9px;padding:3px 10px;" onclick="slotActivate(\'' + sid + '\')" title="Switch dashboard to this radio">SELECT</button>' : '') +
+            (!isPrim ? '<button class="btn btn-sm btn-err" style="font-size:9px;padding:3px 8px;min-width:auto;" onclick="slotConfirmRemove(\'' + sid + '\')" title="Remove this radio slot">✕</button>' : '') +
+        '</div>';
+    }).join('');
+}
+
+window.slotActivate = function(slotId) {
+    if (!_slots[slotId]) return;
+    _activeSlotId = slotId;
+    window._activeSlotId = slotId;
+
+    window.meshState.nodes   = {};
+    window.meshState.packets = [];
+    window.meshState.stats   = {};
+    window.meshState.local_node_id = null;
+
+    if (typeof window._sseSetSlot === 'function') {
+        window._sseSetSlot(slotId);
+    }
+
+    window.triggerToast('Switched to: ' + (_slots[slotId].label || slotId), 'ok');
+    slotRender();
+
+    if (window.meshState.currentView === 'overview' && typeof window.initOverviewCharts === 'function') {
+        setTimeout(() => { try { window.initOverviewCharts(); } catch (e) {} }, 300);
+    }
+};
+
+/* ── Confirm + remove ── */
+window.slotConfirmRemove = async function(slotId) {
+    const s = _slots[slotId];
+    if (!s) return;
+
+    // Fetch DB info so we can show size to the user
+    let dbInfo = null;
+    try {
+        const r = await fetch('/api/slots/' + slotId + '/db_info');
+        if (r.ok) dbInfo = await r.json();
+    } catch (_) {}
+
+    const label = window.escapeHtml(s.label || slotId);
+    const connType = (s.connection_type || 'Unknown').toUpperCase();
+    const sizeTxt = dbInfo && dbInfo.exists
+        ? (dbInfo.size_mb >= 0.1
+            ? dbInfo.size_mb.toFixed(1) + ' MB'
+            : (dbInfo.size_bytes / 1024).toFixed(0) + ' KB')
+        : 'not found on disk';
+
+    // Build the modal DOM directly — showModal doesn't support two action buttons with different styles
+    const existing = document.getElementById('_slot-remove-modal');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = '_slot-remove-modal';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+    overlay.innerHTML = `
+    <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:8px;padding:0;min-width:auto;max-width:520px;width:90vw;box-shadow:0 8px 40px rgba(0,0,0,.5);font-family:var(--mono);">
+      <!-- Header -->
+      <div style="padding:18px 20px 14px;border-bottom:1px solid var(--bd2);">
+        <div style="font-size:11px;font-weight:800;letter-spacing:1px;color:var(--err);">⚠ REMOVE RADIO</div>
+        <div style="margin-top:6px;font-size:13px;font-weight:700;color:var(--txt);">${label}</div>
+        <div style="font-size:10px;color:var(--txt3);margin-top:2px;">${connType} · Database: ${sizeTxt}</div>
+      </div>
+      <!-- Option A: Keep DB -->
+      <div style="padding:14px 20px;border-bottom:1px solid var(--bd2);">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="flex:1;">
+            <div style="font-size:10px;font-weight:700;color:var(--txt);margin-bottom:4px;">KEEP HISTORY</div>
+            <div style="font-size:9px;color:var(--txt2);line-height:1.6;">
+              Disconnects and removes the slot. The database file stays on disk.<br>
+              If you reconnect the same radio later, its message and node history will be preserved.
+            </div>
+          </div>
+          <button id="_rm-keep-btn" style="flex-shrink:0;padding:6px 14px;font-size:9px;font-weight:700;letter-spacing:.5px;border-radius:4px;border:1px solid var(--bd2);background:var(--bg3);color:var(--txt);cursor:pointer;">
+            KEEP &amp; REMOVE
+          </button>
+        </div>
+      </div>
+      <!-- Option B: Delete DB -->
+      <div style="padding:14px 20px;background:rgba(255,48,80,0.04);">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="flex:1;">
+            <div style="font-size:10px;font-weight:700;color:var(--err);margin-bottom:4px;">DELETE DATABASE <span style="font-weight:400;color:var(--txt3);">— PERMANENT</span></div>
+            <div style="font-size:9px;color:var(--txt2);line-height:1.6;">
+              Disconnects the slot <b>and permanently deletes</b> its database.<br>
+              All messages, nodes, positions, and telemetry for this radio are gone.<br>
+              <span style="color:var(--err);">This cannot be undone.</span>
+            </div>
+          </div>
+          <button id="_rm-del-btn" style="flex-shrink:0;padding:6px 14px;font-size:9px;font-weight:700;letter-spacing:.5px;border-radius:4px;border:1px solid rgba(255,48,80,.4);background:rgba(255,48,80,.12);color:var(--err);cursor:pointer;">
+            DELETE &amp; REMOVE
+          </button>
+        </div>
+      </div>
+      <!-- Cancel -->
+      <div style="padding:12px 20px;border-top:1px solid var(--bd2);display:flex;justify-content:flex-end;">
+        <button id="_rm-cancel-btn" style="padding:6px 16px;font-size:9px;font-weight:700;letter-spacing:.5px;border-radius:4px;border:1px solid var(--bd2);background:transparent;color:var(--txt2);cursor:pointer;">CANCEL</button>
+      </div>
+    </div>`;
+
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    overlay.querySelector('#_rm-cancel-btn').onclick = close;
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    overlay.querySelector('#_rm-keep-btn').onclick = async () => {
+        close();
+        await slotRemove(slotId, false);
+    };
+
+    overlay.querySelector('#_rm-del-btn').onclick = async () => {
+        // Second confirmation for the destructive path
+        const btn = overlay.querySelector('#_rm-del-btn');
+        if (btn.dataset.confirmed !== '1') {
+            btn.textContent = 'CONFIRM DELETE';
+            btn.dataset.confirmed = '1';
+            btn.style.background = 'rgba(255,48,80,.3)';
+            return;
+        }
+        close();
+        await slotRemove(slotId, true);
+    };
+};
+
+async function slotRemove(slotId, deleteDb) {
+    try {
+        const url = '/api/slots/' + slotId + (deleteDb ? '?delete_db=true' : '?delete_db=false');
+        const r = await fetch(url, { method: 'DELETE' });
+        if (r.ok) {
+            if (_activeSlotId === slotId) slotActivate('node_0');
+            window.triggerToast(
+                deleteDb ? 'Slot and database removed' : 'Slot removed (history kept)',
+                'ok'
+            );
+            await slotRefresh();
+        } else {
+            const d = await r.json().catch(() => ({}));
+            window.triggerToast('Remove failed: ' + (d.detail || r.status), 'err');
+        }
+    } catch (e) {
+        window.triggerToast('Network error removing slot', 'err');
+    }
+}
+
+/* ── Add modal ── */
+window.slotOpenAddModal = function() {
+    const m = document.getElementById('slot-add-modal');
+    if (m) { m.style.display = 'flex'; }
+    document.getElementById('slot-add-error').style.display = 'none';
+    document.getElementById('slot-add-label').value  = '';
+    document.getElementById('slot-add-host').value   = '';
+    document.getElementById('slot-add-port').value   = '4403';
+    document.getElementById('slot-add-serial').value = '';
+    document.getElementById('slot-add-ble').value    = '';
+    document.getElementById('slot-add-type').value   = 'TCP';
+    _slotMqttApplyPreset('meshtastic_public');
+    document.getElementById('slot-add-mqtt-region').value  = 'EU_868';
+    document.getElementById('slot-add-mqtt-channel').value = '#';
+    document.getElementById('slot-add-mqtt-nodeid').value  = '';
+    // Reset MeshCore fields
+    document.getElementById('slot-add-mc-transport').value = 'serial';
+    document.getElementById('slot-add-mc-serial').value    = '';
+    document.getElementById('slot-add-mc-baud').value      = '115200';
+    document.getElementById('slot-add-mc-host').value      = '';
+    document.getElementById('slot-add-mc-port').value      = '4000';
+    document.getElementById('slot-add-mc-ble-mac').value   = '';
+    document.getElementById('slot-add-mc-ble-pin').value   = '';
+    window._mcToggleTransport();
+    slotToggleAddFields();
+};
+
+window.slotCloseAddModal = function() {
+    const m = document.getElementById('slot-add-modal');
+    if (m) m.style.display = 'none';
+};
+
+window.slotToggleAddFields = function() {
+    var type = document.getElementById('slot-add-type')?.value || 'TCP';
+    document.getElementById('slot-grp-TCP').style.display        = type === 'TCP'       ? 'flex'  : 'none';
+    document.getElementById('slot-grp-SERIAL').style.display     = type === 'SERIAL'    ? 'block' : 'none';
+    document.getElementById('slot-grp-BLE').style.display        = type === 'BLE'       ? 'block' : 'none';
+    document.getElementById('slot-grp-WEBSERIAL').style.display  = type === 'WEBSERIAL' ? 'block' : 'none';
+    document.getElementById('slot-grp-MQTT').style.display       = type === 'MQTT'      ? 'flex'  : 'none';
+    document.getElementById('slot-grp-MESHCORE').style.display   = type === 'MESHCORE'  ? 'flex'  : 'none';
+    if (type === 'MESHCORE') window._mcToggleTransport();
+};
+
+window._mcToggleTransport = function() {
+    var t = document.getElementById('slot-add-mc-transport')?.value || 'serial';
+    document.getElementById('slot-mc-grp-serial').style.display = t === 'serial' ? 'flex' : 'none';
+    document.getElementById('slot-mc-grp-tcp').style.display    = t === 'tcp'    ? 'flex' : 'none';
+    document.getElementById('slot-mc-grp-ble').style.display    = t === 'ble'    ? 'flex' : 'none';
+};
+
+window.slotSubmitAdd = async function() {
+    const btn     = document.getElementById('slot-add-submit');
+    const errBox  = document.getElementById('slot-add-error');
+    const label   = document.getElementById('slot-add-label').value.trim() || 'Radio';
+    const type    = document.getElementById('slot-add-type').value;
+    const host    = document.getElementById('slot-add-host').value.trim();
+    const port    = parseInt(document.getElementById('slot-add-port').value) || 4403;
+    const serial  = document.getElementById('slot-add-serial').value.trim();
+    const ble     = document.getElementById('slot-add-ble').value.trim();
+
+    errBox.style.display = 'none';
+
+    // ── Validation ─────────────────────────────────────────────────────────
+    if (type === 'TCP' && !host) {
+        errBox.textContent = 'Host / IP is required for TCP connections.';
+        errBox.style.display = 'block'; return;
+    }
+    if (type === 'SERIAL' && !serial) {
+        errBox.textContent = 'Serial port path is required (e.g. /dev/ttyACM1).';
+        errBox.style.display = 'block'; return;
+    }
+    if (type === 'BLE' && !ble) {
+        errBox.textContent = 'MAC address is required for BLE connections.';
+        errBox.style.display = 'block'; return;
+    }
+    if (type === 'MQTT') {
+        const mqttBroker = document.getElementById('slot-add-mqtt-broker').value.trim();
+        if (!mqttBroker) {
+            errBox.textContent = 'Broker hostname is required for MQTT connections.';
+            errBox.style.display = 'block'; return;
+        }
+    }
+    if (type === 'MESHCORE') {
+        const mcTransport = document.getElementById('slot-add-mc-transport').value;
+        if (mcTransport === 'serial' && !document.getElementById('slot-add-mc-serial').value.trim()) {
+            errBox.textContent = 'Serial port is required for MeshCore serial connections (e.g. /dev/ttyUSB0).';
+            errBox.style.display = 'block'; return;
+        }
+        if (mcTransport === 'tcp' && !document.getElementById('slot-add-mc-host').value.trim()) {
+            errBox.textContent = 'Host / IP is required for MeshCore TCP connections.';
+            errBox.style.display = 'block'; return;
+        }
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="margin-right:6px;"></i>CONNECTING…';
+
+    // ── Build payload ───────────────────────────────────────────────────────
+    var payload = {
+        label:           label,
+        connection_type: type,
+        host:            host || null,
+        port:            port,
+        serial_port:     serial || null,
+        ble_mac:         ble || null,
+    };
+
+    if (type === 'MQTT') {
+        const preset = document.getElementById('slot-add-mqtt-preset').value;
+        payload.mqtt_preset   = preset;
+        payload.mqtt_broker   = document.getElementById('slot-add-mqtt-broker').value.trim()  || null;
+        payload.mqtt_port     = parseInt(document.getElementById('slot-add-mqtt-port').value) || 1883;
+        payload.mqtt_username = document.getElementById('slot-add-mqtt-user').value.trim()    || null;
+        payload.mqtt_password = document.getElementById('slot-add-mqtt-pass').value           || null;
+        payload.mqtt_tls      = document.getElementById('slot-add-mqtt-tls').checked;
+        payload.mqtt_region   = document.getElementById('slot-add-mqtt-region').value.trim()  || null;
+        payload.mqtt_channel  = document.getElementById('slot-add-mqtt-channel').value.trim() || null;
+        payload.mqtt_node_id  = document.getElementById('slot-add-mqtt-nodeid').value.trim()  || null;
+        
+        // Save the filters to the configuration
+        payload.mqtt_drop_telemetry = document.getElementById('slot-add-mqtt-drop-telemetry').checked;
+        payload.mqtt_drop_neighbor  = document.getElementById('slot-add-mqtt-drop-neighbor').checked;
+        payload.mqtt_drop_position  = document.getElementById('slot-add-mqtt-drop-position').checked;
+        payload.mqtt_drop_nodeinfo  = document.getElementById('slot-add-mqtt-drop-nodeinfo').checked;
+        payload.mqtt_drop_encrypted = document.getElementById('slot-add-mqtt-drop-encrypted').checked;
+        payload.mqtt_drop_routing   = document.getElementById('slot-add-mqtt-drop-routing').checked;
+    }
+
+    if (type === 'MESHCORE') {
+        const mcTransport = document.getElementById('slot-add-mc-transport').value;
+        payload.meshcore_transport = mcTransport;
+        if (mcTransport === 'serial') {
+            payload.meshcore_serial_port = document.getElementById('slot-add-mc-serial').value.trim() || null;
+            payload.meshcore_baud        = parseInt(document.getElementById('slot-add-mc-baud').value) || 115200;
+        } else if (mcTransport === 'tcp') {
+            payload.meshcore_host = document.getElementById('slot-add-mc-host').value.trim() || null;
+            payload.meshcore_port = parseInt(document.getElementById('slot-add-mc-port').value) || 4000;
+        } else if (mcTransport === 'ble') {
+            payload.meshcore_ble_mac = document.getElementById('slot-add-mc-ble-mac').value.trim() || null;
+            payload.meshcore_ble_pin = document.getElementById('slot-add-mc-ble-pin').value.trim() || null;
+        }
+    }
+
+    try {
+        const r   = await fetch('/api/slots', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(payload),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (r.ok) {
+            window.triggerToast('Radio added: ' + label, 'ok');
+            slotCloseAddModal();
+            await slotRefresh();
+        } else {
+            errBox.textContent = data.detail || ('Server error ' + r.status);
+            errBox.style.display = 'block';
+        }
+    } catch (e) {
+        errBox.textContent = 'Network error — is the server reachable?';
+        errBox.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-plug" style="margin-right:6px;"></i>CONNECT RADIO';
+    }
+};
+
+/* ── WebSerial settings group (existing logic preserved fully) ── */
+function _renderCompatBanner() {
+    const banner = document.getElementById('ws-compat-banner');
+    if (!banner) return;
+    const isHttps  = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    const isChrome = ('serial' in navigator) || (/Chrome|Edg/.test(navigator.userAgent) && !/Firefox/.test(navigator.userAgent));
+    const hasApi   = 'serial' in navigator;
+    const allOk    = isHttps && isChrome && hasApi;
+    const t = ok => '<span style="color:' + (ok ? 'var(--ok)' : 'var(--err)') + ';font-weight:800;">' + (ok ? '✓' : '✗') + '</span>';
+    banner.style.cssText = 'border-radius:5px;padding:12px 14px;font-size:10px;line-height:1.9;font-family:var(--mono);' +
+        'background:' + (allOk ? 'rgba(0,232,122,0.06)' : 'rgba(255,48,80,0.07)') + ';' +
+        'border:1px solid ' + (allOk ? 'rgba(0,232,122,0.25)' : 'rgba(255,48,80,0.25)') + ';' +
+        'color:' + (allOk ? 'var(--txt2)' : 'var(--warn)') + ';';
+    banner.innerHTML =
+        t(isChrome) + ' Chrome or Edge browser<br>' +
+        t(isHttps)  + ' HTTPS or localhost <span style="color:var(--txt3)">(' + location.origin + ')</span><br>' +
+        t(hasApi)   + ' Web Serial API (navigator.serial)<br>' +
+        (allOk
+            ? '<br><b style="color:var(--ok);">All requirements met — ready to use.</b>'
+            : '<br><b style="color:var(--err);">Fix the items above before using Web Serial.</b>');
+}
+
+function _refreshSessionBox() {
+    const box  = document.getElementById('ws-live-session-box');
+    const grid = document.getElementById('ws-live-session-grid');
+    if (!box) return;
+    const live = window.WebSerialBridge?.connected;
+    box.style.display = live ? 'block' : 'none';
+    if (!live || !grid) return;
+    const s   = window.WebSerialBridge.stats || {};
+    const inf = s.portInfo || {};
+    const vid = (inf.usbVendorId  || 0).toString(16).padStart(4,'0').toUpperCase();
+    const pid2= (inf.usbProductId || 0).toString(16).padStart(4,'0').toUpperCase();
+    const up  = s.connectTime ? Math.floor((Date.now() - s.connectTime) / 1000) : 0;
+    const chips = {'10C4':'Silicon Labs CP210x','1A86':'WCH CH340/CH9102','0403':'FTDI FT232','239A':'Adafruit','303A':'Espressif'};
+    const kv = (k,v) => '<span style="color:var(--txt3);">' + k + '</span><span style="color:var(--txt);font-weight:700;">' + v + '</span>';
+    grid.innerHTML =
+        kv('Chipset', chips[vid] || ('VID:' + vid)) +
+        kv('USB IDs', 'VID:' + vid + ' · PID:' + pid2) +
+        kv('Baud',    (s.baudRate || 115200) + ' bps') +
+        kv('RX / TX', (s.packetsRx || 0) + ' / ' + (s.packetsTx || 0) + ' packets') +
+        kv('Uptime',  window.fmtUptime?.(up) || '<1m');
+}
+
+/* Patch c2ToggleSettingsFields to handle WEBSERIAL and MQTT groups */
+var _origToggle = window.c2ToggleSettingsFields;
+window.c2ToggleSettingsFields = function () {
+    _origToggle?.();
+    const type  = document.getElementById('MESHTASTIC_CONNECTION_TYPE')?.value;
+    const wsGrp = document.getElementById('grp-WEBSERIAL');
+    const mqGrp = document.getElementById('grp-MQTT');
+    if (wsGrp) wsGrp.style.display = type === 'WEBSERIAL' ? 'flex' : 'none';
+    if (mqGrp) mqGrp.style.display = type === 'MQTT'      ? 'flex' : 'none';
+    if (type === 'WEBSERIAL') { _renderCompatBanner(); _refreshSessionBox(); }
+};
+
+/* Topbar button activation on dropdown change */
+const _ddrop = document.getElementById('MESHTASTIC_CONNECTION_TYPE');
+if (_ddrop) {
+    _ddrop.addEventListener('change', function () {
+        if (this.value === 'WEBSERIAL') {
+            try { window.WebSerialBridge?._activateButton?.(); } catch (e) {}
+        }
+    });
+}
+
+/* Close modal on backdrop click */
+var _addModal = document.getElementById('slot-add-modal');
+if (_addModal) {
+    _addModal.addEventListener('click', function (e) {
+        if (e.target === _addModal) slotCloseAddModal();
+    });
+}
+
+/* Live session refresh + slot polling while view is open */
+var _refreshTimer = setInterval(() => {
+    if (!document.getElementById('settings-view-root')) { clearInterval(_refreshTimer); return; }
+    if (document.getElementById('MESHTASTIC_CONNECTION_TYPE')?.value === 'WEBSERIAL') _refreshSessionBox();
+    slotRefresh();
+}, 4000);
+
+/* Initial load */
+slotRefresh();
+
+</script>

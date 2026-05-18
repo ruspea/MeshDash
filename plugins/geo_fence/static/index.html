@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Geo Fence</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-size:12px}
+.shell{height:100%;display:flex;flex-direction:column}
+
+/* topbar */
+.topbar{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:9px 14px;
+  border-bottom:1px solid var(--bd2);background:var(--bg2)}
+.logo{width:30px;height:30px;background:linear-gradient(135deg,var(--ok),var(--acc));
+  border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.tp-title{font-family:var(--mono);font-size:12px;font-weight:900;letter-spacing:1.5px;color:var(--ok)}
+.tp-sub{font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:.5px;margin-top:1px}
+
+/* slot pills */
+.spl{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:3px;
+  border:1px solid var(--bd2);background:var(--bg);cursor:pointer;transition:all .15s;color:var(--txt3)}
+.spl.on{border-color:var(--ok);background:rgba(0,232,122,.1);color:var(--ok)}
+
+/* main layout: map left, panel right */
+.body{flex:1;display:grid;grid-template-columns:1fr 380px;overflow:hidden}
+
+/* map */
+#map{width:100%;height:100%;background:var(--bg)}
+.leaflet-container{font-family:var(--mono)!important}
+.leaflet-popup-content-wrapper{background:var(--bg2)!important;color:var(--txt)!important;
+  border:1px solid var(--bd2)!important;border-radius:5px!important;
+  font-family:var(--mono)!important;box-shadow:0 10px 30px rgba(0,0,0,.8)!important}
+.leaflet-popup-tip{background:var(--bg2)!important}
+.leaflet-draw-toolbar a{background-color:var(--bg2)!important;color:var(--txt)!important;
+  border-color:var(--bd2)!important}
+.leaflet-draw-toolbar a:hover{background-color:var(--bd2)!important}
+
+/* right panel */
+.panel{border-left:1px solid var(--bd2);display:flex;flex-direction:column;overflow:hidden;background:var(--bg2)}
+
+/* panel tabs */
+.ptabs{flex-shrink:0;display:flex;border-bottom:1px solid var(--bd2)}
+.ptab{flex:1;padding:9px 4px;font-family:var(--mono);font-size:11px;font-weight:bold;
+  letter-spacing:.3px;color:var(--txt3);border:none;background:none;cursor:pointer;
+  border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;
+  justify-content:center;gap:4px}
+.ptab.on{color:var(--ok);border-bottom-color:var(--ok)}
+.ptab .n{background:var(--ok);color:#000;border-radius:7px;font-size:10px;font-weight:900;
+  padding:1px 4px;display:none}
+.ptab .n.s{display:inline-block}
+
+/* panel content */
+.pcon{flex:1;overflow-y:auto;padding:10px}
+.pcon::-webkit-scrollbar{width:3px}
+.pcon::-webkit-scrollbar-thumb{background:var(--bd2)}
+
+/* section header */
+.shdr{font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:1px;
+  font-weight:bold;padding:0 0 6px;border-bottom:1px solid rgba(0,232,122,.15);
+  margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.shdr span{color:var(--ok);display:flex;align-items:center;gap:4px}
+
+/* form elements */
+.fi{width:100%;font-family:var(--mono);font-size:9px;padding:5px 8px;
+  background:var(--bg);border:1px solid var(--bd2);border-radius:3px;color:var(--txt);transition:border-color .15s}
+.fi:focus{outline:none;border-color:var(--ok)}
+.fi::placeholder{color:var(--txt3)}
+.flbl{font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:.3px;
+  margin-bottom:3px;display:block}
+.fg{margin-bottom:8px}
+.fgrid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+
+/* zone card */
+.zc{background:var(--bg);border:1px solid var(--bd2);border-radius:4px;
+  margin-bottom:5px;overflow:hidden;transition:border-color .2s}
+.zc:hover{border-color:rgba(0,232,122,.3)}
+.zc-head{display:flex;align-items:center;gap:7px;padding:7px 9px;cursor:pointer}
+.zc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.zc-name{font-family:var(--mono);font-size:9px;font-weight:bold;flex:1;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zc-type{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:2px;
+  background:rgba(0,232,122,.1);border:1px solid rgba(0,232,122,.2);color:var(--ok);flex-shrink:0}
+.zc-actions{display:flex;gap:3px;flex-shrink:0}
+.zc-btn{font-size:11px;padding:2px 6px;border-radius:2px;border:1px solid var(--bd2);
+  background:var(--bg2);color:var(--txt3);cursor:pointer;transition:all .15s;font-family:var(--mono)}
+.zc-btn:hover{border-color:var(--ok);color:var(--ok)}
+.zc-btn.del:hover{border-color:var(--err);color:var(--err)}
+
+/* trigger card */
+.tc{background:var(--bg);border:1px solid var(--bd2);border-radius:4px;
+  margin-bottom:5px;padding:7px 9px}
+.tc-head{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.tc-icon{font-size:10px;width:16px;text-align:center}
+.tc-name{font-family:var(--mono);font-size:9px;font-weight:bold;flex:1}
+.tc-type{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:2px;flex-shrink:0}
+.tc-enter{background:rgba(0,232,122,.1);border:1px solid rgba(0,232,122,.2);color:var(--ok)}
+.tc-exit{background:rgba(255,168,38,.1);border:1px solid rgba(255,168,38,.2);color:var(--warn)}
+.tc-dwell{background:rgba(0,200,245,.1);border:1px solid rgba(0,200,245,.2);color:var(--acc)}
+.tc-absent{background:rgba(255,48,80,.1);border:1px solid rgba(255,48,80,.2);color:var(--err)}
+.tc-proximity{background:rgba(176,96,255,.1);border:1px solid rgba(176,96,255,.2);color:var(--pur)}
+.tc-speed{background:rgba(255,168,38,.1);border:1px solid rgba(255,168,38,.2);color:var(--warn)}
+.tc-heading{background:rgba(0,200,245,.1);border:1px solid rgba(0,200,245,.2);color:var(--acc)}
+.tc-meta{font-family:var(--mono);font-size:11px;color:var(--txt3);line-height:1.6}
+
+/* event log */
+.ev{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.03);
+  font-family:var(--mono);font-size:11px;cursor:pointer;transition:background .1s;
+  display:flex;align-items:flex-start;gap:6px;animation:evfade .2s ease}
+@keyframes evfade{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.ev:hover{background:rgba(255,255,255,.02)}
+.ev.unacked{border-left:2px solid var(--ok)}
+.ev-icon{font-size:10px;flex-shrink:0;margin-top:1px}
+.ev-body{flex:1;min-width:0}
+.ev-title{font-weight:bold;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ev-meta{color:var(--txt3);margin-top:1px}
+.ev-ts{color:var(--txt3);flex-shrink:0;text-align:right}
+.enter-ev{color:var(--ok)}.exit-ev{color:var(--warn)}
+.dwell-ev{color:var(--acc)}.absent-ev{color:var(--err)}
+.proximity-ev{color:var(--pur)}.speed-ev{color:var(--warn)}.heading-ev{color:var(--acc)}
+
+/* action builder */
+.action-row{display:flex;align-items:center;gap:5px;padding:5px 0;
+  border-bottom:1px solid rgba(255,255,255,.04)}
+.action-row:last-child{border-bottom:none}
+
+/* add form */
+.add-form{background:var(--bg);border:1px solid rgba(0,232,122,.2);
+  border-radius:4px;padding:10px;margin-top:8px}
+.add-btn{width:100%;padding:8px;background:rgba(0,232,122,.1);
+  border:1px solid rgba(0,232,122,.35);border-radius:3px;color:var(--ok);
+  font-family:var(--mono);font-size:9px;font-weight:900;cursor:pointer;
+  transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px}
+.add-btn:hover{background:rgba(0,232,122,.2);box-shadow:0 0 12px rgba(0,232,122,.15)}
+.add-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* colour picker row */
+.colour-strip{display:flex;gap:4px;margin-top:4px}
+.col-swatch{width:20px;height:20px;border-radius:3px;cursor:pointer;border:2px solid transparent;
+  transition:all .15s;flex-shrink:0}
+.col-swatch.on{border-color:var(--txt)}
+
+/* zone status badge */
+.node-in-zone{background:rgba(0,232,122,.15);border:1px solid rgba(0,232,122,.3);
+  border-radius:3px;padding:1px 5px;font-family:var(--mono);font-size:10px;
+  color:var(--ok);margin-top:3px;display:inline-flex;align-items:center;gap:3px}
+
+/* draw tip */
+.draw-tip{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:9999;
+  background:rgba(10,16,24,0.95);border:1px solid rgba(0,232,122,.4);border-radius:4px;
+  padding:8px 14px;font-family:var(--mono);font-size:9px;color:var(--ok);
+  pointer-events:none;display:none}
+
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100px;gap:8px;color:var(--txt3);font-family:var(--mono)}
+.empty i{font-size:22px;opacity:.1}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+
+<div class="topbar">
+  <div class="logo"><i class="fas fa-draw-polygon" style="color:#000;"></i></div>
+  <div>
+    <div class="tp-title">GEO FENCE</div>
+    <div class="tp-sub">ENTER · EXIT · DWELL · ABSENT · PROXIMITY · SPEED · HEADING</div>
+  </div>
+  <div style="margin-left:12px;display:flex;gap:4px;flex-wrap:wrap;" id="slot-pills"></div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+    <div id="sse-dot" style="width:7px;height:7px;border-radius:50%;background:var(--bd2);
+      transition:all .3s;flex-shrink:0;"></div>
+    <span id="sse-lbl" style="font-family:var(--mono);font-size:11px;color:var(--txt3);">…</span>
+  </div>
+</div>
+
+<div class="body">
+  <!-- Map -->
+  <div style="position:relative;">
+    <div id="map"></div>
+    <div class="draw-tip" id="draw-tip"></div>
+  </div>
+
+  <!-- Right panel -->
+  <div class="panel">
+    <div class="ptabs">
+      <button class="ptab on" onclick="P.tab('zones')" id="pt-zones">
+        <i class="fas fa-draw-polygon"></i>ZONES <span class="n" id="pn-zones">0</span>
+      </button>
+      <button class="ptab" onclick="P.tab('triggers')" id="pt-triggers">
+        <i class="fas fa-bolt"></i>TRIGGERS <span class="n" id="pn-triggers">0</span>
+      </button>
+      <button class="ptab" onclick="P.tab('events')" id="pt-events">
+        <i class="fas fa-bell"></i>EVENTS <span class="n" id="pn-events">0</span>
+      </button>
+      <button class="ptab" onclick="P.tab('nodes')" id="pt-nodes">
+        <i class="fas fa-satellite-dish"></i>NODES
+      </button>
+    </div>
+
+    <!-- ZONES -->
+    <div class="pcon" id="pc-zones">
+      <div class="shdr">
+        <span><i class="fas fa-draw-polygon"></i>ACTIVE ZONES</span>
+        <button class="btn btn-sm" onclick="P.toggleAddZone()"
+                style="font-size:11px;border-color:rgba(0,232,122,.35);color:var(--ok);">
+          + NEW ZONE
+        </button>
+      </div>
+      <div id="zone-list"></div>
+
+      <div id="add-zone-form" class="add-form" style="display:none;margin-top:10px;">
+        <div class="fg">
+          <label class="flbl">ZONE NAME</label>
+          <input class="fi" id="az-name" placeholder="e.g. Depot Perimeter">
+        </div>
+        <div class="fg">
+          <label class="flbl">ZONE TYPE</label>
+          <select class="fi" id="az-type" onchange="P.onZoneTypeChange()">
+            <option value="circle">Circle (draw on map)</option>
+            <option value="polygon">Polygon (draw on map)</option>
+            <option value="corridor">Corridor / Route (draw line)</option>
+            <option value="node_rel">Node-relative (follows a node)</option>
+          </select>
+        </div>
+        <div id="az-radius-row" class="fg">
+          <label class="flbl">RADIUS / BUFFER (metres)</label>
+          <input class="fi" type="number" id="az-radius" value="200" min="10">
+        </div>
+        <div id="az-noderel-row" class="fg" style="display:none;">
+          <label class="flbl">REFERENCE NODE (zone follows this node)</label>
+          <select class="fi" id="az-refnode"><option value="">— Select node —</option></select>
+        </div>
+        <div class="fg">
+          <label class="flbl">COLOUR</label>
+          <div class="colour-strip" id="colour-strip"></div>
+        </div>
+        <div class="fg">
+          <label class="flbl">NOTES</label>
+          <input class="fi" id="az-notes" placeholder="Optional description">
+        </div>
+        <div id="az-draw-hint" style="font-family:var(--mono);font-size:11px;color:var(--acc);
+          background:rgba(0,200,245,.07);border:1px solid rgba(0,200,245,.2);border-radius:3px;
+          padding:6px 9px;margin-bottom:8px;line-height:1.7;">
+          <i class="fas fa-pen" style="margin-right:4px;"></i>
+          Use the draw tools on the map to define the zone boundary.
+          Circle: click + drag. Polygon: click vertices, double-click to finish.
+          Corridor: click waypoints, double-click to finish.
+        </div>
+        <button class="add-btn" id="az-save-btn" onclick="P.saveZone()" disabled>
+          <i class="fas fa-save"></i>SAVE ZONE
+        </button>
+      </div>
+    </div>
+
+    <!-- TRIGGERS -->
+    <div class="pcon" id="pc-triggers" style="display:none;">
+      <div class="shdr">
+        <span><i class="fas fa-bolt"></i>TRIGGERS</span>
+        <button class="btn btn-sm" onclick="P.toggleAddTrigger()"
+                style="font-size:11px;border-color:rgba(0,232,122,.35);color:var(--ok);">
+          + NEW TRIGGER
+        </button>
+      </div>
+      <div id="trigger-list"></div>
+
+      <div id="add-trigger-form" class="add-form" style="display:none;margin-top:10px;">
+        <div class="fg">
+          <label class="flbl">TRIGGER NAME</label>
+          <input class="fi" id="at-name" placeholder="e.g. Truck arrives at depot">
+        </div>
+        <div class="fgrid2 fg">
+          <div>
+            <label class="flbl">TYPE</label>
+            <select class="fi" id="at-type" onchange="P.onTriggerTypeChange()">
+              <option value="enter">Enter zone</option>
+              <option value="exit">Exit zone</option>
+              <option value="dwell">Dwell in zone</option>
+              <option value="absent">Absent from zone</option>
+              <option value="proximity">Node proximity</option>
+              <option value="speed">Speed threshold</option>
+              <option value="heading">Heading change</option>
+            </select>
+          </div>
+          <div>
+            <label class="flbl">ZONE</label>
+            <select class="fi" id="at-zone"><option value="">— Any / N/A —</option></select>
+          </div>
+        </div>
+        <div class="fg">
+          <label class="flbl">TARGET NODES (blank = all)</label>
+          <select class="fi" id="at-nodes" multiple size="3">
+          </select>
+          <div style="font-family:var(--mono);font-size:10px;color:var(--txt3);margin-top:2px;">
+            Hold Ctrl/Cmd to select multiple. Leave blank to match any node.
+          </div>
+        </div>
+
+        <!-- Type-specific fields -->
+        <div id="at-dwell-row" class="fg" style="display:none;">
+          <label class="flbl">DWELL TIME (seconds)</label>
+          <input class="fi" type="number" id="at-dwell" value="60" min="5">
+        </div>
+        <div id="at-absent-row" class="fg" style="display:none;">
+          <label class="flbl">ABSENT THRESHOLD (seconds)</label>
+          <input class="fi" type="number" id="at-absent" value="300" min="30">
+        </div>
+        <div id="at-prox-row" style="display:none;">
+          <div class="fgrid2 fg">
+            <div>
+              <label class="flbl">REFERENCE NODE B</label>
+              <select class="fi" id="at-refnode"><option value="">— Select —</option></select>
+            </div>
+            <div>
+              <label class="flbl">WITHIN (metres)</label>
+              <input class="fi" type="number" id="at-dist" value="200" min="10">
+            </div>
+          </div>
+        </div>
+        <div id="at-speed-row" class="fg" style="display:none;">
+          <label class="flbl">SPEED THRESHOLD (km/h)</label>
+          <input class="fi" type="number" id="at-speed" value="50" min="1">
+        </div>
+        <div id="at-heading-row" class="fg" style="display:none;">
+          <div class="fgrid2">
+            <div>
+              <label class="flbl">BEARING CHANGE (°)</label>
+              <input class="fi" type="number" id="at-heading" value="90" min="10" max="180">
+            </div>
+            <div>
+              <label class="flbl">WINDOW (seconds)</label>
+              <input class="fi" type="number" id="at-headingwin" value="30" min="5">
+            </div>
+          </div>
+        </div>
+
+        <div class="fg">
+          <label class="flbl">COOLDOWN (seconds between re-fires)</label>
+          <input class="fi" type="number" id="at-cooldown" value="60" min="0">
+        </div>
+
+        <!-- Actions -->
+        <div class="shdr" style="margin-top:10px;">
+          <span><i class="fas fa-bolt"></i>ACTIONS</span>
+          <button class="btn btn-sm" onclick="P.addAction()"
+                  style="font-size:10px;">+ ADD ACTION</button>
+        </div>
+        <div id="at-actions"></div>
+
+        <button class="add-btn" id="at-save-btn" onclick="P.saveTrigger()">
+          <i class="fas fa-save"></i>SAVE TRIGGER
+        </button>
+      </div>
+    </div>
+
+    <!-- EVENTS -->
+    <div class="pcon" id="pc-events" style="display:none;">
+      <div class="shdr">
+        <span><i class="fas fa-bell"></i>RECENT EVENTS</span>
+        <div style="display:flex;gap:4px;">
+          <button class="btn btn-sm" onclick="P.ackAll()" style="font-size:10px;">ACK ALL</button>
+          <button class="btn btn-sm" onclick="P.clearEvents()" style="font-size:10px;">CLEAR</button>
+        </div>
+      </div>
+      <div id="event-list"></div>
+    </div>
+
+    <!-- NODES -->
+    <div class="pcon" id="pc-nodes" style="display:none;">
+      <div class="shdr"><span><i class="fas fa-satellite-dish"></i>LIVE NODE POSITIONS</span></div>
+      <div id="node-list"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script>
+'use strict';
+const API = '/api/plugins/geo_fence';
+const $ = id => document.getElementById(id);
+let _slot = 'node_0', _slots = [], _zones = [], _triggers = [], _events = [],
+    _nodes = [], _activeTab = 'zones', _sse = null;
+let _map, _zoneLayerGroup, _nodeLayerGroup, _drawControl, _drawLayer;
+let _pendingZone = null;  // shape drawn, waiting for save
+let _addZoneOpen = false, _addTriggerOpen = false;
+let _actionCount = 0;
+let _pendingGeom = null;  // lat/lon geometry from drawing
+
+const COLOURS = ['var(--ok)','var(--acc)','var(--warn)','var(--err)','var(--pur)','#fff','#ff6b35'];
+
+function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function _ago(ts) {
+  if (!ts) return '—';
+  const s = Math.floor(Date.now()/1000 - ts);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400) return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+const TRIGGER_ICONS = {
+  enter:'fa-sign-in-alt', exit:'fa-sign-out-alt', dwell:'fa-hourglass-half',
+  absent:'fa-ghost', proximity:'fa-arrows-to-dot', speed:'fa-gauge-high', heading:'fa-compass'
+};
+
+// ── Map init ──────────────────────────────────────────────────────────────
+function _initMap() {
+  _map = L.map('map', { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19, subdomains: 'abcd'
+  }).addTo(_map);
+  _map.setView([51.5, -1.0], 9);
+
+  _zoneLayerGroup = L.layerGroup().addTo(_map);
+  _nodeLayerGroup = L.layerGroup().addTo(_map);
+
+  // Draw control
+  _drawLayer = new L.FeatureGroup().addTo(_map);
+  _drawControl = new L.Control.Draw({
+    draw: {
+      rectangle: false, marker: false, circlemarker: false,
+      circle: { shapeOptions: { color: 'var(--ok)', fillOpacity: 0.15, weight: 2 } },
+      polygon: { shapeOptions: { color: 'var(--ok)', fillOpacity: 0.15, weight: 2 },
+                 showArea: true, allowIntersection: false },
+      polyline: { shapeOptions: { color: 'var(--acc)', weight: 3 } },
+    },
+    edit: { featureGroup: _drawLayer, remove: false },
+  });
+  _map.addControl(_drawControl);
+
+  _map.on(L.Draw.Event.CREATED, function (e) {
+    _drawLayer.clearLayers();
+    _drawLayer.addLayer(e.layer);
+    const type = e.layerType;
+    if (type === 'circle') {
+      const c = e.layer.getLatLng();
+      _pendingGeom = { type: 'circle', lat: c.lat, lon: c.lng, radius: e.layer.getRadius() };
+      $('az-radius').value = Math.round(e.layer.getRadius());
+    } else if (type === 'polygon') {
+      const lls = e.layer.getLatLngs()[0];
+      _pendingGeom = { type: 'polygon', ring: lls.map(ll => [ll.lat, ll.lng]) };
+    } else if (type === 'polyline') {
+      const lls = e.layer.getLatLngs();
+      _pendingGeom = { type: 'corridor', path: lls.map(ll => [ll.lat, ll.lng]) };
+    }
+    $('az-save-btn').disabled = false;
+    $('draw-tip').style.display = 'none';
+  });
+}
+
+// ── Zone rendering on map ──────────────────────────────────────────────────
+function _renderZonesOnMap() {
+  _zoneLayerGroup.clearLayers();
+  _zones.forEach(z => {
+    const col = z.colour || 'var(--ok)';
+    const opts = { color: col, fillColor: col, fillOpacity: 0.12, weight: 2 };
+    let layer = null;
+    if (z.zone_type === 'circle' && z.centre_lat && z.centre_lon) {
+      layer = L.circle([z.centre_lat, z.centre_lon], { radius: z.radius_m, ...opts });
+    } else if (z.zone_type === 'polygon' && z.geometry?.length) {
+      layer = L.polygon(z.geometry, opts);
+    } else if (z.zone_type === 'corridor' && z.geometry?.length) {
+      layer = L.polyline(z.geometry, { color: col, weight: z.radius_m ? Math.min(z.radius_m/10, 30) : 8, opacity: 0.5 });
+    } else if (z.zone_type === 'node_rel') {
+      const ref = _nodes.find(n => n.node_id === z.ref_node_id);
+      if (ref) layer = L.circle([ref.lat, ref.lon], { radius: z.radius_m, ...opts, dashArray: '5,5' });
+    }
+    if (layer) {
+      layer.bindPopup(`<strong>${_esc(z.name)}</strong><br>${z.zone_type} · ${z.radius_m}m`);
+      layer.addTo(_zoneLayerGroup);
+    }
+  });
+}
+
+// ── Node dots on map ───────────────────────────────────────────────────────
+function _renderNodesOnMap() {
+  _nodeLayerGroup.clearLayers();
+  _nodes.forEach(n => {
+    if (!n.lat || !n.lon) return;
+    const col  = n.is_local ? 'var(--ok)' : 'var(--acc)';
+    const icon = L.divIcon({
+      html: `<div style="width:10px;height:10px;border-radius:50%;background:${col};
+        border:2px solid rgba(255,255,255,.6);box-shadow:0 0 8px ${col};"></div>`,
+      className: '', iconSize: [10, 10], iconAnchor: [5, 5],
+    });
+    const marker = L.marker([n.lat, n.lon], { icon });
+    marker.bindTooltip(`<strong>${_esc(n.long_name)}</strong><br>${n.node_id}`, {
+      permanent: false, direction: 'top', className: 'leaflet-tooltip',
+      offset: [0, -6],
+    });
+    _nodeLayerGroup.addLayer(marker);
+  });
+}
+
+// ── Panel ─────────────────────────────────────────────────────────────────
+const P = {
+  tab(name) {
+    _activeTab = name;
+    ['zones','triggers','events','nodes'].forEach(t => {
+      $('pt-'+t).classList.toggle('on', t===name);
+      $('pc-'+t).style.display = t===name ? 'block' : 'none';
+    });
+    if (name==='events') this.renderEvents();
+    if (name==='nodes')  this.renderNodes();
+  },
+
+  // ── Zone panel ──────────────────────────────────────────────────────────
+  toggleAddZone() {
+    _addZoneOpen = !_addZoneOpen;
+    $('add-zone-form').style.display = _addZoneOpen ? 'block' : 'none';
+    if (_addZoneOpen) {
+      this._buildColourStrip();
+      this._populateNodeDropdown('az-refnode');
+      $('az-save-btn').disabled = true;
+      _pendingGeom = null;
+      $('draw-tip').textContent = 'Use the draw tools (left panel) to define the zone.';
+      $('draw-tip').style.display = 'block';
+    } else {
+      $('draw-tip').style.display = 'none';
+      _drawLayer.clearLayers();
+    }
+  },
+
+  onZoneTypeChange() {
+    const t = $('az-type').value;
+    $('az-radius-row').style.display  = t !== 'polygon' ? 'block' : 'none';
+    $('az-noderel-row').style.display = t === 'node_rel' ? 'block' : 'none';
+    if (t === 'node_rel') {
+      $('az-save-btn').disabled = false; // no drawing needed
+    } else {
+      $('az-save-btn').disabled = !_pendingGeom;
+    }
+  },
+
+  _buildColourStrip() {
+    const strip = $('colour-strip');
+    strip.innerHTML = COLOURS.map((c,i) =>
+      `<div class="col-swatch${i===0?' on':''}" style="background:${c};" data-col="${c}"
+            onclick="P._pickColour(this,'${c}')"></div>`
+    ).join('');
+  },
+
+  _pickColour(el, col) {
+    document.querySelectorAll('.col-swatch').forEach(s => s.classList.remove('on'));
+    el.classList.add('on');
+  },
+
+  _getSelectedColour() {
+    const s = document.querySelector('.col-swatch.on');
+    return s ? s.dataset.col : 'var(--ok)';
+  },
+
+  async saveZone() {
+    const name = $('az-name').value.trim();
+    if (!name) { alert('Zone name required'); return; }
+    const ztype = $('az-type').value;
+    const colour = this._getSelectedColour();
+    const radius = parseFloat($('az-radius').value) || 200;
+    let body = {
+      slot_id: _slot, name, zone_type: ztype,
+      colour, radius_m: radius, notes: $('az-notes').value,
+    };
+    if (ztype === 'circle' && _pendingGeom) {
+      body.centre_lat = _pendingGeom.lat;
+      body.centre_lon = _pendingGeom.lon;
+      body.radius_m   = _pendingGeom.radius;
+    } else if (ztype === 'polygon' && _pendingGeom) {
+      body.geometry = _pendingGeom.ring;
+    } else if (ztype === 'corridor' && _pendingGeom) {
+      body.geometry = _pendingGeom.path;
+    } else if (ztype === 'node_rel') {
+      body.ref_node_id = $('az-refnode').value;
+      body.centre_lat  = 0;
+      body.centre_lon  = 0;
+    }
+    const r = await fetch(`${API}/zones`, {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(body),
+    });
+    if (!r.ok) { alert('Save failed: ' + await r.text()); return; }
+    this.toggleAddZone();
+    _drawLayer.clearLayers();
+    $('az-name').value = '';
+    await loadAll();
+    if (window.triggerToast) triggerToast('Zone saved', 'ok');
+  },
+
+  renderZones() {
+    const el = $('zone-list');
+    $('pn-zones').textContent = _zones.length;
+    $('pn-zones').classList.toggle('s', _zones.length > 0);
+    if (!_zones.length) {
+      el.innerHTML = '<div class="empty"><i class="fas fa-draw-polygon"></i>' +
+        '<span>No zones yet — draw one on the map</span></div>';
+      return;
+    }
+    el.innerHTML = _zones.map(z => {
+      const trigs = _triggers.filter(t => t.zone_id === z.id).length;
+      return `<div class="zc">
+        <div class="zc-head">
+          <div class="zc-dot" style="background:${z.colour||'var(--ok)'};box-shadow:0 0 6px ${z.colour||'var(--ok)'};"></div>
+          <div style="flex:1;min-width:0;">
+            <div class="zc-name">${_esc(z.name)}</div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--txt3);">
+              ${z.zone_type} · ${z.radius_m}m · ${trigs} trigger(s)
+            </div>
+          </div>
+          <span class="zc-type">${z.zone_type}</span>
+          <div class="zc-actions">
+            <button class="zc-btn" onclick="M.flyToZone('${z.id}')">
+              <i class="fas fa-crosshairs"></i>
+            </button>
+            <button class="zc-btn del" onclick="P.deleteZone('${z.id}','${_esc(z.name)}')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  async deleteZone(id, name) {
+    if (!confirm(`Delete zone "${name}" and all its triggers?`)) return;
+    await fetch(`${API}/zones/${id}`, { method:'DELETE', credentials:'include' });
+    await loadAll();
+    if (window.triggerToast) triggerToast('Zone deleted', 'ok');
+  },
+
+  // ── Trigger panel ────────────────────────────────────────────────────────
+  toggleAddTrigger() {
+    _addTriggerOpen = !_addTriggerOpen;
+    $('add-trigger-form').style.display = _addTriggerOpen ? 'block' : 'none';
+    if (_addTriggerOpen) {
+      this._populateZoneDropdown('at-zone');
+      this._populateNodeDropdown('at-nodes');
+      this._populateNodeDropdown('at-refnode');
+      this.onTriggerTypeChange();
+      $('at-actions').innerHTML = '';
+      _actionCount = 0;
+    }
+  },
+
+  onTriggerTypeChange() {
+    const t = $('at-type').value;
+    $('at-dwell-row').style.display   = t==='dwell'     ? 'block' : 'none';
+    $('at-absent-row').style.display  = t==='absent'    ? 'block' : 'none';
+    $('at-prox-row').style.display    = t==='proximity' ? 'block' : 'none';
+    $('at-speed-row').style.display   = t==='speed'     ? 'block' : 'none';
+    $('at-heading-row').style.display = t==='heading'   ? 'block' : 'none';
+    // Zone selection irrelevant for proximity/speed/heading
+    $('at-zone').disabled = ['proximity','speed','heading'].includes(t);
+  },
+
+  addAction() {
+    _actionCount++;
+    const id = `action-${_actionCount}`;
+    const div = document.createElement('div');
+    div.id = id;
+    div.className = 'action-row';
+    div.innerHTML = `
+      <select class="fi" style="width:90px;flex-shrink:0;" onchange="P.onActionTypeChange('${id}',this.value)">
+        <option value="alert">Alert</option>
+        <option value="dm">Send DM</option>
+        <option value="broadcast">Broadcast</option>
+        <option value="webhook">Webhook</option>
+      </select>
+      <div class="action-fields" style="flex:1;"></div>
+      <button onclick="document.getElementById('${id}').remove()"
+        style="font-size:10px;border:none;background:none;color:var(--txt3);cursor:pointer;flex-shrink:0;">✕</button>`;
+    $('at-actions').appendChild(div);
+    this.onActionTypeChange(id, 'alert');
+  },
+
+  onActionTypeChange(divId, atype) {
+    const el = document.querySelector(`#${divId} .action-fields`);
+    if (!el) return;
+    const ph = 'GeoFence: {trigger} {node} @ {zone}';
+    if (atype === 'alert') {
+      el.innerHTML = '<span style="font-family:var(--mono);font-size:11px;color:var(--txt3);">SSE dashboard alert (automatic)</span>';
+    } else if (atype === 'dm') {
+      el.innerHTML = `
+        <input class="fi" name="target_node_id" placeholder="Target node ID (!xxxxxxxx)" style="margin-bottom:3px;">
+        <input class="fi" name="message" placeholder="${ph}" value="${ph}">
+        <input class="fi" name="channel_index" type="number" value="0" min="0" max="7" style="width:60px;margin-top:3px;" title="Channel index">`;
+    } else if (atype === 'broadcast') {
+      el.innerHTML = `
+        <input class="fi" name="message" placeholder="${ph}" value="${ph}" style="margin-bottom:3px;">
+        <input class="fi" name="channel_index" type="number" value="0" min="0" max="7" style="width:60px;" title="Channel index">`;
+    } else if (atype === 'webhook') {
+      el.innerHTML = `
+        <input class="fi" name="url" placeholder="https://hooks.example.com/..." style="margin-bottom:3px;">
+        <textarea class="fi" name="body" rows="2" placeholder='{"node":"{node}","zone":"{zone}","event":"{trigger}"}'></textarea>`;
+    }
+  },
+
+  _collectActions() {
+    const actions = [];
+    document.querySelectorAll('.action-row').forEach(row => {
+      const typeEl = row.querySelector('select');
+      if (!typeEl) return;
+      const atype = typeEl.value;
+      const a = { type: atype };
+      row.querySelectorAll('.action-fields [name]').forEach(el => {
+        a[el.name] = el.value;
+      });
+      actions.push(a);
+    });
+    return actions;
+  },
+
+  async saveTrigger() {
+    const name = $('at-name').value.trim();
+    if (!name) { alert('Trigger name required'); return; }
+    const ttype = $('at-type').value;
+    const targets = Array.from($('at-nodes').selectedOptions).map(o => o.value);
+    const body = {
+      slot_id: _slot, name, trigger_type: ttype,
+      zone_id: $('at-zone').value || null,
+      target_node_ids: targets,
+      ref_node_id: $('at-refnode')?.value || null,
+      dwell_seconds:   parseFloat($('at-dwell')?.value || 60),
+      absent_seconds:  parseFloat($('at-absent')?.value || 300),
+      distance_m:      parseFloat($('at-dist')?.value || 200),
+      threshold_kmh:   parseFloat($('at-speed')?.value || 50),
+      heading_degrees: parseFloat($('at-heading')?.value || 90),
+      heading_window:  parseFloat($('at-headingwin')?.value || 30),
+      cooldown_secs:   parseFloat($('at-cooldown')?.value || 60),
+      actions: this._collectActions(),
+    };
+    const r = await fetch(`${API}/triggers`, {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(body),
+    });
+    if (!r.ok) { alert('Save failed: ' + await r.text()); return; }
+    this.toggleAddTrigger();
+    $('at-name').value = '';
+    await loadAll();
+    if (window.triggerToast) triggerToast('Trigger saved', 'ok');
+  },
+
+  renderTriggers() {
+    const el = $('trigger-list');
+    $('pn-triggers').textContent = _triggers.length;
+    $('pn-triggers').classList.toggle('s', _triggers.length > 0);
+    if (!_triggers.length) {
+      el.innerHTML = '<div class="empty"><i class="fas fa-bolt"></i>' +
+        '<span>No triggers yet</span></div>';
+      return;
+    }
+    el.innerHTML = _triggers.map(t => {
+      const zone = _zones.find(z => z.id === t.zone_id);
+      const cls  = `tc-${t.trigger_type}`;
+      const icon = TRIGGER_ICONS[t.trigger_type] || 'fa-bolt';
+      let detail = '';
+      if (t.trigger_type==='dwell')     detail = `dwell ${t.dwell_seconds}s`;
+      if (t.trigger_type==='absent')    detail = `absent ${t.absent_seconds}s`;
+      if (t.trigger_type==='proximity') detail = `within ${t.distance_m}m`;
+      if (t.trigger_type==='speed')     detail = `> ${t.threshold_kmh}km/h`;
+      if (t.trigger_type==='heading')   detail = `> ${t.heading_degrees}° change`;
+      const targets = (t.target_node_ids||[]).length
+        ? `${t.target_node_ids.length} node(s)` : 'all nodes';
+      return `<div class="tc">
+        <div class="tc-head">
+          <i class="fas ${icon} tc-icon" style="color:inherit;"></i>
+          <div class="tc-name">${_esc(t.name)}</div>
+          <span class="tc-type ${cls}">${t.trigger_type.toUpperCase()}</span>
+          <button class="zc-btn del" style="margin-left:4px;" onclick="P.deleteTrigger('${t.id}','${_esc(t.name)}')">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+        <div class="tc-meta">
+          ${zone ? `Zone: <strong style="color:${zone.colour||'var(--ok)'};">${_esc(zone.name)}</strong> · ` : ''}
+          ${targets}${detail ? ' · ' + detail : ''} · cooldown ${t.cooldown_secs}s
+          · ${(t.actions||[]).length} action(s)
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  async deleteTrigger(id, name) {
+    if (!confirm(`Delete trigger "${name}"?`)) return;
+    await fetch(`${API}/triggers/${id}`, { method:'DELETE', credentials:'include' });
+    await loadAll();
+    if (window.triggerToast) triggerToast('Trigger deleted', 'ok');
+  },
+
+  // ── Events panel ─────────────────────────────────────────────────────────
+  renderEvents() {
+    const el = $('event-list');
+    const unacked = _events.filter(e => !e.acked).length;
+    $('pn-events').textContent = unacked;
+    $('pn-events').classList.toggle('s', unacked > 0);
+    if (!_events.length) {
+      el.innerHTML = '<div class="empty"><i class="fas fa-bell-slash"></i>' +
+        '<span>No events yet</span></div>';
+      return;
+    }
+    const ECOLS = { enter:'var(--ok)', exit:'var(--warn)', dwell:'var(--acc)',
+                    absent:'var(--err)', proximity:'var(--pur)', speed:'var(--warn)', heading:'var(--acc)' };
+    el.innerHTML = _events.map(e => {
+      const d   = e.details || {};
+      const col = ECOLS[e.trigger_type] || 'var(--txt3)';
+      const icon = TRIGGER_ICONS[e.trigger_type] || 'fa-bolt';
+      const zone = _zones.find(z => z.id === e.zone_id);
+      const ts   = new Date((e.ts||0)*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      return `<div class="ev${e.acked?'':' unacked'}" onclick="P.ackEvent('${e.id}')">
+        <i class="fas ${icon} ev-icon ${e.trigger_type}-ev" style="color:${col};"></i>
+        <div class="ev-body">
+          <div class="ev-title" style="color:${col};">${e.trigger_type.toUpperCase()}
+            — ${_esc(d.node_name||e.node_id)}</div>
+          <div class="ev-meta">${zone?_esc(zone.name):''} 
+            ${d.lat?`· ${d.lat.toFixed(4)}, ${d.lon.toFixed(4)}`:''}
+            ${d.speed_kmh?`· ${d.speed_kmh}km/h`:''}
+            ${d.dist_m?`· ${d.dist_m}m`:''}
+          </div>
+        </div>
+        <div class="ev-ts">${ts}</div>
+      </div>`;
+    }).join('');
+  },
+
+  async ackEvent(id) {
+    await fetch(`${API}/events/${id}/ack`, { method:'POST', credentials:'include' });
+    const ev = _events.find(e => e.id === id);
+    if (ev) ev.acked = true;
+    this.renderEvents();
+  },
+
+  async ackAll() {
+    await fetch(`${API}/events/ack_all`, { method:'POST', credentials:'include' });
+    _events.forEach(e => e.acked = true);
+    this.renderEvents();
+  },
+
+  async clearEvents() {
+    if (!confirm('Clear all events?')) return;
+    await fetch(`${API}/events`, { method:'DELETE', credentials:'include' });
+    _events = [];
+    this.renderEvents();
+  },
+
+  // ── Nodes panel ──────────────────────────────────────────────────────────
+  renderNodes() {
+    const el = $('node-list');
+    const positioned = _nodes.filter(n => n.lat && n.lon);
+    if (!positioned.length) {
+      el.innerHTML = '<div class="empty"><i class="fas fa-satellite-dish"></i>' +
+        '<span>No nodes with GPS positions</span></div>';
+      return;
+    }
+    el.innerHTML = positioned.map(n => {
+      const inZones = _zones.filter(z => {
+        try {
+          const ref = {};
+          _nodes.forEach(n2 => ref[n2.node_id] = {latitude:n2.lat, longitude:n2.lon});
+          // quick circle check only
+          if (z.zone_type==='circle' && z.centre_lat) {
+            const d = Math.hypot(n.lat-z.centre_lat, n.lon-z.centre_lon) * 111000;
+            return d <= z.radius_m;
+          }
+          return false;
+        } catch(e) { return false; }
+      });
+      return `<div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;
+          border-bottom:1px solid rgba(255,255,255,.04);">
+        <div style="width:8px;height:8px;border-radius:50%;background:${n.is_local?'var(--ok)':'var(--acc)'};
+          margin-top:3px;flex-shrink:0;box-shadow:0 0 5px ${n.is_local?'var(--ok)':'var(--acc)'};"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:var(--mono);font-size:9px;font-weight:bold;">${_esc(n.long_name)}</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);">
+            ${n.node_id} · ${n.lat.toFixed(5)}, ${n.lon.toFixed(5)}
+          </div>
+          ${inZones.map(z=>`<span class="node-in-zone"><i class="fas fa-draw-polygon"></i>${_esc(z.name)}</span>`).join('')}
+        </div>
+        <button class="zc-btn" onclick="M.flyToNode('${n.node_id}')" title="Centre map">
+          <i class="fas fa-crosshairs"></i>
+        </button>
+      </div>`;
+    }).join('');
+  },
+
+  // ── Helper dropdowns ──────────────────────────────────────────────────────
+  _populateNodeDropdown(elId) {
+    const sel = $(elId);
+    if (!sel) return;
+    const prev = sel.value;
+    const isMultiple = sel.multiple;
+    if (!isMultiple) sel.innerHTML = '<option value="">— Any / N/A —</option>';
+    else sel.innerHTML = '';
+    _nodes.forEach(n => {
+      const opt = document.createElement('option');
+      opt.value = n.node_id;
+      opt.textContent = `${n.long_name} (${n.node_id})`;
+      sel.appendChild(opt);
+    });
+    if (prev) sel.value = prev;
+  },
+
+  _populateZoneDropdown(elId) {
+    const sel = $(elId);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Any / N/A —</option>';
+    _zones.forEach(z => {
+      const opt = document.createElement('option');
+      opt.value = z.id;
+      opt.textContent = z.name;
+      sel.appendChild(opt);
+    });
+  },
+};
+
+// ── Map helpers ────────────────────────────────────────────────────────────
+const M = {
+  flyToZone(zid) {
+    const z = _zones.find(z => z.id === zid);
+    if (!z) return;
+    if (z.centre_lat) _map.setView([z.centre_lat, z.centre_lon], 14);
+    else if (z.geometry?.length) _map.setView(z.geometry[0], 13);
+  },
+  flyToNode(nid) {
+    const n = _nodes.find(n => n.node_id === nid);
+    if (n?.lat) _map.setView([n.lat, n.lon], 14);
+  },
+};
+
+// ── Data loading ───────────────────────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [zr, tr, er, nr] = await Promise.all([
+      fetch(`${API}/zones?slot_id=${_slot}`).then(r=>r.json()),
+      fetch(`${API}/triggers?slot_id=${_slot}`).then(r=>r.json()),
+      fetch(`${API}/events?limit=100`).then(r=>r.json()),
+      fetch(`${API}/nodes/${_slot}`).then(r=>r.json()),
+    ]);
+    _zones    = zr.zones    || [];
+    _triggers = tr.triggers || [];
+    _events   = er.events   || [];
+    _nodes    = nr.nodes    || [];
+    P.renderZones();
+    P.renderTriggers();
+    if (_activeTab==='events') P.renderEvents();
+    if (_activeTab==='nodes')  P.renderNodes();
+    _renderZonesOnMap();
+    _renderNodesOnMap();
+  } catch(e) { console.error('loadAll:', e); }
+}
+
+// ── SSE ───────────────────────────────────────────────────────────────────
+function _connectSSE() {
+  if (_sse) { try { _sse.close(); } catch(e) {} }
+  _sse = new EventSource('/sse');
+  _sse.addEventListener('geo_fence_event', e => {
+    try {
+      const d = JSON.parse(e.data);
+      _events.unshift({ id: d.event_id, ts: d.ts, trigger_type: d.trigger_type,
+                        zone_id: d.zone_id, node_id: d.node_id,
+                        details: d, acked: false });
+      if (_events.length > 200) _events.pop();
+      if (_activeTab==='events') P.renderEvents();
+      const pne = $('pn-events');
+      const cnt = _events.filter(ev=>!ev.acked).length;
+      pne.textContent = cnt; pne.classList.toggle('s', cnt>0);
+    } catch(err) {}
+  });
+  _sse.addEventListener('node_update', e => {
+    try {
+      const n = JSON.parse(e.data);
+      if (n.node_id && n.latitude && n.longitude) {
+        const idx = _nodes.findIndex(x => x.node_id === n.node_id);
+        const u = n.user || {};
+        const entry = { node_id: n.node_id,
+          long_name: u.longName || n.long_name || n.node_id,
+          lat: n.latitude, lon: n.longitude,
+          last_heard: n.lastHeard || 0, is_local: n.isLocal || false };
+        if (idx >= 0) _nodes[idx] = entry; else _nodes.push(entry);
+        _renderNodesOnMap();
+      }
+    } catch(err) {}
+  });
+  _sse.onopen  = () => { $('sse-dot').style.background='var(--ok)'; $('sse-dot').style.boxShadow='0 0 5px var(--ok)'; $('sse-lbl').textContent='Live'; };
+  _sse.onerror = () => { $('sse-dot').style.background='var(--err)'; $('sse-lbl').textContent='Reconnecting…'; setTimeout(_connectSSE,3000); };
+}
+
+// ── Slots ─────────────────────────────────────────────────────────────────
+async function _loadSlots() {
+  try {
+    const r = await fetch('/api/slots'); if (!r.ok) return;
+    const d = await r.json(); _slots = d.slots || [];
+    const pills = $('slot-pills');
+    pills.innerHTML = _slots.map(s =>
+      `<div class="spl${s.slot_id===_slot?' on':''}" data-slot="${s.slot_id}"
+            onclick="setSlot('${s.slot_id}',this)">${_esc(s.label||s.slot_id)}</div>`
+    ).join('');
+  } catch(e) {}
+}
+
+function setSlot(sid, el) {
+  _slot = sid;
+  document.querySelectorAll('.spl').forEach(p => p.classList.remove('on'));
+  if (el) el.classList.add('on');
+  loadAll();
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+(async function boot() {
+  _initMap();
+  await _loadSlots();
+  await loadAll();
+  _connectSSE();
+  // Auto-centre map on first node with position
+  const first = _nodes.find(n => n.lat && n.lon);
+  if (first) _map.setView([first.lat, first.lon], 10);
+  // Reload positions every 30s
+  setInterval(async () => {
+    try {
+      const r = await fetch(`${API}/nodes/${_slot}`);
+      if (!r.ok) return;
+      const d = await r.json();
+      _nodes = d.nodes || [];
+      _renderNodesOnMap();
+      if (_activeTab==='nodes') P.renderNodes();
+    } catch(e) {}
+  }, 30000);
+  // Reload events every 15s
+  setInterval(async () => {
+    try {
+      const r = await fetch(`${API}/events?limit=100`);
+      if (!r.ok) return;
+      _events = (await r.json()).events || [];
+      if (_activeTab==='events') P.renderEvents();
+    } catch(e) {}
+  }, 15000);
+})();
+</script>
+</body>
+</html>

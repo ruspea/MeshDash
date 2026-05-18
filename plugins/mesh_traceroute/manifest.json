@@ -1,0 +1,18 @@
+{
+  "id": "mesh_traceroute",
+  "name": "Mesh Traceroute",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Stub plugin \u2014 placeholder for future implementation. No functionality yet.",
+  "watchdog": false,
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/mesh_traceroute",
+  "static_prefix": "/static/plugins/mesh_traceroute",
+  "nav_menu": [
+    {
+      "label": "Traceroute",
+      "href": "/plugin/mesh_traceroute/index.html",
+      "icon": "fa-route"
+    }
+  ]
+}

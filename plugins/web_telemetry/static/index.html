@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Web Telemetry | MeshDash</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg)}
+body{font-family:var(--mono);color:var(--txt);font-size:12px;display:flex;flex-direction:column;overflow:hidden}
+
+.topbar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--bd2);flex-shrink:0;min-height:46px}
+.logo{font-family:var(--sans);font-size:14px;font-weight:800;color:var(--acc);letter-spacing:.06em;display:flex;align-items:center;gap:8px}
+.logo i{font-size:16px}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.ctrl{background:var(--bg3);color:var(--txt);border:1px solid var(--bd2);border-radius:var(--r);padding:4px 9px;font-family:var(--mono);font-size:11px;cursor:pointer;height:28px}
+.ctrl:focus{outline:none;border-color:var(--acc)}
+.btn{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);color:var(--txt);border:1px solid var(--bd2);border-radius:var(--r);padding:4px 12px;font-family:var(--mono);font-size:11px;cursor:pointer;height:28px;transition:all .12s}
+.btn:hover{border-color:var(--acc);color:var(--acc)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-acc{background:rgba(0,200,240,.1);border-color:rgba(0,200,240,.3);color:var(--acc)}
+.btn-ok{background:rgba(26,232,122,.1);border-color:rgba(26,232,122,.3);color:var(--ok)}
+.btn-sm{padding:3px 8px;height:24px;font-size:10px}
+
+.main-wrap{flex:1;display:grid;grid-template-columns:280px 1fr 280px;gap:0;overflow:hidden}
+@media(max-width:900px){.main-wrap{grid-template-columns:250px 1fr}}
+
+.sidebar{background:var(--bg2);border-right:1px solid var(--bd2);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-hdr{padding:12px 14px;border-bottom:1px solid var(--bd);font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--acc);text-transform:uppercase}
+.sidebar-filter{padding:10px;border-bottom:1px solid var(--bd)}
+.sidebar-filter input{width:100%;background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);padding:6px 10px;color:var(--txt);font-family:var(--mono);font-size:11px}
+.sidebar-filter input:focus{outline:none;border-color:var(--acc)}
+.node-list{flex:1;overflow-y:auto;background:var(--bg)}
+.node-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s}
+.node-item:hover{background:var(--bg3)}
+.node-item.active{background:var(--bg3);border-left:3px solid var(--acc)}
+.node-item.broadcast{background:rgba(0,200,240,.05);border-bottom-color:var(--acc)}
+.node-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.node-dot.online{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.node-dot.offline{background:var(--bd2)}
+.node-info{flex:1;overflow:hidden}
+.node-name{font-weight:600;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node-meta{font-size:9px;color:var(--txt3);margin-top:2px}
+
+.main-panel{display:flex;flex-direction:column;overflow-y:auto;border-right:1px solid var(--bd2);padding:16px;gap:16px}
+
+.step-box{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);padding:16px;transition:opacity .3s}
+.step-box.disabled{opacity:.4;pointer-events:none}
+.step-hdr{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--acc);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.inp{width:100%;background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);padding:8px 10px;color:var(--txt);font-family:var(--mono);font-size:11px}
+.inp:focus{outline:none;border-color:var(--acc)}
+
+.blocks-wrap{max-height:280px;overflow-y:auto;margin-bottom:12px}
+.block-card{background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:all .15s}
+.block-card:hover{border-color:var(--acc)}
+.block-card.selected{background:rgba(0,200,240,.08);border-color:var(--acc);border-left:3px solid var(--acc)}
+.block-tag{font-size:9px;font-weight:700;color:var(--acc);margin-bottom:4px}
+.block-text{font-size:11px;color:var(--txt2);line-height:1.5;max-height:50px;overflow:hidden}
+.block-chars{font-size:9px;color:var(--txt3);margin-top:6px;text-align:right}
+
+.summary{background:rgba(0,0,0,.25);border:1px dashed var(--bd2);border-radius:var(--r);padding:12px;margin-bottom:16px;font-size:10px;color:var(--txt2)}
+.summary .val{color:var(--ok);font-weight:700}
+
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-label{font-size:9px;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px}
+
+.pagination{display:flex;justify-content:space-between;align-items:center;font-size:9px;color:var(--txt3)}
+
+.divider{border-top:1px dashed var(--bd2);margin:16px 0;padding-top:16px}
+.divider-label{font-size:10px;font-weight:700;color:var(--acc);margin-bottom:12px}
+
+.cron-preview{font-size:9px;color:var(--txt3)}
+.cron-preview span{color:var(--warn);font-weight:700}
+
+.help-panel{background:var(--bg2);padding:16px;overflow-y:auto}
+.help-panel h4{color:var(--acc);font-size:12px;margin:0 0 12px 0;font-weight:700}
+.help-panel h5{color:var(--txt);font-size:11px;margin:16px 0 4px 0}
+.help-panel p{color:var(--txt2);font-size:11px;line-height:1.6;margin:0}
+
+.empty-state{text-align:center;padding:60px 20px;color:var(--txt3)}
+.empty-state i{font-size:40px;margin-bottom:12px;opacity:.4;display:block}
+
+.toast{position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:var(--r);font-size:11px;font-weight:600;z-index:1000;opacity:0;transform:translateY(20px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{background:rgba(26,232,122,.15);border:1px solid var(--ok);color:var(--ok)}
+.toast.err{background:rgba(240,72,72,.15);border:1px solid var(--err);color:var(--err)}
+.toast.warn{background:rgba(240,180,41,.15);border:1px solid var(--warn);color:var(--warn)}
+
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="logo"><i class="fas fa-globe"></i> WEB TELEMETRY</div>
+    <select class="ctrl" id="slot-sel"></select>
+    <div class="topbar-right">
+        <button class="btn" id="refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+    </div>
+</div>
+
+<div class="main-wrap">
+    <div class="sidebar">
+        <div class="sidebar-hdr"><i class="fas fa-broadcast-tower"></i> RF Destination</div>
+        <div class="sidebar-filter">
+            <input type="text" id="node-filter" placeholder="Filter by ID or name...">
+        </div>
+        <div class="node-list" id="node-list">
+            <div style="padding:20px;text-align:center;color:var(--txt3);font-size:10px">SCANNING MESH...</div>
+        </div>
+    </div>
+
+    <div class="main-panel">
+        <div id="no-selection" class="empty-state">
+            <i class="fas fa-satellite-dish"></i>
+            [ SELECT A DESTINATION NODE FROM THE SIDEBAR ]
+        </div>
+
+        <div id="wizard" style="display:none">
+            <div class="step-box" id="step-1">
+                <div class="step-hdr"><i class="fas fa-globe"></i> Phase 1: Target Acquisition</div>
+                <div style="display:flex;gap:8px">
+                    <input type="url" id="url-input" class="inp" placeholder="https://weather.example.com/data" style="flex:1">
+                    <button class="btn btn-acc" id="btn-fetch">PARSE DOM</button>
+                </div>
+            </div>
+
+            <div class="step-box disabled" id="step-2">
+                <div class="step-hdr" style="justify-content:space-between">
+                    <span><i class="fas fa-code"></i> Phase 2: Payload Extraction</span>
+                    <input type="text" id="block-search" class="inp" placeholder="Filter..." style="width:120px;padding:4px 8px;font-size:10px">
+                </div>
+                <div class="blocks-wrap" id="blocks-wrap"></div>
+                <div class="pagination">
+                    <button class="btn btn-sm" id="btn-prev" disabled>← Prev</button>
+                    <span id="page-info">PAGE 1</span>
+                    <button class="btn btn-sm" id="btn-next" disabled>Next →</button>
+                </div>
+            </div>
+
+            <div class="step-box disabled" id="step-3">
+                <div class="step-hdr"><i class="fas fa-broadcast-tower"></i> Phase 3: RF Transmission</div>
+                
+                <div class="summary">
+                    <div><strong>PAYLOAD:</strong> <span class="val" id="sum-payload">None</span></div>
+                    <div style="margin-top:4px"><strong>DESTINATION:</strong> <span class="val" id="sum-node">None</span></div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Sensor Label (Prefix)</label>
+                        <input type="text" id="prefix-input" class="inp" placeholder="e.g. Tank Level:">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Mesh Channel</label>
+                        <input type="number" id="channel-input" class="inp" value="0" min="0" max="7">
+                    </div>
+                </div>
+
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+                    <span style="font-size:10px;color:var(--txt2)">Manual transmission:</span>
+                    <button class="btn btn-acc" id="btn-transmit"><i class="fas fa-paper-plane"></i> Transmit Now</button>
+                </div>
+
+                <div class="divider">
+                    <div class="divider-label">Automated Cron Directive</div>
+                    <div class="form-row" style="grid-template-columns:1fr 1fr 1fr">
+                        <div class="form-group">
+                            <label class="form-label">Schedule</label>
+                            <select id="cron-type" class="inp">
+                                <option value="once">Run Once</option>
+                                <option value="daily">Daily</option>
+                                <option value="hourly">Every Hour</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="cron-time-wrap">
+                            <label class="form-label">Time / Date</label>
+                            <input type="datetime-local" id="cron-time" class="inp">
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px">
+                        <div class="cron-preview">CRONTAB: <span id="cron-preview">* * * * *</span></div>
+                        <button class="btn btn-ok" id="btn-schedule"><i class="fas fa-calendar-plus"></i> Deploy Task</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="help-panel">
+        <h4>WEB-TO-RF BRIDGE</h4>
+        <p>Extract data from websites and broadcast over the mesh network.</p>
+        <h5>1. Acquisition</h5>
+        <p>Enter a public URL. The backend parses the DOM into text blocks.</p>
+        <h5>2. Extraction</h5>
+        <p>Select the text block to monitor.</p>
+        <h5>3. Deployment</h5>
+        <p>Transmit immediately or schedule a cron task.</p>
+        <h5 style="color:var(--acc);margin-top:24px">Use Cases</h5>
+        <p>• Weather data<br>• Server status<br>• Stock prices<br>• Any public web data</p>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = window.location.origin;
+let _activeSlotId = 'node_0';
+let _selectedNodeId = null;
+let _meshNodes = {};
+let _extractedBlocks = [];
+let _filteredBlocks = [];
+let _currentPage = 1;
+const _blocksPerPage = 10;
+let _selectedBlockIndex = null;
+let _currentUrl = '';
+
+const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function showToast(msg, type='ok') {
+    if (typeof window.triggerToast === 'function') { window.triggerToast(msg, type); return; }
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function loadSlots() {
+    try {
+        const res = await fetch(`${API_BASE}/api/slots`);
+        if (!res.ok) return;
+        const slotsObj = await res.json();
+        const slots = Object.entries(slotsObj || {}).map(([sid, s]) => ({
+            slot_id: sid, display_name: s.label || sid, is_ready: s.is_ready, is_primary: sid === 'node_0'
+        })).sort((a,b) => a.slot_id === 'node_0' ? -1 : b.slot_id === 'node_0' ? 1 : 0);
+        
+        const sel = document.getElementById('slot-sel');
+        sel.innerHTML = slots.length ? slots.map(s => 
+            `<option value="${s.slot_id}" ${s.is_primary?'selected':''}>${s.is_ready?'●':'○'} ${s.display_name}</option>`
+        ).join('') : '<option value="node_0">● Primary Radio</option>';
+        _activeSlotId = sel.value || 'node_0';
+    } catch(e) { console.error(e); }
+}
+
+async function loadNodes() {
+    try {
+        const res = await fetch(`${API_BASE}/api/nodes?slot_id=${encodeURIComponent(_activeSlotId)}`);
+        if (!res.ok) return;
+        const nodes = await res.json();
+        _meshNodes = {};
+        if (Array.isArray(nodes)) nodes.forEach(n => { _meshNodes[n.node_id] = n; });
+        else if (typeof nodes === 'object') _meshNodes = nodes;
+        renderSidebar();
+    } catch(e) { console.error(e); }
+}
+
+function renderSidebar() {
+    const list = document.getElementById('node-list');
+    const filter = (document.getElementById('node-filter')?.value || '').toLowerCase();
+    const nodes = Object.values(_meshNodes).sort((a,b) => (b.lastHeard||0) - (a.lastHeard||0));
+    const filtered = nodes.filter(n => {
+        const name = (n.user?.longName || n.user?.shortName || n.node_id || '').toLowerCase();
+        return name.includes(filter) || (n.node_id||'').toLowerCase().includes(filter);
+    });
+    
+    let html = `<div class="node-item broadcast ${_selectedNodeId==='^all'?'active':''}" onclick="selectNode('^all')">
+        <i class="fas fa-broadcast-tower" style="color:var(--acc);font-size:14px"></i>
+        <div class="node-info"><div class="node-name" style="color:var(--acc)">BROADCAST TO MESH</div></div>
+    </div>`;
+    
+    if (!filtered.length) html += '<div style="padding:20px;text-align:center;color:var(--txt3);font-size:10px">[ NO NODES ]</div>';
+    else filtered.forEach(n => {
+        const isOnline = n.lastHeard && (Date.now()/1000 - n.lastHeard) < 3600;
+        html += `<div class="node-item ${n.node_id===_selectedNodeId?'active':''}" onclick="selectNode('${n.node_id}')">
+            <div class="node-dot ${isOnline?'online':'offline'}"></div>
+            <div class="node-info">
+                <div class="node-name">${escHtml(n.user?.longName || n.user?.shortName || n.node_id)}</div>
+                <div class="node-meta">${n.node_id}</div>
+            </div>
+        </div>`;
+    });
+    list.innerHTML = html;
+}
+
+function selectNode(nodeId) {
+    _selectedNodeId = nodeId;
+    renderSidebar();
+    document.getElementById('no-selection').style.display = 'none';
+    document.getElementById('wizard').style.display = 'block';
+    document.getElementById('sum-node').textContent = (nodeId === '^all' ? 'BROADCAST' : (_meshNodes[nodeId]?.user?.longName || nodeId)).toUpperCase();
+}
+
+async function fetchUrl() {
+    const url = document.getElementById('url-input')?.value.trim();
+    if (!url) { showToast('URL Required', 'warn'); return; }
+    _currentUrl = url;
+    const btn = document.getElementById('btn-fetch');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
+    try {
+        const res = await fetch(`${API_BASE}/extract`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url: _currentUrl})
+        });
+        if (!res.ok) throw new Error((await res.json().catch(()=>({}))).detail || `HTTP ${res.status}`);
+        const data = await res.json();
+        _extractedBlocks = (data.blocks || []).filter(b => b.text?.trim()).map((b,i) => ({...b, originalIndex: b.id ?? i}));
+        _filteredBlocks = [..._extractedBlocks]; _currentPage = 1; _selectedBlockIndex = null;
+        document.getElementById('step-2').classList.remove('disabled');
+        renderBlocks();
+        showToast(`Extracted ${_extractedBlocks.length} blocks`, 'ok');
+    } catch(e) { showToast(`Error: ${e.message}`, 'err'); }
+    finally { btn.innerHTML = 'PARSE DOM'; btn.disabled = false; }
+}
+
+function filterBlocks() {
+    const s = (document.getElementById('block-search')?.value || '').toLowerCase();
+    _filteredBlocks = _extractedBlocks.filter(b => b.text.toLowerCase().includes(s));
+    _currentPage = 1; renderBlocks();
+}
+
+function renderBlocks() {
+    const wrap = document.getElementById('blocks-wrap');
+    const total = _filteredBlocks.length;
+    const pages = Math.ceil(total / _blocksPerPage) || 1;
+    if (_currentPage > pages) _currentPage = pages;
+    document.getElementById('page-info').textContent = `PAGE ${_currentPage} / ${pages}`;
+    document.getElementById('btn-prev').disabled = _currentPage <= 1;
+    document.getElementById('btn-next').disabled = _currentPage >= pages;
+    if (!total) { wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--txt3)">[ NO CONTENT ]</div>'; return; }
+    const start = (_currentPage - 1) * _blocksPerPage;
+    wrap.innerHTML = _filteredBlocks.slice(start, start + _blocksPerPage).map(b => `
+        <div class="block-card ${_selectedBlockIndex === b.originalIndex ? 'selected' : ''}" onclick="selectBlock(${b.originalIndex})">
+            <div class="block-tag">[${escHtml((b.tag||'TEXT').toUpperCase())}] ID: ${b.originalIndex}</div>
+            <div class="block-text">${escHtml(b.text)}</div>
+            <div class="block-chars">${b.text.length} chars</div>
+        </div>
+    `).join('');
+}
+
+function selectBlock(idx) {
+    _selectedBlockIndex = idx;
+    const block = _extractedBlocks.find(b => b.originalIndex === idx);
+    renderBlocks();
+    document.getElementById('step-3').classList.remove('disabled');
+    document.getElementById('sum-payload').textContent = block ? (block.text.length > 40 ? block.text.substring(0,40)+'...' : block.text) : '';
+}
+
+async function transmitNow() {
+    const prefix = document.getElementById('prefix-input')?.value.trim();
+    if (!prefix) { showToast('Label Required', 'warn'); return; }
+    if (_selectedBlockIndex === null) { showToast('Select a block', 'warn'); return; }
+    if (!_selectedNodeId) { showToast('Select destination', 'warn'); return; }
+    const btn = document.getElementById('btn-transmit');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
+    try {
+        const res = await fetch(`${API_BASE}/api/monitor`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                url: _currentUrl, block_id: _selectedBlockIndex, prefix,
+                node_id: _selectedNodeId, channel: parseInt(document.getElementById('channel-input')?.value)||0, slot_id: _activeSlotId
+            })
+        });
+        if (res.ok) { const d = await res.json(); showToast(`Sent: ${d.text||'OK'}`, 'ok'); }
+        else showToast(`Failed: ${(await res.json().catch(()=>({}))).detail || res.status}`, 'err');
+    } catch(e) { showToast(`Error: ${e.message}`, 'err'); }
+    finally { btn.innerHTML = '<i class="fas fa-paper-plane"></i> Transmit Now'; btn.disabled = false; }
+}
+
+function updateCronPreview() {
+    const type = document.getElementById('cron-type').value;
+    const timeEl = document.getElementById('cron-time');
+    const preview = document.getElementById('cron-preview');
+    const wrap = document.getElementById('cron-time-wrap');
+    if (type === 'hourly') { wrap.style.display = 'none'; preview.textContent = '0 * * * *'; }
+    else if (type === 'daily') {
+        wrap.style.display = ''; timeEl.type = 'time';
+        const t = timeEl.value; preview.textContent = t ? `${parseInt(t.split(':')[1])} ${parseInt(t.split(':')[0])} * * *` : 'Select time';
+    } else {
+        wrap.style.display = ''; timeEl.type = 'datetime-local';
+        const v = timeEl.value;
+        if (v) { const d = new Date(v); preview.textContent = `${d.getMinutes()} ${d.getHours()} ${d.getDate()} ${d.getMonth()+1} *`; }
+        else preview.textContent = 'Select date/time';
+    }
+}
+
+function generateCron() {
+    const type = document.getElementById('cron-type').value;
+    const val = document.getElementById('cron-time')?.value || '';
+    if (type === 'hourly') return '0 * * * *';
+    if (type === 'daily' && val) { const [h,m] = val.split(':'); return `${parseInt(m)} ${parseInt(h)} * * *`; }
+    if (type === 'once' && val) { const d = new Date(val); return `${d.getMinutes()} ${d.getHours()} ${d.getDate()} ${d.getMonth()+1} *`; }
+    return null;
+}
+
+async function scheduleTask() {
+    const prefix = document.getElementById('prefix-input')?.value.trim();
+    const cron = generateCron();
+    if (!prefix) { showToast('Label Required', 'warn'); return; }
+    if (!cron) { showToast('Valid schedule required', 'warn'); return; }
+    if (_selectedBlockIndex === null) { showToast('Select a block', 'warn'); return; }
+    if (!_selectedNodeId) { showToast('Select destination', 'warn'); return; }
+    const btn = document.getElementById('btn-schedule');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
+    try {
+        const res = await fetch(`${API_BASE}/api/tasks/`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                nodeId: _selectedNodeId, taskType: 'website_monitor', cronString: cron, slotId: _activeSlotId,
+                actionPayload: JSON.stringify({
+                    url: _currentUrl, block_id: _selectedBlockIndex, prefix,
+                    channel: parseInt(document.getElementById('channel-input')?.value)||0, node_id: _selectedNodeId, slot_id: _activeSlotId
+                })
+            })
+        });
+        if (res.ok) showToast('Task Deployed', 'ok');
+        else showToast(`Failed: ${(await res.json().catch(()=>({}))).detail || res.status}`, 'err');
+    } catch(e) { showToast(`Error: ${e.message}`, 'err'); }
+    finally { btn.innerHTML = '<i class="fas fa-calendar-plus"></i> Deploy Task'; btn.disabled = false; }
+}
+
+document.getElementById('slot-sel').addEventListener('change', e => { _activeSlotId = e.target.value; loadNodes(); });
+document.getElementById('node-filter').addEventListener('input', renderSidebar);
+document.getElementById('refresh-btn').addEventListener('click', loadNodes);
+document.getElementById('btn-fetch').addEventListener('click', fetchUrl);
+document.getElementById('url-input').addEventListener('keypress', e => { if (e.key === 'Enter') fetchUrl(); });
+document.getElementById('block-search').addEventListener('input', filterBlocks);
+document.getElementById('btn-prev').addEventListener('click', () => { if (_currentPage > 1) { _currentPage--; renderBlocks(); } });
+document.getElementById('btn-next').addEventListener('click', () => { if (_currentPage < Math.ceil(_filteredBlocks.length/_blocksPerPage)) { _currentPage++; renderBlocks(); } });
+document.getElementById('btn-transmit').addEventListener('click', transmitNow);
+document.getElementById('cron-type').addEventListener('change', updateCronPreview);
+document.getElementById('cron-time').addEventListener('change', updateCronPreview);
+document.getElementById('btn-schedule').addEventListener('click', scheduleTask);
+
+(async () => { await loadSlots(); await loadNodes(); updateCronPreview(); })();
+</script>
+</body>
+</html>

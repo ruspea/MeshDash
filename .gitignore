@@ -11,6 +11,7 @@ build/
 *.egg
 
 # Virtual environments
+mesh-dash_venv/
 venv/
 .venv/
 env/
@@ -31,14 +32,16 @@ Thumbs.db
 logs/
 
 # Database (user data — never ship)
+data/
 *.db
 *.sqlite
 *.sqlite3
 
-# Secrets
+# Secrets and config with local values
 .env
 .env.*
 !.env.example
+.mesh-dash_config
 
 # Session and cache
 sessions/
@@ -48,20 +51,23 @@ sessions/
 plugin_uploads/
 pending_plugins/
 
-# Archives and backups
+# Backups
+backup/
+*.bak
+*.bak2
+*.old
+*.orig
+
+# Archives
 *.zip
 *.tar.gz
-*.bak
-
-# Config with secrets
-.mesh-dash_config
 
 # PHP errors
 c2_php_errors.log
 
-# Docker (temporary removal in R3.0)
-docker-compose.yml
-Dockerfile
+# Install flag files
+c2_installed.flag
 
-# Download packages
-versions/R3.0/mesh-dash*.zip
+# Community plugins (installed separately)
+community_plugins/
+community_plugins_suspended/

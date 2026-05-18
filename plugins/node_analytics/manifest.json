@@ -1,0 +1,18 @@
+{
+  "id": "node_analytics",
+  "name": "Node Analytics",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Comprehensive per-node telemetry analysis with charts for power, RF signal, network, environment, GPS, and system health. Time-range filtering, live stats, and automated insights.",
+  "watchdog": true,
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/node_analytics",
+  "static_prefix": "/static/plugins/node_analytics",
+  "nav_menu": [
+    {
+      "label": "Node Analytics",
+      "href": "/plugin/node_analytics/index.html",
+      "icon": "fa-chart-line"
+    }
+  ]
+}

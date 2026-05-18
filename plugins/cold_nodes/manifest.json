@@ -1,0 +1,25 @@
+{
+  "id": "cold_nodes",
+  "name": "Cold Nodes",
+  "version": "2.0.2",
+  "author": "MeshDash",
+  "description": "Detects nodes not heard within a configurable period. Stamps stale badges on Overview cards, adds a Cold Node tab to the node detail modal, and provides a management page for bulk deletion.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/cold_nodes",
+  "static_prefix": "/static/plugins/cold_nodes",
+  "bridge": "bridge.html",
+  "permissions": [
+    "node_badges",
+    "modal_tabs",
+    "overview_toolbar",
+    "node_delete"
+  ],
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Cold Nodes",
+      "icon": "fa-snowflake",
+      "href": "/plugin/cold_nodes/index.html"
+    }
+  ]
+}

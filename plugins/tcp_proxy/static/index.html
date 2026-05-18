@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TCP Proxy</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--mono);background:var(--bg);color:var(--txt);font-size:12px;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--bg2);border-bottom:1px solid var(--bd);flex-shrink:0;flex-wrap:wrap;min-height:46px}
+.logo{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--acc);letter-spacing:.08em;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc)}
+.logo-dot.pulse{animation:pulse 2s ease-in-out infinite}
+.logo-dot.off{background:var(--err);box-shadow:0 0 8px var(--err);animation:none}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+.btn{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);color:var(--txt);border:1px solid var(--bd2);border-radius:3px;padding:4px 11px;font-family:var(--mono);font-size:11px;cursor:pointer;height:28px;white-space:nowrap;transition:border-color .12s}
+.btn:hover{border-color:var(--acc);color:var(--acc)}
+.btn.danger{border-color:rgba(240,80,80,.3);color:var(--err)}
+.btn.danger:hover{border-color:var(--err);background:rgba(240,80,80,.06)}
+.btn.ok-btn{border-color:rgba(38,222,132,.3);color:var(--ok)}
+.btn.ok-btn:hover{border-color:var(--ok);background:rgba(38,222,132,.06)}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.status-chip{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:10px;font-size:9px;font-weight:700;letter-spacing:.5px;border:1px solid}
+.status-chip.running{background:rgba(38,222,132,.08);border-color:rgba(38,222,132,.3);color:var(--ok)}
+.status-chip.stopped{background:rgba(240,80,80,.08);border-color:rgba(240,80,80,.3);color:var(--err)}
+.chip-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 1.5s ease-in-out infinite}
+.navtabs{display:flex;align-items:stretch;gap:0;background:var(--bg2);border-bottom:1px solid var(--bd);flex-shrink:0}
+.navtab{padding:8px 16px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--txt2);cursor:pointer;border-bottom:2px solid transparent;transition:all .12s;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.navtab:hover{color:var(--txt)}
+.navtab.act{color:var(--acc);border-bottom-color:var(--acc)}
+.navtab .badge{background:var(--bg3);border:1px solid var(--bd2);color:var(--txt2);padding:1px 6px;border-radius:8px;font-size:11px;font-weight:700}
+.navtab.act .badge{background:rgba(0,200,240,.12);border-color:rgba(0,200,240,.3);color:var(--acc)}
+.main{flex:1;overflow:hidden;display:flex;position:relative}
+.sec{display:none;flex:1;overflow-y:auto;padding:16px 18px;flex-direction:column;gap:14px}
+.sec.act{display:flex}
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:5px;padding:14px 16px}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.card-title{font-family:var(--sans);font-size:11px;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:.08em}
+.card-actions{display:flex;gap:6px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.stat-box{background:var(--bg3);border:1px solid var(--bd2);border-radius:4px;padding:10px 12px}
+.stat-box.highlight{border-color:rgba(0,200,240,.25);background:rgba(0,200,240,.04)}
+.stat-box.ok-box{border-color:rgba(38,222,132,.25);background:rgba(38,222,132,.04)}
+.stat-box.warn-box{border-color:rgba(240,180,41,.25);background:rgba(240,180,41,.04)}
+.stat-box.err-box{border-color:rgba(240,80,80,.25);background:rgba(240,80,80,.04)}
+.stat-label{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:5px}
+.stat-val{font-size:18px;font-weight:700;font-family:var(--sans);color:var(--txt)}
+.stat-val.acc{color:var(--acc)}
+.stat-val.ok{color:var(--ok)}
+.stat-val.warn{color:var(--warn)}
+.stat-val.err{color:var(--err)}
+.stat-sub{font-size:9px;color:var(--txt3);margin-top:3px}
+.chart-wrap{position:relative;height:80px;width:100%}
+canvas.flow-chart{width:100%;height:100%;display:block}
+.sess-list{display:flex;flex-direction:column;gap:8px}
+.sess-card{background:var(--bg3);border:1px solid var(--bd2);border-radius:5px;padding:12px 14px;cursor:default;transition:border-color .12s}
+.sess-card.online{border-color:rgba(38,222,132,.3)}
+.sess-card.offline{border-color:var(--bd2);opacity:.8}
+.sess-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.sess-ip{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--acc)}
+.sess-name{font-size:11px;font-weight:700;color:var(--ok)}
+.sess-id{font-size:9px;color:var(--txt3);margin-left:auto}
+.sess-meta{display:flex;gap:16px;font-size:9px;color:var(--txt2);margin-bottom:8px;flex-wrap:wrap}
+.sess-meta span b{color:var(--txt)}
+.sess-pills{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.s-pill{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:2px;border:1px solid;font-size:11px;font-weight:700;letter-spacing:.04em}
+.s-pill.online-p{background:rgba(38,222,132,.08);border-color:rgba(38,222,132,.3);color:var(--ok)}
+.s-pill.offline-p{background:rgba(58,74,92,.12);border-color:var(--bd2);color:var(--txt3)}
+.s-pill.node-p{background:rgba(0,200,240,.08);border-color:rgba(0,200,240,.25);color:var(--acc)}
+.s-pill.app-p{background:rgba(167,139,250,.08);border-color:rgba(167,139,250,.25);color:var(--pur)}
+.s-pill.queue-p{background:rgba(240,180,41,.08);border-color:rgba(240,180,41,.3);color:var(--warn)}
+.s-pill.relay-p{background:rgba(244,114,182,.08);border-color:rgba(244,114,182,.3);color:var(--pink)}
+.sess-msgs{margin-top:8px}
+.sess-msgs-head{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--txt3);margin-bottom:5px}
+.msg-row{display:flex;align-items:baseline;gap:8px;padding:3px 0;border-bottom:1px solid var(--bd);font-size:10px}
+.msg-row:last-child{border-bottom:none}
+.msg-ts{color:var(--txt3);flex-shrink:0;font-size:9px}
+.msg-to{color:var(--acc);flex-shrink:0}
+.msg-txt{color:var(--txt);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sess-actions{display:flex;gap:6px;margin-top:10px}
+.sess-no-msg{font-size:9px;color:var(--txt3);font-style:italic;padding:4px 0}
+.conn-list{display:flex;flex-direction:column;gap:6px}
+.conn-card{background:var(--bg3);border:1px solid rgba(38,222,132,.25);border-radius:4px;padding:10px 14px}
+.conn-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.conn-ip{font-family:var(--sans);font-size:12px;font-weight:700;color:var(--acc)}
+.conn-cid{font-size:9px;color:var(--txt3)}
+.conn-name{font-size:10px;font-weight:700;color:var(--ok)}
+.conn-state{display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:2px;font-size:11px;font-weight:700;border:1px solid}
+.conn-state.hs{border-color:rgba(0,200,240,.3);color:var(--acc);background:rgba(0,200,240,.06)}
+.conn-state.live{border-color:rgba(38,222,132,.3);color:var(--ok);background:rgba(38,222,132,.06)}
+.conn-meta{display:flex;gap:14px;font-size:9px;color:var(--txt2);flex-wrap:wrap}
+.conn-meta b{color:var(--txt)}
+.dbg-wrap{font-family:var(--mono);font-size:11px;background:var(--bg);border:1px solid var(--bd);border-radius:4px;overflow-y:auto;max-height:calc(100vh - 220px)}
+.dbg-row{display:grid;grid-template-columns:72px 70px 30px 1fr auto;gap:0;align-items:baseline;border-bottom:1px solid rgba(30,42,58,.6);padding:2px 0}
+.dbg-row:hover{background:rgba(0,200,240,.03)}
+.dbg-row.lv-WARN{background:rgba(240,180,41,.04)}
+.dbg-row.lv-ERROR{background:rgba(240,80,80,.04)}
+.dbg-ts{color:var(--txt3);padding:0 6px;font-size:9px}
+.dbg-cid{color:var(--acc);padding:0 5px;font-size:9px;overflow:hidden;text-overflow:ellipsis}
+.dbg-dir{padding:0 3px;font-size:10px}
+.dbg-dir.tx{color:var(--ok)}
+.dbg-dir.rx{color:var(--err)}
+.dbg-dir.info{color:var(--acc)}
+.dbg-msg{padding:0 5px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dbg-det{padding:0 6px;color:var(--txt3);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:320px}
+.filterbar{display:flex;align-items:center;gap:8px;padding:6px 16px;background:var(--bg2);border-bottom:1px solid var(--bd);flex-shrink:0;flex-wrap:wrap}
+.f-pill{padding:2px 9px;border-radius:2px;border:1px solid var(--bd2);font-size:9px;font-weight:700;letter-spacing:.05em;cursor:pointer;color:var(--txt2);background:var(--bg3);transition:all .1s;user-select:none;text-transform:uppercase}
+.f-pill:hover{border-color:var(--acc);color:var(--acc)}
+.f-pill.on{background:rgba(0,200,240,.1);border-color:var(--acc);color:var(--acc)}
+.f-search{background:var(--bg3);border:1px solid var(--bd2);border-radius:3px;padding:3px 9px;color:var(--txt);font-family:var(--mono);font-size:10px;width:140px;height:24px}
+.f-search:focus{outline:none;border-color:var(--acc)}
+.f-search::placeholder{color:var(--txt3)}
+.auto-lbl{font-size:9px;color:var(--txt2);display:flex;align-items:center;gap:4px;cursor:pointer}
+.cfg-panel{position:fixed;top:0;right:-500px;width:500px;height:100vh;background:var(--bg2);border-left:1px solid var(--bd2);z-index:200;overflow-y:auto;transition:right .22s cubic-bezier(.4,0,.2,1);padding:20px 22px}
+.cfg-panel.open{right:0}
+.cfg-panel-x{position:absolute;top:14px;right:16px;background:none;border:none;color:var(--txt2);font-size:16px;cursor:pointer;padding:4px}
+.cfg-panel-x:hover{color:var(--txt)}
+.cfg-title{font-family:var(--sans);font-size:15px;font-weight:700;color:var(--acc);margin-bottom:18px}
+.sec-head{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--txt3);margin-bottom:8px;margin-top:18px;padding-bottom:4px;border-bottom:1px solid var(--bd)}
+.sec-head:first-of-type{margin-top:0}
+.fi{background:var(--bg);border:1px solid var(--bd2);border-radius:3px;color:var(--txt);padding:6px 9px;font-family:var(--mono);font-size:11px;width:100%}
+.fi:focus{outline:none;border-color:var(--acc)}
+.fi::placeholder{color:var(--txt3)}
+select.fi{padding-right:4px}
+.fi-row{display:grid;grid-template-columns:160px 1fr;align-items:center;gap:10px;margin-bottom:8px}
+.fi-label{font-size:10px;color:var(--txt2)}
+.fi-hint{font-size:9px;color:var(--txt3);margin-top:2px;line-height:1.5}
+.help-sec{margin-bottom:18px}
+.help-sec h3{font-family:var(--sans);font-size:11px;font-weight:700;color:var(--acc);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd)}
+.help-sec p{font-size:10px;color:var(--txt2);line-height:1.7;margin-bottom:6px}
+.help-sec code{color:var(--acc);background:var(--bg3);padding:1px 5px;border-radius:2px;font-family:var(--mono)}
+.help-sec ul{font-size:10px;color:var(--txt2);line-height:1.8;padding-left:16px}
+.help-sec li b{color:var(--txt)}
+.limit-row{display:flex;align-items:flex-start;gap:8px;padding:6px 10px;background:var(--bg3);border:1px solid var(--bd2);border-radius:3px;margin-bottom:5px}
+.limit-icon{font-size:12px;flex-shrink:0;margin-top:1px}
+.limit-txt{font-size:9px;color:var(--txt2);line-height:1.6}
+.limit-txt b{color:var(--warn)}
+.seq-steps{display:flex;flex-direction:column;gap:4px}
+.seq-step{display:flex;align-items:flex-start;gap:8px;padding:5px 8px;background:var(--bg3);border-radius:3px}
+.step-num{width:18px;height:18px;border-radius:50%;background:rgba(0,200,240,.15);border:1px solid rgba(0,200,240,.3);color:var(--acc);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.step-txt{font-size:10px;color:var(--txt2);line-height:1.6}
+.step-txt b{color:var(--txt)}
+.kv{display:grid;grid-template-columns:160px 1fr;gap:4px 10px}
+.kv-k{font-size:9px;color:var(--txt3)}
+.kv-v{font-size:10px;color:var(--txt);word-break:break-all}
+.kv-v.acc{color:var(--acc)}
+.kv-v.ok{color:var(--ok)}
+.kv-v.warn{color:var(--warn)}
+.kv-v.err{color:var(--err)}
+.empty-state{text-align:center;padding:40px 20px;color:var(--txt3);font-size:10px}
+.empty-state .big{font-size:28px;margin-bottom:10px;opacity:.4}
+.spin{animation:spin .6s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.overlay-loading{position:absolute;inset:0;background:rgba(10,14,20,.8);display:flex;align-items:center;justify-content:center;z-index:10;font-size:11px;letter-spacing:.15em;color:var(--acc)}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-dot" id="logo-dot"></div>
+    TCP PROXY
+  </div>
+  <div id="server-chip" class="status-chip stopped"><div class="chip-dot"></div>STOPPED</div>
+  <div id="radio-chip" class="status-chip stopped"><div class="chip-dot"></div>RADIO</div>
+  <button class="btn" onclick="doRefresh()">↻ Refresh</button>
+  <button class="btn danger" onclick="kickAll()" id="kick-btn">⊗ Kick All</button>
+  <div class="topbar-right" id="topbar-meta" style="font-size:9px;color:var(--txt3)"></div>
+</div>
+
+<div class="navtabs">
+  <div class="navtab act" onclick="showTab('overview')" id="tab-overview">⬡ Overview</div>
+  <div class="navtab" onclick="showTab('sessions')" id="tab-sessions">⬡ Sessions <span class="badge" id="bdg-sess">0</span></div>
+  <div class="navtab" onclick="showTab('connections')" id="tab-connections">⬡ Live <span class="badge" id="bdg-live">0</span></div>
+  <div class="navtab" onclick="showTab('debug')" id="tab-debug">⬡ Protocol Log <span class="badge" id="bdg-dbg">0</span></div>
+  <div class="navtab" onclick="showTab('config')" id="tab-config">⚙ Config</div>
+  <div class="navtab" onclick="showTab('help')" id="tab-help">? Help</div>
+</div>
+
+<div class="main">
+
+<div class="sec act" id="sec-overview">
+  <div class="stat-grid" id="stat-grid"></div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-title">Traffic Flow — packets/sample (15s)</div>
+      <div style="font-size:9px;color:var(--txt3)" id="chart-legend">— →clients &nbsp; — →radio</div>
+    </div>
+    <div class="chart-wrap"><canvas id="flow-chart"></canvas></div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-title">Active Sessions</div><button class="btn" onclick="showTab('sessions')">View All →</button></div>
+    <div id="quick-sessions"><div class="empty-state"><div class="big">◌</div>No sessions yet</div></div>
+  </div>
+</div>
+
+<div class="sec" id="sec-sessions">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+    <div style="font-size:9px;color:var(--txt3)">Sessions persist across reconnects · keyed by IP · text messages queued while offline</div>
+    <button class="btn" onclick="loadSessions()">↻</button>
+  </div>
+  <div class="sess-list" id="sess-list"><div class="empty-state"><div class="big">◌</div>No sessions yet — connect the Meshtastic app</div></div>
+</div>
+
+<div class="sec" id="sec-connections">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px">
+    <div style="font-size:9px;color:var(--txt3)">Live TCP connections — updates every 5s</div>
+    <button class="btn" onclick="loadConnections()">↻</button>
+  </div>
+  <div class="conn-list" id="conn-list"><div class="empty-state"><div class="big">◌</div>No clients connected</div></div>
+</div>
+
+<div class="sec" id="sec-debug" style="gap:6px">
+  <div class="filterbar" style="background:transparent;border:none;padding:0 0 4px 0">
+    <span class="f-pill on" id="f-all" onclick="setFilter('',this)">All</span>
+    <span class="f-pill" id="f-hs" onclick="setFilter('HANDSHAKE',this)">Handshake</span>
+    <span class="f-pill" id="f-tx" onclick="setFilter('TX',this)">TX</span>
+    <span class="f-pill" id="f-rx" onclick="setFilter('RX',this)">RX</span>
+    <span class="f-pill" id="f-sess" onclick="setFilter('SESSION',this)">Sessions</span>
+    <span class="f-pill" id="f-relay" onclick="setFilter('REPLAY',this)">Replays</span>
+    <span class="f-pill" id="f-err" onclick="setFilter('error',this)">Errors</span>
+    <input class="f-search" id="f-cid" placeholder="filter cid…" oninput="renderLog()">
+    <label class="auto-lbl"><input type="checkbox" id="chk-auto" checked onchange="toggleAuto()"> auto</label>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button class="btn" onclick="loadLog()">↻ Refresh</button>
+      <button class="btn danger" onclick="clearLog()">⊗ Clear</button>
+    </div>
+  </div>
+  <div class="dbg-wrap" id="dbg-wrap"><div class="empty-state" style="padding:20px"><div class="big">◌</div>No log entries</div></div>
+</div>
+
+<div class="sec" id="sec-config">
+  <div class="card">
+    <div class="card-head"><div class="card-title">Proxy Configuration</div></div>
+    <div class="sec-head" style="margin-top:0">Network</div>
+    <div class="fi-row"><div class="fi-label">Port</div><input class="fi" type="number" id="c-port" min="1024" max="65535"><div></div><div class="fi-hint">Default 4403. If MeshDash connects to the radio via TCP on 4403, use 4404 here.</div></div>
+    <div class="fi-row"><div class="fi-label">Bind Host</div><input class="fi" type="text" id="c-host" placeholder="0.0.0.0"></div>
+    <div class="fi-row"><div class="fi-label">Max Clients</div><input class="fi" type="number" id="c-max" min="1" max="32"></div>
+
+    <div class="sec-head">Radio Slot</div>
+    <div class="fi-row"><div class="fi-label">Slot</div><select class="fi" id="c-slot"></select><div></div><div class="fi-hint">Which MeshDash radio connection to proxy.</div></div>
+
+    <div class="sec-head">Sessions</div>
+    <div class="fi-row"><div class="fi-label">Session TTL (s)</div><input class="fi" type="number" id="c-ttl" min="60" max="86400"><div></div><div class="fi-hint">How long to retain an offline session before purging. Default 7200 (2h).</div></div>
+    <div class="fi-row"><div class="fi-label">Queue Max (msgs)</div><input class="fi" type="number" id="c-qmax" min="10" max="500"><div></div><div class="fi-hint">Max text messages to buffer per offline session for replay on reconnect.</div></div>
+
+    <div style="margin-top:18px;display:flex;gap:8px;align-items:center">
+      <button class="btn ok-btn" onclick="saveConfig()">✓ Save &amp; Restart</button>
+      <span id="cfg-st" style="font-size:9px"></span>
+    </div>
+  </div>
+</div>
+
+<div class="sec" id="sec-help">
+  <div class="card help-sec">
+    <h3>What is TCP Proxy?</h3>
+    <p>TCP Proxy allows you to connect the official Meshtastic mobile app (or other TCP-compatible clients) directly to your MeshDash dashboard. It creates a bridge so your app thinks it is connected directly to a physical radio.</p>
+  </div>
+  <div class="card help-sec">
+    <h3>How to Connect</h3>
+    <ul>
+      <li>Open the <b>Meshtastic App</b> on your phone.</li>
+      <li>Go to <b>Settings</b> &rarr; <b>Radio Configuration</b> &rarr; <b>Connection</b> (or Network/TCP).</li>
+      <li>Enter the IP address of your MeshDash server.</li>
+      <li>Enter the configured port (if not using the default <b>4403</b>).</li>
+      <li>The app will connect, sync nodes, and receive live messages.</li>
+    </ul>
+  </div>
+  <div class="card help-sec">
+    <h3>Configuration Options</h3>
+    <div class="limit-row"><div class="limit-icon">ℹ</div><div class="limit-txt"><b>Port:</b> The network port the proxy listens on. Default is 4403. If your physical radio is using 4403 on the same network, change this to 4404.</div></div>
+    <div class="limit-row"><div class="limit-icon">ℹ</div><div class="limit-txt"><b>Max Clients:</b> The maximum number of simultaneous app connections allowed.</div></div>
+    <div class="limit-row"><div class="limit-icon">ℹ</div><div class="limit-txt"><b>Session TTL & Queue:</b> How long the proxy remembers a disconnected device, and how many messages to buffer. When the app reconnects, missed messages are delivered.</div></div>
+    <div class="limit-row"><div class="limit-icon">⚠</div><div class="limit-txt"><b>Cloudflare Tunnels:</b> Raw TCP connections are not supported through standard Cloudflare web tunnels without additional configuration. Use a local IP, VPN (Tailscale), or port forwarding.</div></div>
+  </div>
+</div>
+
+</div>
+
+<div class="cfg-panel" id="cfg-panel">
+  <button class="cfg-panel-x" onclick="closeCfgPanel()">✕</button>
+</div>
+
+<script>
+const API = "/api/plugins/tcp_proxy";
+let _logRaw=[], _logFilter="", _autoTimer=null, _chartCtx=null;
+let _txHistory=[], _rxHistory=[];
+const MAX_HIST=60;
+let _lastTx=0, _lastRx=0;
+
+function e(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+function ts(t){if(!t)return"—";return new Date(t*1000).toLocaleTimeString([],{hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"})}
+function ago(t){if(!t)return"—";const d=Math.round(Date.now()/1000-t);return d<60?d+"s ago":d<3600?Math.round(d/60)+"m ago":Math.round(d/3600)+"h ago"}
+function dur(s){if(!s&&s!==0)return"—";if(s<60)return s+"s";if(s<3600)return Math.round(s/60)+"m";return Math.round(s/3600)+"h"}
+async function api(path,opts={}){
+  const r=await fetch(API+path,{headers:{"Content-Type":"application/json"},...opts});
+  if(!r.ok){const d=await r.json().catch(()=>({detail:"HTTP "+r.status}));throw new Error(d.detail);}
+  return r.json();
+}
+
+function showTab(id){
+  document.querySelectorAll(".navtab").forEach(t=>t.classList.remove("act"));
+  document.querySelectorAll(".sec").forEach(s=>s.classList.remove("act"));
+  document.getElementById("tab-"+id).classList.add("act");
+  document.getElementById("sec-"+id).classList.add("act");
+  if(id==="debug")  {loadLog(); startAuto();}
+  else stopAuto();
+  if(id==="sessions")     loadSessions();
+  if(id==="connections")  loadConnections();
+  if(id==="config")       loadConfig();
+}
+
+let _lastStatus={};
+async function doRefresh(){
+  try{
+    const d = await api("/status");
+    _lastStatus = d;
+
+    const sc=document.getElementById("server-chip");
+    sc.className="status-chip "+(d.server_running?"running":"stopped");
+    sc.innerHTML=`<div class="chip-dot"></div>${d.server_running?"RUNNING :"+d.port:"STOPPED"}`;
+
+    const rc=document.getElementById("radio-chip");
+    rc.className="status-chip "+(d.radio_ready?"running":"stopped");
+    rc.innerHTML=`<div class="chip-dot"></div>${d.radio_ready?"RADIO ✓":"RADIO ✗"}`;
+
+    const ld=document.getElementById("logo-dot");
+    ld.className=d.server_running&&d.radio_ready?"logo-dot pulse":"logo-dot off";
+
+    document.getElementById("topbar-meta").innerHTML=
+      `<span style="color:var(--txt3)">slot: <b style="color:var(--txt2)">${e(d.slot_id)}</b> &nbsp; nodes: <b style="color:var(--acc)">${d.known_nodes}</b></span>`;
+
+    document.getElementById("bdg-sess").textContent=d.total_sessions;
+    document.getElementById("bdg-live").textContent=d.active_clients;
+
+    const curTx=d.pkts_to_clients, curRx=d.pkts_from_clients;
+    _txHistory.push(Math.max(0,curTx-_lastTx));
+    _rxHistory.push(Math.max(0,curRx-_lastRx));
+    _lastTx=curTx; _lastRx=curRx;
+    if(_txHistory.length>MAX_HIST){_txHistory.shift();_rxHistory.shift();}
+    drawChart();
+
+    const sg=document.getElementById("stat-grid");
+    sg.innerHTML=[
+      ["Active Clients", d.active_clients, d.active_clients>0?"ok-box":"", d.active_clients>0?"ok":""],
+      ["Sessions Total", d.total_sessions, "", ""],
+      ["Sessions Online", d.active_sessions, d.active_sessions>0?"ok-box":"", d.active_sessions>0?"ok":""],
+      ["Pkts → Clients", d.pkts_to_clients, "highlight", "acc"],
+      ["Pkts → Radio",   d.pkts_from_clients, "highlight", "acc"],
+      ["Msgs Replayed",  d.msgs_replayed||0, "", ""],
+      ["Peak Clients",   d.peak_clients, "", ""],
+      ["Total Connects", d.total_connections||0, "", ""],
+      ["Known Nodes",    d.known_nodes, "", "acc"],
+    ].map(([l,v,box,vc])=>`
+      <div class="stat-box ${box}">
+        <div class="stat-label">${l}</div>
+        <div class="stat-val ${vc}">${v}</div>
+      </div>`).join("");
+
+    loadQuickSessions(d);
+
+  }catch(e2){console.error(e2);}
+}
+
+function initChart(){
+  const canvas=document.getElementById("flow-chart");
+  _chartCtx=canvas.getContext("2d");
+  function resize(){canvas.width=canvas.offsetWidth;canvas.height=canvas.offsetHeight;drawChart();}
+  new ResizeObserver(resize).observe(canvas);
+  resize();
+}
+function drawChart(){
+  const ctx=_chartCtx;
+  if(!ctx)return;
+  const W=ctx.canvas.width, H=ctx.canvas.height;
+  ctx.clearRect(0,0,W,H);
+
+  const maxV=Math.max(1,..._txHistory,..._rxHistory);
+  const pad=4;
+  const w=W/Math.max(MAX_HIST,_txHistory.length);
+
+  ctx.strokeStyle="rgba(30,42,58,.6)";ctx.lineWidth=1;
+  for(let y=0;y<=4;y++){const yp=pad+((H-pad*2)/4)*y;ctx.beginPath();ctx.moveTo(0,yp);ctx.lineTo(W,yp);ctx.stroke();}
+
+  function drawSeries(data,color,fill){
+    if(!data.length)return;
+    ctx.beginPath();
+    const startX=W-(data.length*w);
+    data.forEach((v,i)=>{
+      const x=startX+i*w+w/2;
+      const y=pad+(H-pad*2)*(1-v/maxV);
+      if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    if(fill){
+      ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.stroke();
+      ctx.lineTo(startX+(data.length-1)*w+w/2,H);ctx.lineTo(startX,H);ctx.closePath();
+      ctx.fillStyle=fill;ctx.fill();
+    } else {
+      ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.stroke();
+    }
+  }
+
+  drawSeries(_txHistory,"#00c8f0","rgba(0,200,240,.08)");
+  drawSeries(_rxHistory,"#a78bfa","rgba(167,139,250,.08)");
+
+  document.getElementById("chart-legend").innerHTML=
+    `<span style="color:#00c8f0">— pkts→clients</span> &nbsp; <span style="color:var(--pur)">— pkts→radio</span>`;
+}
+
+async function loadSessions(){
+  try{
+    const d=await api("/sessions");
+    document.getElementById("bdg-sess").textContent=d.count;
+    const el=document.getElementById("sess-list");
+    if(!d.sessions.length){el.innerHTML='<div class="empty-state"><div class="big">◌</div>No sessions yet — connect the Meshtastic app</div>';return;}
+    el.innerHTML=d.sessions.map(s=>buildSessCard(s)).join("");
+  }catch(ex){}
+}
+
+function loadQuickSessions(status){
+  api("/sessions").then(d=>{
+    const el=document.getElementById("quick-sessions");
+    const online=d.sessions.filter(s=>s.online);
+    if(!online.length){el.innerHTML='<div class="empty-state"><div class="big">◌</div>No sessions online</div>';return;}
+    el.innerHTML=online.map(s=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--bd)">
+        <div class="s-pill online-p"><span class="chip-dot" style="width:5px;height:5px;border-radius:50%;background:var(--ok);flex-shrink:0"></span>LIVE</div>
+        <span style="font-family:var(--sans);color:var(--acc);font-size:11px">${e(s.ip)}</span>
+        ${s.from_node_name||s.from_node_id?`<span class="s-pill node-p">${e(s.from_node_name||s.from_node_id)}</span>`:""}
+        <span style="font-size:9px;color:var(--txt3);margin-left:auto">↓${s.total_pkts_rx} ↑${s.total_pkts_tx}</span>
+      </div>`).join("");
+  }).catch(()=>{});
+}
+
+function buildSessCard(s){
+  const statusPill=s.online
+    ?`<span class="s-pill online-p"><span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--ok);margin-right:2px;vertical-align:middle"></span>ONLINE</span>`
+    :`<span class="s-pill offline-p">OFFLINE · ${ago(s.last_disconnected)}</span>`;
+  const nodePill=s.from_node_id?`<span class="s-pill node-p">${e(s.from_node_name||s.from_node_id)}</span>`:"";
+  const appPill=s.app_hint&&s.app_hint!=="unknown"?`<span class="s-pill app-p">${e(s.app_hint)}</span>`:"";
+  const qPill=s.queued_messages?`<span class="s-pill queue-p">⏳ ${s.queued_messages} queued</span>`:"";
+
+  const msgs=s.msgs_sent&&s.msgs_sent.length
+    ?`<div class="sess-msgs">
+        <div class="sess-msgs-head">Messages sent via proxy (last ${Math.min(s.msgs_sent.length,8)})</div>
+        ${s.msgs_sent.slice(-8).map(m=>`
+          <div class="msg-row">
+            <span class="msg-ts">${ts(m.ts)}</span>
+            <span class="msg-to">→${e(m.to)}</span>
+            <span class="msg-txt">${e(m.text)}</span>
+          </div>`).join("")}
+      </div>`
+    :`<div class="sess-no-msg">No messages sent this session.</div>`;
+
+  const actions=[
+    s.queued_messages?`<button class="btn warn" style="border-color:rgba(240,180,41,.3);color:var(--warn)" onclick="clearQueue('${e(s.session_id)}')">⊗ Clear Queue (${s.queued_messages})</button>`:"",
+    !s.online?`<button class="btn danger" onclick="deleteSession('${e(s.session_id)}')">⊗ Delete Session</button>`:"",
+  ].filter(Boolean).join("");
+
+  return`
+  <div class="sess-card ${s.online?"online":"offline"}">
+    <div class="sess-head">
+      <span class="sess-ip">${e(s.ip)}</span>
+      ${s.from_node_name?`<span class="sess-name">${e(s.from_node_name)}</span>`:""}
+      <span class="sess-id">${e(s.session_id)}</span>
+    </div>
+    <div class="sess-pills">${statusPill}${nodePill}${appPill}${qPill}</div>
+    <div class="sess-meta">
+      <span>First seen <b>${ts(s.first_seen)}</b></span>
+      <span>Last seen <b>${ago(s.last_seen)}</b></span>
+      <span>Connects <b>${s.total_connections}</b></span>
+      <span>↓ <b>${s.total_pkts_rx}</b> rx</span>
+      <span>↑ <b>${s.total_pkts_tx}</b> tx</span>
+    </div>
+    ${msgs}
+    ${actions?`<div class="sess-actions">${actions}</div>`:""}
+  </div>`;
+}
+
+async function clearQueue(sid){
+  try{await api(`/sessions/${sid}/clear-queue`,{method:"POST",body:"{}"});loadSessions();}catch(ex){}
+}
+async function deleteSession(sid){
+  if(!confirm("Delete session? Queued messages will be lost."))return;
+  try{await api(`/sessions/${sid}`,{method:"DELETE"});loadSessions();}catch(ex){}
+}
+
+async function loadConnections(){
+  try{
+    const d=await api("/clients");
+    document.getElementById("bdg-live").textContent=d.count;
+    const el=document.getElementById("conn-list");
+    if(!d.clients.length){el.innerHTML='<div class="empty-state"><div class="big">◌</div>No live connections</div>';return;}
+    el.innerHTML=d.clients.map(c=>`
+      <div class="conn-card">
+        <div class="conn-head">
+          <span class="conn-ip">${e(c.ip)}:${c.port}</span>
+          ${c.node_name?`<span class="conn-name">${e(c.node_name)}</span>`:""}
+          <span class="conn-state ${c.handshake_done?"live":"hs"}">${c.handshake_done?"CONNECTED":"HANDSHAKING"}</span>
+          <span class="conn-cid">[${e(c.cid)}]</span>
+        </div>
+        <div class="conn-meta">
+          <span>↓ <b>${c.pkts_rx}</b> rx from client</span>
+          <span>↑ <b>${c.pkts_tx}</b> tx to client</span>
+          <span>connected <b>${dur(c.connected_secs)}</b></span>
+          <span>active <b>${ago(c.last_activity)}</b></span>
+          ${c.session_id?`<span>session <b style="color:var(--acc)">${e(c.session_id)}</b></span>`:""}
+          ${c.node_id?`<span>node <b style="color:var(--acc)">${e(c.node_id)}</b></span>`:""}
+          <span>config_id <b>${c.config_id||"—"}</b></span>
+        </div>
+      </div>`).join("");
+  }catch(ex){}
+}
+
+function msgColor(msg){
+  if(msg.includes("HANDSHAKE COMPLETE"))return"color:var(--ok);font-weight:700";
+  if(msg.includes("HANDSHAKE START"))  return"color:var(--acc);font-weight:700";
+  if(msg.includes("SESSION CREATED"))  return"color:var(--ok);font-weight:700";
+  if(msg.includes("SESSION RESUMED"))  return"color:#81c784;font-weight:700";
+  if(msg.includes("SESSION IDENTITY")) return"color:var(--pur);font-weight:700";
+  if(msg.includes("REPLAYING")||msg.includes("REPLAY["))return"color:var(--warn);font-weight:700";
+  if(msg.includes("Queued for offline"))return"color:var(--warn)";
+  if(msg.includes("CLIENT CONNECTED")) return"color:var(--ok);font-weight:700";
+  if(msg.includes("CLIENT REMOVED")||msg.includes("DISCONNECT"))return"color:var(--err)";
+  if(msg.includes("config_complete"))  return"color:var(--pur)";
+  if(msg.includes("forwarded to radio"))return"color:var(--ok)";
+  if(msg.includes("ToRadio{packet}"))  return"color:var(--pur)";
+  if(msg.includes("RE-CONFIG REQUEST"))return"color:var(--warn)";
+  if(msg.includes("EXCEPTION")||msg.includes("ERROR"))return"color:var(--err)";
+  return"";
+}
+function dirHtml(dir){
+  if(dir==="tx")return`<span class="dbg-dir tx">↑TX</span>`;
+  if(dir==="rx")return`<span class="dbg-dir rx">↓RX</span>`;
+  return`<span class="dbg-dir info">ℹ</span>`;
+}
+
+function setFilter(f,el){
+  _logFilter=f;
+  document.querySelectorAll(".f-pill").forEach(p=>p.classList.remove("on"));
+  if(el)el.classList.add("on");
+  renderLog();
+}
+function renderLog(){
+  const cid=(document.getElementById("f-cid")?.value||"").trim().toLowerCase();
+  let rows=_logRaw;
+  if(_logFilter==="TX")     rows=rows.filter(r=>r.direction==="tx");
+  else if(_logFilter==="RX")rows=rows.filter(r=>r.direction==="rx");
+  else if(_logFilter==="error")rows=rows.filter(r=>r.level==="ERROR"||r.level==="WARN");
+  else if(_logFilter)       rows=rows.filter(r=>r.msg.includes(_logFilter)||r.detail.includes(_logFilter));
+  if(cid)rows=rows.filter(r=>r.cid.toLowerCase().includes(cid)||r.msg.toLowerCase().includes(cid));
+  document.getElementById("bdg-dbg").textContent=rows.length;
+  const wrap=document.getElementById("dbg-wrap");
+  if(!rows.length){wrap.innerHTML='<div class="empty-state" style="padding:20px"><div class="big">◌</div>No entries matching filter</div>';return;}
+  wrap.innerHTML=rows.map(r=>{
+    const lv=r.level==="WARN"?'<span style="color:var(--warn);font-size:11px;font-weight:700;margin-right:2px">W</span>':r.level==="ERROR"?'<span style="color:var(--err);font-size:11px;font-weight:700;margin-right:2px">E</span>':"";
+    return`<div class="dbg-row lv-${e(r.level)}">
+      <span class="dbg-ts">${ts(r.ts)}</span>
+      <span class="dbg-cid">${e(r.cid)}</span>
+      ${dirHtml(r.direction)}
+      <span class="dbg-msg" style="${msgColor(r.msg)}">${lv}${e(r.msg)}</span>
+      <span class="dbg-det" title="${e(r.detail)}">${e(r.detail)}</span>
+    </div>`;
+  }).join("");
+}
+async function loadLog(){
+  try{const d=await api("/debug?limit=500");_logRaw=d.log||[];renderLog();}catch(ex){}
+}
+async function clearLog(){await api("/debug",{method:"DELETE"});_logRaw=[];renderLog();}
+function startAuto(){if(document.getElementById("chk-auto")?.checked){stopAuto();_autoTimer=setInterval(loadLog,2000);}}
+function stopAuto(){if(_autoTimer){clearInterval(_autoTimer);_autoTimer=null;}}
+function toggleAuto(){document.getElementById("chk-auto")?.checked?startAuto():stopAuto();}
+
+async function loadConfig(){
+  try{
+    const d=await api("/config");
+    document.getElementById("c-port").value=d.port;
+    document.getElementById("c-host").value=d.bind_host;
+    document.getElementById("c-max").value=d.max_clients;
+    document.getElementById("c-ttl").value=d.session_ttl_secs||7200;
+    document.getElementById("c-qmax").value=d.session_queue_max||100;
+    const sel=document.getElementById("c-slot");
+    const slots=d.available_slots||[d.slot_id];
+    sel.innerHTML=slots.map(s=>`<option value="${e(s)}"${s===d.slot_id?" selected":""}>${e(s)}</option>`).join("");
+  }catch(ex){}
+}
+async function saveConfig(){
+  const st=document.getElementById("cfg-st");
+  try{
+    await api("/config",{method:"POST",body:JSON.stringify({
+      port:        parseInt(document.getElementById("c-port").value),
+      bind_host:   document.getElementById("c-host").value.trim(),
+      slot_id:     document.getElementById("c-slot").value,
+      max_clients: parseInt(document.getElementById("c-max").value),
+      session_ttl_secs: parseInt(document.getElementById("c-ttl").value),
+      session_queue_max:parseInt(document.getElementById("c-qmax").value),
+    })});
+    st.style.color="var(--ok)";st.textContent="✓ Saved — proxy restarting…";
+    setTimeout(()=>{doRefresh();st.textContent=""},2500);
+  }catch(ex){st.style.color="var(--err)";st.textContent="✗ "+ex.message;}
+}
+
+async function kickAll(){
+  if(!confirm("Disconnect all proxy clients?"))return;
+  const d=await api("/clients/disconnect-all",{method:"POST",body:"{}"}).catch(()=>({count:0}));
+  alert("Disconnected "+d.count+" client(s)");
+  doRefresh();
+}
+function closeCfgPanel(){document.getElementById("cfg-panel").classList.remove("open");}
+
+(async()=>{
+  initChart();
+  await doRefresh();
+  await loadConfig();
+  setInterval(doRefresh,15000);
+  setInterval(()=>{
+    const active=document.getElementById("sec-connections").classList.contains("act");
+    if(active)loadConnections();
+  },5000);
+  setInterval(()=>{
+    const active=document.getElementById("sec-sessions").classList.contains("act");
+    if(active)loadSessions();
+  },10000);
+  setInterval(()=>{
+    const active=document.getElementById("sec-overview").classList.contains("act");
+    if(active)loadQuickSessions(_lastStatus);
+  },10000);
+})();
+</script>
+</body>
+</html>

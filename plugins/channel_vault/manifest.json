@@ -1,0 +1,22 @@
+{
+  "id": "channel_vault",
+  "name": "Channel Vault",
+  "version": "1.0.2",
+  "author": "MeshDash",
+  "description": "Server-side PSK vault for unlimited channel configurations beyond the radio's 8 slots. Decrypts RF packets the radio couldn't decode, retroactively processes history, detects unknown encrypted channels, backs up and restores radio channel configs, and provides a guided one-click hotswap to write any vaulted channel directly to the radio with slot selection and automatic reboot.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/channel_vault",
+  "static_prefix": "/static/plugins/channel_vault",
+  "bridge": "bridge.html",
+  "permissions": [
+    "modal_tabs"
+  ],
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Channel Vault",
+      "icon": "fa-key",
+      "href": "/plugin/channel_vault/index.html"
+    }
+  ]
+}

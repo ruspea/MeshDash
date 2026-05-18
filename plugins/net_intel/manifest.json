@@ -1,0 +1,24 @@
+{
+  "id": "net_intel",
+  "name": "Network Intelligence",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Computes per-node Link Quality Scores (LQS), Smart Hops, and network Entropy. Features a fleet overview dashboard with a 0-100 health score, traffic trends, and hardware stats, plus neighbor graphs and traceroute analysis for mesh diagnostics.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/net_intel",
+  "static_prefix": "/static/plugins/net_intel",
+  "bridge": "bridge.html",
+  "permissions": [
+    "node_badges",
+    "modal_tabs",
+    "overview_toolbar"
+  ],
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Net Intel",
+      "icon": "fa-satellite-dish",
+      "href": "/plugin/net_intel/index.html"
+    }
+  ]
+}

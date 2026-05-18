@@ -1,0 +1,176 @@
+<div class="vs" style="height: calc(100vh - 90px); height: calc(100dvh - 90px); display: flex; flex-direction: column;">
+    <div style="display: grid; grid-template-columns: 280px 1fr; gap: 16px; flex: 1; overflow: hidden;">
+
+        <!-- Contact List -->
+        <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
+            <div class="ch">
+                <span class="ct">📡 ACTIVE CONTACTS</span>
+                <span id="dmes-total-unread-badge" class="nbadge" style="margin-left:auto; display:none; background:var(--acc); color:#000; font-weight:bold;"></span>
+            </div>
+            <div style="padding: 10px; border-bottom: 1px solid var(--bd);">
+                <input type="text" id="comms-filter" class="inp mono" placeholder="Filter ID/Name..." style="font-size: 11px;">
+            </div>
+            <div id="comms-contact-list" style="flex: 1; overflow-y: auto; background: var(--bg);">
+                <div style="padding:20px; text-align:center; color:var(--txt3); font-family:var(--mono); font-size:10px;">SCANNING MESH...</div>
+            </div>
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="card" style="display: flex; flex-direction: column; overflow: hidden; border-color: var(--bd2);">
+
+            <div class="ch" id="comms-header">
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span class="ct" id="comms-target-name">NO TARGET SELECTED</span>
+                    <span id="comms-target-id" class="mono" style="font-size:9px; color:var(--txt3);"></span>
+                </div>
+                <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+                    <span class="pill p-err" style="display:none;" id="comms-offline-warning">OFFLINE</span>
+                    <div id="comms-target-status-dot" style="width:8px; height:8px; border-radius:50%; background:var(--bd2);"></div>
+                </div>
+            </div>
+
+            <div id="comms-log" class="msg-feed" style="flex: 1; border: none; border-radius: 0; background: #03070c; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; height: auto;">
+                <div style="color:var(--txt3); font-family:var(--mono); text-align:center; margin-top:100px;">
+                    [ SELECT NODE TO INITIALIZE P2P LINK ]
+                </div>
+            </div>
+
+            <div class="cb" style="background: var(--bg2); border-top: 1px solid var(--bd2); padding: 12px;">
+                <!-- Emoji Picker Popup -->
+                <div id="emoji-picker" style="display:none; margin-bottom:8px; background:var(--bg1); border:1px solid var(--bd2); border-radius:6px; padding:8px; max-height:200px; overflow-y:auto; -webkit-overflow-scrolling:touch;">
+                    <div id="emoji-tabs" style="display:flex;gap:4px;margin-bottom:6px;border-bottom:1px solid var(--bd);padding-bottom:4px;flex-wrap:wrap;">
+                        <button class="emoji-tab active" data-cat="smileys" onclick="emojiShowCat('smileys')" style="padding:6px 10px;border:1px solid var(--bd2);border-radius:4px;background:var(--bg3);color:var(--acc);font-size:0.7rem;cursor:pointer;font-family:var(--mono);min-height:32px;">😀</button>
+                        <button class="emoji-tab" data-cat="gestures" onclick="emojiShowCat('gestures')" style="padding:6px 10px;border:1px solid var(--bd2);border-radius:4px;background:var(--bg1);color:var(--txt3);font-size:0.7rem;cursor:pointer;font-family:var(--mono);min-height:32px;">👋</button>
+                        <button class="emoji-tab" data-cat="nature" onclick="emojiShowCat('nature')" style="padding:6px 10px;border:1px solid var(--bd2);border-radius:4px;background:var(--bg1);color:var(--txt3);font-size:0.7rem;cursor:pointer;font-family:var(--mono);min-height:32px;">🌿</button>
+                        <button class="emoji-tab" data-cat="food" onclick="emojiShowCat('food')" style="padding:6px 10px;border:1px solid var(--bd2);border-radius:4px;background:var(--bg1);color:var(--txt3);font-size:0.7rem;cursor:pointer;font-family:var(--mono);min-height:32px;">🍕</button>
+                        <button class="emoji-tab" data-cat="travel" onclick="emojiShowCat('travel')" style="padding:6px 10px;border:1px solid var(--bd2);border-radius:4px;background:var(--bg1);color:var(--txt3);font-size:0.7rem;cursor:pointer;font-family:var(--mono);min-height:32px;">🚀</button>
+                        <button class="emoji-tab" data-cat="weather" onclick="emojiShowCat('weather')" style="padding:6px 10px;border:1px solid var(--bd2);border-radius:4px;background:var(--bg1);color:var(--txt3);font-size:0.7rem;cursor:pointer;font-family:var(--mono);min-height:32px;">⛅</button>
+                        <button class="emoji-tab" data-cat="objects" onclick="emojiShowCat('objects')" style="padding:6px 10px;border:1px solid var(--bd2);border-radius:4px;background:var(--bg1);color:var(--txt3);font-size:0.7rem;cursor:pointer;font-family:var(--mono);min-height:32px;">💡</button>
+                    </div>
+                    <div id="emoji-grid" style="display:flex;flex-wrap:wrap;gap:2px;"></div>
+                </div>
+
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <div style="flex: 1; position: relative; background: var(--bg); border: 1px solid var(--bd); border-radius: 4px; display: flex; align-items: center; padding: 0 10px;">
+                        <span style="color: var(--ok); font-family: var(--mono); margin-right: 8px;">$</span>
+                        <input type="text" id="comms-input" class="inp mono" placeholder="Secure message..." style="border: none; background: transparent; padding: 10px 0; flex:1;" disabled>
+                        <span id="comms-char-count" style="font-size: 9px; color: var(--txt3); margin-left: 8px; font-family: var(--mono); white-space:nowrap;">0/230</span>
+                        <button id="emoji-toggle-btn" style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:1.1rem;padding:4px 2px;margin-left:4px;transition:color .15s;" title="Emoji picker" onclick="toggleEmojiPicker()">😊</button>
+                    </div>
+                    <button id="btn-comms-send" class="btn btn-acc" style="height: 38px; padding: 0 20px;" disabled>TRANSMIT</button>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 9px; font-family: var(--mono); color: var(--txt3);">
+                    <span><i class="fas fa-lock"></i> AES-256 P2P LINK</span>
+                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                        <input type="checkbox" id="comms-auto-scroll" checked> AUTO_SCROLL
+                    </label>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>
+
+<script>
+// ─── Emoji Picker ───────────────────────────────────────────────────────────
+const EMOJI_DATA = {
+    smileys: '😀😃😄😁😆😅🤣😂🙂🙃😉😊😇🥰😍🤩😘😗😚😙🥲😋😛😜🤪😝🤑🤗🤭🤫🤔🫣🤐🤨😐😑😶🫥😏😒🙄😬😮‍💨🤥🫨😌😔😪🤤😴😷🤒🤕🤢🤮🤧🥵🥶🥴😵🤯🤠🥳🥸😎🤓🧐😕😟🙁😮😯😲😳🥺🥹😦😧😨😰😥😢😭😱😖😣😞😓😩😫🥱😤😡😠🤬😈👿💀☠️💩🤡👻👽👾🤖😺😸😹😻😼😽🙀😿😾',
+    gestures: '👋🤚🖐✋🖖👌🤌🤏✌🤞🫰🤟🤘🤙👈👉👆🖕👇☝️🫵👍👎✊👊🤛🤜👏🙌🫶👐🤲🤝🙏✍️💅🤳💪🦾🦿🦵🦶👂🦻👃🧠🫀🫁🦷🦴👀👁👅👄💋🫦',
+    nature:  '🌱🌿🍀🍁🍂🌲🌳🌴🌵🌾🌷🌹🥀🌺🌸🌼🌻🌞🌝🌛🌜🌚🌕🌖🌗🌘🌑🌒🌓🌔🌙🌎🌍🌏🪐💫⭐🌟✨⚡☄️💥🔥🌪🌈☂️☔❄️☃️🌊💧🫧🪨⛏️',
+    food:    '🍎🍐🍊🍋🍌🍉🍇🍓🫐🍈🍒🍑🥭🍍🥥🥝🍅🥑🍆🥒🥬🥦🧄🧅🌽🥕🥔🍠🥐🍞🥖🥨🧀🥚🍳🧈🥞🧇🥓🥩🍗🍖🦴🌭🍔🍟🍕🫓🥪🥙🧆🌮🌯🫔🥗🥘🫕🥫🍝🍜🍲🍛🍣🍱🥟🦪🍤🍙🍚🍘🍥🥠🥮🫖☕🫗🍵🍶🍾🍷🍸🍹🍺🥂🥃🧊🥄🍴🍽🥣🥡🥢',
+    travel:  '🚗🚕🚙🚌🚎🏎🚓🚑🚒🚐🛻🚚🚛🚜🦯🦽🦼🛴🚲🛵🏍🛺🚨🚔🚍🚘🚖🚡🚠🚟🚃🚋🚞🚝🚄🚅🚈🚂🚆🚇🚊🚉✈️🛫🛬🛩💺🛰🚀🛸🚁🛶⛵🚤🛥️🛳🚢⚓🪝⛽🚧🚦🚥🛑🗺🗿🗽🗼🏰🏯🏟🎡🎢🎠⛲⛱🏖🏝🏜🌋⛰🏔🗻🏕⛺🛖🏠🏡🏘🏚🏗🏭🏢🏬🏣🏤🏥🏦🏨🏪🏫🏩💒🏛⛪🕌🕍🛕🕋⛩🛤🛣🗾🎑🏞🌅🌄🌠🎇🎆🏙🌆🌇🌃🌉🌌🖼🎨🎭🎬🎤🎧🎼🎹🥁🎷🎺🎸🪕🎻🎲♟🎯🎳🎮🎰🧩🚗🚕🚙',
+    weather: '🌤⛅🌥☁️🌦🌧⛈🌩🌨❄️☃️🌬💨🌪🌫🌊☂️☔🌊🌡🧥🧣🧤🧦👗👒🩴🩱🥽🥼🔥💧🫧',
+    objects: '💡🔦🕯🪔🧯🛢🔦🔋🔌💻🖥🖨⌨️🖱🖲💽💾💿📀🎥🎞📽📺📷📸📹📼🔍🔎🕯🔮🧿🪄🪬💰💴💵💶💷💸💳🧾💱💲💎⚖️🪜🧰🪛🔧🔨⚒🛠⛏🪚🔩⚙️🪤🧱⛓🧲🔫💣🧨🪓🔪🗡⚔️🛡🚬⚰️🪦⚱️🏺🔮📿🧿💈🪞🪟🛍🛒🎁🎈🎏🎀🪄🎊🎉🎎🏮🎐🧧✉️📩📨📧💌📥📦📫📪📬📭📮📯📃📄📑🧾📊📈📉🗒🗓📆🗑📇🗃🗳🗄📋📁📂🗞📰📓📔📒📕📗📘📙📚📖🔖🧷🔗📎🖇📐📏🧮📌📍✂️🖊🖋✒️🖌🖍📝✏️🔍🔎🔏🔐🔒🔓'
+};
+
+let _emojiCat = 'smileys';
+let _emojiPickerOpen = false;
+
+function toggleEmojiPicker() {
+    const picker = document.getElementById('emoji-picker');
+    _emojiPickerOpen = !_emojiPickerOpen;
+    picker.style.display = _emojiPickerOpen ? 'block' : 'none';
+    if (_emojiPickerOpen) emojiShowCat(_emojiCat);
+}
+
+function emojiShowCat(cat) {
+    _emojiCat = cat;
+    // Update tab styles
+    document.querySelectorAll('.emoji-tab').forEach(t => {
+        const active = t.dataset.cat === cat;
+        t.style.background = active ? 'var(--bg3)' : 'var(--bg1)';
+        t.style.color = active ? 'var(--acc)' : 'var(--txt3)';
+    });
+    // Render emojis
+    const grid = document.getElementById('emoji-grid');
+    const emojis = EMOJI_DATA[cat] || '';
+    grid.innerHTML = '';
+    for (const ch of emojis) {
+        // Skip any variation selectors or zero-width joiners on their own
+        const btn = document.createElement('button');
+        btn.textContent = ch;
+        btn.style.cssText = 'width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem;border:none;background:none;cursor:pointer;border-radius:4px;transition:background .1s;touch-action:manipulation;';
+        btn.onmouseenter = () => btn.style.background = 'var(--bg3)';
+        btn.onmouseleave = () => btn.style.background = 'none';
+        btn.onclick = () => insertEmoji(ch);
+        grid.appendChild(btn);
+    }
+}
+
+function insertEmoji(ch) {
+    const input = document.getElementById('comms-input');
+    if (!input || input.disabled) return;
+    const start = input.selectionStart;
+    const end = input.selectionEnd;
+    const before = input.value.substring(0, start);
+    const after = input.value.substring(end);
+    // Check byte limit
+    const newBytes = new TextEncoder().encode(before + ch + after).length;
+    if (newBytes > 230) {
+        // Would exceed byte limit, don't insert
+        if (window.triggerToast) window.triggerToast('230-byte limit reached', 'warn');
+        return;
+    }
+    input.value = before + ch + after;
+    input.focus();
+    input.setSelectionRange(start + ch.length, start + ch.length);
+    updateCommsByteCount();
+}
+
+function updateCommsByteCount() {
+    const input = document.getElementById('comms-input');
+    const counter = document.getElementById('comms-char-count');
+    if (!input || !counter) return;
+    const bytes = new TextEncoder().encode(input.value).length;
+    counter.textContent = bytes + '/230';
+    counter.style.color = bytes > 200 ? 'var(--warn)' : (bytes > 220 ? 'var(--err)' : 'var(--txt3)');
+}
+
+// Override the original character count with byte count
+(function() {
+    const origSetup = window.C2CommsApp;
+    // We'll patch the input event listener after init
+    const _origInit = origSetup ? origSetup.init : null;
+})();
+
+// Close emoji picker when clicking outside
+document.addEventListener('click', function(e) {
+    const picker = document.getElementById('emoji-picker');
+    const btn = document.getElementById('emoji-toggle-btn');
+    if (_emojiPickerOpen && picker && !picker.contains(e.target) && btn && !btn.contains(e.target)) {
+        _emojiPickerOpen = false;
+        picker.style.display = 'none';
+    }
+});
+
+// Patch the input to use byte count instead of char count
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('comms-input');
+    if (input) {
+        input.addEventListener('input', updateCommsByteCount);
+        // Also override the maxlength to use byte-based limiting
+        input.removeAttribute('maxlength');
+    }
+});
+</script>

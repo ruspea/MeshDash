@@ -1,0 +1,18 @@
+{
+  "id": "mesh_chat",
+  "name": "Mesh Chat AI",
+  "version": "1.0.3",
+  "author": "MeshDash",
+  "description": "An engaging AI chatbot featuring dynamically selectable personality modes. Powered by configurable local models or external hosted LLMs (OpenAI, Gemini, Nvidia), it ensures reliable communication over the mesh via automated message chunking, ACK tracking, robust session management, and a live query queue.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/mesh_chat",
+  "static_prefix": "/static/plugins/mesh_chat",
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Mesh Chat AI",
+      "icon": "fa-robot",
+      "href": "/plugin/mesh_chat/index.html"
+    }
+  ]
+}

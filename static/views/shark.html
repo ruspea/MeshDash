@@ -1,0 +1,149 @@
+<style>
+    /* SHARK C2 STYLES */
+    .sh-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg2); border: 1px solid var(--bd2); border-radius: var(--r); margin-bottom: 8px; overflow-x: auto; }
+    .sh-toolbar .sep { width: 1px; height: 20px; background: var(--bd); margin: 0 4px; }
+    
+    .sh-pill-bar { display: flex; gap: 6px; padding: 0 0 12px 0; overflow-x: auto; }
+    .sh-pill { background: var(--bg); border: 1px solid var(--bd); color: var(--txt3); padding: 4px 12px; border-radius: 16px; font-family: var(--mono); font-size: 9px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s; }
+    .sh-pill:hover { border-color: var(--acc); color: var(--txt); }
+    .sh-pill.active { background: rgba(0, 200, 245, 0.1); border-color: var(--acc); color: var(--acc); }
+    .sh-pill-cnt { background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 8px; color: var(--txt); }
+
+    .sh-main-split { display: flex; flex: 1; gap: 12px; overflow: hidden; }
+    
+    /* Sidebar */
+    .sh-sidebar { width: 220px; display: flex; flex-direction: column; background: var(--bg2); border: 1px solid var(--bd2); border-radius: var(--r); overflow: hidden; flex-shrink: 0; }
+    .sh-sb-item { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--bd); cursor: pointer; transition: 0.1s; }
+    .sh-sb-item:hover { background: var(--bg); }
+    .sh-sb-item.active { background: rgba(0, 200, 245, 0.1); border-left: 2px solid var(--acc); }
+    
+    /* Table Area */
+    .sh-table-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg2); border: 1px solid var(--bd2); border-radius: var(--r); }
+    .sh-table-wrap { flex: 1; overflow: auto; min-height: 150px; background: #03070c; }
+    .sh-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 10px; table-layout: fixed; }
+    .sh-table th { position: sticky; top: 0; background: var(--bg2); color: var(--txt3); padding: 8px; text-align: left; border-bottom: 1px solid var(--bd); cursor: pointer; z-index: 10; white-space: nowrap; }
+    .sh-table th:hover { color: var(--acc); }
+    .sh-table td { padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.02); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt); }
+    .sh-table tr { cursor: pointer; }
+    .sh-table tr:hover { background: rgba(255,255,255,0.04); }
+    .sh-table tr.selected { background: rgba(0, 200, 245, 0.15); }
+
+    /* Column Widths */
+    .c-no { width: 50px; color: var(--txt3) !important; text-align: right; }
+    .c-time { width: 75px; color: var(--txt3) !important; }
+    .c-dt { width: 55px; color: var(--warn) !important; }
+    .c-src, .c-dst { width: 100px; color: var(--acc) !important; }
+    .c-ch { width: 35px; text-align: center; }
+    .c-proto { width: 90px; font-weight: bold; }
+    .c-snr { width: 70px; }
+    
+    /* Resizer & Detail Pane */
+    .sh-resizer { height: 6px; background: var(--bd2); cursor: ns-resize; display: flex; align-items: center; justify-content: center; }
+    .sh-resizer::after { content: '⠿'; font-size: 8px; color: var(--txt3); pointer-events: none; }
+    .sh-resizer:hover, .sh-resizer.dragging { background: var(--acc); color: var(--bg); }
+    
+    .sh-detail-pane { height: 250px; display: flex; background: var(--bg); border-top: 1px solid var(--bd2); }
+    .sh-detail-col { flex: 1; display: flex; flex-direction: column; border-right: 1px solid var(--bd); overflow: hidden; }
+    .sh-detail-col:last-child { border-right: none; }
+    .sh-d-head { background: var(--bg2); padding: 6px 12px; font-family: var(--mono); font-size: 9px; font-weight: bold; color: var(--txt3); border-bottom: 1px solid var(--bd); text-transform: uppercase; letter-spacing: 1px; }
+    .sh-d-body { flex: 1; overflow: auto; padding: 12px; font-family: var(--mono); font-size: 10px; color: var(--txt); }
+
+    /* Syntax Highlighting */
+    .jk { color: #74b9ff; } .jstr { color: #55efc4; } .jnum { color: #fdcb6e; } .jboo { color: #a29bfe; } .jnul { color: #e17055; }
+    
+    /* KV Rows */
+    .sh-kv { display: flex; gap: 8px; margin-bottom: 4px; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 2px; }
+    .sh-k { color: var(--txt3); width: 100px; flex-shrink: 0; }
+    .sh-v { color: var(--txt); word-break: break-all; }
+</style>
+
+<div class="vs" style="height: calc(100vh - 90px); height: calc(100dvh - 90px); display: flex; flex-direction: column;">
+    
+    <div class="sh-toolbar">
+        <button id="sh-btn-live" class="btn btn-sm btn-acc"><i class="fas fa-record-vinyl"></i> CAPTURING</button>
+        <div class="sep"></div>
+        <button id="sh-btn-hist" class="btn btn-sm"><i class="fas fa-database"></i> LOAD DB</button>
+        <button id="sh-btn-clear" class="btn btn-sm btn-err"><i class="fas fa-trash"></i> CLEAR</button>
+        <div class="sep"></div>
+        <div style="display:flex; align-items:center; flex:1; background:var(--bg); border:1px solid var(--bd); border-radius:4px; padding:0 8px;">
+            <i class="fas fa-filter" style="color:var(--txt3); font-size:10px;"></i>
+            <input type="text" id="sh-bpf" class="inp mono" placeholder="BPF: type:Message src:!abc snr>-10 text:hello" style="border:none; background:transparent; width:100%; font-size:11px; padding:6px;">
+            <i class="fas fa-times" id="sh-bpf-clear" style="color:var(--txt3); font-size:10px; cursor:pointer;"></i>
+        </div>
+        <div class="sep"></div>
+        <div style="font-family:var(--mono); font-size:10px; color:var(--txt3);">BUFFER: <span id="sh-count" style="color:var(--acc); font-weight:bold;">0</span> PKTS</div>
+    </div>
+
+    <div class="sh-pill-bar">
+        <div class="sh-pill active" data-type="all">ALL <span class="sh-pill-cnt" id="p-all">0</span></div>
+        <div class="sh-pill" data-type="Message">MESSAGE <span class="sh-pill-cnt" id="p-msg">0</span></div>
+        <div class="sh-pill" data-type="Position">POSITION <span class="sh-pill-cnt" id="p-pos">0</span></div>
+        <div class="sh-pill" data-type="Telemetry">TELEMETRY <span class="sh-pill-cnt" id="p-tlm">0</span></div>
+        <div class="sh-pill" data-type="Node Info">NODE_INFO <span class="sh-pill-cnt" id="p-nfo">0</span></div>
+        <div class="sh-pill" data-type="Ack">ROUTING <span class="sh-pill-cnt" id="p-ack">0</span></div>
+    </div>
+
+    <div class="sh-main-split">
+        
+        <div class="sh-sidebar">
+            <div class="sh-d-head" style="display:flex; justify-content:space-between;">
+                <span>ACTIVE EMITTERS</span>
+                <span id="sh-sb-count" style="color:var(--acc);">0</span>
+            </div>
+            <div id="sh-node-list" style="flex:1; overflow-y:auto; background:var(--bg);"></div>
+            <div style="padding:10px; border-top:1px solid var(--bd2); background:var(--bg2);">
+                <div style="font-size:9px; font-family:var(--mono); color:var(--txt3); margin-bottom:4px;">SNR SPARKLINE</div>
+                <canvas id="sh-spark" width="200" height="30"></canvas>
+            </div>
+        </div>
+
+        <div class="sh-table-area">
+            <div class="sh-table-wrap" id="sh-table-wrap">
+                <table class="sh-table">
+                    <thead>
+                        <tr>
+                            <th class="c-no" data-col="no">NO.</th>
+                            <th class="c-time" data-col="time">TIME</th>
+                            <th class="c-dt" data-col="delta">Δt</th>
+                            <th class="c-src" data-col="src">SRC</th>
+                            <th class="c-dst" data-col="dst">DST</th>
+                            <th class="c-ch" data-col="ch">CH</th>
+                            <th class="c-proto" data-col="proto">PROTOCOL</th>
+                            <th class="c-snr" data-col="snr">SNR</th>
+                            <th class="c-hops" data-col="hops">HOPS</th>
+                            <th>DECODED PAYLOAD</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sh-tbody">
+                        <tr><td colspan="10" style="text-align:center; padding:40px; color:var(--txt3); font-size:12px;">[ AWAITING INGRESS ]</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="sh-resizer" id="sh-resizer"></div>
+
+            <div class="sh-detail-pane" id="sh-detail-pane">
+                
+                <div class="sh-detail-col" style="flex: 1.2;">
+                    <div class="sh-d-head" style="display:flex; justify-content:space-between;">
+                        <span>RAW JSON OBJECT</span>
+                        <i class="far fa-copy" style="cursor:pointer;" onclick="window.C2SharkApp.copyJson()" title="Copy JSON"></i>
+                    </div>
+                    <div class="sh-d-body" id="sh-dt-raw" style="white-space:pre; overflow-x:auto;">[ NO PACKET SELECTED ]</div>
+                </div>
+
+                <div class="sh-detail-col" style="flex: 1;">
+                    <div class="sh-d-head">DECODED METADATA</div>
+                    <div class="sh-d-body" id="sh-dt-kv">[ NO PACKET SELECTED ]</div>
+                </div>
+
+                <div class="sh-detail-col" style="flex: 0.8;">
+                    <div class="sh-d-head">RADIO LAYER</div>
+                    <div class="sh-d-body" id="sh-dt-radio">[ NO PACKET SELECTED ]</div>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+</div>

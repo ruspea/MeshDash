@@ -1,0 +1,706 @@
+<style>
+    /* ═══════════════════════════════════════════════════════════════
+       OVERVIEW — TACTICAL OPERATIONS CENTRE
+       Fully integrated with global style.css variables.
+       ═══════════════════════════════════════════════════════════════ */
+    
+    /* ── Mini map tile rendering ── */
+    [id^="ovmap-"] { background: var(--bg); }
+    [id^="ovmap-"] .leaflet-tile-pane   { -webkit-transform:translate3d(0,0,0); transform:translate3d(0,0,0); }
+    [id^="ovmap-"] .leaflet-tile        { -webkit-backface-visibility:hidden; backface-visibility:hidden; will-change:transform; outline:1px solid transparent; }
+    [id^="ovmap-"] .leaflet-container   { background:var(--bg) !important; cursor:default !important; }
+    [id^="ovmap-"] .leaflet-control-container { display:none; }
+  
+    /* optgroup dark theme */
+    optgroup { background:var(--bg2); color:var(--txt3); font-size:8px; letter-spacing:.5px; }
+    optgroup option { background:var(--bg2); color:var(--txt); font-size:10px; letter-spacing:0; }
+      
+    /* ── Scan-line overlay ── */
+    .ov-scan {
+        position: fixed; inset: 0; pointer-events: none; z-index: 1;
+        background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px);
+    }
+    
+    /* ── KPI header strip ── */
+    .ov-hdr {
+        display: grid;
+        grid-template-columns: repeat(4,1fr) 2fr;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+    .ov-kpi {
+        background: var(--bg2);
+        border: 1px solid var(--bd2);
+        border-radius: var(--r);
+        padding: 10px 14px;
+        position: relative;
+        overflow: hidden;
+        transition: border-color .2s, box-shadow .2s;
+        cursor: default;
+    }
+    .ov-kpi::before {
+        content: '';
+        position: absolute; top: 0; left: 0; right: 0; height: 2px;
+        background: var(--kpi-col, var(--acc));
+        box-shadow: 0 0 8px var(--kpi-col, var(--acc));
+    }
+    .ov-kpi:hover {
+        border-color: var(--kpi-col, var(--acc));
+        box-shadow: 0 0 0 1px var(--kpi-col, var(--acc)), inset 0 0 20px rgba(0,0,0,.2);
+    }
+    .ov-kpi-val {
+        font-size: 26px; font-weight: 900; font-family: var(--mono);
+        color: var(--kpi-col, var(--acc)); line-height: 1;
+        margin-bottom: 3px; letter-spacing: -1px;
+        transition: transform .15s;
+    }
+    .ov-kpi:hover .ov-kpi-val { transform: scale(1.03); }
+    .ov-kpi-lbl { font-size: 10px; color: var(--txt3); font-family: var(--mono); letter-spacing: 1.5px; text-transform: uppercase; }
+    .ov-kpi-sub { font-size: 10px; color: var(--txt3); font-family: var(--mono); margin-top: 2px; }
+    
+    /* Connection status KPI */
+    .ov-conn-kpi {
+        background: var(--bg2); border: 1px solid var(--bd2); border-radius: var(--r);
+        padding: 10px 14px; display: flex; flex-direction: column; justify-content: space-between;
+        position: relative; overflow: hidden;
+    }
+    .ov-conn-kpi::before {
+        content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, var(--acc), var(--ok));
+    }
+    .ov-conn-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .ov-conn-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: var(--txt3); flex-shrink: 0; transition: background .3s, box-shadow .3s;
+    }
+    .ov-conn-dot.on   { background: var(--ok);   box-shadow: var(--glow-sm) var(--ok-glow);   animation: ov-blink 2s ease-in-out infinite; }
+    .ov-conn-dot.warn { background: var(--warn);  box-shadow: var(--glow-sm) var(--warn-glow); animation: ov-blink 1.5s ease-in-out infinite; }
+    .ov-conn-dot.err  { background: var(--err);   box-shadow: var(--glow-sm) var(--err-glow);  }
+    @keyframes ov-blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .ov-conn-status { font-family: var(--mono); font-size: 11px; font-weight: bold; color: var(--txt); }
+    .ov-conn-bars { display: flex; gap: 3px; align-items: flex-end; height: 18px; }
+    .ov-conn-bar { width: 5px; border-radius: 1px; transition: background .3s, height .4s ease; }
+    
+    /* ── Outer container: use dynamic viewport height for mobile ── */
+    /* dvh accounts for mobile browser chrome; fallback to vh for older browsers */
+    .vs {
+        height: calc(100vh - 90px); /* fallback */
+        height: calc(100dvh - 90px);
+    }
+    
+    /* ── Main layout grid ── */
+    .ov-grid {
+        display: grid; grid-template-columns: 1fr 340px;
+        gap: 10px; flex: 1; min-height: 0;
+    }
+    
+    /* ── Node grid container ── */
+    .ov-node-toolbar {
+        display: flex; gap: 6px; align-items: center;
+        padding: 8px 12px;
+        background: var(--bg2); border-bottom: 1px solid var(--bd2);
+        flex-shrink: 0;
+    }
+    #ov-node-grid {
+        flex: 1; overflow-y: auto; padding: 10px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+        gap: 8px; align-content: start;
+    }
+    #ov-node-grid::-webkit-scrollbar { width: 4px; }
+    #ov-node-grid::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 2px; }
+    #ov-node-grid::-webkit-scrollbar-thumb:hover { background: var(--acc); }
+    
+    /* ══════════════════════════════════════════════════════════════
+       NODE CARD — fixed height, every section accounted for.
+       padding-top:10 + head:42 + bat:24 + spark:26 + loc:30 + grid:70 + map:76 + foot:24 = 302px
+       ══════════════════════════════════════════════════════════════ */
+    .ov-nc {
+        background: var(--bg2);
+        border: 1px solid var(--bd2);
+        border-radius: var(--r);
+        padding: 10px 10px 0;
+        cursor: pointer;
+        transition: border-color .18s, box-shadow .18s, transform .18s;
+        position: relative;
+        overflow: visible;            /* tooltip can escape card bounds */
+        display: flex;
+        flex-direction: column;
+        height: 302px;
+        animation: ov-slide-in .2s ease both;
+    }
+    /* Left accent bar */
+    .ov-nc::before {
+        content: '';
+        position: absolute; top: 0; left: 0; bottom: 0; width: 3px;
+        background: var(--nc-col, var(--bd2));
+        border-radius: var(--r) 0 0 var(--r);
+        transition: background .18s;
+        pointer-events: none;
+    }
+    .ov-nc:hover {
+        border-color: var(--nc-col, var(--acc));
+        box-shadow: 0 4px 20px rgba(0,0,0,.5), var(--glow-sm) var(--acc-glow);
+        transform: translateY(-1px);
+    }
+    .ov-nc.nc-local { border-color: rgba(0,232,122,.3); }
+    .ov-nc.nc-local::before { background: var(--ok); }
+    
+    /* ── 1. Header — 42px ── */
+    .ov-nc-head {
+        display: flex; align-items: flex-start; gap: 9px;
+        padding-left: 6px;
+        height: 34px;          /* avatar height */
+        margin-bottom: 8px;
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+    .ov-nc-avatar {
+        width: 34px; height: 34px; border-radius: 6px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px; font-weight: 900; font-family: var(--mono);
+        color: #060b12; position: relative;
+        box-shadow: 0 2px 8px rgba(0,0,0,.4);
+    }
+    .ov-nc-role-ico {
+        position: absolute; bottom: -3px; right: -3px;
+        width: 14px; height: 14px; border-radius: 50%;
+        background: var(--bg2); border: 1px solid var(--bd2);
+        font-size: 8px; font-family: var(--mono); font-weight: bold;
+        display: flex; align-items: center; justify-content: center;
+        color: var(--txt3); letter-spacing: 0;
+    }
+    .ov-nc-meta { flex: 1; min-width: 0; overflow: hidden; }
+    .ov-nc-name {
+        font-size: 12px; font-weight: 700; font-family: var(--mono);
+        color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        line-height: 1.3; letter-spacing: .2px;
+    }
+    .ov-nc-sub {
+        font-size: 8px; color: var(--txt3); font-family: var(--mono);
+        margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .ov-nc-status {
+        display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;
+    }
+    .ov-online-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; transition: background .3s, box-shadow .3s; }
+    .ov-online-dot.on  { background: var(--ok); box-shadow: var(--glow-sm) var(--ok-glow); animation: ov-blink 2.5s ease-in-out infinite; }
+    .ov-online-dot.off { background: var(--bd2); }
+    .ov-nc-heard { font-size: 10px; font-family: var(--mono); color: var(--txt3); }
+    
+    /* ── 2. Battery bar — 24px ── */
+    .ov-bat-wrap {
+        height: 18px;           /* row 10px + track 5px + gap 3px */
+        margin-bottom: 6px;
+        flex-shrink: 0;
+    }
+    .ov-bat-row {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 3px; height: 10px;
+    }
+    .ov-bat-lbl { font-size: 9px; color: var(--txt3); font-family: var(--mono); letter-spacing: .3px; line-height: 1; }
+    .ov-bat-val { font-size: 10px; font-family: var(--mono); font-weight: bold; line-height: 1; }
+    .ov-bat-track {
+        height: 5px; background: var(--bg); border-radius: 3px;
+        overflow: hidden; border: 1px solid var(--bd);
+    }
+    .ov-bat-fill {
+        height: 100%; border-radius: 3px; transition: width .5s ease;
+    }
+    
+    /* ── 3. Sparkline — 26px ── */
+    .ov-nc-spark-wrap {
+        height: 20px;
+        margin-bottom: 6px;
+        background: var(--bg); border-radius: 3px; overflow: hidden;
+        border: 1px solid var(--bd);
+        flex-shrink: 0;
+    }
+    
+    /* ── 4. Location strip — 30px ── */
+    .ov-nc-loc {
+        display: flex; align-items: center; gap: 5px;
+        height: 24px;
+        padding: 0 6px;
+        margin-bottom: 6px;
+        background: var(--bg); border: 1px solid var(--bd);
+        border-radius: 4px; font-family: var(--mono); font-size: 9px;
+        color: var(--txt3); position: relative;
+        transition: border-color .15s, color .15s;
+        flex-shrink: 0;
+        overflow: visible;      /* tooltip escapes upward */
+    }
+    .ov-nc-loc.has-fix { color: var(--txt2); cursor: pointer; border-color: var(--bd2); }
+    .ov-nc-loc.has-fix:hover { border-color: var(--acc); color: var(--acc); }
+    .ov-nc-loc-ico { flex-shrink: 0; opacity: .6; }
+    .ov-nc-loc-txt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    
+    /* Geo tooltip — floats above the strip */
+    .ov-geo-tip {
+        display: none;
+        position: absolute; bottom: calc(100% + 5px); left: -1px; right: -1px;
+        background: var(--bg2); border: 1px solid var(--acc);
+        border-radius: 4px; padding: 8px 10px;
+        font-family: var(--mono); font-size: 9px; color: var(--txt2);
+        line-height: 1.6; z-index: 9999; pointer-events: none;
+        box-shadow: 0 6px 24px rgba(0,0,0,.75);
+        white-space: normal; word-break: break-word;
+    }
+    .ov-nc-loc.has-fix:hover .ov-geo-tip { display: block; }
+    
+    /* ── 5. Stats grid — always 6 cells / 2 rows — 70px ── */
+    .ov-nc-grid {
+        display: grid; grid-template-columns: repeat(3,1fr);
+        gap: 4px; margin-bottom: 6px;
+        height: 64px;           /* 2 × (28px cell) + 4px gap + 4px = 64px */
+        flex-shrink: 0;
+        overflow: hidden;
+    }
+    .ov-nc-cell {
+        background: var(--bg); border: 1px solid var(--bd);
+        border-radius: 4px; padding: 4px 5px; text-align: center;
+        transition: border-color .15s;
+        height: 30px; overflow: hidden;
+    }
+    .ov-nc-cell-empty { opacity: .25; }
+    .ov-nc-cell:hover:not(.ov-nc-cell-empty) { border-color: var(--bd2); }
+    .ov-nc-cell-val {
+        font-size: 11px; font-weight: bold; font-family: var(--mono);
+        color: var(--txt); white-space: nowrap; line-height: 1.2;
+        overflow: hidden; text-overflow: ellipsis;
+    }
+    .ov-nc-cell-lbl {
+        font-size: 8px; color: var(--txt3); font-family: var(--mono);
+        letter-spacing: .3px; margin-top: 1px; text-transform: uppercase;
+    }
+    
+    /* ── 7. Footer — 24px ── */
+    .ov-nc-foot {
+        display: flex; align-items: center; gap: 6px;
+        height: 20px;
+        padding: 0 6px;
+        background: var(--bg);
+        border: 1px solid var(--bd);
+        border-radius: 4px;
+        font-family: var(--mono); font-size: 9px; color: var(--txt3);
+        flex-shrink: 0;
+        overflow: hidden;
+        margin-bottom: 4px;
+    }
+    .ov-nc-foot-stat { display: flex; align-items: center; gap: 3px; }
+    .ov-nc-foot-stat i { font-size: 8px; color: var(--txt3); }
+    .ov-nc-dm-btn {
+        margin-left: auto; flex-shrink: 0;
+        background: none; border: 1px solid var(--bd2);
+        color: var(--txt3); border-radius: 3px; padding: 1px 7px;
+        font-family: var(--mono); font-size: 8px; cursor: pointer;
+        letter-spacing: .5px; transition: all .15s; line-height: 12px;
+    }
+    .ov-nc-dm-btn:hover {
+        border-color: var(--acc); color: var(--acc);
+        background: var(--acc-dim); box-shadow: var(--glow-sm) var(--acc-glow);
+    }
+    
+    /* Signal bars */
+    .ov-sig-bars { display: flex; gap: 2px; align-items: flex-end; height: 14px; flex-shrink: 0; }
+    .ov-sig-bar  { width: 4px; border-radius: 1px; background: var(--bd2); transition: background .2s; }
+    .ov-sig-bar.lit { background: var(--nc-col, var(--acc)); }
+    
+    /* ── 6. Mini map — 72px + 4px margin = 76px ── */
+    .ov-nc-map {
+        flex-shrink: 0;
+        height: 72px;
+        position: relative;
+        border: 1px solid var(--bd);
+        border-radius: 4px;
+        margin-bottom: 4px;
+        overflow: hidden;
+        background: var(--bg);
+    }
+  
+    .ov-nc-map > div[id^="ovmap-"] { width: 100%; height: 100%; }
+    .ov-nc-map-nofix {
+        position: absolute; inset: 0;
+        display: flex; align-items: center; justify-content: center;
+        font-family: var(--mono); font-size: 9px; font-weight: bold;
+        color: var(--txt3); letter-spacing: 1px; pointer-events: none;
+    }
+    .ov-nc-map-badge {
+        position: absolute; bottom: 4px; right: 5px;
+        font-family: var(--mono); font-size: 8px; font-weight: bold;
+        color: #060b12; padding: 1px 5px; border-radius: 2px;
+        pointer-events: none; z-index: 2; letter-spacing: .5px;
+    }
+    
+    /* ── Right panel ── */
+    .ov-right {
+        display: flex; flex-direction: column; gap: 10px;
+        min-height: 0; overflow-y: auto;
+    }
+    .ov-right::-webkit-scrollbar { width: 3px; }
+    .ov-right::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 2px; }
+    
+    /* Mesh health */
+    .ov-health-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+    .ov-hlth {
+        background: var(--bg); border: 1px solid var(--bd2);
+        border-radius: 4px; padding: 8px; text-align: center;
+        transition: border-color .15s;
+    }
+    .ov-hlth:hover { border-color: var(--bd3); }
+    .ov-hlth-val { font-size: 16px; font-weight: bold; font-family: var(--mono); line-height: 1; }
+    .ov-hlth-lbl { font-size: 9px; color: var(--txt3); font-family: var(--mono); letter-spacing: .5px; margin-top: 3px; }
+    
+    /* Ring gauges */
+    .ov-ring-wrap { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 6px; }
+    .ov-ring-item { text-align: center; }
+    .ov-ring-svg  { overflow: visible; }
+    .ov-ring-svg circle:last-of-type { filter: drop-shadow(0 0 3px currentColor); }
+    .ov-ring-lbl  { font-size: 9px; color: var(--txt3); font-family: var(--mono); margin-top: 3px; letter-spacing: .5px; }
+    
+    /* Live feed */
+    .ov-feed {
+        flex: 1; overflow-y: auto; background: #03070c;
+        padding: 8px; border-radius: 0 0 var(--r) var(--r);
+        font-family: var(--mono); font-size: 10px; line-height: 1.7; min-height: 0;
+    }
+    .ov-feed::-webkit-scrollbar { width: 3px; }
+    .ov-feed::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 2px; }
+    .ov-feed-row {
+        display: flex; gap: 6px;
+        border-bottom: 1px solid rgba(255,255,255,.03);
+        padding-bottom: 1px; margin-bottom: 1px;
+    }
+    .ov-feed-ts  { color: var(--txt3); width: 58px; flex-shrink: 0; }
+    .ov-feed-dir { width: 28px; flex-shrink: 0; font-weight: bold; color: var(--acc); }
+    .ov-feed-typ { width: 32px; flex-shrink: 0; }
+    .ov-feed-pay { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--txt2); }
+    
+    /* Pagination */
+    .ov-pages {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 6px 10px; border-top: 1px solid var(--bd2);
+        flex-shrink: 0; background: var(--bg2);
+        border-radius: 0 0 var(--r) var(--r);
+    }
+    .ov-page-lbl { font-family: var(--mono); font-size: 9px; color: var(--txt2); }
+    
+    /* Sparkline wrapper */
+    .ov-nc-spark-wrap {
+        height: 20px; margin-bottom: 6px;
+        background: var(--bg); border-radius: 3px; overflow: hidden;
+        border: 1px solid var(--bd);
+    }
+    
+    /* Card entry animation */
+    @keyframes ov-slide-in {
+        from { opacity:0; transform:translateY(6px); }
+        to   { opacity:1; transform:translateY(0); }
+    }
+    
+    /* ── Responsive ── */
+  
+    /* ≤1280px: stack left/right panels, right panel goes horizontal row */
+    @media (max-width: 1280px) {
+        .ov-grid {
+            grid-template-columns: 1fr;
+            overflow-y: visible;
+            height: auto;
+        }
+        .ov-right {
+            flex-direction: row;
+            flex-wrap: wrap;
+            overflow: visible;
+            min-height: 0;
+        }
+        .ov-right > .card { flex: 1; min-width: 280px; }
+    }
+  
+    /* ≤900px: KPI header 2-col, node grid smaller cards */
+    @media (max-width: 900px) {
+        .ov-hdr { grid-template-columns: 1fr 1fr; }
+        .ov-conn-kpi { grid-column: 1/-1; }
+        #ov-node-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+    }
+  
+    /* ≤700px: full mobile — single column everything, no height constraints */
+    @media (max-width: 768px) {
+        /* Remove the fixed viewport height so the page can scroll naturally */
+        .vs[style] {
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+        }
+  
+        /* Sidebar: push below on mobile */
+        .ov-grid { grid-template-columns: 1fr; overflow-y: visible; height: auto; }
+  
+        /* KPI strip: 2 cols */
+        .ov-hdr { grid-template-columns: 1fr 1fr; gap: 6px; }
+        .ov-conn-kpi { grid-column: 1/-1; }
+        .ov-kpi-val { font-size: 20px; }
+  
+        /* Node grid: full width single column */
+        #ov-node-grid {
+            grid-template-columns: 1fr;
+            height: auto;
+            overflow: visible;
+            max-height: none;
+        }
+  
+        /* Node registry card grows with content */
+        .ov-grid > .card:first-child {
+            height: auto; min-height: 0;
+            overflow: visible;
+            display: flex; flex-direction: column;
+        }
+        .ov-grid > .card:first-child #ov-node-grid {
+            flex: none; overflow: visible; height: auto;
+        }
+  
+        /* Right panel: full width */
+        .ov-right {
+            flex-direction: column; overflow: visible;
+        }
+        .ov-right > .card {
+            min-width: 0; width: 100%; height: auto; min-height: 200px;
+        }
+  
+        /* Live feed: fixed reasonable height on mobile */
+        .ov-feed { max-height: 300px; min-height: 150px; }
+  
+        /* Node cards: full width, flexible height */
+        .ov-nc { width: 100%; height: auto; min-height: 302px; }
+  
+        /* Pagination bar always visible */
+        .ov-pages { position: sticky; bottom: 0; z-index: 10; }
+  
+        /* Toolbar: wrap on narrow screens */
+        .ov-node-toolbar { flex-wrap: wrap; gap: 4px; }
+        .ov-node-toolbar input,
+        .ov-node-toolbar select { flex: 1; min-width: 90px; font-size: 11px !important; }
+        .ov-node-toolbar input#node-search { width: 100%; }
+    }
+  
+    /* ≤480px: very small phones */
+    @media (max-width: 480px) {
+        .ov-hdr { grid-template-columns: 1fr 1fr; gap: 4px; }
+        .ov-kpi { padding: 8px 10px; }
+        .ov-kpi-val { font-size: 18px; }
+        .ov-node-toolbar { flex-wrap: wrap; gap: 4px; }
+        .ov-node-toolbar input,
+        .ov-node-toolbar select { width: auto; flex: 1; min-width: 80px; }
+    }
+    </style>
+    
+    <div class="ov-scan"></div>
+    
+    <div class="vs" style="height:calc(100dvh - 90px);display:flex;flex-direction:column;gap:10px;padding:10px;box-sizing:border-box;position:relative;z-index:2;">
+    
+        <!-- ── KPI Header ── -->
+        <div class="ov-hdr">
+            <div class="ov-kpi" style="--kpi-col:var(--acc)">
+                <div class="ov-kpi-val" id="ov-kpi-pkts">0</div>
+                <div class="ov-kpi-lbl">PACKETS · SESSION</div>
+                <div class="ov-kpi-sub" id="ov-kpi-pkts-sub">—</div>
+            </div>
+            <div class="ov-kpi" style="--kpi-col:var(--ok)">
+                <div class="ov-kpi-val" id="ov-kpi-nodes">0</div>
+                <div class="ov-kpi-lbl">KNOWN NODES</div>
+                <div class="ov-kpi-sub" id="ov-kpi-nodes-sub">—</div>
+            </div>
+            <div class="ov-kpi" style="--kpi-col:#b060ff">
+                <div class="ov-kpi-val" id="ov-kpi-msgs">0</div>
+                <div class="ov-kpi-lbl">MESSAGES · SESSION</div>
+                <div class="ov-kpi-sub" id="ov-kpi-msgs-sub">—</div>
+            </div>
+            <div class="ov-kpi" style="--kpi-col:#ffa826">
+                <div class="ov-kpi-val" id="ov-kpi-chs">0</div>
+                <div class="ov-kpi-lbl">CHANNELS ACTIVE</div>
+                <div class="ov-kpi-sub" id="ov-kpi-chs-sub">—</div>
+            </div>
+            <div class="ov-conn-kpi">
+                <div class="ov-conn-top">
+                    <div class="ov-conn-dot" id="ov-conn-dot"></div>
+                    <div>
+                        <div class="ov-conn-status" id="ov-conn-status">INITIALIZING</div>
+                        <div style="font-size:8px;color:var(--txt3);font-family:var(--mono);margin-top:1px;" id="ov-conn-node">Awaiting link...</div>
+                    </div>
+                    <div style="margin-left:auto;">
+                        <div class="ov-conn-bars" id="ov-conn-bars">
+                            <div class="ov-conn-bar" style="height:4px;"></div>
+                            <div class="ov-conn-bar" style="height:7px;"></div>
+                            <div class="ov-conn-bar" style="height:11px;"></div>
+                            <div class="ov-conn-bar" style="height:15px;"></div>
+                            <div class="ov-conn-bar" style="height:18px;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <div>
+                        <div style="font-size:8px;color:var(--txt3);font-family:var(--mono);">SESSION</div>
+                        <div style="font-size:11px;font-family:var(--mono);color:var(--txt);" id="ov-uptime">—</div>
+                    </div>
+                    <div>
+                        <div style="font-size:8px;color:var(--txt3);font-family:var(--mono);">POS UPDATES</div>
+                        <div style="font-size:11px;font-family:var(--mono);color:var(--warn);" id="ov-pos">0</div>
+                    </div>
+                    <div>
+                        <div style="font-size:8px;color:var(--txt3);font-family:var(--mono);">TELEMETRY</div>
+                        <div style="font-size:11px;font-family:var(--mono);color:#b060ff;" id="ov-tel">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <!-- ── Main grid ── -->
+        <div class="ov-grid" style="flex:1;min-height:0;">
+    
+            <!-- Node Registry -->
+            <div class="card" style="display:flex;flex-direction:column;overflow:hidden;">
+                <div class="ov-node-toolbar">
+                    <span class="ct" style="font-size:11px;"><span style="color:var(--acc);margin-right:6px;">⬡</span>NODE REGISTRY</span>
+                    <input class="inp mono" id="node-search" placeholder="Search..." style="max-width:140px;width:100%;padding:4px 8px;font-size:10px;" oninput="window.c2RenderNodes()">
+                    <select class="inp mono" id="node-sort" style="padding:4px 6px;font-size:10px;max-width:110px;width:100%;" onchange="window.c2RenderNodes()">
+                        <optgroup label="TIME">
+                            <option value="last_heard">Last Heard</option>
+                            <option value="online">Online First</option>
+                        </optgroup>
+                        <optgroup label="RF">
+                            <option value="signal">RSSI</option>
+                            <option value="snr">SNR</option>
+                            <option value="hops">Hop Limit</option>
+                            <option value="ch_util">Ch Util %</option>
+                        </optgroup>
+                        <optgroup label="POWER">
+                            <option value="battery">Battery</option>
+                            <option value="uptime">Uptime</option>
+                        </optgroup>
+                        <optgroup label="POSITION">
+                            <option value="gps">GPS Fix First</option>
+                            <option value="altitude">Altitude</option>
+                        </optgroup>
+                        <optgroup label="OTHER">
+                            <option value="name">Name A–Z</option>
+                            <option value="role">Role</option>
+                            <option value="msgs">Msg Count</option>
+                            <option value="node_id">Node ID</option>
+                        </optgroup>
+                    </select>
+                    <select class="inp mono" id="node-filter-hw" style="padding:4px 6px;font-size:10px;max-width:100px;width:100%;" onchange="window.c2RenderNodes()">
+                        <option value="">All HW</option>
+                    </select>
+                    <button class="btn btn-sm btn-acc" onclick="window.c2RenderNodes()" style="margin-left:auto;padding:3px 10px;font-size:10px;">↻</button>
+                </div>
+                <div id="ov-node-grid"></div>
+                <div class="ov-pages">
+                    <button class="btn btn-sm" id="btn-prev-page" onclick="window.c2ChangePage(-1)">← PREV</button>
+                    <span class="ov-page-lbl" id="page-indicator">PAGE 1 / 1</span>
+                    <button class="btn btn-sm" id="btn-next-page" onclick="window.c2ChangePage(1)">NEXT →</button>
+                </div>
+            </div>
+    
+            <!-- Right panel -->
+            <div class="ov-right">
+    
+                <!-- Mesh Health -->
+                <div class="card" style="flex-shrink:0;">
+                    <div class="ch" style="padding-bottom:8px;"><span class="ct" style="font-size:10px;">◎ MESH HEALTH</span>
+                        <span style="margin-left:auto;font-size:8px;font-family:var(--mono);color:var(--txt3);" id="ov-health-time">—</span>
+                    </div>
+                    <div class="cb">
+                        <div class="ov-health-grid">
+                            <div class="ov-hlth">
+                                <div class="ov-hlth-val" id="ov-h-online" style="color:var(--ok)">—</div>
+                                <div class="ov-hlth-lbl">ONLINE (&lt;1h)</div>
+                            </div>
+                            <div class="ov-hlth">
+                                <div class="ov-hlth-val" id="ov-h-avgsnr" style="color:#b060ff">—</div>
+                                <div class="ov-hlth-lbl">AVG SNR</div>
+                            </div>
+                            <div class="ov-hlth">
+                                <div class="ov-hlth-val" id="ov-h-avgbat" style="color:var(--ok)">—</div>
+                                <div class="ov-hlth-lbl">AVG BATTERY</div>
+                            </div>
+                            <div class="ov-hlth">
+                                <div class="ov-hlth-val" id="ov-h-gps" style="color:var(--acc)">—</div>
+                                <div class="ov-hlth-lbl">GPS FIX</div>
+                            </div>
+                        </div>
+                        <!-- Connection State Bar -->
+                        <div style="display:flex;align-items:center;gap:8px;padding:4px 0 8px;font-family:var(--mono);font-size:10px;">
+                            <div id="ov-conn-dot" style="width:10px;height:10px;border-radius:50%;background:#666;flex-shrink:0;box-shadow:0 0 6px currentColor;"></div>
+                            <span id="ov-conn-state" style="color:var(--txt);font-weight:700;">—</span>
+                            <span id="ov-conn-detail" style="color:var(--txt2);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="">—</span>
+                            <span id="ov-conn-transport" style="color:var(--acc);font-weight:700;">—</span>
+                        </div>
+                        <!-- Ring gauges -->
+                        <div class="ov-ring-wrap" id="ov-rings">
+                            <div class="ov-ring-item">
+                                <svg class="ov-ring-svg" width="64" height="64" viewBox="0 0 64 64">
+                                    <circle cx="32" cy="32" r="26" fill="none" stroke="var(--bd)" stroke-width="5"/>
+                                    <circle id="ov-ring-conn" cx="32" cy="32" r="26" fill="none" stroke="var(--ok)" stroke-width="5"
+                                        stroke-dasharray="163.4" stroke-dashoffset="163.4"
+                                        stroke-linecap="round" transform="rotate(-90 32 32)" style="transition:stroke-dashoffset .6s ease"/>
+                                    <text x="32" y="36" text-anchor="middle" font-family="monospace" font-size="11" font-weight="bold" fill="var(--txt)" id="ov-ring-conn-txt">0%</text>
+                                </svg>
+                                <div class="ov-ring-lbl">ONLINE</div>
+                            </div>
+                            <div class="ov-ring-item">
+                                <svg class="ov-ring-svg" width="64" height="64" viewBox="0 0 64 64">
+                                    <circle cx="32" cy="32" r="26" fill="none" stroke="var(--bd)" stroke-width="5"/>
+                                    <circle id="ov-ring-bat" cx="32" cy="32" r="26" fill="none" stroke="var(--ok)" stroke-width="5"
+                                        stroke-dasharray="163.4" stroke-dashoffset="163.4"
+                                        stroke-linecap="round" transform="rotate(-90 32 32)" style="transition:stroke-dashoffset .6s ease"/>
+                                    <text x="32" y="36" text-anchor="middle" font-family="monospace" font-size="11" font-weight="bold" fill="var(--txt)" id="ov-ring-bat-txt">0%</text>
+                                </svg>
+                                <div class="ov-ring-lbl">AVG BAT</div>
+                            </div>
+                            <div class="ov-ring-item">
+                                <svg class="ov-ring-svg" width="64" height="64" viewBox="0 0 64 64">
+                                    <circle cx="32" cy="32" r="26" fill="none" stroke="var(--bd)" stroke-width="5"/>
+                                    <circle id="ov-ring-gps" cx="32" cy="32" r="26" fill="none" stroke="var(--acc)" stroke-width="5"
+                                        stroke-dasharray="163.4" stroke-dashoffset="163.4"
+                                        stroke-linecap="round" transform="rotate(-90 32 32)" style="transition:stroke-dashoffset .6s ease"/>
+                                    <text x="32" y="36" text-anchor="middle" font-family="monospace" font-size="11" font-weight="bold" fill="var(--txt)" id="ov-ring-gps-txt">0%</text>
+                                </svg>
+                                <div class="ov-ring-lbl">GPS FIX</div>
+                            </div>
+                            <div class="ov-ring-item">
+                                <svg class="ov-ring-svg" width="64" height="64" viewBox="0 0 64 64">
+                                    <circle cx="32" cy="32" r="26" fill="none" stroke="var(--bd)" stroke-width="5"/>
+                                    <circle id="ov-ring-env" cx="32" cy="32" r="26" fill="none" stroke="#f032e6" stroke-width="5"
+                                        stroke-dasharray="163.4" stroke-dashoffset="163.4"
+                                        stroke-linecap="round" transform="rotate(-90 32 32)" style="transition:stroke-dashoffset .6s ease"/>
+                                    <text x="32" y="36" text-anchor="middle" font-family="monospace" font-size="11" font-weight="bold" fill="var(--txt)" id="ov-ring-env-txt">0%</text>
+                                </svg>
+                                <div class="ov-ring-lbl">ENV DATA</div>
+                            </div>
+                        </div>
+                        <!-- Avg SNR + RSSI mini chart -->
+                        <div style="height:60px;position:relative;margin-top:4px;">
+                            <canvas id="ov-chart-metrics"></canvas>
+                        </div>
+                    </div>
+                </div>
+    
+                <!-- Live feed -->
+                <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:200px;">
+                    <div class="ch" style="padding-bottom:8px;">
+                        <span class="ct" style="font-size:10px;">▶ LIVE FEED</span>
+                        <span class="pill p-node" style="margin-left:auto;font-size:8px;" id="feed-counter">0 PKTS</span>
+                    </div>
+                    <div class="cb" style="padding:0;flex:1;overflow:hidden;display:flex;flex-direction:column;">
+                        <div style="display:flex;gap:4px;padding:4px 8px;border-bottom:1px solid var(--bd);flex-shrink:0;">
+                            <span style="font-size:8px;color:var(--txt3);font-family:var(--mono);width:58px;">TIME</span>
+                            <span style="font-size:8px;color:var(--txt3);font-family:var(--mono);width:28px;">DIR</span>
+                            <span style="font-size:8px;color:var(--txt3);font-family:var(--mono);width:32px;">TYPE</span>
+                            <span style="font-size:8px;color:var(--txt3);font-family:var(--mono);">FROM → TO · PAYLOAD</span>
+                        </div>
+                        <div class="ov-feed" id="c2-live-feed"></div>
+                    </div>
+                </div>
+    
+            </div>
+        </div>
+    </div>

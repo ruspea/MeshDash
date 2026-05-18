@@ -1,0 +1,22 @@
+{
+  "id": "pki_alerts",
+  "name": "PKI Alerts",
+  "version": "1.0.3",
+  "author": "MeshDash",
+  "description": "Trust On First Use (TOFU) security with RF Anomaly Profiling. Detects Node ID/MAC spoofing by pinning identities to cryptographic public keys. Flags key mismatches, physical cloning attempts via SNR/RSSI/hardware divergence, and duplicate key groups shared across multiple nodes \u2014 indicating device cloning or firmware key reuse.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/pki_alerts",
+  "static_prefix": "/static/plugins/pki_alerts",
+  "bridge": "bridge.html",
+  "watchdog": true,
+  "permissions": [
+    "node_badges"
+  ],
+  "nav_menu": [
+    {
+      "label": "PKI Alerts SOC",
+      "icon": "fa-shield-alt",
+      "href": "/plugin/pki_alerts/index.html"
+    }
+  ]
+}

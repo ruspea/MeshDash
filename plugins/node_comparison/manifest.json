@@ -1,0 +1,18 @@
+{
+  "id": "node_comparison",
+  "name": "Node Comparison",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Stub plugin \u2014 placeholder for future implementation. No functionality yet.",
+  "watchdog": false,
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/node_comparison",
+  "static_prefix": "/static/plugins/node_comparison",
+  "nav_menu": [
+    {
+      "label": "Node Comparison",
+      "href": "/plugin/node_comparison/index.html",
+      "icon": "fa-columns"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "mesh_bb",
+  "name": "Mesh BB",
+  "version": "1.0.2",
+  "author": "MeshDash",
+  "description": "A fully-featured mesh-native bulletin board system. Field operators post, read, and subscribe to named boards using simple DM commands \u2014 no internet, no apps, no infrastructure required. Features correct DM vs channel routing with per-channel permissions, paginated responses sized for Meshtastic's 220-byte payload limit with ACK-tracked chunked delivery, per-node block lists, full conversation trace for every exchange, auto-announce scheduling (daily, weekly, interval), popularity tracking, and a public read-only share URL. Designed for EMCOMM, SAR, and off-grid coordination.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/mesh_bb",
+  "static_prefix": "/static/plugins/mesh_bb",
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Mesh BB",
+      "icon": "fa-bullhorn",
+      "href": "/plugin/mesh_bb/index.html"
+    }
+  ]
+}

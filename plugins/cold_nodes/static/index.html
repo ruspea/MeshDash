@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cold Nodes</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:12px;}
+body{margin:0;padding:0;background:transparent;}
+
+/* ── Layout ── */
+.shell{height:100%;display:flex;flex-direction:column;overflow:hidden;}
+.top{flex-shrink:0;padding:12px 14px 10px;border-bottom:1px solid var(--bd2);background:var(--bg);}
+.grid-wrap{flex:1;overflow-y:auto;padding:12px 14px 20px;}
+.grid-wrap::-webkit-scrollbar{width:4px;}
+.grid-wrap::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px;}
+
+/* ── Plugin header ── */
+.plugin-header{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.ph-ico{font-size:20px;color:var(--acc);text-shadow:0 0 8px rgba(0,200,245,.4);}
+.ph-title{font-size:14px;font-family:var(--mono);font-weight:900;letter-spacing:2px;}
+.ph-sub{font-size:9px;color:var(--txt3);font-family:var(--mono);}
+
+/* ── Card ── */
+.card{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);margin-bottom:12px;}
+.ch{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--bd2);}
+.ct{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--acc);font-weight:bold;}
+.cb{padding:10px 12px;}
+
+/* ── Config ── */
+.cfg-inner{display:flex;flex-direction:column;gap:10px;}
+.cfg-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.cfg-lbl{font-family:var(--mono);font-size:10px;color:var(--txt3);min-width:90px;letter-spacing:.4px;font-weight:bold;}
+
+/* ── Preset buttons ── */
+.preset-row{display:flex;gap:4px;flex-wrap:wrap;}
+.preset-btn{background:transparent;border:1px solid var(--bd2);color:var(--txt3);padding:3px 8px;border-radius:3px;font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .15s;}
+.preset-btn:hover{border-color:var(--acc);color:var(--acc);}
+.preset-btn.active{background:var(--acc);color:#000;border-color:var(--acc);font-weight:bold;}
+
+/* ── Toggle ── */
+.tog{position:relative;width:40px;height:22px;flex-shrink:0;}
+.tog input{opacity:0;width:0;height:0;position:absolute;}
+.tog-sl{position:absolute;inset:0;background:var(--bd2);border-radius:11px;cursor:pointer;transition:background .2s;}
+.tog-sl::after{content:'';position:absolute;width:14px;height:14px;left:4px;top:4px;background:var(--txt3);border-radius:50%;transition:all .2s;}
+.tog input:checked+.tog-sl{background:var(--acc);}
+.tog input:checked+.tog-sl::after{transform:translateX(18px);background:#000;}
+.tog-state{font-family:var(--mono);font-size:9px;}
+
+/* ── Inputs ── */
+.inp{background:var(--bg);border:1px solid var(--bd2);color:var(--txt);padding:5px 8px;border-radius:4px;font-family:var(--mono);font-size:11px;transition:border-color .15s;}
+.inp:focus{outline:none;border-color:var(--acc);}
+.thr-input{width:72px;}
+
+/* ── Buttons ── */
+.btn{background:transparent;border:1px solid var(--bd2);color:var(--txt);padding:6px 12px;border-radius:4px;font-family:var(--mono);font-size:11px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;}
+.btn:hover{border-color:var(--txt3);}
+.btn-sm{padding:4px 8px;font-size:10px;}
+.btn-acc{border-color:var(--acc);color:var(--acc);}
+.btn-acc:hover{background:rgba(0,200,245,.08);}
+.btn-err{border-color:var(--err);color:var(--err);}
+.btn-err:hover{background:rgba(255,48,80,.08);}
+
+/* ── Scan row & summary ── */
+.scan-row{display:flex;align-items:center;gap:10px;margin-top:10px;}
+.sum-row{display:flex;gap:8px;}
+.sum-box{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);padding:8px 14px;text-align:center;min-width:70px;}
+.sum-val{font-family:var(--mono);font-size:20px;font-weight:900;color:var(--txt);line-height:1.2;}
+.sum-lbl{font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:1px;margin-top:2px;}
+.s-cold .sum-val{color:var(--err);}
+.s-sel .sum-val{color:var(--acc);}
+.scan-meta{font-family:var(--mono);font-size:9px;color:var(--txt3);}
+
+/* ── Action bar ── */
+.action-bar{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--bd2);margin-top:10px;}
+.sel-all-wrap{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;color:var(--txt3);cursor:pointer;}
+.sel-all-wrap input[type=checkbox]{accent-color:var(--acc);width:14px;height:14px;cursor:pointer;}
+
+/* ── Node cards ── */
+.node-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;}
+.nc{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);padding:10px;position:relative;transition:border-color .15s;cursor:default;}
+.nc:hover{border-color:var(--txt3);}
+.nc.selected{border-color:var(--acc);background:rgba(0,200,245,.04);}
+.nc-head{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.nc-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:900;color:#000;flex-shrink:0;}
+.nc-names{min-width:0;overflow:hidden;}
+.nc-short{font-family:var(--mono);font-size:11px;font-weight:bold;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nc-long{font-family:var(--mono);font-size:9px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nc-id{font-family:var(--mono);font-size:11px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nc-stats{display:grid;grid-template-columns:auto 1fr;gap:2px 6px;font-family:var(--mono);font-size:9px;color:var(--txt3);margin:6px 0;}
+.nc-stats .mv{color:var(--txt2);font-weight:bold;}
+.nc-foot{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:6px;border-top:1px solid rgba(255,255,255,.04);padding-top:6px;}
+.nc-check{accent-color:var(--acc);width:14px;height:14px;cursor:pointer;flex-shrink:0;margin-right:4px;}
+.nc-del-btn{font-size:11px;padding:2px 7px;}
+
+/* ── Age badges ── */
+.age-badge{display:inline-flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;font-weight:bold;padding:3px 7px;border-radius:3px;margin:4px 0;}
+.age-never{background:rgba(255,48,80,.08);color:var(--err);}
+.age-hours{background:rgba(255,168,38,.08);color:var(--warn);}
+.age-days{background:rgba(0,200,245,.08);color:var(--txt2);}
+.age-old{background:rgba(255,48,80,.12);color:var(--err);}
+
+/* ── Slot tag ── */
+.slot-tag{font-family:var(--mono);font-size:9px;color:var(--txt3);display:inline-flex;align-items:center;gap:3px;}
+
+/* ── Empty state ── */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;color:var(--txt3);gap:8px;}
+.em-t{font-family:var(--mono);font-size:12px;font-weight:bold;color:var(--txt2);}
+.em-s{font-family:var(--mono);font-size:10px;color:var(--txt3);}
+
+/* ── Confirm modal ── */
+.cm-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;}
+.cm-ov.open{display:flex;}
+.cm-inner{background:var(--bg2);border:1px solid var(--bd2);border-radius:6px;padding:20px;max-width:400px;width:90%;color:var(--txt);}
+.cm-inner h3{font-family:var(--mono);font-size:13px;margin-bottom:12px;color:var(--err);display:flex;align-items:center;gap:8px;}
+.cm-inner p{font-family:var(--mono);font-size:11px;color:var(--txt2);line-height:1.6;margin-bottom:16px;}
+.cm-btns{display:flex;gap:8px;justify-content:flex-end;}
+
+/* ── Spin animation ── */
+.spin{animation:cn-sp .7s linear infinite;display:inline-block;}
+@keyframes cn-sp{to{transform:rotate(360deg);}}
+
+/* ── Mobile ── */
+@media(max-width:480px){
+  .shell{height:100%;}
+  .top{padding:10px 10px 8px;}
+  .grid-wrap{padding:8px 8px 16px;}
+  .node-grid{grid-template-columns:1fr;}
+  .cfg-row{flex-wrap:wrap;gap:6px;}
+  .cfg-lbl{min-width:70px;font-size:9px;}
+  .preset-row{gap:3px;}
+  .preset-btn{padding:2px 6px;font-size:11px;}
+  .sum-box{padding:6px 10px;min-width:60px;}
+  .sum-val{font-size:16px;}
+  .nc{padding:8px;}
+  .nc-avatar{width:30px;height:30px;font-size:10px;}
+  .nc-stats{font-size:11px;}
+  .nc-foot{flex-wrap:wrap;}
+  .cm-inner{padding:14px;}
+  .action-bar{flex-wrap:wrap;}
+}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+
+    <!-- ── Fixed top ── -->
+    <div class="top">
+
+        <!-- Header -->
+        <div class="plugin-header">
+            <span class="ph-ico">❄️</span>
+            <div>
+                <div class="ph-title">COLD NODES</div>
+                <div class="ph-sub">by MeshDash</div>
+            </div>
+        </div>
+            <span id="cfg-status-pill" style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--txt3);">LOADING...</span>
+
+        <!-- Config -->
+        <div class="card">
+            <div class="ch" style="padding:8px 12px;">
+                <span class="ct" style="font-size:10px;">⚙ DETECTION SETTINGS</span>
+                <span id="cfg-save-msg" style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--txt3);"></span>
+            </div>
+            <div class="cb" style="padding:10px 12px;">
+                <div class="cfg-inner">
+
+                    <div class="cfg-row">
+                        <span class="cfg-lbl">BADGE OVERLAY</span>
+                        <label class="tog"><input type="checkbox" id="cfg-enabled"><span class="tog-sl"></span></label>
+                        <span class="tog-state" id="tog-lbl" style="color:var(--txt3);">OFF</span>
+                        <span style="font-size:9px;color:var(--txt3);font-family:var(--mono);">Stamps ❄ STALE on Overview cards</span>
+                    </div>
+
+                    <div class="cfg-row">
+                        <span class="cfg-lbl">STALE AFTER</span>
+                        <div class="preset-row" id="preset-row">
+                            <button class="preset-btn" data-h="1">1H</button>
+                            <button class="preset-btn" data-h="6">6H</button>
+                            <button class="preset-btn" data-h="12">12H</button>
+                            <button class="preset-btn active" data-h="24">1D</button>
+                            <button class="preset-btn" data-h="48">2D</button>
+                            <button class="preset-btn" data-h="168">1W</button>
+                            <button class="preset-btn" data-h="720">1M</button>
+                        </div>
+                        <input type="number" id="cfg-threshold" class="inp thr-input" min="0.5" max="8760" step="0.5" value="24">
+                        <span class="cfg-lbl" style="min-width:auto;">H</span>
+                        <button class="btn btn-sm btn-acc" id="cfg-save-btn" style="margin-left:auto;">
+                            <i class="fas fa-save"></i> SAVE &amp; RESCAN
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary + scan -->
+        <div class="scan-row">
+            <div class="sum-row" style="flex:1;">
+                <div class="sum-box s-cold">
+                    <div class="sum-val" id="sum-cold">—</div>
+                    <div class="sum-lbl">COLD NODES</div>
+                </div>
+                <div class="sum-box">
+                    <div class="sum-val" id="sum-total" style="color:var(--txt2);">—</div>
+                    <div class="sum-lbl">TOTAL KNOWN</div>
+                </div>
+                <div class="sum-box s-sel">
+                    <div class="sum-val" id="sum-sel">0</div>
+                    <div class="sum-lbl">SELECTED</div>
+                </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+                <button class="btn btn-sm btn-acc" id="scan-btn"><i class="fas fa-search"></i> SCAN NOW</button>
+                <div class="scan-meta" id="last-scan"></div>
+            </div>
+        </div>
+
+        <!-- Action bar — only shown when nodes present -->
+        <div class="action-bar" id="action-bar" style="display:none;">
+            <label class="sel-all-wrap">
+                <input type="checkbox" id="sel-all"> SELECT ALL
+            </label>
+            <span style="font-family:var(--mono);font-size:10px;color:var(--txt2);flex:1;" id="sel-label">0 SELECTED</span>
+            <button class="btn btn-sm" id="clear-btn">✕ CLEAR</button>
+            <button class="btn btn-sm btn-err" id="delete-btn" disabled>
+                <i class="fas fa-trash"></i> DELETE SELECTED
+            </button>
+        </div>
+
+    </div><!-- /top -->
+
+    <!-- ── Scrollable grid ── -->
+    <div class="grid-wrap">
+        <div class="node-grid" id="node-grid">
+            <div class="empty-state">
+                <i class="fas fa-snowflake" style="color:var(--acc);opacity:.4;"></i>
+                <div class="em-t">Loading configuration...</div>
+            </div>
+        </div>
+    </div>
+</div><!-- /shell -->
+
+<!-- Confirm modal -->
+<div class="cm-ov" id="confirm-modal">
+    <div class="cm-inner">
+        <h3><i class="fas fa-exclamation-triangle"></i> CONFIRM BULK DELETE</h3>
+        <p id="confirm-text"></p>
+        <div class="cm-btns">
+            <button class="btn btn-sm" id="confirm-cancel">CANCEL</button>
+            <button class="btn btn-sm btn-err" id="confirm-ok">
+                <i class="fas fa-trash"></i> DELETE
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+'use strict';
+
+const CONFIG_URL = '/api/plugins/cold_nodes/config';
+const NODES_URL  = '/api/plugins/cold_nodes/nodes';
+const DELETE_URL = '/api/plugins/cold_nodes/delete';
+
+var _nodes     = [];
+var _selected  = new Set();
+var _threshold = 24;
+
+/* ── Escape HTML ── */
+function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Deterministic colour — identical algorithm to overview.js ── */
+var PAL = ['var(--acc)','var(--ok)','var(--warn)','var(--pur)','var(--err)','#46f0f0','#f032e6','#bcf60c','#008080','#e6194b','#3cb44b','#4363d8'];
+function nodeColor(id) {
+    var h = 0;
+    for (var i = 0; i < (id || '').length; i++) h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+    return PAL[Math.abs(h) % PAL.length];
+}
+
+/*
+ * Age display — matches fmtTimeAgo from ui.js exactly:
+ *   < 60s  → Xs
+ *   < 1h   → Xm
+ *   < 24h  → Xh
+ *   ≥ 24h  → Xd
+ * Then badge class based on absolute hours.
+ */
+function fmtAgo(lh) {
+    if (!lh) return { label: 'NEVER', cls: 'age-never' };
+    var diff = Math.floor(Date.now() / 1000 - lh);
+    var label;
+    if (diff < 60)    label = diff + 's';
+    else if (diff < 3600)  label = Math.floor(diff / 60) + 'm';
+    else if (diff < 86400) label = Math.floor(diff / 3600) + 'h';
+    else                   label = Math.floor(diff / 86400) + 'd';
+
+    var h = diff / 3600;
+    var cls = h >= 168 ? 'age-old' : h >= 48 ? 'age-days' : 'age-hours';
+    return { label: label, cls: cls };
+}
+
+/* ── Toast via parent window ── */
+function toast(msg, type) {
+    try { window.parent.triggerToast(msg, type || 'acc'); } catch(e) {}
+}
+
+/* ── Load config then auto-scan ── */
+async function loadConfig() {
+    try {
+        var r = await fetch(CONFIG_URL, { credentials: 'include', cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        var d = await r.json();
+        _threshold = parseFloat(d.threshold_hours) || 24;
+        document.getElementById('cfg-enabled').checked = !!d.enabled;
+        document.getElementById('cfg-threshold').value = _threshold;
+        _updateToggleLabel(!!d.enabled);
+        _syncPresets(_threshold);
+        _updateStatusPill(!!d.enabled, _threshold);
+    } catch(e) {
+        _setStatusPill('CONFIG LOAD FAILED', 'var(--err)');
+    }
+}
+
+/* ── Save config + rescan ── */
+async function saveConfig() {
+    var enabled   = document.getElementById('cfg-enabled').checked;
+    var threshold = parseFloat(document.getElementById('cfg-threshold').value) || 24;
+    _threshold    = threshold;
+
+    var btn = document.getElementById('cfg-save-btn');
+    var msg = document.getElementById('cfg-save-msg');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch spin"></i>';
+
+    try {
+        var r = await fetch(CONFIG_URL, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled: enabled, threshold_hours: threshold }),
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        _syncPresets(threshold);
+        _updateToggleLabel(enabled);
+        _updateStatusPill(enabled, threshold);
+        msg.textContent = '✓ Saved';
+        msg.style.color = 'var(--ok)';
+        setTimeout(function() { msg.textContent = ''; }, 3000);
+        toast('Config saved.', 'ok');
+        await scan();
+    } catch(e) {
+        msg.textContent = '✗ ' + e.message;
+        msg.style.color = 'var(--err)';
+        toast('Save failed: ' + e.message, 'err');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> SAVE &amp; RESCAN';
+    }
+}
+
+function _updateToggleLabel(on) {
+    var l = document.getElementById('tog-lbl');
+    l.textContent   = on ? 'ON' : 'OFF';
+    l.style.color   = on ? 'var(--ok)' : 'var(--txt3)';
+    l.style.fontWeight = on ? 'bold' : 'normal';
+}
+function _updateStatusPill(on, thr) {
+    _setStatusPill(on ? ('ACTIVE · STALE AFTER ' + thr + 'H') : 'BADGES DISABLED', on ? 'var(--ok)' : 'var(--txt3)');
+}
+function _setStatusPill(text, color) {
+    var p = document.getElementById('cfg-status-pill');
+    p.textContent = text;
+    p.style.color = color || 'var(--txt3)';
+}
+function _syncPresets(h) {
+    document.querySelectorAll('.preset-btn').forEach(function(b) {
+        b.classList.toggle('active', parseFloat(b.dataset.h) === h);
+    });
+}
+
+/* ── Scan ── */
+async function scan() {
+    var btn = document.getElementById('scan-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch spin"></i>';
+    _selected.clear();
+
+    // Count total known nodes from parent meshState (if available)
+    try {
+        document.getElementById('sum-total').textContent =
+            Object.keys(window.parent.meshState.nodes || {}).length;
+    } catch(_) {}
+
+    try {
+        var qs = new URLSearchParams({ threshold_hours: _threshold, slot_id: 'all' });
+        var r  = await fetch(NODES_URL + '?' + qs, { credentials: 'include', cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        var d  = await r.json();
+        _nodes = d.nodes || [];
+        document.getElementById('sum-cold').textContent = _nodes.length;
+        if (d.total_nodes != null) {
+            document.getElementById('sum-total').textContent = d.total_nodes;
+        }
+        document.getElementById('last-scan').textContent =
+            'SCANNED ' + new Date().toLocaleTimeString();
+        renderGrid();
+    } catch(e) {
+        toast('Scan error: ' + e.message, 'err');
+        document.getElementById('node-grid').innerHTML =
+            '<div class="empty-state">'
+            + '<i class="fas fa-exclamation-circle" style="color:var(--err)"></i>'
+            + '<div class="em-t" style="color:var(--err)">SCAN FAILED</div>'
+            + '<div class="em-s">' + esc(e.message) + '</div></div>';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-search"></i> SCAN NOW';
+        updateActionBar();
+    }
+}
+
+/* ── Render grid ── */
+function renderGrid() {
+    var grid = document.getElementById('node-grid');
+
+    if (!_nodes.length) {
+        grid.innerHTML =
+            '<div class="empty-state">'
+            + '<i class="fas fa-check-circle" style="color:var(--ok)"></i>'
+            + '<div class="em-t">NO COLD NODES</div>'
+            + '<div class="em-s">All ' + (document.getElementById('sum-total').textContent || '') + ' known nodes heard within ' + _threshold + 'h</div>'
+            + '</div>';
+        updateActionBar();
+        return;
+    }
+
+    grid.innerHTML = _nodes.map(function(n) {
+        var sel   = _selected.has(n.node_id);
+        var age   = fmtAgo(n.last_heard);
+        var color = nodeColor(n.node_id);
+        var init  = (n.short_name || '?').slice(0, 2).toUpperCase();
+        var nid   = n.node_id;
+
+        // Stats — only show fields that have data (matches overview.js approach)
+        var snrStr  = n.snr           != null ? n.snr + 'dB'  : '—';
+        var rssiStr = n.rssi          != null ? String(n.rssi) : '—';
+        var batStr  = n.battery_level != null ? n.battery_level + '%' : '—';
+        var hwStr   = n.hw_model || '—';
+        var lastStr = n.last_heard ? new Date(n.last_heard * 1000).toLocaleString() : 'Never';
+
+        return '<div class="nc' + (sel ? ' selected' : '') + '" data-nid="' + esc(nid) + '">'
+             + '<input type="checkbox" class="nc-check"' + (sel ? ' checked' : '') + ' data-nid="' + esc(nid) + '">'
+             + '<div class="nc-head">'
+             +   '<div class="nc-avatar" style="background:' + color + ';">' + esc(init) + '</div>'
+             +   '<div class="nc-names">'
+             +     '<div class="nc-short">' + esc(n.short_name) + '</div>'
+             +     '<div class="nc-long">'  + esc(n.long_name)  + '</div>'
+             +     '<div class="nc-id">'    + esc(nid)          + '</div>'
+             +   '</div>'
+             + '</div>'
+             + '<div class="age-badge ' + age.cls + '">'
+             +   '<i class="fas fa-' + (age.cls === 'age-never' ? 'ban' : 'clock') + '"></i> '
+             +   esc(age.label) + (age.cls === 'age-never' ? '' : ' AGO')
+             + '</div>'
+             + '<div class="nc-stats">'
+             +   '<div>SNR</div><div class="mv">'  + snrStr  + '</div>'
+             +   '<div>RSSI</div><div class="mv">' + rssiStr + '</div>'
+             +   '<div>BAT</div><div class="mv">'  + batStr  + '</div>'
+             +   '<div>HW</div><div class="mv">'   + esc(hwStr) + '</div>'
+             + '</div>'
+             + '<div class="nc-foot">'
+             +   '<span class="slot-tag"><i class="fas fa-plug"></i> ' + esc(n.heard_by_slot) + '</span>'
+             +   '<button class="btn btn-sm btn-err nc-del-btn" '
+             +     'style="font-size:11px;padding:2px 7px;" '
+             +     'onclick="event.stopPropagation();quickDelete(\'' + esc(nid) + '\')" '
+             +     'title="Delete this node permanently">'
+             +     '<i class="fas fa-trash"></i> DELETE'
+             +   '</button>'
+             + '</div>'
+             + '</div>';
+    }).join('');
+
+    updateActionBar();
+}
+
+/* ── Selection helpers ── */
+function toggleNode(nid, checked) {
+    if (checked) _selected.add(nid); else _selected.delete(nid);
+    var card = document.querySelector('.nc[data-nid="' + nid + '"]');
+    if (card) {
+        card.classList.toggle('selected', checked);
+        var cb = card.querySelector('.nc-check');
+        if (cb) cb.checked = checked;
+    }
+    updateActionBar();
+}
+
+function updateActionBar() {
+    var n    = _selected.size;
+    var bar  = document.getElementById('action-bar');
+    var lbl  = document.getElementById('sel-label');
+    var del  = document.getElementById('delete-btn');
+    var sAll = document.getElementById('sel-all');
+
+    document.getElementById('sum-sel').textContent = n;
+    if (bar)  bar.style.display = _nodes.length ? 'flex' : 'none';
+    if (lbl)  lbl.textContent   = n + ' NODE' + (n !== 1 ? 'S' : '') + ' SELECTED';
+    if (del)  del.disabled      = n === 0;
+    if (sAll) {
+        sAll.checked       = _nodes.length > 0 && n === _nodes.length;
+        sAll.indeterminate = n > 0 && n < _nodes.length;
+    }
+}
+
+/* ── Quick delete single ── */
+async function quickDelete(nid) {
+    var node = _nodes.find(function(n) { return n.node_id === nid; });
+    var name = (node && node.short_name) || nid;
+    if (!confirm('Delete "' + name + '" (' + nid + ') permanently?\nThis cannot be undone.')) return;
+    await _doDelete([nid]);
+}
+
+/* ── Confirm modal ── */
+function openConfirm() {
+    var ids   = Array.from(_selected);
+    var names = _nodes
+        .filter(function(n) { return ids.includes(n.node_id); })
+        .map(function(n) { return '<strong>' + esc(n.short_name) + '</strong> (' + esc(n.node_id) + ')'; })
+        .slice(0, 5).join(', ');
+    var extra = ids.length > 5 ? ' … and ' + (ids.length - 5) + ' more' : '';
+    document.getElementById('confirm-text').innerHTML =
+        'Permanently delete <strong style="color:var(--err)">' + ids.length + '</strong> node(s):<br><br>'
+        + names + extra
+        + '<br><br><strong>Cannot be undone.</strong> Nodes reappear if they transmit.';
+    document.getElementById('confirm-modal').classList.add('open');
+}
+
+function closeConfirm() {
+    document.getElementById('confirm-modal').classList.remove('open');
+}
+
+/* ── Execute delete ── */
+async function _doDelete(ids) {
+    try {
+        var r = await fetch(DELETE_URL, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ node_ids: ids, slot_id: 'node_0' }),
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        var result = await r.json();
+
+        // Remove from parent live state
+        ids.forEach(function(id) {
+            try { delete window.parent.meshState.nodes[id]; } catch(_) {}
+        });
+
+        // Remove from local list and selection
+        _nodes = _nodes.filter(function(n) { return !ids.includes(n.node_id); });
+        ids.forEach(function(id) { _selected.delete(id); });
+
+        document.getElementById('sum-cold').textContent = _nodes.length;
+        if (result.total_nodes != null) {
+            document.getElementById('sum-total').textContent = result.total_nodes;
+        }
+        toast('Deleted ' + result.deleted + '/' + result.total + ' nodes.',
+              result.deleted === result.total ? 'ok' : 'warn');
+
+        // Re-render overview if open
+        try {
+            if (window.parent.meshState.currentView === 'overview') {
+                window.parent.c2RenderNodes(false);
+            }
+        } catch(_) {}
+
+        renderGrid();
+    } catch(e) {
+        toast('Delete failed: ' + e.message, 'err');
+    }
+}
+
+/* ── Wire all events ── */
+function _init() {
+
+    document.getElementById('cfg-enabled').addEventListener('change', function() {
+        _updateToggleLabel(this.checked);
+    });
+
+    document.getElementById('preset-row').addEventListener('click', function(e) {
+        var b = e.target.closest('.preset-btn');
+        if (!b) return;
+        _threshold = parseFloat(b.dataset.h);
+        document.getElementById('cfg-threshold').value = _threshold;
+        _syncPresets(_threshold);
+    });
+
+    document.getElementById('cfg-threshold').addEventListener('change', function() {
+        _threshold = parseFloat(this.value) || 24;
+        _syncPresets(_threshold);
+    });
+
+    document.getElementById('cfg-save-btn').addEventListener('click', saveConfig);
+    document.getElementById('scan-btn').addEventListener('click', scan);
+
+    document.getElementById('sel-all').addEventListener('change', function() {
+        if (this.checked) _nodes.forEach(function(n) { _selected.add(n.node_id); });
+        else _selected.clear();
+        renderGrid();
+    });
+
+    document.getElementById('clear-btn').addEventListener('click', function() {
+        _selected.clear();
+        renderGrid();
+    });
+
+    document.getElementById('delete-btn').addEventListener('click', openConfirm);
+    document.getElementById('confirm-cancel').addEventListener('click', closeConfirm);
+
+    document.getElementById('confirm-ok').addEventListener('click', async function() {
+        closeConfirm();
+        await _doDelete(Array.from(_selected));
+    });
+
+    document.getElementById('confirm-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeConfirm();
+    });
+
+    // Card click delegation
+    document.getElementById('node-grid').addEventListener('click', function(e) {
+        var cb   = e.target.closest('.nc-check');
+        var card = e.target.closest('.nc');
+        if (!card) return;
+        var nid = card.dataset.nid;
+        if (e.target.closest('.nc-del-btn')) return;
+        if (cb) { e.stopPropagation(); toggleNode(nid, cb.checked); return; }
+        toggleNode(nid, !_selected.has(nid));
+    });
+
+    // Load config, then auto-scan with saved threshold
+    loadConfig().then(function() { scan(); });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _init);
+} else {
+    _init();
+}
+</script>
+</body>
+</html>

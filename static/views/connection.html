@@ -1,0 +1,872 @@
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   CONNECTION — Real-time Connection Monitor & Radio Manager
+   ═══════════════════════════════════════════════════════════════ */
+
+.cn-view {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* ── Status Card ── */
+.cn-status-card {
+    background: var(--bg2);
+    border: 1px solid var(--bd2);
+    border-radius: var(--r);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-shrink: 0;
+}
+.cn-status-dot {
+    width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: 0 0 12px currentColor;
+}
+.cn-status-dot.connected  { background: #00e676; color: #00e676; }
+.cn-status-dot.reconnecting { background: #ffab00; color: #ffab00; }
+.cn-status-dot.disconnected { background: #ff1744; color: #ff1744; }
+.cn-status-dot.webserial { background: #40c4ff; color: #40c4ff; }
+.cn-status-dot.mqtt { background: #ce93d8; color: #ce93d8; }
+
+.cn-status-info { flex: 1; min-width: 0; }
+.cn-status-main {
+    font-size: 18px; font-weight: 700; font-family: var(--mono); color: var(--txt);
+    display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+}
+.cn-transport-badge {
+    font-size: 11px; font-family: var(--mono); padding: 2px 8px; border-radius: 4px;
+    background: var(--acc); color: #000; font-weight: 700;
+}
+.cn-viewing-label {
+    font-size: 9px; font-family: var(--mono); padding: 2px 8px; border-radius: 4px;
+    background: rgba(0,229,255,0.1); color: var(--acc); font-weight: 700;
+    border: 1px solid var(--acc);
+}
+.cn-host { font-size: 12px; font-family: var(--mono); color: var(--txt2); margin-bottom: 4px; }
+.cn-uptime { font-size: 11px; font-family: var(--mono); color: var(--txt2); }
+.cn-uptime span { color: var(--txt); }
+
+/* ── Metrics Row ── */
+.cn-metrics {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; flex-shrink: 0;
+}
+.cn-metric {
+    background: var(--bg2); border: 1px solid var(--bd2); border-radius: var(--r);
+    padding: 12px 14px; text-align: center;
+}
+.cn-metric-val { font-size: 20px; font-weight: 900; font-family: var(--mono); color: var(--acc); line-height: 1; margin-bottom: 4px; }
+.cn-metric-lbl { font-size: 9px; font-family: var(--mono); color: var(--txt2); letter-spacing: 1.2px; text-transform: uppercase; }
+
+/* ── Slot Grid Header ── */
+.cn-slot-header-row {
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+.cn-slot-header-title {
+    font-size: 10px; font-family: var(--mono); color: var(--txt2);
+    letter-spacing: 1.5px; text-transform: uppercase; font-weight: 700;
+}
+.cn-add-btn {
+    margin-left: auto; padding: 5px 14px; border: 1px solid var(--acc); border-radius: 4px;
+    background: transparent; color: var(--acc); font-family: var(--mono); font-size: 10px;
+    font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;
+    transition: background .2s, color .2s; display: flex; align-items: center; gap: 5px;
+}
+.cn-add-btn:hover { background: var(--acc); color: #000; }
+
+/* ── Multi-Slot Cards ── */
+.cn-slots-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 10px; flex-shrink: 0;
+}
+.cn-slot-card {
+    background: var(--bg2); border: 1px solid var(--bd2); border-radius: var(--r);
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; cursor: default;
+}
+.cn-slot-card.active { border-color: var(--acc); }
+.cn-slot-card.selected { border-color: var(--acc); box-shadow: 0 0 8px rgba(0,229,255,0.2); }
+.cn-slot-header { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+.cn-slot-dot {
+    width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: 0 0 8px currentColor;
+}
+.cn-slot-dot.connected { background: #00e676; color: #00e676; }
+.cn-slot-dot.connecting, .cn-slot-dot.reconnecting, .cn-slot-dot.degraded { background: #ffab00; color: #ffab00; animation: cn-pulse 1.5s infinite; }
+.cn-slot-dot.disconnected { background: #ff1744; color: #ff1744; }
+.cn-slot-dot.webserial { background: #40c4ff; color: #40c4ff; }
+.cn-slot-dot.mqtt { background: #ce93d8; color: #ce93d8; }
+.cn-slot-dot.idle { background: #666; color: #666; }
+@keyframes cn-pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+.cn-slot-name { font-size: 13px; font-weight: 700; font-family: var(--mono); color: var(--txt); }
+.cn-slot-badge {
+    font-size: 9px; font-family: var(--mono); padding: 1px 6px; border-radius: 3px;
+    background: var(--acc); color: #000; font-weight: 700; margin-left: auto;
+}
+.cn-slot-label { font-size: 11px; font-family: var(--mono); color: var(--txt); font-weight: 600; }
+.cn-slot-detail {
+    font-size: 11px; font-family: var(--mono); color: var(--txt2); white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+}
+.cn-slot-metrics { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 10px; font-family: var(--mono); color: var(--txt2); }
+.cn-slot-metrics-item { display: flex; gap: 4px; align-items: baseline; font-size: 10px; font-family: var(--mono); color: var(--txt2); }
+.cn-slot-metrics-item span { color: var(--txt); font-weight: 600; }
+.cn-slot-metrics-label { font-size: 8px; color: var(--txt3); text-transform: uppercase; letter-spacing: 0.5px; }
+.cn-slot-actions {
+    display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; align-items: center;
+}
+.cn-slot-actions-group {
+    display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+}
+.cn-slot-danger-group {
+    display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
+    margin-left: auto;
+    padding-left: 6px;
+    border-left: 1px solid var(--bd2);
+}
+
+.cn-reconnect-btn {
+    padding: 4px 10px; border: 1px solid var(--acc); border-radius: 4px;
+    background: transparent; color: var(--acc); font-family: var(--mono); font-size: 10px;
+    font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
+    transition: background .2s, color .2s; white-space: nowrap;
+}
+.cn-reconnect-btn:hover { background: var(--acc); color: #000; }
+.cn-remove-btn {
+    padding: 4px 10px; border: 1px solid var(--err); border-radius: 4px;
+    background: transparent; color: var(--err); font-family: var(--mono); font-size: 10px;
+    font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
+    transition: background .2s, color .2s; white-space: nowrap;
+}
+.cn-remove-btn:hover { background: var(--err); color: #fff; }
+.cn-select-btn {
+    padding: 4px 10px; border: 1px solid var(--txt2); border-radius: 4px;
+    background: transparent; color: var(--txt2); font-family: var(--mono); font-size: 10px;
+    font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px;
+    transition: background .2s, color .2s, border-color .2s; white-space: nowrap;
+}
+.cn-select-btn:hover { background: var(--txt2); color: var(--bg); border-color: var(--txt2); }
+.cn-viewing-tag {
+    font-size: 9px; font-family: var(--mono); font-weight: 700; color: var(--acc);
+    padding: 4px 8px; background: rgba(0,229,255,0.08); border-radius: 4px;
+}
+.cn-primary-tag {
+    font-size: 9px; font-family: var(--mono); padding: 1px 6px; border-radius: 3px;
+    background: rgba(0,229,255,0.1); color: var(--acc); font-weight: 700;
+    border: 1px solid var(--acc);
+}
+
+/* ── Health Check Timeline ── */
+.cn-timeline {
+    background: var(--bg2); border: 1px solid var(--bd2); border-radius: var(--r);
+    padding: 12px 14px; flex: 1; min-height: 120px; overflow-y: auto;
+}
+.cn-timeline-empty { text-align: center; color: var(--txt2); font-family: var(--mono); font-size: 11px; padding: 20px; }
+.cn-timeline-entry { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--bd2); font-family: var(--mono); font-size: 11px; }
+.cn-timeline-entry:last-child { border-bottom: none; }
+.cn-timeline-icon { flex-shrink: 0; }
+.cn-timeline-icon.pass { color: #00e676; }
+.cn-timeline-icon.fail { color: #ff1744; }
+.cn-timeline-ts { color: var(--txt2); width: 140px; flex-shrink: 0; }
+.cn-timeline-transport { width: 80px; flex-shrink: 0; color: var(--txt2); }
+.cn-timeline-latency { color: var(--txt); margin-left: auto; padding-right: 4px; }
+
+/* ── Latency Sparkline ── */
+.cn-sparkline {
+    background: var(--bg2); border: 1px solid var(--bd2); border-radius: var(--r);
+    padding: 12px 14px; flex-shrink: 0;
+}
+.cn-sparkline-lbl { font-size: 10px; font-family: var(--mono); color: var(--txt2); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 8px; }
+.cn-bars { display: flex; align-items: flex-end; gap: 2px; height: 40px; }
+.cn-bar { flex: 1; background: var(--acc); border-radius: 2px 2px 0 0; min-height: 2px; transition: height .3s; }
+
+/* ── Connection History ── */
+.cn-history {
+    background: var(--bg2); border: 1px solid var(--bd2); border-radius: var(--r);
+    overflow: hidden; flex-shrink: 0; max-height: 200px; display: flex; flex-direction: column;
+}
+.cn-history-lbl { font-size: 10px; font-family: var(--mono); color: var(--txt2); letter-spacing: 1.5px; text-transform: uppercase; padding: 10px 14px 6px; flex-shrink: 0; }
+.cn-history table { width: 100%; border-collapse: collapse; }
+.cn-history th { font-size: 10px; font-family: var(--mono); color: var(--txt2); letter-spacing: 1px; text-transform: uppercase; text-align: left; padding: 4px 10px; border-bottom: 1px solid var(--bd2); }
+.cn-history td { font-size: 11px; font-family: var(--mono); color: var(--txt2); padding: 5px 10px; border-bottom: 1px solid var(--bd2); }
+.cn-history tr:last-child td { border-bottom: none; }
+.cn-history .status-connected { color: #00e676; }
+.cn-history .status-disconnected { color: #ff1744; }
+
+/* ── Add Radio Modal ── */
+.cn-modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    z-index: 9000; justify-content: center; align-items: center;
+}
+.cn-modal-overlay.open { display: flex; }
+.cn-modal {
+    background: var(--bg2); border: 1px solid var(--bd); border-radius: 10px;
+    width: 480px; max-width: 95vw; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 8px 40px rgba(0,0,0,.7); padding: 20px;
+}
+.cn-modal h3 { font-family: var(--mono); font-size: 1rem; color: var(--acc); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.cn-modal-close { margin-left: auto; cursor: pointer; color: var(--txt3); font-size: 1.2rem; transition: color .15s; }
+.cn-modal-close:hover { color: var(--err); }
+.cn-form-group { margin-bottom: 12px; }
+.cn-form-group label { display: block; margin-bottom: 4px; font-family: var(--mono); font-size: 0.67rem; font-weight: 600; color: var(--txt3); text-transform: uppercase; letter-spacing: .5px; }
+.cn-form-group input, .cn-form-group select {
+    width: 100%; padding: 8px 10px; background: var(--bg1); border: 1px solid var(--bd2); border-radius: 6px;
+    color: var(--txt); font-family: var(--mono); font-size: 0.82rem; outline: none; transition: border-color .15s;
+}
+.cn-form-group input:focus, .cn-form-group select:focus { border-color: var(--acc); }
+.cn-form-row { display: flex; gap: 10px; }
+.cn-form-row > div { flex: 1; }
+.cn-submit-btn {
+    width: 100%; background: var(--acc); color: var(--bg); border: none; padding: 10px 16px;
+    border-radius: 6px; font-weight: 700; font-size: 0.86rem; cursor: pointer; margin-top: 6px;
+    font-family: var(--sans); transition: opacity .2s;
+}
+.cn-submit-btn:hover { opacity: .9; }
+.cn-submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+.cn-type-toggle { display: flex; border: 1px solid var(--bd2); border-radius: 6px; overflow: hidden; margin-bottom: 10px; }
+.cn-type-toggle button {
+    flex: 1; padding: 8px 6px; background: var(--bg1); border: none; color: var(--txt2);
+    font-family: var(--mono); font-size: 0.7rem; cursor: pointer; transition: all .15s; margin: 0; border-radius: 0;
+}
+.cn-type-toggle button.active { background: var(--bg3); color: var(--acc); border-bottom: 2px solid var(--acc); }
+.cn-type-toggle button:hover:not(.active) { background: var(--bg2); color: var(--txt); }
+.cn-mqtt-group { display: none; }
+.cn-mqtt-group.visible { display: block; }
+.cn-tcp-group { display: block; }
+.cn-tcp-group.hidden { display: none; }
+
+/* ── Mobile Responsive ── */
+@media (max-width: 640px) {
+    .cn-view { padding: 0 2px; }
+    .cn-status-card { padding: 10px 12px; gap: 10px; flex-wrap: wrap; }
+    .cn-status-dot { width: 12px; height: 12px; }
+    .cn-status-main { font-size: 14px; flex-wrap: wrap; gap: 6px; }
+    .cn-transport-badge { font-size: 9px; padding: 1px 6px; }
+    .cn-viewing-label { font-size: 8px; padding: 1px 5px; }
+    .cn-host { font-size: 10px; }
+    .cn-uptime { font-size: 10px; }
+    .cn-reconnect-btn { font-size: 9px; padding: 4px 10px; }
+
+    .cn-metrics { grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .cn-metric { padding: 8px 6px; }
+    .cn-metric-val { font-size: 15px; }
+    .cn-metric-lbl { font-size: 7px; letter-spacing: 0.8px; }
+
+    #cn-packet-stats { grid-template-columns: repeat(4, 1fr); }
+
+    .cn-slots-grid { grid-template-columns: 1fr; }
+    .cn-slot-card { padding: 10px; }
+    .cn-slot-metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px 10px; }
+    .cn-slot-metrics-item { display: flex; gap: 4px; align-items: baseline; font-size: 10px; font-family: var(--mono); color: var(--txt2); }
+    .cn-slot-metrics-item span { color: var(--txt); font-weight: 600; }
+    .cn-slot-metrics-label { font-size: 8px; color: var(--txt3); text-transform: uppercase; letter-spacing: 0.5px; }
+    .cn-slot-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .cn-slot-actions-group { flex-wrap: wrap; gap: 4px; }
+    .cn-slot-danger-group { margin-left: 0; padding-left: 0; border-left: none; border-top: 1px dashed var(--bd2); padding-top: 4px; width: 100%; margin-top: 2px; }
+    .cn-slot-actions button, .cn-slot-actions .cn-reconnect-btn, .cn-slot-actions .cn-remove-btn, .cn-slot-actions .cn-select-btn { font-size: 9px; padding: 5px 8px; min-height: 30px; }
+
+    .cn-slot-header-row { padding: 0 2px; }
+    .cn-add-btn { font-size: 9px; padding: 4px 10px; }
+
+    .cn-timeline-entry { flex-wrap: wrap; gap: 4px; font-size: 10px; }
+    .cn-timeline-ts { width: auto; font-size: 10px; }
+    .cn-timeline-transport { display: none; }
+    .cn-timeline-latency { margin-left: auto; }
+
+    .cn-history { max-height: 180px; }
+    .cn-history table { font-size: 10px; }
+
+    .cn-sparkline { padding: 8px 10px; }
+    .cn-bars { height: 30px; }
+
+    .cn-modal { width: 100%; max-width: 100vw; border-radius: 0; padding: 14px; max-height: 100vh; }
+    .cn-form-row { flex-direction: column; gap: 0; }
+    .cn-form-row > div { width: 100%; }
+    .cn-type-toggle button { padding: 6px 4px; font-size: 0.6rem; }
+
+    #cn-slot-config-body { padding: 0 8px 8px; }
+    #cn-slot-config-content div[style*="display:flex;gap:12px"] { flex-wrap: wrap; }
+}
+
+@media (max-width: 480px) {
+    .cn-status-card { padding: 8px 10px; }
+    .cn-status-main { font-size: 13px; }
+    .cn-metrics { grid-template-columns: repeat(3, 1fr); gap: 3px; }
+    .cn-metric { padding: 6px 4px; }
+    .cn-metric-val { font-size: 13px; }
+    .cn-metric-lbl { font-size: 6.5px; }
+    #cn-packet-stats { grid-template-columns: repeat(2, 1fr); }
+    .cn-slot-metrics { grid-template-columns: 1fr; }
+    .cn-slot-metrics { grid-template-columns: 1fr; }
+    .cn-slot-danger-group { margin-top: 2px; }
+    .cn-slot-actions button, .cn-slot-actions .cn-reconnect-btn, .cn-slot-actions .cn-remove-btn, .cn-slot-actions .cn-select-btn { font-size: 9px; padding: 4px 8px; }
+    .cn-slot-name { font-size: 12px; }
+    .cn-slot-badge { font-size: 8px; }
+}
+</style>
+
+<div class="cn-view">
+    <!-- Connection Status Card (shows selected slot) -->
+    <div class="cn-status-card" id="cn-primary-card">
+        <div class="cn-status-dot" id="cn-dot"></div>
+        <div class="cn-status-info">
+            <div class="cn-status-main">
+                <span id="cn-status-text">Loading...</span>
+                <span class="cn-transport-badge" id="cn-transport-badge"></span>
+                <span class="cn-viewing-label" id="cn-viewing-label"></span>
+            </div>
+            <div class="cn-host" id="cn-host"></div>
+            <div class="cn-uptime">
+                Connected <span id="cn-connected-since">—</span>
+                &nbsp;·&nbsp; Uptime <span id="cn-uptime">—</span>
+            </div>
+        </div>
+        <button class="cn-reconnect-btn" id="cn-reconnect-btn" style="display:none" onclick="cnReconnect()">Reconnect</button>
+    </div>
+
+    <!-- Slot Grid Header + Add Button -->
+    <div class="cn-slot-header-row">
+        <div class="cn-slot-header-title">Connected Radios</div>
+        <button class="cn-add-btn" onclick="cnOpenAddModal()"><i class="fas fa-plus"></i> Add Radio</button>
+    </div>
+
+    <!-- Multi-Slot Cards -->
+    <div class="cn-slots-grid" id="cn-slots-grid"></div>
+
+    <!-- Metrics Row (follows selected slot) -->
+    <div class="cn-metrics">
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-total-conn">0</div><div class="cn-metric-lbl">Total Conn.</div></div>
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-total-disconn">0</div><div class="cn-metric-lbl">Total Disconn.</div></div>
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-total-uptime">—</div><div class="cn-metric-lbl">Total Uptime</div></div>
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-avg-latency">—</div><div class="cn-metric-lbl">Avg Latency</div></div>
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-node-count">—</div><div class="cn-metric-lbl">Nodes</div></div>
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-db-size">—</div><div class="cn-metric-lbl">DB Size</div></div>
+    </div>
+
+    <!-- Packet Stats Row -->
+    <div class="cn-metrics" id="cn-packet-stats" style="margin-top:0;">
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-pkts-recv">—</div><div class="cn-metric-lbl">Packets RX</div></div>
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-pkts-text">—</div><div class="cn-metric-lbl">Text Msgs</div></div>
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-pkts-position">—</div><div class="cn-metric-lbl">Positions</div></div>
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-pkts-telemetry">—</div><div class="cn-metric-lbl">Telemetry</div></div>
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-pkts-nodes">—</div><div class="cn-metric-lbl">Nodes Seen</div></div>
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-pkts-channels">—</div><div class="cn-metric-lbl">Channels</div></div>
+        <div class="cn-metric"><div class="cn-metric-val" id="cn-pkts-duration">—</div><div class="cn-metric-lbl">Session</div></div>
+    </div>
+
+    <!-- Slot Configuration (collapsible) -->
+    <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);overflow:hidden;flex-shrink:0;">
+        <div id="cn-slot-config-toggle" style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;" onclick="document.getElementById('cn-slot-config-body').style.display=document.getElementById('cn-slot-config-body').style.display==='none'?'block':'none';document.getElementById('cn-slot-config-arrow').textContent=document.getElementById('cn-slot-config-body').style.display==='none'?'▸':'▾';">
+            <span id="cn-slot-config-arrow" style="font-size:12px;color:var(--acc);">▸</span>
+            <span style="font-size:10px;font-family:var(--mono);color:var(--txt2);letter-spacing:1.5px;text-transform:uppercase;font-weight:700;">Slot Configuration</span>
+        </div>
+        <div id="cn-slot-config-body" style="display:none;padding:0 14px 14px;">
+            <div id="cn-slot-config-content" style="font-family:var(--mono);font-size:11px;color:var(--txt2);line-height:1.8;"></div>
+        </div>
+    </div>
+
+    <!-- Health Check Timeline -->
+    <div class="cn-timeline">
+        <div class="cn-timeline-lbl" style="font-size:10px;font-family:var(--mono);color:var(--txt2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px;">Health Check History</div>
+        <div id="cn-timeline-list"><div class="cn-timeline-empty">No health checks recorded yet.</div></div>
+    </div>
+
+    <!-- Latency Sparkline -->
+    <div class="cn-sparkline">
+        <div class="cn-sparkline-lbl">Latency (last 20 probes, ms)</div>
+        <div class="cn-bars" id="cn-bars"></div>
+    </div>
+
+    <!-- Connection History (from DB, per-slot) -->
+    <div class="cn-history">
+        <div class="cn-history-lbl">Connection History (from database)</div>
+        <div style="overflow-y:auto;flex:1;">
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+            <table><thead><tr><th>Time</th><th>Status</th><th>Details</th></tr></thead>
+            <tbody id="cn-history-body">
+                <tr><td colspan="4" style="text-align:center;color:var(--txt2);font-family:var(--mono);font-size:11px;padding:10px;">Loading...</td></tr>
+            </tbody></table></div>
+        </div>
+    </div>
+</div>
+
+<!-- ── Add Radio Modal ── -->
+<div class="cn-modal-overlay" id="cn-add-modal">
+    <div class="cn-modal">
+        <h3><i class="fas fa-plus-circle"></i> Add Radio <span class="cn-modal-close" onclick="cnCloseAddModal()">&times;</span></h3>
+
+        <div class="cn-form-group">
+            <label>Label</label>
+            <input type="text" id="cn-add-label" placeholder="e.g. Base Station">
+        </div>
+
+        <div class="cn-type-toggle">
+            <button class="active" onclick="cnSetAddType('TCP')">TCP</button>
+            <button onclick="cnSetAddType('SERIAL')">Serial</button>
+            <button onclick="cnSetAddType('BLE')">BLE</button>
+            <button onclick="cnSetAddType('MQTT')">MQTT</button>
+        </div>
+
+        <!-- TCP / Serial / BLE fields -->
+        <div class="cn-tcp-group" id="cn-add-tcp-group">
+            <div class="cn-form-row">
+                <div class="cn-form-group"><label>Host IP</label><input type="text" id="cn-add-host" placeholder="10.0.0.50"></div>
+                <div class="cn-form-group"><label>Port</label><input type="number" id="cn-add-port" value="4403"></div>
+            </div>
+            <div class="cn-form-group" id="cn-add-serial-group" style="display:none"><label>Serial Port</label><input type="text" id="cn-add-serial" placeholder="/dev/ttyUSB0"></div>
+            <div class="cn-form-group" id="cn-add-ble-group" style="display:none"><label>BLE MAC</label><input type="text" id="cn-add-ble" placeholder="AA:BB:CC:DD:EE:FF"></div>
+        </div>
+
+        <!-- MQTT fields -->
+        <div class="cn-mqtt-group" id="cn-add-mqtt-group">
+            <div class="cn-form-group">
+                <label>Preset</label>
+                <select id="cn-add-mqtt-preset" onchange="cnApplyMqttPreset()">
+                    <option value="meshtastic_public">🌐 Meshtastic Public (mqtt.meshtastic.org)</option>
+                    <option value="meshtastic_public_tls">🔒 Meshtastic Public TLS (8883)</option>
+                    <option value="custom">⚙️ Custom Broker</option>
+                </select>
+            </div>
+            <div class="cn-form-row">
+                <div class="cn-form-group"><label>Broker Host</label><input type="text" id="cn-add-mqtt-broker" placeholder="mqtt.meshtastic.org"></div>
+                <div class="cn-form-group"><label>Port</label><input type="number" id="cn-add-mqtt-port" value="1883"></div>
+            </div>
+            <div class="cn-form-row">
+                <div class="cn-form-group"><label>Username</label><input type="text" id="cn-add-mqtt-user" placeholder="meshdev"></div>
+                <div class="cn-form-group"><label>Password</label><input type="password" id="cn-add-mqtt-pass" placeholder="large4cats"></div>
+            </div>
+            <div class="cn-form-row">
+                <div class="cn-form-group"><label>Region</label><input type="text" id="cn-add-mqtt-region" value="EU_868" placeholder="EU_868"></div>
+                <div class="cn-form-group"><label>Channel</label><input type="text" id="cn-add-mqtt-channel" value="#" placeholder="# or LongFast"></div>
+            </div>
+            <div class="cn-form-group"><label>My Node ID (optional, leave blank for observer)</label><input type="text" id="cn-add-mqtt-nodeid" placeholder="!aabbccdd"></div>
+        </div>
+
+        <button class="cn-submit-btn" id="cn-add-submit" onclick="cnSubmitAdd()">Add Radio</button>
+        <div id="cn-add-result" style="margin-top:8px;font-family:var(--mono);font-size:0.73rem;color:var(--txt2);"></div>
+    </div>
+</div>
+
+<script>
+(function() {
+    let _refreshInterval = null;
+    let _uptimeInterval = null;
+    let _connSince = null;
+    let _slotsInfo = {};  // from /api/slots (node_count, db_size, etc)
+    let _addType = 'TCP';
+
+    const _MQTT_PRESETS = {
+        meshtastic_public: { broker:'mqtt.meshtastic.org', port:1883, user:'meshdev', pass:'large4cats', tls:false, region:'EU_868' },
+        meshtastic_public_tls: { broker:'mqtt.meshtastic.org', port:8883, user:'meshdev', pass:'large4cats', tls:true, region:'EU_868' },
+        custom: { broker:'', port:1883, user:'', pass:'', tls:false, region:'EU_868' },
+    };
+
+    function fmtDur(seconds) {
+        if (!seconds || seconds < 0) return '—';
+        seconds = Math.floor(seconds);
+        if (seconds >= 86400) return Math.floor(seconds/86400) + 'd ' + Math.floor((seconds%86400)/3600) + 'h';
+        if (seconds >= 3600) return Math.floor(seconds/3600) + 'h ' + Math.floor((seconds%3600)/60) + 'm';
+        return Math.floor(seconds/60) + 'm ' + (seconds%60) + 's';
+    }
+    function fmtTs(ts) {
+        if (!ts) return '—';
+        try { return new Date(ts * 1000).toISOString().replace('T',' ').substring(0,19); } catch { return '—'; }
+    }
+    function _stateToDotClass(state) {
+        const s = (state||'').toLowerCase();
+        if (s==='connected') return 'connected';
+        if (s==='connecting'||s==='reconnecting'||s==='degraded') return s;
+        if (s==='webserial') return 'webserial';
+        if (s==='mqtt') return 'mqtt';
+        if (s==='disconnected') return 'disconnected';
+        if (s==='idle') return 'idle';
+        return 'disconnected';
+    }
+    function _selectedSlotId() { return window._activeSlotId || 'node_0'; }
+
+    /* ── Slot Cards ── */
+    function renderSlots(statusData) {
+        const grid = document.getElementById('cn-slots-grid');
+        if (!grid) return;
+        const slots = statusData.slots || {};
+        grid.innerHTML = '';
+        grid.style.display = '';
+        for (const [sid, slot] of Object.entries(slots)) {
+            const dotCls = _stateToDotClass(slot.state);
+            const state = (slot.state||'').toLowerCase();
+            const showReconnect = state === 'disconnected' || state === 'reconnecting';
+            const isPrimary = sid === 'node_0';
+            const isSelected = sid === _selectedSlotId();
+            const si = _slotsInfo[sid] || {};
+            const nodeCount = si.node_count || '—';
+            const pkts = si.packets_session || 0;
+            const dbSize = si.db_size_mb ? si.db_size_mb + ' MB' : '—';
+            const label = si.label || sid;
+
+            const card = document.createElement('div');
+            card.className = 'cn-slot-card' + (state === 'connected' ? ' active' : '') + (isSelected ? ' selected' : '');
+            card.innerHTML = `
+                <div class="cn-slot-header">
+                    <div class="cn-slot-dot ${dotCls}"></div>
+                    <span class="cn-slot-name">${label}</span>
+                    <span class="cn-slot-badge">${slot.transport || ''}</span>
+                    ${isPrimary ? '<span class="cn-primary-tag">PRIMARY</span>' : ''}
+                </div>
+                <div class="cn-slot-detail" title="${slot.detail||''}">${slot.detail || slot.status || 'Unknown'}</div>
+                <div class="cn-slot-metrics">
+                    <div class="cn-slot-metrics-item"><span class="cn-slot-metrics-label">Host</span> <span>${slot.host||'—'}</span></div>
+                    <div class="cn-slot-metrics-item"><span class="cn-slot-metrics-label">Up</span> <span>${fmtDur(slot.uptime_seconds||0)}</span></div>
+                    <div class="cn-slot-metrics-item"><span class="cn-slot-metrics-label">Lat</span> <span>${slot.latency_ms ? slot.latency_ms+'ms' : '—'}</span></div>
+                    <div class="cn-slot-metrics-item"><span class="cn-slot-metrics-label">Nodes</span> <span>${nodeCount}</span></div>
+                    <div class="cn-slot-metrics-item"><span class="cn-slot-metrics-label">DB</span> <span>${dbSize}</span></div>
+                </div>
+                <div class="cn-slot-actions">
+                    <div class="cn-slot-actions-group">
+                        ${showReconnect ? '<button class="cn-reconnect-btn" onclick="cnReconnectSlot(\''+sid+'\')">Reconnect</button>' : ''}
+                        ${(state === 'connected') ? '<button class="cn-reconnect-btn" style="border-color:var(--warn);color:var(--warn);" onclick="cnDisconnectSlot(\''+sid+'\')">Disconnect</button>' : ''}
+                        ${!isSelected ? '<button class="cn-select-btn" onclick="cnSelectSlot(\''+sid+'\')">Select</button>' : '<span class="cn-viewing-tag">▶ VIEWING</span>'}
+                    </div>
+                    ${!isPrimary ? '<div class="cn-slot-danger-group"><button class="cn-remove-btn" onclick="cnRemoveSlot(\''+sid+'\')">Remove</button><button class="cn-remove-btn" onclick="cnPurgeDbSlot(\''+sid+'\')">Purge DB</button></div>' : ''}
+                </div>
+            `;
+            grid.appendChild(card);
+        }
+    }
+
+    /* ── Primary Status Card ── */
+    function renderStatus(data) {
+        const dot = document.getElementById('cn-dot');
+        const statusText = document.getElementById('cn-status-text');
+        const badge = document.getElementById('cn-transport-badge');
+        const viewingLbl = document.getElementById('cn-viewing-label');
+        const host = document.getElementById('cn-host');
+        const since = document.getElementById('cn-connected-since');
+        const reconnectBtn = document.getElementById('cn-reconnect-btn');
+        if (!dot || !statusText) return;
+
+        const state = data.state || '';
+        statusText.textContent = data.status || data.label || state || 'Unknown';
+        if (badge) badge.textContent = data.transport || '';
+        if (viewingLbl) viewingLbl.textContent = _selectedSlotId();
+
+        dot.className = 'cn-status-dot';
+        dot.classList.add(_stateToDotClass(state || data.status));
+
+        if (reconnectBtn) {
+            const ls = (state||'').toLowerCase();
+            reconnectBtn.style.display = (ls==='disconnected'||ls==='reconnecting') ? '' : 'none';
+        }
+        if (host) host.textContent = data.host || data.detail || '';
+
+        if (data.connected_since) {
+            _connSince = new Date(data.connected_since).getTime();
+            if (since) since.textContent = data.connected_since.replace('T',' ').substring(0,19)+' UTC';
+        } else {
+            _connSince = null;
+            if (since) since.textContent = '—';
+        }
+
+        // Metrics
+        const si = _slotsInfo[_selectedSlotId()] || {};
+        const setVal = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+        setVal('cn-total-conn', data.total_connections || 0);
+        setVal('cn-total-disconn', data.total_disconnections || 0);
+        setVal('cn-total-uptime', fmtDur(data.total_uptime_seconds || 0));
+        setVal('cn-avg-latency', data.latency_avg_ms ? data.latency_avg_ms+' ms' : '—');
+        setVal('cn-node-count', si.node_count || '—');
+        setVal('cn-db-size', si.db_size_mb ? si.db_size_mb+' MB' : '—');
+
+        // Sparkline
+        const bars = document.getElementById('cn-bars');
+        if (bars && data.health_checks && data.health_checks.length) {
+            const samples = data.health_checks.map(h=>h.latency_ms).slice(-20);
+            const max = Math.max(...samples, 1);
+            bars.innerHTML = samples.map(s=>`<div class="cn-bar" style="height:${Math.max(4,(s/max)*40)}px" title="${s.toFixed(1)}ms"></div>`).join('');
+        } else if (bars) { bars.innerHTML = ''; }
+
+        // Health checks
+        const tl = document.getElementById('cn-timeline-list');
+        if (tl) {
+            const checks = (data.health_checks||[]).slice(-50).reverse();
+            if (!checks.length) {
+                tl.innerHTML = '<div class="cn-timeline-empty">No health checks recorded yet.</div>';
+            } else {
+                tl.innerHTML = checks.map(hc => {
+                    const icon = hc.alive ? '<span class="cn-timeline-icon pass">●</span>' : '<span class="cn-timeline-icon fail">●</span>';
+                    return `<div class="cn-timeline-entry">${icon}<span class="cn-timeline-ts">${fmtTs(new Date(hc.ts).getTime()/1000)}</span><span class="cn-timeline-transport">${hc.transport}</span><span class="cn-timeline-latency">${hc.latency_ms.toFixed(1)}ms</span></div>`;
+                }).join('');
+            }
+        }
+    }
+
+    function updateUptime() {
+        const el = document.getElementById('cn-uptime');
+        if (!el) return;
+        if (!_connSince) { el.textContent = '—'; return; }
+        el.textContent = fmtDur((Date.now()-_connSince)/1000);
+    }
+
+    /* ── Connection History (per-slot) ── */
+    async function renderHistory() {
+        const tbody = document.getElementById('cn-history-body');
+        if (!tbody) return;
+        const sid = _selectedSlotId();
+        const url = '/api/system/connection_history?limit=20' + (sid !== 'node_0' ? '&slot_id='+encodeURIComponent(sid) : '');
+        try {
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('Failed');
+            const rows = await resp.json();
+            if (!Array.isArray(rows) || !rows.length) {
+                tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--txt2);font-family:var(--mono);font-size:11px;padding:10px;">No history in database.</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rows.map(r => {
+                const status = r.status || 'Unknown';
+                const cls = status.toLowerCase().includes('connect') ? 'status-connected' : 'status-disconnected';
+                return `<tr><td>${fmtTs(r.timestamp)}</td><td class="${cls}">${status}</td><td>${r.value||'—'}</td></tr>`;
+            }).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--err);font-family:var(--mono);font-size:11px;padding:10px;">Failed to load history.</td></tr>';
+        }
+    }
+
+    /* ── Slot Config Display ── */
+    function renderSlotConfig() {
+        const container = document.getElementById('cn-slot-config-content');
+        if (!container) return;
+        const sid = _selectedSlotId();
+        const si = _slotsInfo[sid] || {};
+        const connType = (si.connection_type || '').toUpperCase();
+        const cd = si.connection_detail || {};
+        let lines = [];
+        lines.push(['Connection Type', connType]);
+        if (connType === 'TCP') {
+            lines.push(['Host', cd.host || si.host || '—']);
+            lines.push(['Port', cd.port || '—']);
+        } else if (connType === 'MQTT') {
+            lines.push(['Broker', cd.broker || '—']);
+            lines.push(['Port', cd.port || '—']);
+            lines.push(['Region', cd.region || '—']);
+            lines.push(['Channel', cd.channel || '—']);
+            lines.push(['Node ID', cd.node_id || '(observer)']);
+            lines.push(['TLS', cd.tls === 'true' ? 'Yes' : 'No']);
+        } else if (connType === 'SERIAL') {
+            lines.push(['Serial Port', cd.serial_port || '—']);
+        } else if (connType === 'BLE') {
+            lines.push(['MAC', cd.ble_mac || '—']);
+        } else if (connType === 'MESHCORE') {
+            const mcT = (cd.transport || 'serial').toLowerCase();
+            lines.push(['Transport', mcT]);
+            if (mcT === 'tcp') { lines.push(['Host', cd.host || '—']); lines.push(['Port', cd.port || '—']); }
+            else if (mcT === 'serial') { lines.push(['Port', cd.serial_port || '—']); lines.push(['Baud', cd.baud || '—']); }
+            else if (mcT === 'ble') { lines.push(['MAC', cd.ble_mac || '—']); }
+        } else {
+            lines.push(['Status', si.connection_status || 'Unknown']);
+        }
+        lines.push(['Slot ID', sid]);
+        lines.push(['Label', si.label || sid]);
+        container.innerHTML = lines.map(([k,v]) => `<div style="display:flex;gap:12px;"><span style="color:var(--txt3);min-width:120px;">${k}</span><span style="color:var(--txt);">${v}</span></div>`).join('');
+    }
+
+    window.cnDisconnectSlot = async function(slotId) {
+        if (!confirm('Disconnect slot ' + slotId + '?')) return;
+        try {
+            const resp = await fetch('/api/connection/disconnect?slot_id=' + encodeURIComponent(slotId), { method: 'POST' });
+            const data = await resp.json();
+            if (resp.ok) {
+                if (typeof window.triggerToast === 'function') window.triggerToast('Disconnected ' + slotId, 'ok');
+                loadData();
+            } else {
+                alert('Disconnect failed: ' + (data.detail || resp.statusText));
+            }
+        } catch(e) { alert('Disconnect failed: ' + e.message); }
+    };
+
+    window.cnPurgeDbSlot = async function(slotId) {
+        if (slotId === 'node_0') { alert('Cannot purge primary slot database.'); return; }
+        if (!confirm('Permanently delete the database for ' + slotId + '? This cannot be undone.')) return;
+        if (!confirm('Are you absolutely sure? All messages, nodes, and telemetry will be lost forever.')) return;
+        try {
+            const resp = await fetch('/api/slots/' + encodeURIComponent(slotId) + '/db', { method: 'DELETE' });
+            const data = await resp.json();
+            if (resp.ok) {
+                if (typeof window.triggerToast === 'function') window.triggerToast('Database purged for ' + slotId, 'ok');
+                loadData();
+            } else {
+                alert('Purge failed: ' + (data.detail || resp.statusText));
+            }
+        } catch(e) { alert('Purge failed: ' + e.message); }
+    };
+
+    /* ── Load All Data ── */
+    async function loadData() {
+        try {
+            // Fetch slot info (node_count, db_size, etc) in parallel with connection status
+            const [statusResp, slotsResp, statsResp] = await Promise.all([
+                fetch('/api/connection/status'),
+                fetch('/api/slots'),
+                fetch('/api/stats?slot_id=' + encodeURIComponent(_selectedSlotId())),
+            ]);
+            if (slotsResp.ok) {
+                _slotsInfo = await slotsResp.json();
+            }
+            if (statusResp.ok) {
+                const data = await statusResp.json();
+                if (data.slots) {
+                    renderSlots(data);
+                    const activeSlot = data.slots[_selectedSlotId()] || data.slots[data.active_slot || 'node_0'];
+                    if (activeSlot) renderStatus(activeSlot);
+                } else {
+                    renderStatus(data);
+                }
+            }
+            if (statsResp.ok) {
+                const stats = await statsResp.json();
+                const setVal = (id,v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
+                setVal('cn-pkts-recv', stats.packets_received_session ?? stats.packets_received ?? '—');
+                setVal('cn-pkts-text', stats.text_messages ?? '—');
+                setVal('cn-pkts-position', stats.position_updates ?? '—');
+                setVal('cn-pkts-telemetry', stats.telemetry_packets ?? '—');
+                setVal('cn-pkts-nodes', stats.nodes_seen ?? '—');
+                setVal('cn-pkts-channels', stats.channels_seen ?? '—');
+                const dur = stats.session_duration_seconds;
+                setVal('cn-pkts-duration', dur ? fmtDur(dur) : '—');
+            }
+            renderSlotConfig();
+        } catch (e) {
+            console.warn('Connection status fetch failed:', e);
+        }
+        renderHistory();
+    }
+
+    /* ── Slot Actions ── */
+    window.cnReconnect = function() { cnReconnectSlot(_selectedSlotId()); };
+    window.cnReconnectSlot = function(slotId) {
+        fetch('/api/connection/reconnect?slot_id='+encodeURIComponent(slotId), {method:'POST'})
+            .then(r=>r.ok?r.json():null).then(d=>{if(d)loadData();}).catch(()=>{});
+    };
+    window.cnRemoveSlot = async function(slotId) {
+        if (slotId==='node_0') { alert('Cannot remove the primary slot.'); return; }
+        if (!confirm('Remove slot '+slotId+'? The database will be kept on disk.')) return;
+        try {
+            const resp = await fetch('/api/slots/'+encodeURIComponent(slotId), {method:'DELETE'});
+            if (resp.ok) { loadData(); }
+            else { const err=await resp.json().catch(()=>null); alert('Failed: '+(err?.detail||resp.statusText)); }
+        } catch(e) { alert('Remove failed: '+e.message); }
+    };
+    window.cnSelectSlot = function(slotId) {
+        if (typeof window._sseSetSlot === 'function') window._sseSetSlot(slotId);
+        loadData();
+    };
+
+    /* ── Add Radio Modal ── */
+    window.cnOpenAddModal = function() {
+        document.getElementById('cn-add-modal').classList.add('open');
+        document.getElementById('cn-add-result').textContent = '';
+        document.getElementById('cn-add-label').value = '';
+        cnSetAddType('TCP');
+    };
+    window.cnCloseAddModal = function() {
+        document.getElementById('cn-add-modal').classList.remove('open');
+    };
+    window.cnSetAddType = function(type) {
+        _addType = type;
+        const btns = document.querySelectorAll('.cn-type-toggle button');
+        btns.forEach(b => b.classList.remove('active'));
+        const labels = {TCP:0, SERIAL:1, BLE:2, MQTT:3};
+        if (btns[labels[type]]) btns[labels[type]].classList.add('active');
+
+        const tcpGroup = document.getElementById('cn-add-tcp-group');
+        const mqttGroup = document.getElementById('cn-add-mqtt-group');
+        const serialGroup = document.getElementById('cn-add-serial-group');
+        const bleGroup = document.getElementById('cn-add-ble-group');
+
+        if (type === 'MQTT') {
+            if(tcpGroup) tcpGroup.classList.add('hidden');
+            if(mqttGroup) mqttGroup.classList.add('visible');
+            cnApplyMqttPreset();
+        } else {
+            if(tcpGroup) tcpGroup.classList.remove('hidden');
+            if(mqttGroup) mqttGroup.classList.remove('visible');
+            if(serialGroup) serialGroup.style.display = type==='SERIAL' ? '' : 'none';
+            if(bleGroup) bleGroup.style.display = type==='BLE' ? '' : 'none';
+        }
+    };
+
+    window.cnApplyMqttPreset = function() {
+        const sel = document.getElementById('cn-add-mqtt-preset');
+        const p = _MQTT_PRESETS[sel?.value || 'meshtastic_public'] || _MQTT_PRESETS.meshtastic_public;
+        const set = (id,v) => { const el=document.getElementById(id); if(el) el.value=v; };
+        set('cn-add-mqtt-broker', p.broker);
+        set('cn-add-mqtt-port', p.port);
+        set('cn-add-mqtt-user', p.user);
+        set('cn-add-mqtt-pass', p.pass);
+        set('cn-add-mqtt-region', p.region);
+    };
+
+    window.cnSubmitAdd = async function() {
+        const btn = document.getElementById('cn-add-submit');
+        const result = document.getElementById('cn-add-result');
+        btn.disabled = true;
+        result.textContent = 'Creating...';
+
+        const label = document.getElementById('cn-add-label').value.trim() || _addType + ' Radio';
+        const payload = { label, connection_type: _addType };
+
+        if (_addType === 'TCP') {
+            payload.host = document.getElementById('cn-add-host').value.trim() || '10.0.0.50';
+            payload.port = parseInt(document.getElementById('cn-add-port').value) || 4403;
+        } else if (_addType === 'SERIAL') {
+            payload.serial_port = document.getElementById('cn-add-serial').value.trim();
+        } else if (_addType === 'BLE') {
+            payload.ble_mac = document.getElementById('cn-add-ble').value.trim();
+        } else if (_addType === 'MQTT') {
+            payload.mqtt_preset = document.getElementById('cn-add-mqtt-preset').value;
+            payload.mqtt_broker = document.getElementById('cn-add-mqtt-broker').value.trim() || 'mqtt.meshtastic.org';
+            payload.mqtt_port = parseInt(document.getElementById('cn-add-mqtt-port').value) || 1883;
+            payload.mqtt_username = document.getElementById('cn-add-mqtt-user').value.trim();
+            payload.mqtt_password = document.getElementById('cn-add-mqtt-pass').value.trim();
+            payload.mqtt_region = document.getElementById('cn-add-mqtt-region').value.trim() || 'EU_868';
+            payload.mqtt_channel = document.getElementById('cn-add-mqtt-channel').value.trim() || '#';
+            payload.mqtt_node_id = document.getElementById('cn-add-mqtt-nodeid').value.trim();
+        }
+
+        try {
+            const resp = await fetch('/api/slots', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await resp.json();
+            if (resp.ok) {
+                result.innerHTML = '<span style="color:var(--ok)">✅ Created ' + data.slot_id + '</span>';
+                setTimeout(() => { cnCloseAddModal(); loadData(); }, 1000);
+            } else {
+                result.innerHTML = '<span style="color:var(--err)">❌ ' + (data.detail||'Unknown error') + '</span>';
+            }
+        } catch(e) {
+            result.innerHTML = '<span style="color:var(--err)">❌ '+e.message+'</span>';
+        } finally { btn.disabled = false; }
+    };
+
+    /* ── Init / Destroy ── */
+    window.initConnectionView = function() {
+        loadData();
+        if (_refreshInterval) clearInterval(_refreshInterval);
+        if (_uptimeInterval) clearInterval(_uptimeInterval);
+        _refreshInterval = setInterval(loadData, 10000);
+        _uptimeInterval = setInterval(updateUptime, 1000);
+        if (window._sseHandler) {
+            window._sseHandler.addEventListener('connection_status', function() { loadData(); });
+        }
+    };
+    window.destroyConnectionView = function() {
+        if (_refreshInterval) { clearInterval(_refreshInterval); _refreshInterval = null; }
+        if (_uptimeInterval) { clearInterval(_uptimeInterval); _uptimeInterval = null; }
+        _connSince = null;
+    };
+})();
+</script>

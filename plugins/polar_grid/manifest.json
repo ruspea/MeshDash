@@ -1,0 +1,22 @@
+{
+  "id": "polar_grid",
+  "name": "Polar Grid",
+  "version": "1.0.2",
+  "author": "MeshDash",
+  "description": "Azimuth lines and range rings centred on your node. Draggable centre, interactive distance bands, configurable units and ring layout. Ideal for antenna analysis and directional RF work.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/polar_grid",
+  "static_prefix": "/static/plugins/polar_grid",
+  "bridge": "bridge.html",
+  "permissions": [
+    "map_overlay"
+  ],
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Polar Grid",
+      "icon": "fa-crosshairs",
+      "href": "/plugin/polar_grid/index.html"
+    }
+  ]
+}

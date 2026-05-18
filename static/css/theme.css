@@ -1,0 +1,52 @@
+/* ==========================================================================
+   MeshDash Shared Theme Tokens
+   Single source of truth for all pages (dashboard, login, setup).
+   Include this first in every HTML page, before any component-specific CSS.
+   ========================================================================== */
+
+:root {
+    /* Main Palette */
+    --acc:       #00c8f5;
+    --acc-glow:  rgba(0, 200, 245, 0.18);
+    --acc-dim:   rgba(0, 200, 245, 0.06);
+    --acc-mid:   rgba(0, 200, 245, 0.12);
+    --ok:        #00e87a;
+    --ok-glow:   rgba(0, 232, 122, 0.18);
+    --warn:      #ffa826;
+    --warn-glow: rgba(255, 168, 38, 0.18);
+    --amb:       #ffa826;  /* alias – used by plugins */
+    --amb-glow:  rgba(255, 168, 38, 0.18);
+    --err:       #ff3050;
+    --err-glow:  rgba(255, 48, 80, 0.18);
+    --pur:       #b060ff;
+    --pur-glow:  rgba(176, 96, 255, 0.18);
+
+    /* Backgrounds */
+    --bg:  #0a1018;
+    --bg1: #0d1520;
+    --bg2: #111a28;
+    --bg3: #162030;
+    --bg4: #1c2a3c;
+
+    /* Borders */
+    --bd:  #1e3048;
+    --bd2: #284058;
+    --bd3: #305878;
+
+    /* Typography */
+    --txt:  #9bb5cf;
+    --txt2: #b8c8d8;
+    --txt3: #88a0b8;
+    --mono: 'Share Tech Mono', 'Fira Code', monospace;
+    --sans: 'Exo 2', -apple-system, BlinkMacSystemFont, sans-serif;
+
+    /* Structure */
+    --r:        6px;
+    --header-h: 50px;
+    --term-h:   32px;
+
+    /* Glow radii */
+    --glow-sm:  0 0 8px;
+    --glow-md:  0 0 16px;
+    --glow-lg:  0 0 24px;
+}

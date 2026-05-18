@@ -1,0 +1,20 @@
+{
+  "id": "apprise_notify",
+  "name": "Apprise Notifications",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Send mesh events to 130+ services \u2014 Discord, Telegram, Slack, Email, SMS, Teams, Pushover, Gotify and more \u2014 via the Apprise library. Wizard-based rule builder with per-rule Do Not Disturb schedules, node whitelists, channel filters, keyword matching, and per-hour rate limits.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/apprise_notify",
+  "static_prefix": "/static/plugins/apprise_notify",
+  "bridge": null,
+  "permissions": [],
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Apprise Notify",
+      "icon": "fa-bell",
+      "href": "/plugin/apprise_notify/index.html"
+    }
+  ]
+}

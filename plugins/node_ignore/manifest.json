@@ -1,0 +1,22 @@
+{
+  "id": "node_ignore",
+  "name": "Node Ignore",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Persistent per-node ignore list with no node limit. Ignored nodes are hidden from the node grid, map, and all UI views. The node still participates on the mesh \u2014 this is a server-side UI filter that survives restarts. Reversible at any time. Supports notes, bulk management, and right-click ignore from any node card.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/node_ignore",
+  "static_prefix": "/static/plugins/node_ignore",
+  "bridge": "bridge.html",
+  "permissions": [
+    "modal_tabs"
+  ],
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Node Ignore",
+      "icon": "fa-eye-slash",
+      "href": "/plugin/node_ignore/index.html"
+    }
+  ]
+}

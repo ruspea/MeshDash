@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Node Analytics</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg)}
+body{font-family:var(--mono);color:var(--txt);font-size:12px;display:flex;flex-direction:column;overflow:hidden}
+
+/* Top bar */
+.topbar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--bd2);flex-shrink:0;flex-wrap:wrap;min-height:46px}
+.logo{font-family:var(--sans);font-size:14px;font-weight:800;color:var(--acc);letter-spacing:.06em;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.logo i{font-size:16px}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctrl{background:var(--bg3);color:var(--txt);border:1px solid var(--bd2);border-radius:var(--r);padding:4px 9px;font-family:var(--mono);font-size:11px;cursor:pointer;height:28px}
+.ctrl:hover,.ctrl:focus{outline:none;border-color:var(--acc)}
+.btn{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);color:var(--txt);border:1px solid var(--bd2);border-radius:var(--r);padding:4px 12px;font-family:var(--mono);font-size:11px;cursor:pointer;height:28px;white-space:nowrap;transition:border-color .12s,color .12s}
+.btn:hover{border-color:var(--acc);color:var(--acc)}
+.btn-export{background:var(--bg);border-color:var(--bd2);color:var(--ok)}
+.btn-export:hover{border-color:var(--ok)}
+
+/* Main layout */
+.main-wrap{flex:1;display:grid;grid-template-columns:280px 1fr;gap:0;overflow:hidden}
+
+/* Sidebar */
+.sidebar{background:var(--bg2);border-right:1px solid var(--bd2);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-hdr{padding:12px 14px;border-bottom:1px solid var(--bd);font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--acc);text-transform:uppercase}
+.sidebar-filter{padding:10px;border-bottom:1px solid var(--bd)}
+.sidebar-filter input{width:100%;background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);padding:6px 10px;color:var(--txt);font-family:var(--mono);font-size:11px}
+.sidebar-filter input:focus{outline:none;border-color:var(--acc)}
+.node-list{flex:1;overflow-y:auto;background:var(--bg)}
+.node-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s}
+.node-item:hover{background:var(--bg3)}
+.node-item.active{background:var(--bg3);border-left:3px solid var(--acc)}
+.node-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.node-dot.online{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.node-dot.offline{background:var(--bd2)}
+.node-info{flex:1;overflow:hidden}
+.node-name{font-weight:600;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node-meta{font-size:9px;color:var(--txt3);margin-top:2px}
+.node-batt{font-size:9px;font-weight:700;flex-shrink:0}
+
+/* Main panel */
+.main-panel{display:flex;flex-direction:column;overflow:hidden;position:relative}
+.empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--txt3);gap:12px}
+.empty-state i{font-size:48px;opacity:.3}
+.empty-state span{font-size:11px;letter-spacing:1px}
+
+/* Loading overlay */
+.loading-overlay{position:absolute;inset:0;background:rgba(8,12,16,.9);z-index:100;display:none;align-items:center;justify-content:center;flex-direction:column;color:var(--acc)}
+.loading-overlay.show{display:flex}
+.loading-overlay i{font-size:32px;margin-bottom:12px}
+.loading-overlay span{font-size:11px;letter-spacing:2px;font-weight:700}
+
+/* Active content */
+.active-content{display:none;flex-direction:column;height:100%;overflow:hidden}
+.active-content.show{display:flex}
+
+/* Node header */
+.node-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--bd2);flex-wrap:wrap;gap:10px}
+.node-title{font-family:var(--sans);font-size:16px;font-weight:800;color:var(--acc)}
+.node-subtitle{font-size:9px;color:var(--txt3);margin-top:2px}
+.time-controls{display:flex;gap:4px;flex-wrap:wrap}
+.time-btn{background:var(--bg3);border:1px solid var(--bd2);color:var(--txt3);padding:4px 12px;border-radius:12px;font-size:10px;cursor:pointer;font-family:var(--mono);transition:all .12s}
+.time-btn:hover{border-color:var(--acc);color:var(--acc)}
+.time-btn.active{background:var(--acc);color:var(--bg);border-color:var(--acc);font-weight:700}
+
+/* Stats strip */
+.stats-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:6px;padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--bd)}
+.stat-box{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--r);padding:8px;text-align:center;transition:border-color .15s}
+.stat-box:hover{border-color:var(--acc)}
+.stat-lbl{font-size:11px;color:var(--txt3);letter-spacing:.5px;margin-bottom:3px;text-transform:uppercase}
+.stat-val{font-size:13px;font-weight:700;font-family:var(--sans)}
+
+/* Insights bar */
+.insights-bar{display:flex;flex-wrap:wrap;gap:6px;padding:10px 16px;background:var(--bg);border-bottom:1px solid var(--bd)}
+.insight-tag{font-size:9px;padding:3px 8px;border-radius:2px;font-family:var(--mono);border:1px solid}
+.insight-tag.info{background:rgba(0,200,240,.08);border-color:rgba(0,200,240,.3);color:var(--acc)}
+.insight-tag.ok{background:rgba(26,232,122,.08);border-color:rgba(26,232,122,.3);color:var(--ok)}
+.insight-tag.warn{background:rgba(240,180,41,.08);border-color:rgba(240,180,41,.3);color:var(--warn)}
+.insight-tag.err{background:rgba(240,72,72,.08);border-color:rgba(240,72,72,.3);color:var(--err)}
+
+/* Data badges */
+.data-badges{display:flex;flex-wrap:wrap;gap:4px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--bd)}
+.data-badge{font-size:11px;padding:2px 6px;border-radius:2px;border:1px solid var(--bd);color:var(--txt3)}
+.data-badge.ok{border-color:rgba(26,232,122,.35);color:var(--ok);background:rgba(26,232,122,.06)}
+
+/* Scrollable charts area */
+.charts-area{flex:1;overflow-y:auto;padding:16px}
+
+/* Section headers */
+.section-hdr{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--acc);margin:16px 0 10px;padding:6px 10px;background:rgba(0,200,240,.05);border-left:2px solid var(--acc);border-radius:0 4px 4px 0;text-transform:uppercase}
+.section-hdr:first-child{margin-top:0}
+
+/* Chart grid */
+.chart-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:12px;margin-bottom:16px}
+@media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
+
+/* Chart cards */
+.chart-card{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;min-height:260px;transition:border-color .15s}
+.chart-card:hover{border-color:var(--acc)}
+.chart-card.hidden{display:none!important}
+.chart-hdr{display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--txt3);margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--bd)}
+.chart-title{display:flex;align-items:center;gap:6px;font-weight:600}
+.chart-title i{color:var(--acc)}
+.chart-meta{font-size:9px;color:var(--bd2)}
+.chart-wrap{position:relative;flex:1;width:100%;min-height:200px}
+.chart-wrap canvas{width:100%!important;height:100%!important}
+
+/* No data message */
+.no-data-msg{display:none;padding:40px;text-align:center;color:var(--err);font-size:11px;letter-spacing:1px}
+.no-data-msg.show{display:block}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--bd3)}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="logo"><i class="fas fa-chart-line"></i> NODE ANALYTICS</div>
+    <select class="ctrl" id="slot-sel"></select>
+    <div class="topbar-right">
+        <button class="btn" id="refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+        <button class="btn btn-export" id="export-btn"><i class="fas fa-download"></i> Export CSV</button>
+    </div>
+</div>
+
+<div class="main-wrap">
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-hdr"><i class="fas fa-broadcast-tower"></i> Select Node</div>
+        <div class="sidebar-filter">
+            <input type="text" id="node-filter" placeholder="Filter by ID or name...">
+        </div>
+        <div class="node-list" id="node-list">
+            <div style="padding:20px;text-align:center;color:var(--txt3);font-size:10px">SCANNING MESH...</div>
+        </div>
+    </div>
+
+    <!-- Main Panel -->
+    <div class="main-panel">
+        <div class="loading-overlay" id="loading">
+            <i class="fas fa-circle-notch fa-spin"></i>
+            <span>EXTRACTING TELEMETRY...</span>
+        </div>
+
+        <div class="empty-state" id="empty-state">
+            <i class="fas fa-chart-area"></i>
+            <span>[ SELECT A NODE FOR TELEMETRY ANALYSIS ]</span>
+        </div>
+
+        <div class="active-content" id="active-content">
+            <!-- Node header -->
+            <div class="node-header">
+                <div>
+                    <div class="node-title" id="hdr-name">NODE</div>
+                    <div class="node-subtitle" id="hdr-meta"></div>
+                </div>
+                <div class="time-controls" id="time-controls">
+                    <button class="time-btn active" data-hours="24">24H</button>
+                    <button class="time-btn" data-hours="72">3D</button>
+                    <button class="time-btn" data-hours="168">7D</button>
+                    <button class="time-btn" data-hours="720">30D</button>
+                    <button class="time-btn" data-hours="0">ALL</button>
+                </div>
+            </div>
+
+            <!-- Live stats strip -->
+            <div class="stats-strip" id="stats-strip">
+                <div class="stat-box"><div class="stat-lbl">Battery</div><div class="stat-val" id="sv-bat">-</div></div>
+                <div class="stat-box"><div class="stat-lbl">Voltage</div><div class="stat-val" id="sv-volt">-</div></div>
+                <div class="stat-box"><div class="stat-lbl">SNR</div><div class="stat-val" id="sv-snr">-</div></div>
+                <div class="stat-box"><div class="stat-lbl">RSSI</div><div class="stat-val" id="sv-rssi">-</div></div>
+                <div class="stat-box"><div class="stat-lbl">Ch Util</div><div class="stat-val" id="sv-util">-</div></div>
+                <div class="stat-box"><div class="stat-lbl">Air TX</div><div class="stat-val" id="sv-airtx">-</div></div>
+                <div class="stat-box"><div class="stat-lbl">Uptime</div><div class="stat-val" id="sv-uptime">-</div></div>
+                <div class="stat-box"><div class="stat-lbl">Temp</div><div class="stat-val" id="sv-temp">-</div></div>
+                <div class="stat-box"><div class="stat-lbl">Humidity</div><div class="stat-val" id="sv-hum">-</div></div>
+                <div class="stat-box"><div class="stat-lbl">Pressure</div><div class="stat-val" id="sv-pres">-</div></div>
+                <div class="stat-box"><div class="stat-lbl">Altitude</div><div class="stat-val" id="sv-alt">-</div></div>
+                <div class="stat-box"><div class="stat-lbl">Sats</div><div class="stat-val" id="sv-sats">-</div></div>
+                <div class="stat-box"><div class="stat-lbl">Speed</div><div class="stat-val" id="sv-speed">-</div></div>
+            </div>
+
+            <!-- Data availability badges -->
+            <div class="data-badges" id="data-badges"></div>
+
+            <!-- Insights bar -->
+            <div class="insights-bar" id="insights-bar"></div>
+
+            <!-- Charts area -->
+            <div class="charts-area" id="charts-area">
+                <!-- POWER SECTION -->
+                <div class="section-hdr" id="sec-power"><i class="fas fa-bolt"></i> POWER & BATTERY</div>
+                <div class="chart-grid">
+                    <div class="chart-card hidden" id="c-power">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-battery-three-quarters"></i> Battery & Voltage</span>
+                            <span class="chart-meta" id="cm-power"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-power"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-drain">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-tint"></i> Battery Drain Rate</span>
+                            <span class="chart-meta" id="cm-drain"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-drain"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-batdist">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-chart-bar"></i> Battery Distribution</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-batdist"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- RF SIGNAL SECTION -->
+                <div class="section-hdr" id="sec-rf"><i class="fas fa-signal"></i> RF SIGNAL QUALITY</div>
+                <div class="chart-grid">
+                    <div class="chart-card hidden" id="c-signal">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-wave-square"></i> SNR & RSSI Over Time</span>
+                            <span class="chart-meta" id="cm-signal"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-signal"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-sigbands">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-braille"></i> RSSI vs SNR Scatter</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-sigbands"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-snrdist">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-chart-bar"></i> SNR Distribution</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-snrdist"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-hops">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-shoe-prints"></i> Hop Count Over Time</span>
+                            <span class="chart-meta" id="cm-hops"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-hops"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- NETWORK SECTION -->
+                <div class="section-hdr" id="sec-net"><i class="fas fa-network-wired"></i> NETWORK & MESH</div>
+                <div class="chart-grid">
+                    <div class="chart-card hidden" id="c-net">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-chart-area"></i> Channel Utilisation</span>
+                            <span class="chart-meta" id="cm-net"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-net"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-activity">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-stream"></i> Packet Type Mix</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-activity"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-pktrate">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-tachometer-alt"></i> Packet Rate / Hour</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-pktrate"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-acks">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-check-double"></i> Delivery Status</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-acks"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-neighbors">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-project-diagram"></i> Neighbour SNR</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-neighbors"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-traceroute">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-route"></i> Traceroute Hops</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-traceroute"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- ENVIRONMENT SECTION -->
+                <div class="section-hdr" id="sec-env"><i class="fas fa-thermometer-half"></i> ENVIRONMENT SENSORS</div>
+                <div class="chart-grid">
+                    <div class="chart-card hidden" id="c-env">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-temperature-half"></i> Temperature & Humidity</span>
+                            <span class="chart-meta" id="cm-env"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-env"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-pressure">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-cloud"></i> Barometric Pressure</span>
+                            <span class="chart-meta" id="cm-pres"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-pressure"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-air">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-wind"></i> Air Quality (Gas / IAQ)</span>
+                            <span class="chart-meta" id="cm-air"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-air"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- GPS SECTION -->
+                <div class="section-hdr" id="sec-gps"><i class="fas fa-satellite"></i> GPS & POSITION</div>
+                <div class="chart-grid">
+                    <div class="chart-card hidden" id="c-motion">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-mountain"></i> Altitude & Ground Speed</span>
+                            <span class="chart-meta" id="cm-motion"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-motion"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-heading">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-compass"></i> Heading (Ground Track)</span>
+                            <span class="chart-meta" id="cm-heading"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-heading"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-gpsq">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-satellite-dish"></i> GPS Sats & DOP</span>
+                            <span class="chart-meta" id="cm-gpsq"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-gpsq"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-precbits">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-crosshairs"></i> Precision Bits</span>
+                            <span class="chart-meta" id="cm-precbits"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-precbits"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-distance">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-road"></i> Cumulative Distance</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-distance"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- SYSTEM SECTION -->
+                <div class="section-hdr" id="sec-sys"><i class="fas fa-microchip"></i> SYSTEM HEALTH</div>
+                <div class="chart-grid">
+                    <div class="chart-card hidden" id="c-uptime">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-clock"></i> Uptime</span>
+                            <span class="chart-meta" id="cm-uptime"></span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-uptime"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-reboots">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-power-off"></i> Reboot Events</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-reboots"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- MESSAGES SECTION -->
+                <div class="section-hdr" id="sec-msg"><i class="fas fa-comments"></i> MESSAGES</div>
+                <div class="chart-grid">
+                    <div class="chart-card hidden" id="c-msgrate">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-chart-bar"></i> Message Rate / Hour</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-msgrate"></canvas></div>
+                    </div>
+                    <div class="chart-card hidden" id="c-msgchan">
+                        <div class="chart-hdr">
+                            <span class="chart-title"><i class="fas fa-layer-group"></i> Channel Breakdown</span>
+                        </div>
+                        <div class="chart-wrap"><canvas id="ch-msgchan"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="no-data-msg" id="no-data-msg">[ INSUFFICIENT DATA IN SELECTED TIMEFRAME ]</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ==========================================================================
+ * Node Analytics Plugin - Comprehensive Per-Node Telemetry Analysis
+ * ========================================================================== */
+
+const API_BASE = window.location.origin;
+let _activeSlotId = 'node_0';
+let _selectedNodeId = null;
+let _selectedHours = 24;
+let _token = 0;
+let _cachedData = null;
+let _meshNodes = {};
+
+/* ── Color palette ── */
+const C = {
+    green:'#1ae87a', cyan:'#00c8f0', purple:'#a78bfa',
+    red:'#f04848', orange:'#f0b429', blue:'#4080ff',
+    teal:'#2dd4bf', pink:'#f472b6', yellow:'#f0e020',
+    grey:'#5a7a96', grid:'#1e2c3e', label:'#5a7a96',
+};
+
+/* ── Chart registry ── */
+const charts = {};
+const destroyChart = id => { try { charts[id]?.destroy(); } catch(e) {} delete charts[id]; };
+
+/* ── Maths helpers ── */
+const haversineKm = (la1,lo1,la2,lo2) => {
+    const R=6371, d2r=Math.PI/180;
+    const dLat=(la2-la1)*d2r, dLon=(lo2-lo1)*d2r;
+    const a=Math.sin(dLat/2)**2+Math.cos(la1*d2r)*Math.cos(la2*d2r)*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+};
+
+const bucketsOf = (arr, keyFn, n=20) => {
+    const vals = arr.map(keyFn).filter(v=>v!=null);
+    if (!vals.length) return {labels:[], counts:[]};
+    const mn=Math.min(...vals), mx=Math.max(...vals);
+    if (mn===mx) return {labels:[mn.toFixed(1)], counts:[vals.length]};
+    const bw=(mx-mn)/n, counts=new Array(n).fill(0);
+    vals.forEach(v=>counts[Math.min(Math.floor((v-mn)/bw),n-1)]++);
+    return {labels: counts.map((_,i)=>(mn+i*bw).toFixed(1)), counts};
+};
+
+const drainRate = arr => {
+    const pts=[];
+    for (let i=1; i<arr.length; i++) {
+        const dt=arr[i].timestamp-arr[i-1].timestamp;
+        const db=arr[i].battery_level-arr[i-1].battery_level;
+        if (dt>30 && arr[i].battery_level!=null && arr[i-1].battery_level!=null)
+            pts.push({x:arr[i].timestamp*1000, y:parseFloat(((db/dt)*3600).toFixed(3))});
+    }
+    return pts;
+};
+
+const rebootEvents = arr => {
+    const evts=[];
+    for (let i=1; i<arr.length; i++) {
+        const p=arr[i-1].uptime_seconds, c=arr[i].uptime_seconds;
+        if (p!=null && c!=null && c<p-60) evts.push({x:arr[i].timestamp*1000, y:1});
+    }
+    return evts;
+};
+
+const pktTypeCount = pkts => {
+    const counts={};
+    pkts.forEach(p=>{const t=p.packet_type||'Unknown'; counts[t]=(counts[t]||0)+1;});
+    return counts;
+};
+
+const deliveryStats = pkts => {
+    const counts={DELIVERED:0,SENT:0,FAILED:0,BROADCAST:0};
+    pkts.forEach(p=>{if(p.status && p.status in counts) counts[p.status]++;});
+    return counts;
+};
+
+const cumulativeDist = positions => {
+    let total=0;
+    return positions.map((p,i)=>{
+        if(i>0){
+            const prev=positions[i-1];
+            if(prev.latitude!=null && p.latitude!=null)
+                total+=haversineKm(prev.latitude,prev.longitude,p.latitude,p.longitude);
+        }
+        return {x:p.timestamp*1000, y:parseFloat(total.toFixed(3))};
+    });
+};
+
+const packetRatePerHour = pkts => {
+    if (!pkts.length) return {labels:[], counts:[]};
+    const sorted=[...pkts].sort((a,b)=>a.timestamp-b.timestamp);
+    const start=Math.floor(sorted[0].timestamp/3600)*3600;
+    const end=Math.ceil(sorted[sorted.length-1].timestamp/3600)*3600;
+    const bins={};
+    for (let t=start; t<=end; t+=3600) bins[t]=0;
+    sorted.forEach(p=>{
+        const bin=Math.floor(p.timestamp/3600)*3600;
+        bins[bin]=(bins[bin]||0)+1;
+    });
+    return {
+        labels: Object.keys(bins).map(t=>new Date(t*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})),
+        counts: Object.values(bins)
+    };
+};
+
+const msgRatePerHour = msgs => {
+    if (!msgs.length) return {labels:[], counts:[]};
+    const sorted=[...msgs].sort((a,b)=>a.timestamp-b.timestamp);
+    const start=Math.floor(sorted[0].timestamp/3600)*3600;
+    const end=Math.ceil(sorted[sorted.length-1].timestamp/3600)*3600;
+    const bins={};
+    for (let t=start; t<=end; t+=3600) bins[t]=0;
+    sorted.forEach(m=>{
+        const bin=Math.floor(m.timestamp/3600)*3600;
+        bins[bin]=(bins[bin]||0)+1;
+    });
+    return {
+        labels: Object.keys(bins).map(t=>new Date(t*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})),
+        counts: Object.values(bins)
+    };
+};
+
+const pick = (n,...paths) => {
+    for (const p of paths) {
+        let v=n;
+        for (const k of p.split('.')) v=v?.[k];
+        if (v!=null) return v;
+    }
+    return null;
+};
+
+const fmtTimeAgo = ts => {
+    if (!ts) return '?';
+    const sec = Math.floor(Date.now()/1000 - ts);
+    if (sec < 60) return `${sec}s`;
+    if (sec < 3600) return `${Math.floor(sec/60)}m`;
+    if (sec < 86400) return `${Math.floor(sec/3600)}h`;
+    return `${Math.floor(sec/86400)}d`;
+};
+
+const fmtUptime = sec => {
+    if (sec == null) return '-';
+    if (sec < 60) return `${sec}s`;
+    if (sec < 3600) return `${Math.floor(sec/60)}m`;
+    if (sec < 86400) return `${Math.floor(sec/3600)}h ${Math.floor((sec%3600)/60)}m`;
+    return `${Math.floor(sec/86400)}d ${Math.floor((sec%86400)/3600)}h`;
+};
+
+const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* ── Chart builders ── */
+const mkAxis = (pos, title, extra={}) => ({
+    position: pos,
+    title: {display:true, text:title, color:C.label, font:{size:9}},
+    grid: {color: pos==='left' ? C.grid : 'transparent'},
+    ticks: {font:{size:9}},
+    ...extra
+});
+
+const mkDs = (arr, key, label, color, yID='y', extra={}) => ({
+    label, yAxisID:yID, borderColor:color, backgroundColor:color+'18',
+    borderWidth:1.8, pointRadius:0, pointHoverRadius:3, tension:0.3,
+    data: arr.map(r=>({x:r.timestamp*1000, y:r[key]})).filter(p=>p.y!=null),
+    ...extra
+});
+
+const mkRawDs = (pts, label, color, yID='y', extra={}) => ({
+    label, yAxisID:yID, borderColor:color, backgroundColor:color+'18',
+    borderWidth:1.8, pointRadius:0, pointHoverRadius:3, tension:0.3,
+    data: pts, ...extra
+});
+
+const baseOpts = scales => ({
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index', intersect:false},
+    plugins:{
+        legend:{labels:{font:{size:9}, boxWidth:10, padding:8}},
+        tooltip:{titleFont:{size:9}, bodyFont:{size:9}}
+    },
+    scales:{
+        x:{type:'time', grid:{color:C.grid}, ticks:{font:{size:9}, maxTicksLimit:8}},
+        ...scales
+    }
+});
+
+const setMeta = (id, count, arr) => {
+    const el = document.getElementById(id);
+    if (!el || !arr.length) return;
+    const t0 = new Date(arr[0].timestamp*1000).toLocaleDateString([],{month:'short',day:'numeric'});
+    const t1 = new Date(arr[arr.length-1].timestamp*1000).toLocaleDateString([],{month:'short',day:'numeric'});
+    el.textContent = `${count} pts · ${t0}–${t1}`;
+};
+
+const buildLine = (cid, cardId, datasets, scales, customOpts) => {
+    destroyChart(cid);
+    const card = document.getElementById(cardId);
+    if (!card) return false;
+    const hasData = datasets.some(ds=>ds.data?.length>0);
+    if (!hasData) { card.classList.add('hidden'); return false; }
+    card.classList.remove('hidden');
+    const canvas = document.getElementById(cid);
+    if (!canvas) return false;
+    charts[cid] = new Chart(canvas.getContext('2d'), {
+        type:'line', data:{datasets}, options: customOpts || baseOpts(scales)
+    });
+    return true;
+};
+
+const buildBar = (cid, cardId, labels, counts, color, xTitle, yTitle) => {
+    destroyChart(cid);
+    const card = document.getElementById(cardId);
+    if (!card) return false;
+    if (!counts.reduce((a,b)=>a+b,0)) { card.classList.add('hidden'); return false; }
+    card.classList.remove('hidden');
+    const canvas = document.getElementById(cid);
+    if (!canvas) return false;
+    charts[cid] = new Chart(canvas.getContext('2d'), {
+        type:'bar',
+        data:{labels, datasets:[{data:counts, backgroundColor:color+'55', borderColor:color, borderWidth:1}]},
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{legend:{display:false}, tooltip:{bodyFont:{size:9}}},
+            scales:{
+                x:{title:{display:true,text:xTitle,color:C.label,font:{size:9}}, grid:{color:C.grid}, ticks:{font:{size:9},maxTicksLimit:12}},
+                y:{title:{display:true,text:yTitle,color:C.label,font:{size:9}}, grid:{color:C.grid}, ticks:{font:{size:9}}}
+            }
+        }
+    });
+    return true;
+};
+
+const buildPie = (cid, cardId, labels, dataArr, colors) => {
+    destroyChart(cid);
+    const card = document.getElementById(cardId);
+    if (!card) return false;
+    if (!dataArr.reduce((a,b)=>a+b,0)) { card.classList.add('hidden'); return false; }
+    card.classList.remove('hidden');
+    const canvas = document.getElementById(cid);
+    if (!canvas) return false;
+    charts[cid] = new Chart(canvas.getContext('2d'), {
+        type:'doughnut',
+        data:{labels, datasets:[{data:dataArr, backgroundColor:colors, borderColor:'#1e3048', borderWidth:2}]},
+        options:{
+            responsive:true, maintainAspectRatio:false,
+            plugins:{
+                legend:{position:'right', labels:{font:{size:9}, boxWidth:10, padding:8}},
+                tooltip:{bodyFont:{size:9}}
+            }
+        }
+    });
+    return true;
+};
+
+/* ── Section visibility sync ── */
+const syncSectionVisibility = () => {
+    document.querySelectorAll('.section-hdr').forEach(hdr => {
+        let sib = hdr.nextElementSibling;
+        let anyVisible = false;
+        while (sib && !sib.classList.contains('section-hdr')) {
+            if (sib.classList.contains('chart-grid')) {
+                const cards = sib.querySelectorAll('.chart-card:not(.hidden)');
+                if (cards.length) anyVisible = true;
+            }
+            sib = sib.nextElementSibling;
+        }
+        hdr.style.display = anyVisible ? '' : 'none';
+    });
+};
+
+/* ── Load slots ── */
+async function loadSlots() {
+    try {
+        const res = await fetch(`${API_BASE}/api/slots`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const slotsObj = await res.json();
+        
+        // API returns object keyed by slot_id, convert to array
+        const slots = Object.entries(slotsObj || {}).map(([sid, s]) => ({
+            slot_id: sid,
+            display_name: s.label || sid,
+            is_ready: s.is_ready,
+            is_primary: sid === 'node_0'
+        }));
+        
+        // Sort so node_0 is first
+        slots.sort((a, b) => {
+            if (a.slot_id === 'node_0') return -1;
+            if (b.slot_id === 'node_0') return 1;
+            return a.slot_id.localeCompare(b.slot_id);
+        });
+        
+        // Fallback if no slots returned
+        const finalSlots = slots.length > 0 ? slots : [{slot_id: 'node_0', display_name: 'Primary Radio', is_primary: true, is_ready: true}];
+        
+        const sel = document.getElementById('slot-sel');
+        if (sel) {
+            sel.innerHTML = finalSlots.map(s => {
+                const status = s.is_ready ? '●' : '○';
+                const label = s.display_name || s.slot_id;
+                return `<option value="${s.slot_id}" ${s.is_primary?'selected':''}>${status} ${label}</option>`;
+            }).join('');
+            _activeSlotId = sel.value || 'node_0';
+        }
+    } catch(e) {
+        console.error('Failed to load slots:', e);
+        // Fallback to just node_0 if API fails
+        const sel = document.getElementById('slot-sel');
+        if (sel) {
+            sel.innerHTML = '<option value="node_0" selected>● Primary Radio</option>';
+            _activeSlotId = 'node_0';
+        }
+    }
+}
+
+/* ── Load nodes for sidebar ── */
+async function loadNodes() {
+    try {
+        const res = await fetch(`${API_BASE}/api/nodes?slot_id=${encodeURIComponent(_activeSlotId)}`);
+        if (!res.ok) {
+            console.error('Failed to load nodes: HTTP', res.status);
+            return;
+        }
+        const nodes = await res.json();
+        _meshNodes = {};
+        const nodeList = Array.isArray(nodes) ? nodes : Object.values(nodes || {});
+        nodeList.forEach(n => {
+            const id = n.node_id || n.id;
+            if (id) _meshNodes[id] = n;
+        });
+        renderSidebar();
+    } catch(e) {
+        console.error('Failed to load nodes:', e);
+        const list = document.getElementById('node-list');
+        if (list) {
+            list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--err);font-size:10px">[ ERROR LOADING NODES ]</div>';
+        }
+    }
+}
+
+/* ── Render sidebar ── */
+function renderSidebar() {
+    const list = document.getElementById('node-list');
+    const filter = (document.getElementById('node-filter')?.value || '').toLowerCase();
+    const nodes = Object.values(_meshNodes);
+    nodes.sort((a,b) => (b.last_heard||b.lastHeard||0) - (a.last_heard||a.lastHeard||0));
+    
+    const filtered = nodes.filter(n => {
+        const name = (pick(n,'user.longName','long_name') || n.node_id || '').toLowerCase();
+        return name.includes(filter) || (n.node_id||'').toLowerCase().includes(filter);
+    });
+    
+    if (!filtered.length) {
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--txt3);font-size:10px">[ NO NODES FOUND ]</div>';
+        return;
+    }
+    
+    list.innerHTML = filtered.map(n => {
+        const name = pick(n,'user.longName','user.shortName','long_name','short_name') || n.node_id || 'Unknown';
+        const lh = n.last_heard || n.lastHeard;
+        const online = lh && (Date.now()/1000 - lh) < 3600;
+        const bat = pick(n,'deviceMetrics.batteryLevel','battery_level');
+        const batCol = bat==null ? '' : bat<30 ? 'var(--err)' : bat<60 ? 'var(--warn)' : 'var(--ok)';
+        let hw = n.hw_model || '';
+        if (hw.includes('.')) hw = hw.split('.').pop();
+        const role = n.role || '';
+        const isActive = n.node_id === _selectedNodeId;
+        
+        return `<div class="node-item ${isActive?'active':''}" data-nid="${n.node_id}">
+            <div class="node-dot ${online?'online':'offline'}"></div>
+            <div class="node-info">
+                <div class="node-name">${escHtml(name)}</div>
+                <div class="node-meta">${n.node_id||'N/A'} · ${fmtTimeAgo(lh)}${hw?' · '+hw:''}${role?' · '+role:''}</div>
+            </div>
+            ${bat!=null ? `<div class="node-batt" style="color:${batCol}">${bat}%</div>` : ''}
+        </div>`;
+    }).join('');
+    
+    // Attach click handlers
+    list.querySelectorAll('.node-item').forEach(el => {
+        el.onclick = () => selectNode(el.dataset.nid);
+    });
+}
+
+/* ── Select node ── */
+function selectNode(nid) {
+    _selectedNodeId = nid;
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('active-content').classList.add('show');
+    renderSidebar();
+    loadNodeHistory(nid);
+}
+
+/* ── Update header stats from live node data ── */
+function updateHeaderStats(nid) {
+    const n = _meshNodes[nid] || {};
+    document.getElementById('hdr-name').textContent = pick(n,'user.longName','long_name') || n.node_id || nid;
+    document.getElementById('hdr-meta').textContent = `${nid}  •  HW: ${n.hw_model||'?'}  •  FW: ${n.firmware_version||'?'}  •  Role: ${n.role||'?'}`;
+    
+    const sv = (id, val, unit='', dec=1, warnBelow=null) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (val==null) { el.textContent='-'; el.style.color=''; return; }
+        el.textContent = `${typeof val==='number' ? val.toFixed(dec) : val}${unit}`;
+        el.style.color = warnBelow!=null ? (val<warnBelow ? 'var(--err)' : 'var(--ok)') : '';
+    };
+    
+    sv('sv-bat', pick(n,'deviceMetrics.batteryLevel','battery_level'), '%', 0, 30);
+    sv('sv-volt', pick(n,'deviceMetrics.voltage','voltage'), 'V', 2);
+    sv('sv-snr', pick(n,'snr'), 'dB', 1);
+    sv('sv-rssi', pick(n,'rssi'), 'dBm', 0);
+    sv('sv-util', pick(n,'deviceMetrics.channelUtilization','channel_utilization'), '%', 1);
+    sv('sv-airtx', pick(n,'deviceMetrics.airUtilTx','air_util_tx'), '%', 1);
+    sv('sv-temp', pick(n,'environmentMetrics.temperature','temperature'), '°C', 1);
+    sv('sv-hum', pick(n,'environmentMetrics.relativeHumidity','relative_humidity'), '%', 1);
+    sv('sv-pres', pick(n,'environmentMetrics.barometricPressure','barometric_pressure'), 'hPa', 1);
+    sv('sv-alt', pick(n,'position.altitude','altitude'), 'm', 0);
+    sv('sv-sats', pick(n,'position.satsInView','sats_in_view'), '', 0);
+    sv('sv-speed', pick(n,'position.groundSpeed','ground_speed'), 'm/s', 1);
+    
+    const uptimeSec = pick(n,'deviceMetrics.uptimeSeconds','uptime_seconds');
+    sv('sv-uptime', uptimeSec != null ? fmtUptime(uptimeSec) : null, '', 0);
+}
+
+/* ── Render data availability badges ── */
+function renderDataBadges(d) {
+    const el = document.getElementById('data-badges');
+    const checks = [
+        {lbl:'BATTERY', has:d.t.some(r=>r.battery_level!=null)},
+        {lbl:'VOLTAGE', has:d.t.some(r=>r.voltage!=null)},
+        {lbl:'TEMP', has:d.t.some(r=>r.temperature!=null)},
+        {lbl:'HUMIDITY', has:d.t.some(r=>r.relative_humidity!=null)},
+        {lbl:'PRESSURE', has:d.t.some(r=>r.barometric_pressure!=null)},
+        {lbl:'IAQ/GAS', has:d.t.some(r=>r.iaq!=null||r.gas_resistance!=null)},
+        {lbl:'GPS', has:d.p.some(r=>r.latitude!=null)},
+        {lbl:'ALTITUDE', has:d.p.some(r=>r.altitude!=null)},
+        {lbl:'SPEED', has:d.p.some(r=>r.ground_speed!=null)},
+        {lbl:'DOP', has:d.p.some(r=>r.pdop!=null)},
+        {lbl:'RF DATA', has:d.k.some(r=>r.rx_snr!=null)},
+        {lbl:'UPTIME', has:d.t.some(r=>r.uptime_seconds!=null)},
+        {lbl:'MESSAGES', has:d.m.length>0},
+        {lbl:'NEIGHBORS', has:d.neighbors.length>0},
+        {lbl:'TRACEROUTES', has:d.traceroutes.length>0},
+    ];
+    el.innerHTML = checks.map(c => `<span class="data-badge ${c.has?'ok':''}">${c.lbl}</span>`).join('');
+}
+
+/* ── Render insights ── */
+function renderInsights(d, nid) {
+    const el = document.getElementById('insights-bar');
+    const n = _meshNodes[nid] || {};
+    const tags = [];
+    
+    // Battery insights
+    const bat = pick(n,'deviceMetrics.batteryLevel','battery_level') ?? (d.t.length ? d.t[d.t.length-1].battery_level : null);
+    if (bat != null) {
+        if (bat < 20) tags.push({cls:'err', txt:`⚠ BATTERY CRITICAL: ${bat}%`});
+        else if (bat < 40) tags.push({cls:'warn', txt:`⚡ Battery Low: ${bat}%`});
+    }
+    const bats = d.t.map(r=>r.battery_level).filter(v=>v!=null);
+    if (bats.length && Math.min(...bats) < 10) tags.push({cls:'err', txt:`Battery hit ${Math.min(...bats)}% in window`});
+    
+    // SNR insights
+    const snrs = d.k.map(r=>r.rx_snr).filter(v=>v!=null);
+    if (snrs.length) {
+        const avg = snrs.reduce((a,b)=>a+b,0) / snrs.length;
+        if (avg < -10) tags.push({cls:'err', txt:`Poor Signal — Avg SNR: ${avg.toFixed(1)}dB`});
+        else if (avg > 5) tags.push({cls:'ok', txt:`Strong Signal — Avg SNR: ${avg.toFixed(1)}dB`});
+    }
+    
+    // Reboot detection
+    const rbts = rebootEvents(d.t);
+    if (rbts.length) tags.push({cls:'warn', txt:`${rbts.length} Reboot(s) Detected`});
+    
+    // Channel utilization
+    const utils = d.t.map(r=>r.channel_utilization).filter(v=>v!=null);
+    if (utils.length && Math.max(...utils) > 25) tags.push({cls:'warn', txt:`Ch Util peaked at ${Math.max(...utils).toFixed(1)}%`});
+    
+    // ACK ratio
+    const wantAck = d.k.filter(r=>r.want_ack).length;
+    const ackRatio = d.k.length ? ((wantAck/d.k.length)*100).toFixed(0) : null;
+    if (ackRatio != null && d.k.length > 5) tags.push({cls:'info', txt:`${ackRatio}% pkts requested ACK`});
+    
+    // Delivery failures
+    const del = deliveryStats(d.k);
+    const total = del.DELIVERED + del.SENT + del.FAILED;
+    if (total > 0 && del.FAILED > 0) tags.push({cls:'warn', txt:`${del.FAILED} delivery failure(s) (${((del.FAILED/total)*100).toFixed(0)}%)`});
+    
+    // Messages
+    if (d.m.length) {
+        const dmCount = d.m.filter(m=>m.to_id && m.to_id !== '^all').length;
+        const bcast = d.m.length - dmCount;
+        tags.push({cls:'info', txt:`${d.m.length} messages — ${dmCount} DM · ${bcast} broadcast`});
+    }
+    
+    // Distance travelled
+    const distPts = cumulativeDist(d.p);
+    if (distPts.length && distPts[distPts.length-1].y > 0.1)
+        tags.push({cls:'info', txt:`Travelled ${distPts[distPts.length-1].y.toFixed(2)}km in window`});
+    
+    // Data counts
+    if (d.k.length) tags.push({cls:'info', txt:`${d.k.length} packets in window`});
+    if (d.p.length) tags.push({cls:'info', txt:`${d.p.length} positions logged`});
+    if (d.t.length) tags.push({cls:'info', txt:`${d.t.length} telemetry samples`});
+    if (d.traceroutes.length) tags.push({cls:'info', txt:`${d.traceroutes.length} traceroutes`});
+    
+    // Temperature range
+    const temps = d.t.map(r=>r.temperature).filter(v=>v!=null);
+    if (temps.length) {
+        const mn = Math.min(...temps), mx = Math.max(...temps);
+        tags.push({cls: mn<0||mx>50 ? 'warn' : 'info', txt:`Temp range: ${mn.toFixed(1)}–${mx.toFixed(1)}°C`});
+    }
+    
+    // Mesh average comparison
+    if (d.meshAvg && snrs.length) {
+        const myAvg = snrs.reduce((a,b)=>a+b,0) / snrs.length;
+        const diff = (myAvg - d.meshAvg).toFixed(1);
+        const sign = diff > 0 ? '+' : '';
+        tags.push({cls: diff>0 ? 'ok' : diff<-5 ? 'warn' : 'info', txt:`SNR vs mesh avg: ${sign}${diff}dB`});
+    }
+    
+    el.innerHTML = tags.map(t => `<span class="insight-tag ${t.cls}">${t.txt}</span>`).join('');
+}
+
+/* ── Render all charts ── */
+function renderCharts(d, nid) {
+    Chart.defaults.color = C.label;
+    Chart.defaults.font.family = "'JetBrains Mono', monospace";
+    let vis = 0;
+    const V = ok => { if(ok) vis++; };
+    
+    /* ── POWER ── */
+    V(buildLine('ch-power','c-power',[
+        mkDs(d.t,'battery_level','Battery %',C.green,'y'),
+        mkDs(d.t,'voltage','Voltage V',C.cyan,'y1'),
+    ],{y:mkAxis('left','%',{min:0,max:100}), y1:mkAxis('right','Volts')}));
+    setMeta('cm-power', d.t.length, d.t);
+    
+    V(buildLine('ch-drain','c-drain',[
+        mkRawDs(drainRate(d.t),'Drain %/hr',C.orange,'y',{fill:true})
+    ],{y:mkAxis('left','%/hr')}));
+    setMeta('cm-drain', d.t.length, d.t);
+    
+    // Battery distribution
+    {
+        const {labels,counts} = bucketsOf(d.t, r=>r.battery_level);
+        V(buildBar('ch-batdist','c-batdist',labels,counts,C.green,'Battery %','Count'));
+    }
+    
+    /* ── RF SIGNAL ── */
+    V(buildLine('ch-signal','c-signal',[
+        mkDs(d.k,'rx_snr','SNR dB',C.purple,'y'),
+        mkDs(d.k,'rx_rssi','RSSI dBm',C.red,'y1'),
+        ...(d.meshAvg!=null && d.k.length ? [{
+            label:'Mesh Avg SNR', yAxisID:'y',
+            borderColor:C.grey, borderDash:[4,4], borderWidth:1, pointRadius:0,
+            data:[{x:d.k[0].timestamp*1000,y:d.meshAvg},{x:d.k[d.k.length-1].timestamp*1000,y:d.meshAvg}]
+        }] : [])
+    ],{y:mkAxis('left','SNR (dB)'), y1:mkAxis('right','RSSI (dBm)')}));
+    setMeta('cm-signal', d.k.length, d.k);
+    
+    // RSSI vs SNR scatter
+    {
+        const card = document.getElementById('c-sigbands');
+        if (card) {
+            destroyChart('ch-sigbands');
+            const scatter = d.k.filter(r=>r.rx_snr!=null && r.rx_rssi!=null).map(r=>({x:r.rx_rssi, y:r.rx_snr}));
+            if (scatter.length) {
+                card.classList.remove('hidden'); vis++;
+                charts['ch-sigbands'] = new Chart(document.getElementById('ch-sigbands').getContext('2d'),{
+                    type:'scatter',
+                    data:{datasets:[{label:'RSSI vs SNR',data:scatter,backgroundColor:C.purple+'60',borderColor:C.purple,pointRadius:2}]},
+                    options:{responsive:true,maintainAspectRatio:false,
+                        plugins:{legend:{labels:{font:{size:9}}},tooltip:{bodyFont:{size:9}}},
+                        scales:{
+                            x:{title:{display:true,text:'RSSI (dBm)',color:C.label,font:{size:9}},grid:{color:C.grid},ticks:{font:{size:9}}},
+                            y:{title:{display:true,text:'SNR (dB)',color:C.label,font:{size:9}},grid:{color:C.grid},ticks:{font:{size:9}}}
+                        }}
+                });
+            } else { card.classList.add('hidden'); }
+        }
+    }
+    
+    // SNR distribution
+    {
+        const {labels,counts} = bucketsOf(d.k, r=>r.rx_snr);
+        V(buildBar('ch-snrdist','c-snrdist',labels,counts,C.purple,'SNR (dB)','Count'));
+    }
+    
+    // Hop count
+    {
+        const hopPkts = d.k.filter(r=>r.hop_limit!=null && r.hop_start!=null);
+        V(buildLine('ch-hops','c-hops',[
+            mkRawDs(hopPkts.map(r=>({x:r.timestamp*1000,y:Math.max(0,(r.hop_start||0)-(r.hop_limit||0))})),'Hops Used',C.teal,'y'),
+            mkRawDs(hopPkts.map(r=>({x:r.timestamp*1000,y:r.hop_start||0})),'Hop Start',C.grey,'y'),
+        ],{y:mkAxis('left','Hops',{min:0})}));
+        setMeta('cm-hops', hopPkts.length, hopPkts);
+    }
+    
+    /* ── NETWORK & MESH ── */
+    V(buildLine('ch-net','c-net',[
+        mkDs(d.t,'channel_utilization','Ch Util %',C.orange,'y'),
+        mkDs(d.t,'air_util_tx','Air TX %',C.red,'y'),
+    ],{y:mkAxis('left','%',{min:0})}));
+    setMeta('cm-net', d.t.length, d.t);
+    
+    // Packet type pie
+    {
+        const tc = pktTypeCount(d.k);
+        const tcColors = [C.green,C.cyan,C.purple,C.orange,C.blue,C.teal,C.pink,C.yellow,C.red,C.grey];
+        V(buildPie('ch-activity','c-activity',Object.keys(tc),Object.values(tc),
+            Object.keys(tc).map((_,i)=>tcColors[i%tcColors.length])));
+    }
+    
+    // Packet rate per hour
+    {
+        const {labels,counts} = packetRatePerHour(d.k);
+        V(buildBar('ch-pktrate','c-pktrate',labels,counts,C.cyan,'Hour','Packets/hr'));
+    }
+    
+    // Delivery status pie
+    {
+        const del = deliveryStats(d.k);
+        V(buildPie('ch-acks','c-acks',Object.keys(del),Object.values(del),[C.green,C.cyan,C.red,C.orange]));
+    }
+    
+    // Neighbour SNR bar
+    {
+        const card = document.getElementById('c-neighbors');
+        if (card) {
+            destroyChart('ch-neighbors');
+            if (d.neighbors.length) {
+                card.classList.remove('hidden'); vis++;
+                const lbls = d.neighbors.map(n=>n.neighbor_id||n.node_id);
+                const snrs = d.neighbors.map(n=>n.snr);
+                charts['ch-neighbors'] = new Chart(document.getElementById('ch-neighbors').getContext('2d'),{
+                    type:'bar',
+                    data:{labels:lbls,datasets:[{label:'Neighbour SNR (dB)',data:snrs,
+                        backgroundColor:snrs.map(s=>s==null?C.grey+'44':s>5?C.green+'88':s>0?C.cyan+'88':C.orange+'88'),
+                        borderColor:snrs.map(s=>s==null?C.grey:s>5?C.green:s>0?C.cyan:C.orange),borderWidth:1}]},
+                    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+                        plugins:{legend:{display:false},tooltip:{bodyFont:{size:9}}},
+                        scales:{
+                            x:{grid:{color:C.grid},ticks:{font:{size:9}},title:{display:true,text:'SNR (dB)',color:C.label,font:{size:9}}},
+                            y:{grid:{color:C.grid},ticks:{font:{size:9}}}
+                        }}
+                });
+            } else { card.classList.add('hidden'); }
+        }
+    }
+    
+    // Traceroutes
+    {
+        const card = document.getElementById('c-traceroute');
+        if (card) {
+            destroyChart('ch-traceroute');
+            const trPts = d.traceroutes.map(tr => {
+                let rp = tr.route_path;
+                if (typeof rp === 'string') { try { rp = JSON.parse(rp); } catch(e) { rp = {}; } }
+                const hops = rp?.hops_used ?? ((rp?.route_to?.length||0)+(rp?.route_back?.length||0));
+                const snrArr = rp?.snr_towards || [];
+                const avgSnr = snrArr.length ? snrArr.reduce((a,b)=>a+b,0)/snrArr.length : null;
+                return {x:tr.timestamp*1000, hops, avgSnr};
+            }).filter(p=>p.hops!=null);
+            if (trPts.length) {
+                card.classList.remove('hidden'); vis++;
+                charts['ch-traceroute'] = new Chart(document.getElementById('ch-traceroute').getContext('2d'),{
+                    type:'line',
+                    data:{datasets:[
+                        mkRawDs(trPts.map(p=>({x:p.x,y:p.hops})),'Total Hops',C.teal,'y',{pointRadius:4,pointHoverRadius:6}),
+                        mkRawDs(trPts.filter(p=>p.avgSnr!=null).map(p=>({x:p.x,y:p.avgSnr})),'Avg Path SNR dB',C.purple,'y1',{pointRadius:3,borderDash:[3,3]}),
+                    ]},
+                    options:baseOpts({y:mkAxis('left','Hops',{min:0}), y1:mkAxis('right','SNR (dB)')})
+                });
+            } else { card.classList.add('hidden'); }
+        }
+    }
+    
+    /* ── ENVIRONMENT ── */
+    V(buildLine('ch-env','c-env',[
+        mkDs(d.t,'temperature','Temp °C',C.red,'y'),
+        mkDs(d.t,'relative_humidity','Humidity %',C.cyan,'y1'),
+    ],{y:mkAxis('left','°C'), y1:mkAxis('right','%')}));
+    setMeta('cm-env', d.t.filter(r=>r.temperature!=null).length, d.t);
+    
+    V(buildLine('ch-pressure','c-pressure',[
+        mkDs(d.t,'barometric_pressure','Pressure hPa',C.blue,'y',{fill:true})
+    ],{y:mkAxis('left','hPa')}));
+    setMeta('cm-pres', d.t.filter(r=>r.barometric_pressure!=null).length, d.t);
+    
+    V(buildLine('ch-air','c-air',[
+        mkDs(d.t,'gas_resistance','Gas Ω',C.pink,'y'),
+        mkDs(d.t,'iaq','IAQ',C.yellow,'y1'),
+    ],{y:mkAxis('left','Gas (Ω)'), y1:mkAxis('right','IAQ')}));
+    setMeta('cm-air', d.t.filter(r=>r.iaq!=null||r.gas_resistance!=null).length, d.t);
+    
+    /* ── GPS ── */
+    V(buildLine('ch-motion','c-motion',[
+        mkDs(d.p,'altitude','Altitude m',C.grey,'y',{fill:true}),
+        mkDs(d.p,'ground_speed','Speed m/s',C.orange,'y1'),
+    ],{y:mkAxis('left','m'), y1:mkAxis('right','m/s')}));
+    setMeta('cm-motion', d.p.length, d.p);
+    
+    V(buildLine('ch-heading','c-heading',[
+        mkDs(d.p,'ground_track','Heading °',C.teal,'y')
+    ],{y:mkAxis('left','°',{min:0,max:360})}));
+    setMeta('cm-heading', d.p.filter(r=>r.ground_track!=null).length, d.p);
+    
+    V(buildLine('ch-gpsq','c-gpsq',[
+        mkDs(d.p,'sats_in_view','Sats',C.green,'y'),
+        mkDs(d.p,'pdop','PDOP',C.red,'y1'),
+        mkDs(d.p,'hdop','HDOP',C.orange,'y1'),
+        mkDs(d.p,'vdop','VDOP',C.cyan,'y1'),
+    ],{y:mkAxis('left','Satellites'), y1:mkAxis('right','DOP')}));
+    setMeta('cm-gpsq', d.p.length, d.p);
+    
+    V(buildLine('ch-precbits','c-precbits',[
+        mkDs(d.p,'precision_bits','Precision Bits',C.purple,'y')
+    ],{y:mkAxis('left','Bits',{min:0})}));
+    setMeta('cm-precbits', d.p.filter(r=>r.precision_bits!=null).length, d.p);
+    
+    // Cumulative distance
+    {
+        const card = document.getElementById('c-distance');
+        if (card) {
+            destroyChart('ch-distance');
+            const distPts = cumulativeDist(d.p);
+            if (distPts.length > 1 && distPts[distPts.length-1].y > 0.01) {
+                card.classList.remove('hidden'); vis++;
+                charts['ch-distance'] = new Chart(document.getElementById('ch-distance').getContext('2d'),{
+                    type:'line', data:{datasets:[mkRawDs(distPts,'Distance km',C.green,'y',{fill:true})]},
+                    options:baseOpts({y:mkAxis('left','km',{min:0})})
+                });
+            } else { card.classList.add('hidden'); }
+        }
+    }
+    
+    /* ── SYSTEM ── */
+    V(buildLine('ch-uptime','c-uptime',[
+        mkDs(d.t,'uptime_seconds','Uptime (s)',C.teal,'y',{fill:true})
+    ],{y:mkAxis('left','Seconds',{min:0})}));
+    setMeta('cm-uptime', d.t.filter(r=>r.uptime_seconds!=null).length, d.t);
+    
+    // Reboot scatter
+    {
+        const card = document.getElementById('c-reboots');
+        if (card) {
+            destroyChart('ch-reboots');
+            const rbts = rebootEvents(d.t);
+            if (rbts.length) {
+                card.classList.remove('hidden'); vis++;
+                charts['ch-reboots'] = new Chart(document.getElementById('ch-reboots').getContext('2d'),{
+                    type:'scatter',
+                    data:{datasets:[{label:'Reboot Event',data:rbts,
+                        backgroundColor:C.red+'88',borderColor:C.red,pointRadius:8,pointStyle:'triangle'}]},
+                    options:{responsive:true,maintainAspectRatio:false,
+                        plugins:{legend:{labels:{font:{size:9}}},tooltip:{bodyFont:{size:9}}},
+                        scales:{
+                            x:{type:'time',grid:{color:C.grid},ticks:{font:{size:9}}},
+                            y:{display:false}
+                        }}
+                });
+            } else { card.classList.add('hidden'); }
+        }
+    }
+    
+    /* ── MESSAGES ── */
+    if (d.m.length) {
+        const msgRate = msgRatePerHour(d.m);
+        V(buildBar('ch-msgrate','c-msgrate',msgRate.labels,msgRate.counts,C.cyan,'Hour','Messages/hr'));
+        
+        // Channel breakdown
+        const chCounts = {};
+        d.m.forEach(m => { const ch = `CH${m.channel??0}`; chCounts[ch] = (chCounts[ch]||0)+1; });
+        const chCard = document.getElementById('c-msgchan');
+        if (chCard) {
+            const colors = [C.green,C.cyan,C.purple,C.orange,C.blue,C.teal,C.pink,C.red];
+            V(buildPie('ch-msgchan','c-msgchan',Object.keys(chCounts),Object.values(chCounts),
+                Object.keys(chCounts).map((_,i)=>colors[i%colors.length])));
+        }
+    }
+    
+    // No data message
+    document.getElementById('no-data-msg').classList.toggle('show', vis === 0);
+    
+    // Sync section visibility
+    syncSectionVisibility();
+}
+
+/* ── Load node history ── */
+async function loadNodeHistory(nid) {
+    if (!nid) return;
+    _token++;
+    const token = _token;
+    
+    const loading = document.getElementById('loading');
+    loading.classList.add('show');
+    
+    let q = 'limit=5000';
+    if (_selectedHours > 0) q += `&start=${Math.floor(Date.now()/1000 - _selectedHours*3600)}`;
+    const sq = `&slot_id=${encodeURIComponent(_activeSlotId)}`;
+    
+    try {
+        const [telemetry, positions, packets, neighbors, traceroutes, messages, meshMetrics] = await Promise.all([
+            fetch(`${API_BASE}/api/nodes/${nid}/history/telemetry?${q}${sq}`).then(r=>r.ok?r.json():[]),
+            fetch(`${API_BASE}/api/nodes/${nid}/history/positions?${q}${sq}`).then(r=>r.ok?r.json():[]),
+            fetch(`${API_BASE}/api/nodes/${nid}/history/packets?${q}${sq}`).then(r=>r.ok?r.json():[]),
+            fetch(`${API_BASE}/api/neighbors?slot_id=${_activeSlotId}`).then(r=>r.ok?r.json():[]),
+            fetch(`${API_BASE}/api/traceroutes?limit=500&slot_id=${_activeSlotId}`).then(r=>r.ok?r.json():[]),
+            Promise.all([
+                fetch(`${API_BASE}/api/messages/history?from_id=${encodeURIComponent(nid)}&limit=2000${sq}`).then(r=>r.ok?r.json():[]),
+                fetch(`${API_BASE}/api/messages/history?to_id=${encodeURIComponent(nid)}&limit=2000${sq}`).then(r=>r.ok?r.json():[]),
+            ]).then(([sent,recv]) => {
+                const seen = new Set();
+                return [...sent,...recv].filter(m => {
+                    const k = m.id || m.packet_event_id || `${m.timestamp}${m.text}`;
+                    if (seen.has(k)) return false;
+                    seen.add(k);
+                    return true;
+                }).sort((a,b)=>a.timestamp-b.timestamp);
+            }),
+            fetch(`${API_BASE}/api/metrics/averages?limit=1${sq}`).then(r=>r.ok?r.json():null).catch(()=>null),
+        ]);
+        
+        if (token !== _token) return; // Cancelled
+        
+        const meshAvg = meshMetrics?.most_recent?.average_snr ?? null;
+        const sort = arr => Array.isArray(arr) ? [...arr].sort((a,b)=>a.timestamp-b.timestamp) : [];
+        
+        const d = {
+            t: sort(telemetry),
+            p: sort(positions),
+            k: sort(packets),
+            m: messages,
+            neighbors: Array.isArray(neighbors) ? neighbors.filter(n=>n.node_id===nid||n.neighbor_id===nid) : [],
+            traceroutes: Array.isArray(traceroutes) ? traceroutes.filter(t=>t.from_id===nid||t.to_id===nid) : [],
+            meshAvg,
+        };
+        
+        _cachedData = d;
+        updateHeaderStats(nid);
+        renderDataBadges(d);
+        renderInsights(d, nid);
+        renderCharts(d, nid);
+        
+    } catch(e) {
+        console.error('Analytics load error:', e);
+    } finally {
+        if (token === _token) loading.classList.remove('show');
+    }
+}
+
+/* ── Export CSV ── */
+function exportCSV() {
+    if (!_cachedData || !_selectedNodeId) return;
+    const d = _cachedData;
+    
+    if (d.t.length) {
+        const keys = Object.keys(d.t[0]);
+        const csv = [keys.join(','), ...d.t.map(r=>keys.map(k=>JSON.stringify(r[k]??'')).join(','))].join('\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+        a.download = `telemetry_${_selectedNodeId}_${Date.now()}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    }
+}
+
+/* ── Event listeners ── */
+document.getElementById('slot-sel').addEventListener('change', e => {
+    _activeSlotId = e.target.value || 'node_0';
+    loadNodes();
+    if (_selectedNodeId) loadNodeHistory(_selectedNodeId);
+});
+
+document.getElementById('node-filter').addEventListener('input', renderSidebar);
+
+document.getElementById('refresh-btn').addEventListener('click', () => {
+    loadNodes();
+    if (_selectedNodeId) loadNodeHistory(_selectedNodeId);
+});
+
+document.getElementById('export-btn').addEventListener('click', exportCSV);
+
+document.querySelectorAll('.time-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+        document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        _selectedHours = parseInt(e.target.dataset.hours);
+        if (_selectedNodeId) loadNodeHistory(_selectedNodeId);
+    });
+});
+
+/* ── Init ── */
+(async () => {
+    await loadSlots();
+    await loadNodes();
+})();
+</script>
+</body>
+</html>

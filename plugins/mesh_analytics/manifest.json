@@ -1,0 +1,18 @@
+{
+  "id": "mesh_analytics",
+  "name": "Mesh Analytics",
+  "version": "2.0.1",
+  "author": "MeshDash",
+  "description": "Comprehensive mesh analytics with node scoring, RF analysis, topology mapping, health monitoring, environmental sensors, and exportable reports.",
+  "watchdog": true,
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/mesh_analytics",
+  "static_prefix": "/static/plugins/mesh_analytics",
+  "nav_menu": [
+    {
+      "label": "Mesh Analytics",
+      "href": "/plugin/mesh_analytics/index.html",
+      "icon": "fa-chart-line"
+    }
+  ]
+}

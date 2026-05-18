@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Push Notifications Bridge</title>
+<style>body{margin:0;padding:0;background:transparent;}</style>
+</head>
+<body>
+<script>
+'use strict';
+
+/*
+ * Push Notifications Bridge v2.1
+ *
+ * Uses PluginBridge.onPacket() → real-time SSE stream.
+ * Evaluates EVERY packet against the user's rule set.
+ * Posts to /notify when a push should fire.
+ * Posts to /log for every evaluated packet (live log on plugin page).
+ *
+ * Packet shape (from add_packet → SSE broadcast):
+ *   p.app_packet_type    — "Message","Position","Telemetry","Node Info",
+ *                          "Traceroute","Ack","Paxcounter","Detection",
+ *                          "Waypoint","Range Test","Serial","Neighbor Info",
+ *                          "Routing Error","Admin","Encrypted","Unknown"
+ *   p.fromId / p.from_id — "!deadbeef"
+ *   p.toId   / p.to_id   — "!deadbeef" | "^all" | 4294967295
+ *   p.channel            — int (0 = primary)
+ *   p.decoded.text       — message body (TEXT_MESSAGE_APP)
+ *   p.decoded.telemetry  — { deviceMetrics: {batteryLevel,...} }
+ *   p.decoded.position   — { latitude, longitude, altitude }
+ *   p.decoded.waypoint   — { name, ... }
+ *   p.decoded.paxcounter — { wifi, ble, total }
+ *   p.decoded.detection  — { detectionSensor }
+ *   p.event_id           — unique per-packet ID for dedup
+ *   p.rxSnr / p.rxRssi   — signal quality
+ */
+
+const BASE        = '/api/plugins/push_notifications';
+const NOTIFY_URL  = BASE + '/notify';
+const LOG_URL     = BASE + '/log';
+const CONFIG_URL  = BASE + '/config';
+
+var _cfg = null;
+var _seen = new Set();        // dedup by event_id
+var _knownNodes = new Set();  // for node-online detection
+
+/* ── Wait for PluginBridge ── */
+function _waitForBridge(cb) {
+    if (window.parent && typeof window.parent.PluginBridge === 'object') {
+        cb(window.parent.PluginBridge);
+    } else {
+        setTimeout(function() { _waitForBridge(cb); }, 150);
+    }
+}
+
+/* ── Config ── */
+async function _loadCfg() {
+    try {
+        var r = await fetch(CONFIG_URL, { credentials:'include', cache:'no-store' });
+        if (r.ok) _cfg = await r.json();
+    } catch(e) {}
+}
+
+/* ── Parent helpers ── */
+function _localIds() {
+    try {
+        var ids = new Set();
+        var ms  = window.parent.meshState;
+        if (ms.local_node_id) ids.add(ms.local_node_id);
+        Object.values(ms.nodes||{}).forEach(function(n) {
+            if ((n.isLocal || n.is_local) && n.node_id) ids.add(n.node_id);
+        });
+        return ids;
+    } catch(e) { return new Set(); }
+}
+
+function _nodeName(id) {
+    try {
+        var n = window.parent.meshState.nodes[id];
+        return n && (n.user && (n.user.longName || n.user.shortName)) || n.long_name || n.short_name || id;
+    } catch(e) { return id || 'Unknown'; }
+}
+
+/* ── Text extraction — mirrors _classify get_text ── */
+function _getText(p) {
+    var d = p.decoded || {};
+    return d.text || d.payload || d.message || d.string || null;
+}
+
+/* ── Keyword match ── */
+function _matchKw(text) {
+    if (!_cfg.notify_on_keyword || !_cfg.keywords || !_cfg.keywords.length) return null;
+    var lower = (text||'').toLowerCase();
+    for (var i = 0; i < _cfg.keywords.length; i++) {
+        if (lower.includes(_cfg.keywords[i].toLowerCase())) return _cfg.keywords[i];
+    }
+    return null;
+}
+
+/* ── Main evaluator ── */
+async function _evaluate(p) {
+    if (!p || !_cfg || !_cfg.enabled) return;
+
+    /* Dedup */
+    var pid = p.event_id || (p.id ? 'id_'+p.id : null);
+    if (pid) {
+        if (_seen.has(pid)) return;
+        _seen.add(pid);
+        if (_seen.size > 600) {
+            var arr = Array.from(_seen);
+            _seen = new Set(arr.slice(arr.length - 300));
+        }
+    }
+
+    var ptype   = p.app_packet_type || 'Unknown';
+    var fromId  = p.fromId || p.from_id || '';
+    var toId    = p.toId   || p.to_id   || '';
+    var channel = typeof p.channel === 'number' ? p.channel : 0;
+    var localIds = _localIds();
+
+    /* Skip our own transmissions */
+    if (fromId && localIds.has(fromId)) return;
+
+    var notify   = false;
+    var title    = 'MeshDash';
+    var body     = '';
+    var tag      = 'meshdash';
+    var isDM     = false;
+    var reason   = 'no matching rule';
+    var summary  = ptype + ' from ' + (fromId || '?');
+
+    /* ── Node online detection ── */
+    if (_cfg.notify_node_online && fromId && !_knownNodes.has(fromId)) {
+        _knownNodes.add(fromId);
+        /* Only fire if this is a "real" packet, not just a startup import */
+        if (Date.now()/1000 - (p.timestamp||0) < 60) {
+            notify  = true;
+            title   = '📡 Node Online';
+            body    = _nodeName(fromId) + ' (' + fromId + ') just appeared on the mesh.';
+            tag     = 'meshdash-online-' + fromId;
+            reason  = 'node_online';
+            summary = 'First packet from ' + fromId;
+        }
+    } else if (fromId) {
+        _knownNodes.add(fromId);
+    }
+
+    /* ── Message packets ── */
+    if (ptype === 'Message') {
+        var text        = _getText(p);
+        if (!text) { _log(p, ptype, fromId, toId, channel, 'no text', false, 'empty_message'); return; }
+        var isBroadcast = toId === '^all' || toId === 'ffffffff' || toId === 4294967295;
+        isDM            = !isBroadcast && !!toId && localIds.has(toId);
+        var senderName  = _nodeName(fromId);
+        summary         = senderName + ': ' + text.slice(0, 80);
+
+        if (isDM && _cfg.notify_dms) {
+            notify = true;
+            title  = '🔒 Direct Message';
+            body   = senderName + ': ' + text.slice(0, 200);
+            tag    = 'meshdash-dm-' + fromId;
+            reason = 'dm';
+        } else if (isBroadcast) {
+            /* Check broadcast / channel filter */
+            var chOk = _cfg.notify_broadcasts
+                || (_cfg.notify_channels && _cfg.notify_channels.length === 0 && _cfg.notify_broadcasts)
+                || (_cfg.notify_channels && _cfg.notify_channels.includes(channel));
+
+            if (chOk) {
+                notify = true;
+                title  = channel === 0 ? '📡 Mesh Broadcast' : '📡 Channel ' + channel;
+                body   = senderName + ': ' + text.slice(0, 200);
+                tag    = 'meshdash-ch-' + channel;
+                reason = 'broadcast_ch' + channel;
+            }
+
+            /* Keyword match — fires even without broadcast enabled */
+            if (!notify) {
+                var kw = _matchKw(text);
+                if (kw) {
+                    notify = true;
+                    title  = '⚠️ KEYWORD: ' + kw.toUpperCase();
+                    body   = senderName + ': ' + text.slice(0, 200);
+                    tag    = 'meshdash-kw';
+                    reason = 'keyword:' + kw;
+                }
+            }
+
+            /* SOS check — always fires regardless of rules when keyword "sos" or "mayday" */
+            if (!notify && /(sos|mayday)/i.test(text)) {
+                notify = true;
+                title  = '🆘 SOS ALERT';
+                body   = senderName + ': ' + text.slice(0, 200);
+                tag    = 'meshdash-sos';
+                reason = 'sos_always';
+            }
+        }
+    }
+
+    /* ── Position packets ── */
+    else if (ptype === 'Position' && _cfg.notify_position) {
+        var pos  = (p.decoded||{}).position || {};
+        var lat  = pos.latitude || p.decoded && p.decoded.latitude;
+        var lon  = pos.longitude || p.decoded && p.decoded.longitude;
+        var name = _nodeName(fromId);
+        if (lat && lon) {
+            notify  = true;
+            title   = '📍 Position Update';
+            body    = name + ' @ ' + parseFloat(lat).toFixed(4) + ', ' + parseFloat(lon).toFixed(4);
+            tag     = 'meshdash-pos-' + fromId;
+            reason  = 'position';
+            summary = name + ' @ ' + parseFloat(lat).toFixed(4) + ', ' + parseFloat(lon).toFixed(4);
+        }
+    }
+
+    /* ── Telemetry packets ── */
+    else if (ptype === 'Telemetry') {
+        var tel   = (p.decoded||{}).telemetry || {};
+        var dm    = tel.deviceMetrics || {};
+        var bat   = dm.batteryLevel != null ? dm.batteryLevel : null;
+        var name  = _nodeName(fromId);
+        summary   = name + ' — bat:' + (bat != null ? bat+'%' : '?');
+
+        if (_cfg.notify_telemetry) {
+            if (_cfg.telemetry_any) {
+                notify = true;
+                title  = '📊 Telemetry';
+                body   = name + ' — Battery: ' + (bat != null ? bat+'%' : 'unknown');
+                tag    = 'meshdash-tel-' + fromId;
+                reason = 'telemetry_any';
+            } else if (bat != null && bat <= _cfg.telemetry_battery_threshold) {
+                notify = true;
+                title  = '🔋 LOW BATTERY';
+                body   = name + ' battery critical: ' + bat + '%';
+                tag    = 'meshdash-bat-' + fromId;
+                reason = 'battery_low:' + bat;
+            }
+        }
+    }
+
+    /* ── Traceroute ── */
+    else if (ptype === 'Traceroute' && _cfg.notify_traceroute) {
+        var name  = _nodeName(fromId);
+        var route = (p.decoded||{}).route || (p.decoded||{}).traceroute || {};
+        var hops  = (route.route||[]).length;
+        notify  = true;
+        title   = '🔗 Traceroute Result';
+        body    = name + ' → ' + hops + ' hop(s)';
+        tag     = 'meshdash-tr';
+        reason  = 'traceroute';
+        summary = name + ' traceroute ' + hops + ' hops';
+    }
+
+    /* ── Paxcounter ── */
+    else if (ptype === 'Paxcounter' && _cfg.notify_paxcounter) {
+        var pax   = (p.decoded||{}).paxcounter || {};
+        var total = (pax.wifi||0) + (pax.ble||0);
+        var name  = _nodeName(fromId);
+        notify  = true;
+        title   = '👥 Paxcounter';
+        body    = name + ': ' + total + ' devices detected (WiFi:' + (pax.wifi||0) + ' BLE:' + (pax.ble||0) + ')';
+        tag     = 'meshdash-pax-' + fromId;
+        reason  = 'paxcounter:' + total;
+        summary = name + ' pax:' + total;
+    }
+
+    /* ── Detection sensor ── */
+    else if (ptype === 'Detection' && _cfg.notify_detection) {
+        var det  = (p.decoded||{}).detection || {};
+        var name = _nodeName(fromId);
+        notify  = true;
+        title   = '🚨 Detection Sensor';
+        body    = name + ': motion/sensor trigger';
+        tag     = 'meshdash-det-' + fromId;
+        reason  = 'detection';
+        summary = name + ' detection event';
+    }
+
+    /* ── Waypoint ── */
+    else if (ptype === 'Waypoint' && _cfg.notify_waypoint) {
+        var wp   = (p.decoded||{}).waypoint || {};
+        var name = _nodeName(fromId);
+        notify  = true;
+        title   = '📌 Waypoint';
+        body    = name + ' shared waypoint: ' + (wp.name||'Unnamed');
+        tag     = 'meshdash-wp';
+        reason  = 'waypoint';
+        summary = 'Waypoint: ' + (wp.name||'Unnamed') + ' from ' + name;
+    }
+
+    /* ── Log this packet regardless ── */
+    _log(p, ptype, fromId, toId, channel, summary, notify, reason);
+
+    /* ── Fire push if matched ── */
+    if (notify) {
+        try {
+            await fetch(NOTIFY_URL, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title:       title,
+                    body:        body,
+                    url:         '/',
+                    tag:         tag,
+                    is_dm:       isDM,
+                    packet_type: ptype,
+                    from_id:     fromId,
+                    channel:     channel,
+                }),
+            });
+        } catch(e) {
+            console.warn('[PushNotif] notify POST failed:', e);
+        }
+    }
+}
+
+/* ── Log to backend ── */
+function _log(p, ptype, fromId, toId, channel, summary, notified, reason) {
+    fetch(LOG_URL, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ts:          p.timestamp || (Date.now()/1000),
+            packet_type: ptype,
+            from_id:     fromId || '',
+            to_id:       String(toId || ''),
+            channel:     channel,
+            summary:     (summary || '').slice(0, 120),
+            notified:    !!notified,
+            reason:      reason || '',
+        }),
+    }).catch(function() {});
+}
+
+/* ── Boot ── */
+_waitForBridge(function(PB) {
+    _loadCfg().then(function() {
+
+        /* Seed known nodes so we don't fire "online" for all existing nodes */
+        try {
+            Object.keys(window.parent.meshState.nodes || {}).forEach(function(nid) {
+                _knownNodes.add(nid);
+            });
+        } catch(e) {}
+
+        PB.onPacket(function(p) {
+            _evaluate(p).catch(function(e) {
+                console.warn('[PushNotif] evaluate error:', e);
+            });
+        });
+
+        /* Refresh config every 30s */
+        setInterval(_loadCfg, 30000);
+
+        console.log('[Push Notifications Bridge] v2.1 ready. enabled=' + (_cfg&&_cfg.enabled));
+    });
+});
+</script>
+</body>
+</html>

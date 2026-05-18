@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - Rusjp MeshDash</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link href="/static/css/theme.css" rel="stylesheet">
+
+<style>
+/* ─── RESET ─── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    height: 100vh;
+    font-family: var(--sans);
+    background-color: var(--bg);
+    color: var(--txt);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    position: relative;
+}
+
+/* ─── BACKGROUND EFFECTS ─── */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+        repeating-linear-gradient(0deg, transparent 0, transparent 2px, rgba(0, 0, 0, 0.1) 2px, rgba(0, 0, 0, 0.1) 4px),
+        radial-gradient(circle at 50% 0%, var(--bg2) 0%, var(--bg) 80%);
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* ─── LOGIN CARD ─── */
+.login-card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--bg1);
+    border: 1px solid var(--bd2);
+    border-radius: var(--r);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Top accent line */
+.login-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 2px;
+    background: var(--acc);
+    box-shadow: 0 0 10px var(--acc);
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── HEADER ─── */
+.card-header {
+    padding: 15px 20px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--bd2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.brand {
+    font-family: var(--mono);
+    color: var(--acc);
+    font-weight: 700;
+    letter-spacing: 1px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--txt3);
+    border: 1px solid var(--bd2);
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+/* ─── BODY ─── */
+.card-body {
+    padding: 30px 25px;
+}
+
+h1 {
+    font-family: var(--mono);
+    color: var(--txt);
+    font-size: 22px;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 5px;
+    font-weight: 400;
+}
+
+h1 span { color: var(--acc); }
+
+.subtitle {
+    text-align: center;
+    color: var(--txt2);
+    font-size: 12px;
+    margin-bottom: 25px;
+}
+
+/* ─── FORMS ─── */
+.form-group {
+    margin-bottom: 18px;
+    position: relative;
+}
+
+label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--txt2);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+}
+
+.input-wrapper {
+    position: relative;
+}
+
+.input-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--txt3);
+    font-size: 12px;
+    transition: color 0.3s;
+}
+
+input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--bd2);
+    color: var(--txt);
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 10px 10px 10px 35px; /* space for icon */
+    border-radius: var(--r);
+    outline: none;
+    transition: all 0.3s;
+}
+
+input:focus {
+    border-color: var(--acc);
+    box-shadow: 0 0 0 2px var(--acc-dim);
+}
+
+input:focus + .input-icon {
+    color: var(--acc);
+}
+
+/* ─── BUTTON ─── */
+.btn-login {
+    width: 100%;
+    background: var(--acc-dim);
+    color: var(--acc);
+    font-family: var(--sans);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 12px;
+    border: 1px solid rgba(0, 200, 245, 0.3);
+    border-radius: var(--r);
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.btn-login:hover {
+    background: rgba(0, 200, 245, 0.15);
+    border-color: var(--acc);
+    box-shadow: 0 0 15px var(--acc-dim);
+}
+
+.btn-login:active {
+    transform: scale(0.98);
+}
+
+/* ─── ALERTS ─── */
+#notification-area {
+    margin-bottom: 20px;
+    display: none; /* STRICTLY HIDDEN BY DEFAULT */
+}
+
+.alert {
+    padding: 12px;
+    border-radius: var(--r);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: fadeIn 0.3s;
+}
+
+.alert-error {
+    background: var(--err-dim);
+    border: 1px solid rgba(255, 48, 80, 0.3);
+    color: var(--err);
+}
+
+.alert-info {
+    background: var(--acc-dim);
+    border: 1px solid rgba(0, 200, 245, 0.3);
+    color: var(--acc);
+}
+
+/* ─── FOOTER ─── */
+.card-footer {
+    padding: 15px;
+    background: var(--bg2);
+    border-top: 1px solid var(--bd2);
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--txt3);
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+</style>
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="Mesh Dash — Meshtastic Mesh Network Dashboard Login">
+    <meta property="og:title" content="Mesh Dash — Login">
+    <meta property="og:description" content="Login to your Meshtastic mesh dashboard">
+    <meta property="og:image" content="/static/icons/og-image.png">
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="card-header">
+            <div class="brand">
+                <i class="fas fa-cubes"></i> MESHDASH
+            </div>
+            <div class="status-badge">
+                <i class="fas fa-lock"></i> SECURE
+            </div>
+        </div>
+
+        <div class="card-body">
+            <h1>System <span>Access</span></h1>
+            <p class="subtitle">Enter credentials to initialize session.</p>
+
+            <div id="notification-area"></div>
+
+            <form id="loginForm" onsubmit="return false;">
+                <!-- Phase 1: Credentials -->
+                <div id="phase-credentials">
+                    <div class="form-group">
+                        <label for="username">Operator ID</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="username" name="username" required autocomplete="username" placeholder="admin">
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Passkey</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+                            <i class="fas fa-key input-icon"></i>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-login" id="submitBtn">
+                        Authenticate <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <!-- Phase 2: TOTP Verification (hidden by default) -->
+                <div id="phase-totp" style="display:none;">
+                    <div class="form-group">
+                        <label for="totp_code">Verification Code</label>
+                        <p class="subtitle" style="margin-bottom:12px;text-align:left;">Enter the 6-digit code from your authenticator app, or a backup code.</p>
+                        <div class="input-wrapper">
+                            <input type="text" id="totp_code" name="totp_code" autocomplete="one-time-code"
+                                   placeholder="000000" maxlength="8" inputmode="numeric"
+                                   style="text-align:center;letter-spacing:6px;font-size:20px;padding-left:10px;">
+                            <i class="fas fa-shield-halved input-icon"></i>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-login" id="totpSubmitBtn" onclick="submitTotp()">
+                        Verify <i class="fas fa-check"></i>
+                    </button>
+
+                    <div style="text-align:center;margin-top:12px;">
+                        <a href="#" onclick="resetToPhase1();return false;" style="color:var(--txt3);font-size:11px;font-family:var(--mono);text-decoration:none;">
+                            <i class="fas fa-arrow-left"></i> Back to login
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Phase 3: Forced MFA Setup (for new accounts with force_mfa) -->
+                <div id="phase-mfa-setup" style="display:none;">
+                    <div id="mfa-setup-step-qr">
+                        <div style="background:var(--acc-dim);border:1px solid rgba(0,200,245,0.3);border-radius:var(--r);padding:10px;margin-bottom:16px;font-size:11px;color:var(--acc);display:flex;align-items:flex-start;gap:8px;">
+                            <i class="fas fa-shield-halved" style="margin-top:2px;"></i>
+                            <span>Your administrator requires multi-factor authentication. Scan the QR code below with an authenticator app (Google Authenticator, Authy, etc) to continue.</span>
+                        </div>
+                        <div style="text-align:center;padding:8px;">
+                            <img id="setup-qr-img" src="" alt="QR Code" style="max-width:180px;border-radius:var(--r);border:2px solid var(--bd2);">
+                        </div>
+                        <p style="font-size:9px;color:var(--txt3);text-align:center;margin:8px 0 4px;">Or enter this key manually:</p>
+                        <div id="setup-manual-key" style="font-family:var(--mono);font-size:12px;color:var(--acc);letter-spacing:2px;text-align:center;padding:8px;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);cursor:pointer;margin-bottom:12px;word-break:break-all;"
+                             onclick="navigator.clipboard.writeText(this.textContent).then(()=>{this.style.borderColor='var(--ok)';setTimeout(()=>this.style.borderColor='var(--bd2)',1500);})"></div>
+                        <div class="form-group">
+                            <label>Confirm Setup</label>
+                            <p style="font-size:11px;color:var(--txt2);margin-bottom:8px;">Enter the 6-digit code from your authenticator app:</p>
+                            <div class="input-wrapper">
+                                <input type="text" id="setup_totp_code" autocomplete="one-time-code"
+                                       placeholder="000000" maxlength="6" inputmode="numeric"
+                                       style="text-align:center;letter-spacing:6px;font-size:20px;padding-left:10px;">
+                                <i class="fas fa-shield-halved input-icon"></i>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-login" id="setupConfirmBtn" onclick="confirmSetupTotp()">
+                            Activate MFA <i class="fas fa-check"></i>
+                        </button>
+                    </div>
+
+                    <!-- Backup codes display after successful setup -->
+                    <div id="mfa-setup-step-codes" style="display:none;">
+                        <div style="background:rgba(0,240,144,0.06);border:1px solid rgba(0,240,144,0.2);border-radius:var(--r);padding:10px;margin-bottom:12px;font-size:11px;color:var(--ok);display:flex;align-items:flex-start;gap:8px;">
+                            <i class="fas fa-circle-check" style="margin-top:2px;"></i>
+                            <span>MFA enabled successfully! Save these one-time backup codes somewhere safe. They will not be shown again.</span>
+                        </div>
+                        <div id="setup-codes-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:5px;margin:10px 0;"></div>
+                        <button type="button" class="btn-login" onclick="copySetupCodes()" style="margin-bottom:8px;">
+                            <i class="fas fa-copy"></i> Copy Codes
+                        </button>
+                        <button type="button" class="btn-login" id="setupDoneBtn" onclick="finishSetup()">
+                            Continue to Dashboard <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div class="card-footer">
+            &copy; <span id="year"></span> RUSJP MESHDASH SYSTEMS.
+        </div>
+    </div>
+
+<script nonce="meshdash-csp">
+    let _preauthToken = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('year').textContent = new Date().getFullYear();
+        const userInput = document.getElementById('username');
+        if(userInput) userInput.focus();
+
+        const params = new URLSearchParams(window.location.search);
+        const notifArea = document.getElementById('notification-area');
+        
+        function showNotification(type, text) {
+            if (!text || text.trim() === "") return;
+            const icon = type === 'error' ? 'fa-triangle-exclamation' : 'fa-circle-info';
+            const cssClass = type === 'error' ? 'alert-error' : 'alert-info';
+            notifArea.innerHTML = `
+                <div class="alert ${cssClass}">
+                    <i class="fas ${icon}"></i>
+                    <span>${text}</span>
+                </div>
+            `;
+            notifArea.style.display = 'block';
+        }
+        window._showNotification = showNotification;
+
+        const errorParam = params.get('error');
+        const msgParam = params.get('msg');
+        const logoutParam = params.get('logout');
+
+        if (errorParam && errorParam.trim() !== "") {
+            let errText = decodeURIComponent(errorParam);
+            if (errText === '1') errText = 'Invalid credentials provided.';
+            if (errText === 'timeout') errText = 'Session timed out.';
+            showNotification('error', errText);
+        } 
+        else if (msgParam && msgParam.trim() !== "") {
+            showNotification('info', decodeURIComponent(msgParam));
+        }
+        else if (logoutParam) {
+            showNotification('info', 'Session terminated successfully.');
+        }
+
+        // Intercept form submit for MFA-aware flow
+        const form = document.getElementById('loginForm');
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.innerHTML = 'Verifying <i class="fas fa-circle-notch fa-spin"></i>';
+            btn.style.opacity = '0.8';
+            btn.disabled = true;
+
+            const fd = new FormData(form);
+            try {
+                const res = await fetch('/login', { method: 'POST', body: fd, redirect: 'follow' });
+
+                // If the server returned a redirect (non-MFA), follow it
+                if (res.redirected) {
+                    window.location.href = res.url;
+                    return;
+                }
+
+                const data = await res.json();
+
+                if (data.mfa_required && data.preauth_token) {
+                    // Transition to Phase 2 — existing MFA verification
+                    _preauthToken = data.preauth_token;
+                    document.getElementById('phase-credentials').style.display = 'none';
+                    document.getElementById('phase-totp').style.display = 'block';
+                    document.getElementById('notification-area').style.display = 'none';
+                    document.querySelector('h1').innerHTML = 'MFA <span>Verify</span>';
+                    document.querySelector('.subtitle').textContent = '';
+                    const totpInput = document.getElementById('totp_code');
+                    totpInput.value = '';
+                    totpInput.focus();
+                } else if (data.mfa_setup_required && data.preauth_token) {
+                    // Transition to Phase 3 — forced MFA setup for new accounts
+                    _preauthToken = data.preauth_token;
+                    document.getElementById('phase-credentials').style.display = 'none';
+                    document.getElementById('notification-area').style.display = 'none';
+                    document.querySelector('h1').innerHTML = 'MFA <span>Setup</span>';
+                    document.querySelector('.subtitle').textContent = '';
+                    startForcedMfaSetup();
+                } else if (data.error) {
+                    showNotification('error', data.error);
+                }
+            } catch (err) {
+                showNotification('error', 'Connection error. Try again.');
+            } finally {
+                btn.innerHTML = 'Authenticate <i class="fas fa-arrow-right"></i>';
+                btn.style.opacity = '1';
+                btn.disabled = false;
+            }
+        });
+
+        // Allow Enter key in TOTP field
+        document.getElementById('totp_code').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); submitTotp(); }
+        });
+        document.getElementById('setup_totp_code').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); confirmSetupTotp(); }
+        });
+    });
+
+    async function submitTotp() {
+        const btn = document.getElementById('totpSubmitBtn');
+        const code = document.getElementById('totp_code').value.trim();
+        if (!code) return;
+
+        btn.innerHTML = 'Verifying <i class="fas fa-circle-notch fa-spin"></i>';
+        btn.disabled = true;
+
+        const fd = new FormData();
+        fd.append('preauth_token', _preauthToken);
+        fd.append('totp_code', code);
+
+        try {
+            const res = await fetch('/login/verify-totp', { method: 'POST', body: fd });
+            const data = await res.json();
+
+            if (data.success) {
+                window.location.href = data.redirect || '/';
+            } else {
+                window._showNotification('error', data.error || 'Invalid code.');
+                document.getElementById('totp_code').value = '';
+                document.getElementById('totp_code').focus();
+            }
+        } catch (err) {
+            window._showNotification('error', 'Connection error. Try again.');
+        } finally {
+            btn.innerHTML = 'Verify <i class="fas fa-check"></i>';
+            btn.disabled = false;
+        }
+    }
+
+    function resetToPhase1() {
+        _preauthToken = null;
+        document.getElementById('phase-credentials').style.display = 'block';
+        document.getElementById('phase-totp').style.display = 'none';
+        document.getElementById('phase-mfa-setup').style.display = 'none';
+        document.getElementById('notification-area').style.display = 'none';
+        document.querySelector('h1').innerHTML = 'System <span>Access</span>';
+        document.querySelector('.subtitle').textContent = 'Enter credentials to initialize session.';
+        document.getElementById('password').value = '';
+        document.getElementById('username').focus();
+    }
+
+    // --- Phase 3: Forced MFA Setup ---
+    let _setupBackupCodes = [];
+    let _setupRedirect = '/';
+
+    async function startForcedMfaSetup() {
+        document.getElementById('phase-mfa-setup').style.display = 'block';
+        document.getElementById('mfa-setup-step-qr').style.display = 'block';
+        document.getElementById('mfa-setup-step-codes').style.display = 'none';
+
+        const fd = new FormData();
+        fd.append('preauth_token', _preauthToken);
+        try {
+            const res = await fetch('/login/setup-totp', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.error) {
+                window._showNotification('error', data.error);
+                return;
+            }
+            document.getElementById('setup-qr-img').src = data.qr_code;
+            document.getElementById('setup-manual-key').textContent = data.secret;
+            document.getElementById('setup_totp_code').value = '';
+            document.getElementById('setup_totp_code').focus();
+        } catch (err) {
+            window._showNotification('error', 'Failed to start MFA setup. Try logging in again.');
+        }
+    }
+
+    async function confirmSetupTotp() {
+        const code = document.getElementById('setup_totp_code').value.trim();
+        if (!code || code.length !== 6) {
+            window._showNotification('error', 'Enter a valid 6-digit code.');
+            return;
+        }
+        const btn = document.getElementById('setupConfirmBtn');
+        btn.innerHTML = 'Verifying <i class="fas fa-circle-notch fa-spin"></i>';
+        btn.disabled = true;
+
+        const fd = new FormData();
+        fd.append('preauth_token', _preauthToken);
+        fd.append('totp_code', code);
+        try {
+            const res = await fetch('/login/confirm-totp-setup', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                _setupBackupCodes = data.backup_codes || [];
+                _setupRedirect = data.redirect || '/';
+                // Show backup codes
+                const grid = document.getElementById('setup-codes-grid');
+                grid.innerHTML = _setupBackupCodes.map(c =>
+                    `<div style="font-family:var(--mono);font-size:12px;padding:5px 8px;background:var(--bg);border:1px solid var(--bd2);border-radius:3px;text-align:center;color:var(--ok);letter-spacing:1px;">${c}</div>`
+                ).join('');
+                document.getElementById('mfa-setup-step-qr').style.display = 'none';
+                document.getElementById('mfa-setup-step-codes').style.display = 'block';
+                document.querySelector('h1').innerHTML = 'MFA <span>Active</span>';
+            } else {
+                window._showNotification('error', data.error || 'Invalid code.');
+                document.getElementById('setup_totp_code').value = '';
+                document.getElementById('setup_totp_code').focus();
+            }
+        } catch (err) {
+            window._showNotification('error', 'Connection error. Try again.');
+        } finally {
+            btn.innerHTML = 'Activate MFA <i class="fas fa-check"></i>';
+            btn.disabled = false;
+        }
+    }
+
+    function copySetupCodes() {
+        navigator.clipboard.writeText(_setupBackupCodes.join('\n')).then(() => {
+            window._showNotification('info', 'Backup codes copied to clipboard.');
+        });
+    }
+
+    function finishSetup() {
+        window.location.href = _setupRedirect;
+    }
+</script>
+
+</body>
+</html>

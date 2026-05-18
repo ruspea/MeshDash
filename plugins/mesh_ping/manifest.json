@@ -1,0 +1,22 @@
+{
+  "id": "mesh_ping",
+  "name": "Mesh Ping",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Active round-trip ping sessions with RTT measurement. Launch from the UI or trigger via DM command (ping 5). Tracks ACK rate, min/avg/max RTT, and sends a summary DM back to the requester. Live session dashboard with per-ping dot timeline and sparkline charts.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/mesh_ping",
+  "static_prefix": "/static/plugins/mesh_ping",
+  "bridge": "bridge.html",
+  "permissions": [
+    "modal_tabs"
+  ],
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Mesh Ping",
+      "icon": "fa-satellite-dish",
+      "href": "/plugin/mesh_ping/index.html"
+    }
+  ]
+}

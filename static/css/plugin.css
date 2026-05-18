@@ -1,0 +1,578 @@
+/* ==========================================================================
+   MeshDash Plugin Design System — shared plugin.css v1.2
+   Self-contained design system for all MeshDash plugins.
+   Includes :root design tokens matching theme.css.
+   Plugins should link this first, then override only what they need.
+   ========================================================================== */
+
+/* ── Design tokens (matches dashboard theme.css) ── */
+:root {
+    --acc:       #00c8f5;
+    --acc-glow:  rgba(0, 200, 245, 0.18);
+    --acc-dim:   rgba(0, 200, 245, 0.06);
+    --acc-mid:   rgba(0, 200, 245, 0.12);
+    --ok:        #00e87a;
+    --ok-glow:   rgba(0, 232, 122, 0.18);
+    --warn:      #ffa826;
+    --warn-glow: rgba(255, 168, 38, 0.18);
+    --amb:       #ffa826;
+    --amb-dim:   rgba(255, 168, 38, 0.1);
+    --amb-glow:  rgba(255, 168, 38, 0.18);
+    --err:       #ff3050;
+    --err-glow:  rgba(255, 48, 80, 0.18);
+    --pur:       #b060ff;
+    --pur-glow:  rgba(176, 96, 255, 0.18);
+    --bg:  #0a1018;
+    --bg1: #0d1520;
+    --bg2: #111a28;
+    --bg3: #162030;
+    --bg4: #1c2a3c;
+    --bd:  #1e3048;
+    --bd2: #284058;
+    --bd3: #305878;
+    --txt:  #9bb5cf;
+    --txt2: #b8c8d8;
+    --txt3: #88a0b8;
+    --mono: 'Share Tech Mono', 'Fira Code', monospace;
+    --sans: 'Exo 2', -apple-system, BlinkMacSystemFont, sans-serif;
+    --r:   6px;
+    --header-h: 50px;
+    --term-h:   32px;
+    --glow-sm:  0 0 8px;
+    --glow-md:  0 0 16px;
+    --glow-lg:  0 0 24px;
+}
+
+/* ── Layout ── */
+.plugin-shell {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.plugin-header {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px 10px;
+    border-bottom: 1px solid var(--bd2);
+    background: var(--bg);
+}
+
+.plugin-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 14px 20px;
+}
+.plugin-scroll::-webkit-scrollbar { width: 4px; }
+.plugin-scroll::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 2px; }
+.plugin-scroll::-webkit-scrollbar-thumb:hover { background: var(--acc); }
+
+/* ── Plugin page header ── */
+.ph { display: flex; align-items: center; gap: 10px; }
+.ph-ico { font-size: 18px; color: var(--acc); }
+.ph-title { font-size: 14px; font-family: var(--mono); letter-spacing: 1px; color: var(--txt); }
+.ph-sub { font-size: 9px; color: var(--txt3); font-family: var(--mono); }
+
+/* ── Sections ── */
+.plugin-section { margin-bottom: 14px; }
+.plugin-section-title {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--acc);
+    padding: 4px 0 4px 6px;
+    border-left: 2px solid var(--acc);
+    background: rgba(0,200,245,.04);
+    margin-bottom: 8px;
+}
+
+/* ── Form layout ── */
+.plugin-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+.plugin-row-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--txt2);
+    min-width: 120px;
+    letter-spacing: .4px;
+    white-space: nowrap;
+}
+.plugin-row-help {
+    font-size: 9px;
+    color: var(--txt3);
+    font-family: var(--mono);
+    margin-top: 3px;
+}
+
+/* ── Grid helpers ── */
+.plugin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+    gap: 10px;
+}
+.plugin-card {
+    background: var(--bg2);
+    border: 1px solid var(--bd2);
+    border-radius: var(--r);
+    padding: 14px;
+    position: relative;
+    transition: border-color .12s;
+}
+.plugin-card:hover { border-color: var(--bd3); }
+
+/* ── Typography ── */
+.plugin-title {
+    font-size: 14px;
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--txt);
+    letter-spacing: .5px;
+    margin-bottom: 6px;
+}
+.plugin-label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--txt2);
+    letter-spacing: .4px;
+    margin-bottom: 4px;
+}
+.plugin-help {
+    font-size: 9px;
+    color: var(--txt3);
+    font-family: var(--mono);
+    margin-top: 3px;
+    line-height: 1.5;
+}
+.plugin-mono { font-family: var(--mono); }
+.plugin-value {
+    font-size: 20px;
+    font-weight: 900;
+    font-family: var(--mono);
+    color: var(--txt);
+}
+
+/* ── Stat blocks ── */
+.plugin-stat {
+    text-align: center;
+    background: var(--bg3);
+    border: 1px solid var(--bd2);
+    border-radius: var(--r);
+    padding: 16px 10px;
+    position: relative;
+}
+.plugin-stat-value {
+    font-size: 32px;
+    font-weight: 800;
+    font-family: var(--mono);
+    color: var(--txt);
+    line-height: 1;
+}
+.plugin-stat-label {
+    font-size: 9px;
+    color: var(--txt3);
+    margin-top: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+/* ── Form elements ── */
+.plugin-input,
+input[type="text"].plugin-input,
+input[type="number"].plugin-input,
+input[type="email"].plugin-input,
+input[type="password"].plugin-input,
+input[type="url"].plugin-input,
+input[type="search"].plugin-input,
+input[type="datetime-local"].plugin-input,
+input[type="date"].plugin-input,
+input[type="time"].plugin-input,
+textarea.plugin-input,
+select.plugin-input,
+select {
+    background: rgba(6, 11, 18, 0.7);
+    border: 1px solid var(--bd2);
+    color: var(--txt);
+    padding: 8px 12px;
+    border-radius: var(--r);
+    font-family: inherit;
+    font-size: 12px;
+    width: 100%;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+}
+.plugin-input:focus,
+input[type="text"].plugin-input:focus,
+textarea.plugin-input:focus,
+select.plugin-input:focus,
+select:focus {
+    outline: none;
+    border-color: var(--acc);
+    box-shadow: 0 0 0 3px rgba(0,200,245,.10), 0 0 0 1px rgba(0,200,245,.35);
+}
+.plugin-input:hover:not(:focus),
+select:hover:not(:focus) { border-color: var(--bd3); }
+.plugin-input.mono,
+.plugin-input[type="text"].mono { font-family: var(--mono); }
+
+.plugin-input[type="number"]::-webkit-inner-spin-button,
+.plugin-input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.plugin-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a6a88'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 28px;
+    cursor: pointer;
+}
+
+/* Range */
+.plugin-range {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    width: 100%;
+    height: 20px;
+    padding: 0;
+    cursor: pointer;
+}
+.plugin-range::-webkit-slider-runnable-track {
+    height: 4px;
+    background: var(--bd2);
+    border-radius: 2px;
+}
+.plugin-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    background: var(--acc);
+    border-radius: 50%;
+    border: 2px solid var(--bg);
+    margin-top: -5px;
+    box-shadow: var(--glow-sm) rgba(0,200,245,0.4);
+}
+.plugin-range::-moz-range-track {
+    height: 4px; background: var(--bd2); border-radius: 2px;
+}
+.plugin-range::-moz-range-thumb {
+    width: 14px; height: 14px; background: var(--acc);
+    border-radius: 50%; border: 2px solid var(--bg);
+}
+
+/* Checkbox / radio via .plugin-input */
+input[type="checkbox"].plugin-input,
+input[type="radio"].plugin-input {
+    width: 16px; height: 16px;
+    accent-color: var(--acc);
+    cursor: pointer;
+}
+
+/* Buttons */
+.plugin-btn {
+    background: var(--bg3);
+    color: var(--txt);
+    border: 1px solid var(--bd2);
+    padding: 8px 16px;
+    border-radius: var(--r);
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 700;
+    transition: all .15s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: var(--sans);
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.plugin-btn:hover { background: var(--bd2); color: var(--txt); border-color: var(--txt3); }
+.plugin-btn:active { transform: scale(0.97); }
+.plugin-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.plugin-btn-sm { padding: 4px 10px; font-size: 9px; }
+.plugin-btn-lg { padding: 12px 24px; font-size: 12px; }
+.plugin-btn-ghost {
+    background: transparent;
+    color: var(--acc);
+    border: 1px solid rgba(0,200,245,.35);
+}
+.plugin-btn-ghost:hover {
+    background: var(--acc-dim);
+    border-color: var(--acc);
+}
+.plugin-btn-danger {
+    background: rgba(255,48,80,.08);
+    color: var(--err);
+    border-color: rgba(255,48,80,.3);
+}
+.plugin-btn-danger:hover {
+    background: var(--err);
+    color: #fff;
+}
+
+/* Toggle switch */
+.plugin-toggle { position: relative; width: 40px; height: 20px; flex-shrink: 0; }
+.plugin-toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+.plugin-toggle-sl {
+    position: absolute; inset: 0;
+    background: var(--bd2);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .2s, box-shadow .2s;
+}
+.plugin-toggle-sl::after {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    left: 3px; top: 3px;
+    background: var(--txt3);
+    border-radius: 50%;
+    transition: all .2s;
+}
+.plugin-toggle input:checked + .plugin-toggle-sl {
+    background: var(--acc);
+    box-shadow: var(--glow-sm) rgba(0,200,245,0.35);
+}
+.plugin-toggle input:checked + .plugin-toggle-sl::after {
+    transform: translateX(20px);
+    background: #000;
+}
+
+/* ── Badges ── */
+.plugin-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: .3px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+.plugin-badge-ok {
+    color: var(--ok);
+    background: rgba(0,232,122,.1);
+    border-color: rgba(0,232,122,.2);
+}
+.plugin-badge-warn {
+    color: var(--warn);
+    background: rgba(255,168,38,.1);
+    border-color: rgba(255,168,38,.2);
+}
+.plugin-badge-err {
+    color: var(--err);
+    background: rgba(255,48,80,.1);
+    border-color: rgba(255,48,80,.2);
+}
+.plugin-badge-info {
+    color: var(--acc);
+    background: var(--acc-dim);
+    border-color: rgba(0,200,245,.2);
+}
+.plugin-badge-pur {
+    color: var(--pur);
+    background: rgba(176,96,255,.1);
+    border-color: rgba(176,96,255,.2);
+}
+
+/* Ribbons — for node cards */
+.plugin-ribbon {
+    position: absolute;
+    top: 20px;
+    right: -22px;
+    width: 90px;
+    text-align: center;
+    padding: 3px 0;
+    transform: rotate(45deg);
+    transform-origin: center;
+    font-family: var(--mono);
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: .5px;
+    white-space: nowrap;
+    line-height: 1.4;
+    pointer-events: auto;
+    cursor: default;
+    box-shadow: 0 2px 8px rgba(0,0,0,.6);
+    z-index: 1;
+}
+.plugin-ribbon-ok   { background: var(--ok);   color: #000; }
+.plugin-ribbon-warn { background: var(--warn); color: #000; }
+.plugin-ribbon-err  { background: var(--err);  color: #fff; }
+.plugin-ribbon-acc  { background: var(--acc);  color: #000; }
+.plugin-ribbon-pur  { background: var(--pur);  color: #fff; }
+
+/* ── Tables ── */
+.plugin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.plugin-table th {
+    text-align: left;
+    padding: 10px 12px;
+    background: rgba(0,0,0,.25);
+    color: var(--txt3);
+    font-size: 10px;
+    font-weight: 800;
+    white-space: nowrap;
+    font-family: var(--mono);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--bd2);
+}
+.plugin-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--bd);
+    vertical-align: middle;
+}
+.plugin-table tr:last-child td { border-bottom: none; }
+.plugin-table tr:hover td { background: rgba(0,200,245,.03); }
+
+/* Striped variant */
+.plugin-table-striped tr:nth-child(even) td { background: rgba(0,0,0,.15); }
+.plugin-table-striped tr:nth-child(even):hover td { background: rgba(0,200,245,.04); }
+
+/* ── Progress bar ── */
+.plugin-progress {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(0,0,0,.5);
+    position: relative;
+    min-width: 80px;
+    overflow: hidden;
+    border: 1px solid var(--bd);
+}
+.plugin-progress-fill {
+    position: absolute;
+    left: 0; top: 0;
+    height: 100%;
+    background: var(--acc);
+    border-radius: 3px;
+    transition: width .4s ease;
+    box-shadow: 1px 0 6px rgba(0,200,245,.4);
+}
+.plugin-progress-fill.ok   { background: var(--ok);   box-shadow: 1px 0 6px rgba(0,232,122,.4); }
+.plugin-progress-fill.warn { background: var(--warn); box-shadow: 1px 0 6px rgba(255,168,38,.4); }
+.plugin-progress-fill.err  { background: var(--err);  box-shadow: 1px 0 6px rgba(255,48,80,.4); }
+
+/* ── Chart bars ── */
+.plugin-chart-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 60px;
+}
+.plugin-chart-bar .pcb-item {
+    flex: 1;
+    background: var(--acc);
+    border-radius: 2px 2px 0 0;
+    min-height: 2px;
+    transition: height .3s;
+}
+.plugin-chart-bar .pcb-item.ok   { background: var(--ok); }
+.plugin-chart-bar .pcb-item.warn { background: var(--warn); }
+.plugin-chart-bar .pcb-item.err  { background: var(--err); }
+
+/* ── Toast notifications ── */
+.plugin-toast {
+    position: fixed;
+    bottom: 48px;
+    right: 24px;
+    background: var(--bg2);
+    border: 1px solid var(--bd2);
+    border-left: 3px solid var(--acc);
+    padding: 12px 20px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 10000;
+    font-weight: bold;
+    box-shadow: 0 10px 40px rgba(0,0,0,.5);
+    animation: toast-in .3s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+.plugin-toast-ok   { border-left-color: var(--ok);  box-shadow: 0 10px 40px rgba(0,0,0,.5), -3px 0 12px rgba(0,232,122,.15); }
+.plugin-toast-warn { border-left-color: var(--warn); box-shadow: 0 10px 40px rgba(0,0,0,.5), -3px 0 12px rgba(255,168,38,.15); }
+.plugin-toast-err  { border-left-color: var(--err);  box-shadow: 0 10px 40px rgba(0,0,0,.5), -3px 0 12px rgba(255,48,80,.15); }
+.plugin-toast-info { border-left-color: var(--acc);  box-shadow: 0 10px 40px rgba(0,0,0,.5), -3px 0 12px rgba(0,200,245,.15); }
+
+@keyframes toast-in {
+    from { transform: translateX(120%) scale(0.92); opacity: 0; }
+    to   { transform: translateX(0) scale(1); opacity: 1; }
+}
+
+/* ── Loading states ── */
+.plugin-skeleton {
+    background: linear-gradient(90deg,
+        var(--bg3) 25%,
+        var(--bg4) 50%,
+        var(--bg3) 75%);
+    background-size: 200% 100%;
+    animation: skel-sweep 1.4s ease infinite;
+    border-radius: var(--r);
+    color: transparent !important;
+    user-select: none;
+    pointer-events: none;
+}
+@keyframes skel-sweep {
+    0%   { background-position: 200% center; }
+    100% { background-position: -200% center; }
+}
+
+.plugin-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--bd2);
+    border-top-color: var(--acc);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Bridge injection styles ── */
+/* badge zone — already defined in style.css as .pb-badge-zone, .pb-ribbon etc */
+/* Bridge toolbar button */
+.pb-toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9px;
+    padding: 4px 10px;
+}
+
+/* Bridge section in node card */
+.pb-section { width: 100%; }
+
+/* Bridge tab content */
+.pb-tab-content { animation: fadeIn 0.2s ease; }
+
+/* Confirm modal */
+.cm-ov { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.75); z-index: 9999; align-items: center; justify-content: center; }
+.cm-ov.open { display: flex; }
+.cm-inner { background: var(--bg2); border: 1px solid var(--err); border-radius: var(--r); padding: 18px; max-width: 400px; width: 92%; box-shadow: 0 20px 50px rgba(0,0,0,.8); }
+.cm-inner h3 { font-family: var(--mono); font-size: 12px; color: var(--err); margin-bottom: 8px; }
+.cm-btns { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Empty state */
+.empty-state { text-align: center; padding: 40px 20px; font-family: var(--mono); color: var(--txt3); }
+.empty-state i { font-size: 28px; margin-bottom: 10px; display: block; }
+.empty-state .em-t { font-size: 12px; color: var(--txt2); margin-bottom: 4px; }
+.empty-state .em-s { font-size: 10px; }

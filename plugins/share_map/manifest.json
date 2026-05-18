@@ -1,0 +1,20 @@
+{
+  "id": "share_map",
+  "name": "Share Map",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Create public embeddable widgets \u2014 live maps, node stat cards, network stats, activity feeds \u2014 and share them anywhere with no login required. Each widget gets a unique URL and iframe code. 100% read-only.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/share_map",
+  "static_prefix": "/static/plugins/share_map",
+  "bridge": null,
+  "permissions": [],
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Share Map",
+      "icon": "fa-share-nodes",
+      "href": "/plugin/share_map/index.html"
+    }
+  ]
+}

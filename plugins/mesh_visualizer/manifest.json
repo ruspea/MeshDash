@@ -1,0 +1,18 @@
+{
+  "id": "mesh_visualizer",
+  "name": "Mesh Visualizer",
+  "version": "1.1.1",
+  "author": "MeshDash",
+  "description": "3D mesh network visualizer \u2014 renders nodes and links in an interactive 3D view.",
+  "watchdog": false,
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/mesh_visualizer",
+  "static_prefix": "/static/plugins/mesh_visualizer",
+  "nav_menu": [
+    {
+      "label": "Visualizer",
+      "href": "/plugin/mesh_visualizer/index.html",
+      "icon": "fa-cube"
+    }
+  ]
+}

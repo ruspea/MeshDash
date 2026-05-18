@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Plugin</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css">
+    <link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+/* ── Variables ─────────────────────────────────────────────────────────── */
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--txt);font-family:var(--sans);height:100%;}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+.page{display:flex;gap:14px;padding:14px;min-height:100%;align-items:flex-start;}
+
+.panel-left{
+    width:380px;flex-shrink:0;
+    background:var(--bg2);border:1px solid var(--bd);
+    border-radius:10px;
+    box-shadow:0 4px 24px rgba(0,0,0,.5);
+    display:flex;flex-direction:column;
+    overflow:hidden;
+}
+
+.panel-right{
+    flex:1;min-width:0;
+    background:var(--bg2);border:1px solid var(--bd);
+    border-radius:10px;overflow:hidden;
+    box-shadow:0 4px 24px rgba(0,0,0,.5);
+    display:flex;flex-direction:column;
+    position:sticky;top:14px;
+    height:calc(100% - 28px);
+}
+
+/* ── Left panel tabs ─────────────────────────────────────────────────────── */
+.tab-bar{
+    display:flex;border-bottom:1px solid var(--bd);
+    background:var(--bg1);flex-shrink:0;
+}
+.tab-btn{
+    flex:1;padding:11px 8px;
+    background:none;border:none;
+    color:var(--txt3);font-family:var(--mono);font-size:0.7rem;
+    cursor:pointer;transition:all .15s;
+    display:flex;align-items:center;justify-content:center;gap:5px;
+    border-bottom:2px solid transparent;
+}
+.tab-btn:hover{color:var(--txt);}
+.tab-btn.active{color:var(--acc);border-bottom-color:var(--acc);background:var(--bg2);}
+.tab-btn .badge{
+    background:var(--acc);color:var(--bg);
+    border-radius:8px;padding:1px 5px;
+    font-size:0.6rem;font-weight:700;min-width:16px;text-align:center;
+}
+
+.tab-pane{display:none;padding:18px;overflow-y:auto;flex:1;}
+.tab-pane.active{display:flex;flex-direction:column;gap:0;}
+
+/* ── Common left-panel elements ──────────────────────────────────────────── */
+h2{color:var(--acc);font-size:1.35rem;font-weight:700;display:flex;align-items:center;gap:8px;margin-bottom:3px;}
+.description{font-family:var(--mono);font-size:0.7rem;color:var(--txt2);line-height:1.6;
+    border-bottom:1px solid var(--bd);padding-bottom:10px;margin-bottom:0;}
+
+label{display:block;margin:12px 0 4px;font-family:var(--mono);font-size:0.67rem;
+    font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;}
+
+input,select{
+    width:100%;padding:8px 10px;
+    background:var(--bg1);border:1px solid var(--bd2);border-radius:6px;
+    color:var(--txt);font-family:var(--mono);font-size:0.82rem;outline:none;
+    transition:border-color .15s;
+}
+input:focus,select:focus{border-color:var(--acc);}
+select option{background:var(--bg1);}
+
+.section-label{
+    font-family:var(--mono);font-size:0.62rem;color:var(--txt3);
+    text-transform:uppercase;letter-spacing:1px;margin:14px 0 7px;
+    display:flex;align-items:center;gap:8px;
+}
+.section-label::after{content:'';flex:1;height:1px;background:var(--bd);}
+
+.info-text{font-family:var(--mono);font-size:0.64rem;color:var(--txt3);margin-top:3px;}
+
+/* Coord row */
+.coord-row{display:flex;gap:8px;align-items:flex-end;}
+.coord-fields{flex:1;display:flex;gap:8px;}
+.coord-fields>div{flex:1;}
+
+.geo-btn{
+    padding:8px 10px;background:var(--bg3);border:1px solid var(--bd2);border-radius:6px;
+    color:var(--acc);cursor:pointer;transition:all .15s;
+    display:flex;align-items:center;gap:5px;
+    font-family:var(--mono);font-size:0.7rem;flex-shrink:0;
+}
+.geo-btn:hover:not(:disabled){border-color:var(--acc);}
+.geo-btn:disabled{opacity:.4;cursor:not-allowed;}
+.geo-btn.loading{color:var(--warn);border-color:var(--warn);}
+.geo-btn.success{color:var(--ok);border-color:var(--ok);}
+
+/* Target toggle */
+.target-toggle{display:flex;border:1px solid var(--bd2);border-radius:6px;overflow:hidden;margin-bottom:2px;}
+.target-toggle button{
+    flex:1;padding:7px 8px;background:var(--bg1);border:none;
+    color:var(--txt2);font-family:var(--mono);font-size:0.7rem;
+    cursor:pointer;transition:all .15s;margin:0;width:auto;border-radius:0;
+}
+.target-toggle button.active{background:var(--bg3);color:var(--acc);border-bottom:2px solid var(--acc);}
+.target-toggle button:hover:not(.active){background:var(--bg2);color:var(--txt);}
+
+.target-section{display:none;}
+.target-section.visible{display:block;}
+
+/* Node search + list */
+.node-search-wrap{position:relative;margin-bottom:6px;}
+.node-search-wrap i{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:0.75rem;}
+.node-search-wrap input{padding-left:28px;}
+
+#node-list,#sched-node-list{
+    max-height:140px;overflow-y:auto;
+    border:1px solid var(--bd2);border-radius:6px;background:var(--bg1);
+}
+.node-item{
+    display:flex;align-items:center;gap:8px;padding:7px 10px;
+    cursor:pointer;border-bottom:1px solid var(--bd);
+    transition:background .1s;font-family:var(--mono);font-size:0.74rem;
+}
+.node-item:last-child{border-bottom:none;}
+.node-item:hover{background:var(--bg2);}
+.node-item.selected{background:var(--bg3);color:var(--acc);}
+.nid{color:var(--txt3);font-size:0.63rem;}
+.nsig{margin-left:auto;font-size:0.63rem;color:var(--ok);}
+.nsig.weak{color:var(--warn);}
+.nsig.none{color:var(--txt3);}
+.node-loading{padding:14px;text-align:center;color:var(--txt3);font-family:var(--mono);font-size:0.7rem;}
+
+/* Buttons */
+.action-btn{
+    width:100%;background:linear-gradient(135deg,var(--acc),var(--acc));
+    color:var(--bg);border:none;padding:10px 16px;border-radius:6px;
+    font-weight:700;font-size:0.86rem;cursor:pointer;margin-top:14px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:opacity .2s,transform .1s;font-family:var(--sans);
+}
+.action-btn:hover:not(:disabled){opacity:.9;transform:translateY(-1px);}
+.action-btn:active{transform:translateY(0);}
+.action-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+
+.btn-sm{
+    padding:5px 10px;background:var(--bg3);border:1px solid var(--bd2);border-radius:5px;
+    color:var(--txt2);font-family:var(--mono);font-size:0.68rem;cursor:pointer;
+    transition:all .15s;display:inline-flex;align-items:center;gap:4px;
+}
+.btn-sm:hover:not(:disabled){border-color:var(--acc);color:var(--acc);}
+.btn-sm.danger:hover{border-color:var(--err);color:var(--err);}
+.btn-sm.green:hover{border-color:var(--ok);color:var(--ok);}
+.btn-sm:disabled{opacity:.35;cursor:not-allowed;}
+
+/* Result */
+#result{
+    margin-top:12px;background:var(--bg1);border:1px solid var(--bd);border-radius:6px;
+    padding:10px 12px;font-family:var(--mono);font-size:0.73rem;line-height:1.7;
+    color:var(--txt2);white-space:pre-wrap;word-break:break-word;
+    max-height:110px;overflow-y:auto;
+}
+.success{color:var(--ok);font-weight:600;}
+.error{color:var(--err);font-weight:600;}
+.warn{color:var(--warn);}
+
+.saved-badge{
+    display:inline-flex;align-items:center;gap:4px;
+    font-family:var(--mono);font-size:0.62rem;color:var(--ok);
+    opacity:0;transition:opacity .3s;margin-left:8px;
+}
+.saved-badge.show{opacity:1;}
+
+/* ── Schedule form ─────────────────────────────────────────────────────── */
+.sched-form{
+    background:var(--bg1);border:1px solid var(--bd2);border-radius:8px;
+    padding:14px;margin-bottom:14px;
+}
+.sched-form h3{font-family:var(--mono);font-size:0.72rem;color:var(--acc);margin-bottom:10px;
+    display:flex;align-items:center;gap:6px;}
+
+.form-row{display:flex;gap:8px;}
+.form-row>div{flex:1;}
+
+.time-row{display:flex;gap:8px;align-items:flex-end;}
+.time-row>div:first-child{flex:1;}
+.time-row>div:last-child{flex:1;}
+
+/* Day picker */
+.day-picker{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;}
+.day-chip{
+    padding:4px 7px;border:1px solid var(--bd2);border-radius:4px;
+    font-family:var(--mono);font-size:0.65rem;color:var(--txt3);
+    cursor:pointer;transition:all .15s;user-select:none;
+}
+.day-chip:hover{border-color:var(--acc);color:var(--txt);}
+.day-chip.active{background:var(--acc);border-color:var(--acc);color:var(--bg);font-weight:700;}
+
+/* Schedule type pills */
+.stype-row{display:flex;gap:6px;margin-top:4px;}
+.stype-pill{
+    flex:1;padding:6px 4px;border:1px solid var(--bd2);border-radius:5px;
+    background:var(--bg1);color:var(--txt3);font-family:var(--mono);font-size:0.65rem;
+    cursor:pointer;text-align:center;transition:all .15s;
+}
+.stype-pill:hover{border-color:var(--acc);color:var(--txt);}
+.stype-pill.active{background:var(--bg3);border-color:var(--acc);color:var(--acc);}
+
+/* ── Schedule list ─────────────────────────────────────────────────────── */
+.sched-list{display:flex;flex-direction:column;gap:8px;}
+
+.sched-card{
+    background:var(--bg1);border:1px solid var(--bd2);border-radius:8px;
+    padding:12px 13px;transition:border-color .15s;
+}
+.sched-card:hover{border-color:var(--bd);}
+.sched-card.disabled{opacity:.5;}
+
+.sched-card-header{
+    display:flex;align-items:flex-start;gap:8px;margin-bottom:6px;
+}
+.sched-card-title{flex:1;font-family:var(--sans);font-size:0.85rem;font-weight:600;color:var(--txt);}
+.sched-card-type{
+    font-family:var(--mono);font-size:0.62rem;padding:2px 7px;
+    border-radius:3px;background:var(--bg3);color:var(--acc);
+    flex-shrink:0;
+}
+.sched-card-type.once{color:var(--pur);}
+.sched-card-type.daily{color:var(--ok);}
+.sched-card-type.weekly{color:var(--warn);}
+
+.sched-card-meta{
+    font-family:var(--mono);font-size:0.67rem;color:var(--txt3);
+    display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:8px;
+}
+.sched-card-meta span{display:flex;align-items:center;gap:4px;}
+.sched-card-meta i{color:var(--txt3);}
+
+.sched-card-actions{display:flex;gap:6px;flex-wrap:wrap;}
+
+.status-dot{
+    width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;
+    margin-right:2px;
+}
+.status-dot.on{background:var(--ok);box-shadow:0 0 5px var(--ok);}
+.status-dot.off{background:var(--txt3);}
+.status-dot.once-done{background:var(--pur);}
+
+.empty-state{
+    text-align:center;padding:30px 20px;
+    font-family:var(--mono);font-size:0.75rem;color:var(--txt3);
+}
+.empty-state i{font-size:2rem;display:block;margin-bottom:10px;color:var(--txt3);}
+
+/* ── Map panel ───────────────────────────────────────────────────────────── */
+.map-header{
+    padding:9px 13px;border-bottom:1px solid var(--bd);
+    display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;
+}
+.map-title{font-family:var(--mono);font-size:0.69rem;color:var(--txt3);
+    text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.map-title i{color:var(--acc);}
+.map-coords-label{flex:1;font-family:var(--mono);font-size:0.69rem;color:var(--txt3);text-align:center;}
+.map-save-btn{
+    padding:5px 11px;background:var(--bg3);border:1px solid var(--bd2);border-radius:5px;
+    color:var(--acc);font-family:var(--mono);font-size:0.69rem;cursor:pointer;
+    transition:all .15s;display:flex;align-items:center;gap:5px;flex-shrink:0;
+}
+.map-save-btn:hover:not(:disabled){border-color:var(--acc);}
+.map-save-btn:disabled{opacity:.35;cursor:not-allowed;}
+.map-save-btn.saved{color:var(--ok);border-color:var(--ok);}
+
+#map{flex:1;width:100%;cursor:crosshair;}
+
+/* Leaflet dark */
+.leaflet-container{background:var(--bg);}
+.leaflet-tile-pane{filter:brightness(.88) saturate(.65) hue-rotate(180deg) invert(1);}
+.leaflet-control-zoom a{background:var(--bg2)!important;color:var(--txt)!important;border-color:var(--bd2)!important;}
+.leaflet-control-zoom a:hover{background:var(--bg3)!important;color:var(--acc)!important;}
+.leaflet-control-attribution{background:rgba(8,11,16,.75)!important;color:var(--txt3)!important;font-size:9px!important;}
+.leaflet-control-attribution a{color:var(--txt3)!important;}
+.leaflet-tooltip-dark{
+    background:var(--bg2)!important;border:1px solid var(--bd2)!important;
+    color:var(--txt)!important;font-family:var(--mono);font-size:0.7rem;
+    border-radius:5px;box-shadow:0 2px 8px rgba(0,0,0,.6);white-space:nowrap;
+}
+.leaflet-tooltip-dark.leaflet-tooltip-top::before{border-top-color:var(--bd2)!important;}
+
+/* Marker animations */
+.marker-pending{width:20px;height:20px;position:relative;}
+.marker-pending .ring{position:absolute;inset:-3px;border:2px solid var(--warn);border-radius:50%;animation:pulse-ring 1.2s ease-out infinite;}
+.marker-pending .dot{width:10px;height:10px;background:var(--warn);border:2px solid #fff;border-radius:50%;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);}
+.marker-confirmed{width:16px;height:16px;background:var(--acc);border:2.5px solid #fff;border-radius:50%;box-shadow:0 0 10px var(--acc);}
+@keyframes pulse-ring{0%{transform:scale(1);opacity:.9;}100%{transform:scale(2.6);opacity:0;}}
+
+/* Toast */
+.toast{
+    position:fixed;bottom:20px;right:20px;z-index:9999;
+    background:var(--bg3);border:1px solid var(--bd2);border-radius:8px;
+    padding:10px 16px;font-family:var(--mono);font-size:0.75rem;
+    color:var(--txt);box-shadow:0 4px 16px rgba(0,0,0,.6);
+    transform:translateY(20px);opacity:0;transition:all .25s;
+    display:flex;align-items:center;gap:8px;
+}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.toast-ok{border-color:var(--ok);color:var(--ok);}
+.toast.toast-err{border-color:var(--err);color:var(--err);}
+
+/* Responsive */
+@media(max-width:860px){
+    .page{flex-direction:column;}
+    .panel-left{width:100%;}
+    .panel-right{position:static;height:360px;}
+}
+    
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ═══════════════════════════════  LEFT PANEL  ════════════════════════════ -->
+<div class="panel-left">
+    <div class="tab-bar">
+        <button class="tab-btn active" id="tab-send-btn" onclick="switchTab('send')">
+            <i class="fas fa-paper-plane"></i> Send
+        </button>
+        <button class="tab-btn" id="tab-schedule-btn" onclick="switchTab('schedule')">
+            <i class="fas fa-clock"></i> Schedules
+            <span class="badge" id="sched-badge" style="display:none">0</span>
+        </button>
+    </div>
+
+    <!-- ── SEND TAB ──────────────────────────────────────────────── -->
+    <div class="tab-pane active" id="tab-send">
+        <h2><i class="fas fa-cloud-sun"></i> Weather <span class="saved-badge" id="saved-badge">✓ saved</span></h2>
+        <p class="description">Fetch from Open‑Meteo · send to mesh. Click the map to set location.</p>
+
+        <div class="section-label">Location</div>
+        <div class="coord-row">
+            <div class="coord-fields">
+                <div><label for="lat">Latitude</label><input type="number" id="lat" step="any" placeholder="52.52"></div>
+                <div><label for="lon">Longitude</label><input type="number" id="lon" step="any" placeholder="13.41"></div>
+            </div>
+            <div><label>&nbsp;</label><button class="geo-btn" id="geoBtn"><i class="fas fa-crosshairs"></i> Detect</button></div>
+        </div>
+        <div class="info-text" id="location-source">Click the map to pin a location, or use Detect.</div>
+
+        <div class="section-label">Destination</div>
+        <div class="target-toggle">
+            <button class="active" id="btn-broadcast" onclick="setTarget('broadcast')"><i class="fas fa-broadcast-tower"></i> Broadcast</button>
+            <button id="btn-direct" onclick="setTarget('direct')"><i class="fas fa-user"></i> Direct Message</button>
+        </div>
+
+        <div class="target-section visible" id="section-broadcast">
+            <label for="channel">Channel</label>
+            <select id="channel"></select>
+            <div class="info-text">Broadcasts to all nodes on the selected channel.</div>
+        </div>
+
+        <div class="target-section" id="section-direct">
+            <label>Select Node</label>
+            <div class="node-search-wrap">
+                <i class="fas fa-search"></i>
+                <input type="text" id="node-search" placeholder="Search by name or node ID…" oninput="filterNodes(this.value,'node-list')">
+            </div>
+            <div id="node-list"><div class="node-loading">Loading nodes…</div></div>
+            <input type="hidden" id="selected-node-id">
+            <div class="info-text" id="selected-node-label">No node selected.</div>
+        </div>
+
+        <button class="action-btn" id="sendBtn"><i class="fas fa-paper-plane"></i> Fetch &amp; Send Weather</button>
+        <div style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+            <label style="margin:0;font-size:0.67rem;">Units:</label>
+            <div class="target-toggle" id="units-toggle" style="flex:1;max-width:220px;">
+                <button class="active" id="units-metric" onclick="setUnits('metric')" style="font-size:0.7rem;">°C / km/h</button>
+                <button id="units-imperial" onclick="setUnits('imperial')" style="font-size:0.7rem;">°F / mph</button>
+            </div>
+        </div>
+        <div id="result">Ready.</div>
+    </div><!-- /tab-send -->
+
+    <!-- ── SCHEDULE TAB ──────────────────────────────────────────── -->
+    <div class="tab-pane" id="tab-schedule">
+
+        <!-- New schedule form -->
+        <div class="sched-form">
+            <h3><i class="fas fa-plus-circle"></i> New Schedule</h3>
+
+            <label>Label (optional)</label>
+            <input type="text" id="sf-label" placeholder="e.g. Morning weather report" maxlength="80">
+
+            <div class="section-label" style="margin-top:12px;">Location</div>
+            <div class="coord-row">
+                <div class="coord-fields">
+                    <div><label for="sf-lat">Lat</label><input type="number" id="sf-lat" step="any" placeholder="52.52"></div>
+                    <div><label for="sf-lon">Lon</label><input type="number" id="sf-lon" step="any" placeholder="13.41"></div>
+                </div>
+                <div><label>&nbsp;</label>
+                    <button class="geo-btn" id="sfCopyBtn" title="Copy from Send tab" onclick="copyLocationToForm()">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="section-label">Destination</div>
+            <div class="target-toggle">
+                <button class="active" id="sf-btn-broadcast" onclick="setSfTarget('broadcast')"><i class="fas fa-broadcast-tower"></i> Broadcast</button>
+                <button id="sf-btn-direct" onclick="setSfTarget('direct')"><i class="fas fa-user"></i> Direct</button>
+            </div>
+
+            <div class="target-section visible" id="sf-section-broadcast">
+                <label for="sf-channel">Channel</label>
+                <select id="sf-channel"></select>
+            </div>
+            <div class="target-section" id="sf-section-direct">
+                <label>Node</label>
+                <div class="node-search-wrap">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="sched-node-search" placeholder="Search nodes…" oninput="filterNodes(this.value,'sched-node-list')">
+                </div>
+                <div id="sched-node-list"><div class="node-loading">Loading…</div></div>
+                <input type="hidden" id="sf-node-id">
+                <div class="info-text" id="sf-node-label">No node selected.</div>
+            </div>
+
+            <div class="section-label">Units</div>
+            <div class="stype-row" id="sf-units-row">
+                <div class="stype-pill active" id="sf-units-metric" onclick="setSfUnits('metric')">°C / km/h</div>
+                <div class="stype-pill" id="sf-units-imperial" onclick="setSfUnits('imperial')">°F / mph</div>
+            </div>
+
+            <div class="section-label">Schedule Type</div>
+            <div class="stype-row">
+                <div class="stype-pill active" id="stp-daily"   onclick="setSType('daily')"><i class="fas fa-redo"></i> Daily</div>
+                <div class="stype-pill"         id="stp-weekly"  onclick="setSType('weekly')"><i class="fas fa-calendar-week"></i> Weekly</div>
+                <div class="stype-pill"         id="stp-once"    onclick="setSType('once')"><i class="fas fa-bolt"></i> One‑time</div>
+            </div>
+
+            <!-- Daily / Weekly time -->
+            <div id="sf-time-section">
+                <div class="time-row" style="margin-top:8px;">
+                    <div><label for="sf-hour">Hour (0–23)</label><input type="number" id="sf-hour" min="0" max="23" value="8" placeholder="8"></div>
+                    <div><label for="sf-minute">Minute</label><input type="number" id="sf-minute" min="0" max="59" value="0" placeholder="0"></div>
+                </div>
+                <div id="sf-days-wrap" style="display:none;">
+                    <label>Days</label>
+                    <div class="day-picker" id="day-picker">
+                        <div class="day-chip" data-day="0">Mon</div>
+                        <div class="day-chip" data-day="1">Tue</div>
+                        <div class="day-chip" data-day="2">Wed</div>
+                        <div class="day-chip" data-day="3">Thu</div>
+                        <div class="day-chip" data-day="4">Fri</div>
+                        <div class="day-chip" data-day="5">Sat</div>
+                        <div class="day-chip" data-day="6">Sun</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- One-time datetime -->
+            <div id="sf-once-section" style="display:none;">
+                <label for="sf-datetime">Date &amp; Time</label>
+                <input type="datetime-local" id="sf-datetime">
+            </div>
+
+            <button class="action-btn" id="sfSaveBtn" onclick="createSchedule()" style="margin-top:12px;">
+                <i class="fas fa-calendar-plus"></i> Add Schedule
+            </button>
+        </div>
+
+        <!-- Schedule list -->
+        <div class="section-label">Active Schedules</div>
+        <div id="sched-list-wrap">
+            <div class="empty-state" id="sched-empty">
+                <i class="fas fa-calendar-times"></i>
+                No schedules yet. Create one above.
+            </div>
+            <div class="sched-list" id="sched-list"></div>
+        </div>
+
+    </div><!-- /tab-schedule -->
+</div><!-- /panel-left -->
+
+<!-- ═══════════════════════════════  MAP PANEL  ═════════════════════════════ -->
+<div class="panel-right">
+    <div class="map-header">
+        <div class="map-title"><i class="fas fa-map-marked-alt"></i> Click to set weather location</div>
+        <div class="map-coords-label" id="map-coords-label">No pin set</div>
+        <button class="map-save-btn" id="mapSaveBtn" disabled>
+            <i class="fas fa-map-pin"></i> Use this location
+        </button>
+    </div>
+    <div id="map"></div>
+</div>
+
+</div><!-- /page -->
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════════════════════ */
+const STORAGE_KEY   = 'weather_plugin_prefs';
+let currentTarget   = 'broadcast';
+let selectedNodeId  = '';
+let currentUnits    = 'metric';
+let sfTarget        = 'broadcast';
+let sfNodeId        = '';
+let sfSType         = 'daily';
+let sfUnits         = 'metric';
+let saveTimer       = null;
+
+// Map
+let map             = null;
+let pendingMarker   = null;
+let confirmedMarker = null;
+let pendingLatLng   = null;
+
+// Node cache
+let allNodes        = [];
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════════════════════════════════════ */
+let toastTimer = null;
+function showToast(msg, type='ok') {
+    const t = document.getElementById('toast');
+    t.className = `toast toast-${type} show`;
+    t.innerHTML = `<i class="fas fa-${type==='ok'?'check-circle':'exclamation-circle'}"></i> ${msg}`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=>t.classList.remove('show'), 3200);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TABS
+══════════════════════════════════════════════════════════════════════════════ */
+function switchTab(tab) {
+    document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    document.getElementById(`tab-${tab}-btn`).classList.add('active');
+    if (tab==='schedule') loadSchedules();
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PERSISTENCE
+══════════════════════════════════════════════════════════════════════════════ */
+function loadPrefs() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); } catch(e) { return {}; }
+}
+function savePrefs() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+            lat:            document.getElementById('lat').value,
+            lon:            document.getElementById('lon').value,
+            channel:        document.getElementById('channel').value,
+            target:         currentTarget,
+            nodeId:         selectedNodeId,
+            locationSource: document.getElementById('location-source').textContent,
+            units:          currentUnits,
+        }));
+        flashSaved();
+    } catch(e) {}
+}
+function flashSaved() {
+    const b=document.getElementById('saved-badge');
+    b.classList.add('show');
+    clearTimeout(saveTimer);
+    saveTimer=setTimeout(()=>b.classList.remove('show'),1800);
+}
+function applyPrefs(p) {
+    if (p.lat)            document.getElementById('lat').value = p.lat;
+    if (p.lon)            document.getElementById('lon').value = p.lon;
+    if (p.locationSource) document.getElementById('location-source').textContent = p.locationSource;
+    if (p.target)         setTarget(p.target, true);
+    if (p.units)          setUnits(p.units);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAP
+══════════════════════════════════════════════════════════════════════════════ */
+function initMap() {
+    const p=loadPrefs();
+    const initLat=parseFloat(p.lat)||51.505;
+    const initLon=parseFloat(p.lon)||-0.09;
+
+    map=L.map('map',{center:[initLat,initLon],zoom:5,zoomControl:true});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+        attribution:'© OpenStreetMap contributors',maxZoom:19
+    }).addTo(map);
+
+    if (p.lat&&p.lon) {
+        placeConfirmedPin(parseFloat(p.lat),parseFloat(p.lon));
+        document.getElementById('map-coords-label').innerHTML=
+            `<span style="color:var(--ok)">${parseFloat(p.lat).toFixed(5)}, ${parseFloat(p.lon).toFixed(5)}</span>`;
+    }
+    map.on('click',onMapClick);
+}
+
+function onMapClick(e) {
+    const {lat,lng}=e.latlng;
+    pendingLatLng={lat,lng};
+    if (pendingMarker) {map.removeLayer(pendingMarker);pendingMarker=null;}
+    const icon=L.divIcon({className:'',
+        html:`<div class="marker-pending"><div class="ring"></div><div class="dot"></div></div>`,
+        iconSize:[20,20],iconAnchor:[10,10]});
+    pendingMarker=L.marker([lat,lng],{icon})
+        .bindTooltip('Click "Use this location" to save',{direction:'top',className:'leaflet-tooltip-dark'})
+        .addTo(map);
+    document.getElementById('map-coords-label').innerHTML=
+        `<span style="color:var(--warn)">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>&nbsp;<span style="color:var(--txt3)">— unsaved</span>`;
+    const btn=document.getElementById('mapSaveBtn');
+    btn.disabled=false;btn.classList.remove('saved');
+    btn.innerHTML='<i class="fas fa-map-pin"></i> Use this location';
+}
+
+function placeConfirmedPin(lat,lng) {
+    if (confirmedMarker){map.removeLayer(confirmedMarker);confirmedMarker=null;}
+    const icon=L.divIcon({className:'',html:`<div class="marker-confirmed"></div>`,iconSize:[16,16],iconAnchor:[8,8]});
+    confirmedMarker=L.marker([lat,lng],{icon})
+        .bindTooltip(
+            `<i class="fas fa-thermometer-half" style="color:var(--acc)"></i>&nbsp;Weather location<br><span style="color:var(--txt2)">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>`,
+            {permanent:false,direction:'top',className:'leaflet-tooltip-dark'})
+        .addTo(map);
+}
+
+document.getElementById('mapSaveBtn').addEventListener('click',()=>{
+    if (!pendingLatLng) return;
+    const {lat,lng}=pendingLatLng;
+    document.getElementById('lat').value=lat.toFixed(5);
+    document.getElementById('lon').value=lng.toFixed(5);
+    document.getElementById('location-source').textContent=`📍 Map pin: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    if (pendingMarker){map.removeLayer(pendingMarker);pendingMarker=null;}
+    placeConfirmedPin(lat,lng);
+    document.getElementById('map-coords-label').innerHTML=
+        `<span style="color:var(--ok)">${lat.toFixed(5)}, ${lng.toFixed(5)}</span>`;
+    const btn=document.getElementById('mapSaveBtn');
+    btn.classList.add('saved');btn.innerHTML='<i class="fas fa-check"></i> Saved';btn.disabled=true;
+    pendingLatLng=null;
+    savePrefs();
+});
+
+function syncPinFromInputs() {
+    const lat=parseFloat(document.getElementById('lat').value);
+    const lon=parseFloat(document.getElementById('lon').value);
+    if (!isNaN(lat)&&!isNaN(lon)&&map) {
+        placeConfirmedPin(lat,lon);
+        document.getElementById('map-coords-label').innerHTML=
+            `<span style="color:var(--ok)">${lat.toFixed(5)}, ${lon.toFixed(5)}</span>`;
+        if (pendingMarker){map.removeLayer(pendingMarker);pendingMarker=null;}
+        pendingLatLng=null;
+        const btn=document.getElementById('mapSaveBtn');
+        btn.disabled=true;btn.classList.remove('saved');
+        btn.innerHTML='<i class="fas fa-map-pin"></i> Use this location';
+    }
+    savePrefs();
+}
+['lat','lon'].forEach(id=>document.getElementById(id).addEventListener('change',syncPinFromInputs));
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GEOLOCATION
+══════════════════════════════════════════════════════════════════════════════ */
+document.getElementById('geoBtn').addEventListener('click',detectLocation);
+
+function setCoords(lat,lon,source) {
+    document.getElementById('lat').value=lat.toFixed(5);
+    document.getElementById('lon').value=lon.toFixed(5);
+    document.getElementById('location-source').textContent=source;
+    if (map){
+        placeConfirmedPin(lat,lon);
+        map.setView([lat,lon],Math.max(map.getZoom(),10));
+        document.getElementById('map-coords-label').innerHTML=
+            `<span style="color:var(--ok)">${lat.toFixed(5)}, ${lon.toFixed(5)}</span>`;
+    }
+    if (pendingMarker){map.removeLayer(pendingMarker);pendingMarker=null;}
+    pendingLatLng=null;
+    const btn=document.getElementById('mapSaveBtn');
+    btn.disabled=true;btn.classList.remove('saved');
+    btn.innerHTML='<i class="fas fa-map-pin"></i> Use this location';
+    savePrefs();
+}
+
+function detectLocation() {
+    const btn=document.getElementById('geoBtn');
+    const info=document.getElementById('location-source');
+    if (navigator.geolocation) {
+        btn.classList.add('loading');btn.disabled=true;
+        btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';
+        info.textContent='Requesting browser location…';
+        navigator.geolocation.getCurrentPosition(
+            pos=>{
+                setCoords(pos.coords.latitude,pos.coords.longitude,
+                    `📍 Browser GPS (±${Math.round(pos.coords.accuracy)}m)`);
+                btn.classList.remove('loading');btn.classList.add('success');
+                btn.innerHTML='<i class="fas fa-check"></i> Located';btn.disabled=false;
+                setTimeout(()=>{btn.classList.remove('success');btn.innerHTML='<i class="fas fa-crosshairs"></i> Detect';},3000);
+            },
+            ()=>{info.textContent='Browser denied, trying IP…';ipFallback(btn,info);},
+            {timeout:8000,maximumAge:60000}
+        );
+    } else { btn.classList.add('loading');btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i>';ipFallback(btn,info); }
+}
+
+async function ipFallback(btn,info) {
+    try {
+        const d=await (await fetch('https://ipapi.co/json/')).json();
+        if (d.latitude&&d.longitude) {
+            const city=[d.city,d.country_name].filter(Boolean).join(', ');
+            setCoords(parseFloat(d.latitude),parseFloat(d.longitude),
+                `🌐 IP location${city?': '+city:''} (approximate)`);
+            btn.classList.remove('loading');btn.classList.add('success');
+            btn.innerHTML='<i class="fas fa-check"></i> Located';btn.disabled=false;
+            setTimeout(()=>{btn.classList.remove('success');btn.innerHTML='<i class="fas fa-crosshairs"></i> Detect';},3000);
+            return;
+        }
+    } catch(e){}
+    btn.classList.remove('loading');btn.innerHTML='<i class="fas fa-crosshairs"></i> Detect';btn.disabled=false;
+    info.textContent='Could not auto-detect. Enter coordinates or click the map.';
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TARGET TOGGLES
+══════════════════════════════════════════════════════════════════════════════ */
+function setTarget(mode, silent) {
+    currentTarget=mode;
+    document.getElementById('btn-broadcast').classList.toggle('active',mode==='broadcast');
+    document.getElementById('btn-direct').classList.toggle('active',mode==='direct');
+    document.getElementById('section-broadcast').classList.toggle('visible',mode==='broadcast');
+    document.getElementById('section-direct').classList.toggle('visible',mode==='direct');
+    if (!silent) savePrefs();
+}
+
+function setSfTarget(mode) {
+    sfTarget=mode;
+    document.getElementById('sf-btn-broadcast').classList.toggle('active',mode==='broadcast');
+    document.getElementById('sf-btn-direct').classList.toggle('active',mode==='direct');
+    document.getElementById('sf-section-broadcast').classList.toggle('visible',mode==='broadcast');
+    document.getElementById('sf-section-direct').classList.toggle('visible',mode==='direct');
+}
+
+function setUnits(mode) {
+    currentUnits=mode;
+    document.getElementById('units-metric').classList.toggle('active',mode==='metric');
+    document.getElementById('units-imperial').classList.toggle('active',mode==='imperial');
+    savePrefs();
+}
+
+function setSfUnits(mode) {
+    sfUnits=mode;
+    document.getElementById('sf-units-metric').classList.toggle('active',mode==='metric');
+    document.getElementById('sf-units-imperial').classList.toggle('active',mode==='imperial');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CHANNELS
+══════════════════════════════════════════════════════════════════════════════ */
+async function loadChannels() {
+    const selectors=['channel','sf-channel'];
+    try {
+        const channels=await (await fetch('/api/channels')).json();
+        selectors.forEach(sid=>{
+            const sel=document.getElementById(sid);
+            sel.innerHTML='';
+            channels.forEach(ch=>{
+                if (ch.role!=='DISABLED') {
+                    const opt=document.createElement('option');
+                    opt.value=ch.index;
+                    let name=ch.name&&ch.name.trim()?ch.name:`Channel ${ch.index}`;
+                    if (ch.index===0&&(!ch.name||!ch.name.trim())) name='Primary';
+                    opt.textContent=`Ch ${ch.index}: ${name}`;
+                    sel.appendChild(opt);
+                }
+            });
+            if (!sel.options.length) sel.innerHTML='<option value="0">Channel 0 (Primary)</option>';
+        });
+        const p=loadPrefs();
+        if (p.channel!==undefined) document.getElementById('channel').value=p.channel;
+    } catch(e) {
+        selectors.forEach(sid=>{ document.getElementById(sid).innerHTML='<option value="0">Channel 0 (Primary)</option>'; });
+    }
+}
+document.getElementById('channel').addEventListener('change',savePrefs);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NODES
+══════════════════════════════════════════════════════════════════════════════ */
+async function loadNodes() {
+    try {
+        const nodes=await (await fetch('/api/nodes')).json();
+        allNodes=Object.values(nodes).filter(n=>!n.isLocal)
+            .sort((a,b)=>(b.last_heard||0)-(a.last_heard||0));
+        renderNodeList('node-list', allNodes, selectSendNode);
+        renderNodeList('sched-node-list', allNodes, selectSchedNode);
+        const p=loadPrefs();
+        if (p.nodeId) {
+            const n=allNodes.find(x=>x.node_id===p.nodeId);
+            if (n) {
+                const ln=(n.user||{}).longName||n.long_name||'Unknown';
+                markSelectedNode('node-list',p.nodeId);
+                selectedNodeId=p.nodeId;
+                document.getElementById('selected-node-label').textContent=`Selected: ${ln} (${p.nodeId})`;
+            }
+        }
+    } catch(e) {
+        ['node-list','sched-node-list'].forEach(id=>{
+            document.getElementById(id).innerHTML=`<div class="node-loading" style="color:var(--err)">Failed: ${e.message}</div>`;
+        });
+    }
+}
+
+function renderNodeList(listId, nodes, clickCb) {
+    const list=document.getElementById(listId);
+    if (!nodes.length){list.innerHTML='<div class="node-loading">No remote nodes found.</div>';return;}
+    list.innerHTML='';
+    nodes.forEach(node=>{
+        const id=node.node_id||'';
+        const ln=(node.user||{}).longName||node.long_name||'Unknown';
+        const sn=(node.user||{}).shortName||node.short_name||'???';
+        const snr=node.snr;
+        let sc='none',st='N/A';
+        if (snr!=null){sc=snr>=5?'':snr>=0?'weak':'weak';st=`SNR ${snr}`;}
+        const el=document.createElement('div');
+        el.className='node-item';el.dataset.id=id;el.dataset.name=`${ln} ${sn} ${id}`.toLowerCase();
+        el.innerHTML=`<div><div>${ln} <span style="color:var(--txt3);font-size:0.63rem;">(${sn})</span></div><div class="nid">${id}</div></div><div class="nsig ${sc}">${st}</div>`;
+        el.addEventListener('click',()=>clickCb(id,ln,el,listId));
+        list.appendChild(el);
+    });
+}
+
+function filterNodes(query, listId) {
+    const q=query.toLowerCase().trim();
+    document.querySelectorAll(`#${listId} .node-item`).forEach(el=>{
+        el.style.display=(!q||el.dataset.name.includes(q))?'flex':'none';
+    });
+}
+
+function markSelectedNode(listId, nodeId) {
+    document.querySelectorAll(`#${listId} .node-item`).forEach(x=>x.classList.remove('selected'));
+    const el=document.querySelector(`#${listId} [data-id="${nodeId}"]`);
+    if (el) el.classList.add('selected');
+}
+
+function selectSendNode(id,name,el,listId) {
+    markSelectedNode(listId,id);
+    selectedNodeId=id;
+    document.getElementById('selected-node-id').value=id;
+    document.getElementById('selected-node-label').textContent=`Selected: ${name} (${id})`;
+    savePrefs();
+}
+
+function selectSchedNode(id,name,el,listId) {
+    markSelectedNode(listId,id);
+    sfNodeId=id;
+    document.getElementById('sf-node-id').value=id;
+    document.getElementById('sf-node-label').textContent=`Selected: ${name} (${id})`;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEND
+══════════════════════════════════════════════════════════════════════════════ */
+document.getElementById('sendBtn').addEventListener('click',async()=>{
+    const lat=document.getElementById('lat').value.trim();
+    const lon=document.getElementById('lon').value.trim();
+    const resultDiv=document.getElementById('result');
+    const btn=document.getElementById('sendBtn');
+    if (!lat||!lon){resultDiv.innerHTML='<span class="error">❌ Set a location first.</span>';return;}
+    if (currentTarget==='direct'&&!selectedNodeId){resultDiv.innerHTML='<span class="error">❌ Select a destination node.</span>';return;}
+    btn.disabled=true;
+    resultDiv.innerHTML='<span class="warn">⏳ Fetching weather…</span>';
+    try {
+        let url;
+        if (currentTarget==='broadcast') {
+            const ch=document.getElementById('channel').value;
+            url=`/api/plugins/weather/fetch?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&channel=${encodeURIComponent(ch)}&units=${encodeURIComponent(currentUnits)}`;
+        } else {
+            url=`/api/plugins/weather/fetch?lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}&destination=${encodeURIComponent(selectedNodeId)}&units=${encodeURIComponent(currentUnits)}`;
+        }
+        const res=await fetch(url);const data=await res.json();
+        if (res.ok){
+            const dest=currentTarget==='direct'?`direct → ${selectedNodeId}`:`channel ${data.channel}`;
+            resultDiv.innerHTML=`<span class="success">✅ Sent (${dest})</span>\n\n${data.message}`;
+            savePrefs();
+        } else {
+            resultDiv.innerHTML=`<span class="error">❌ Error ${res.status}</span>\n\n${data.detail||'Unknown error'}`;
+        }
+    } catch(err){
+        resultDiv.innerHTML=`<span class="error">❌ Network error</span>\n\n${err.message}`;
+    } finally{btn.disabled=false;}
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCHEDULE TYPE UI
+══════════════════════════════════════════════════════════════════════════════ */
+function setSType(t) {
+    sfSType=t;
+    ['daily','weekly','once'].forEach(x=>{
+        document.getElementById(`stp-${x}`).classList.toggle('active',x===t);
+    });
+    document.getElementById('sf-time-section').style.display=t==='once'?'none':'block';
+    document.getElementById('sf-once-section').style.display=t==='once'?'block':'none';
+    document.getElementById('sf-days-wrap').style.display=t==='weekly'?'block':'none';
+}
+
+// Day chips
+document.querySelectorAll('.day-chip').forEach(chip=>{
+    chip.addEventListener('click',()=>chip.classList.toggle('active'));
+});
+
+function getSelectedDays(){
+    return [...document.querySelectorAll('.day-chip.active')].map(c=>parseInt(c.dataset.day));
+}
+
+function copyLocationToForm(){
+    const lat=document.getElementById('lat').value;
+    const lon=document.getElementById('lon').value;
+    if (lat) document.getElementById('sf-lat').value=lat;
+    if (lon) document.getElementById('sf-lon').value=lon;
+    showToast('Location copied to schedule form','ok');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SCHEDULES – CRUD
+══════════════════════════════════════════════════════════════════════════════ */
+async function createSchedule(){
+    const lat=parseFloat(document.getElementById('sf-lat').value);
+    const lon=parseFloat(document.getElementById('sf-lon').value);
+    if (isNaN(lat)||isNaN(lon)){showToast('Enter lat/lon for the schedule','err');return;}
+    if (sfTarget==='direct'&&!sfNodeId){showToast('Select a node for direct message','err');return;}
+
+    const body={
+        label:  document.getElementById('sf-label').value.trim()||`Schedule ${new Date().toLocaleTimeString()}`,
+        lat,lon,
+        dest_type: sfTarget,
+        channel:   parseInt(document.getElementById('sf-channel').value)||0,
+        node_id:   sfNodeId,
+        sched_type: sfSType,
+        units:     sfUnits,
+    };
+
+    if (sfSType==='daily'||sfSType==='weekly'){
+        body.hour=parseInt(document.getElementById('sf-hour').value)||0;
+        body.minute=parseInt(document.getElementById('sf-minute').value)||0;
+        if (sfSType==='weekly'){
+            body.days=getSelectedDays();
+            if (!body.days.length){showToast('Select at least one day','err');return;}
+        }
+    } else {
+        const dt=document.getElementById('sf-datetime').value;
+        if (!dt){showToast('Pick a date and time','err');return;}
+        body.run_at=new Date(dt).getTime()/1000;
+        body.hour=0;body.minute=0;
+    }
+
+    const btn=document.getElementById('sfSaveBtn');
+    btn.disabled=true;
+    try {
+        const res=await fetch('/api/plugins/weather/schedules',{
+            method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)
+        });
+        const data=await res.json();
+        if (!res.ok) throw new Error(data.detail||'Unknown error');
+        showToast(`Schedule "${data.schedule.label}" created`,'ok');
+        // Reset form
+        document.getElementById('sf-label').value='';
+        document.getElementById('sf-lat').value='';
+        document.getElementById('sf-lon').value='';
+        document.querySelectorAll('.day-chip').forEach(c=>c.classList.remove('active'));
+        sfNodeId='';
+        document.getElementById('sf-node-id').value='';
+        document.getElementById('sf-node-label').textContent='No node selected.';
+        markSelectedNode('sched-node-list','');
+        await loadSchedules();
+    } catch(e){showToast(`Error: ${e.message}`,'err');}
+    finally{btn.disabled=false;}
+}
+
+async function loadSchedules(){
+    try {
+        const data=await (await fetch('/api/plugins/weather/schedules')).json();
+        const schedules=data.schedules||[];
+        renderSchedules(schedules);
+        updateBadge(schedules.filter(s=>s.enabled).length);
+    } catch(e){
+        document.getElementById('sched-list').innerHTML=`<div class="node-loading" style="color:var(--err)">Failed to load schedules: ${e.message}</div>`;
+    }
+}
+
+function renderSchedules(schedules){
+    const list=document.getElementById('sched-list');
+    const empty=document.getElementById('sched-empty');
+    if (!schedules.length){list.innerHTML='';empty.style.display='block';return;}
+    empty.style.display='none';
+    list.innerHTML='';
+    schedules.forEach(s=>{
+        const card=document.createElement('div');
+        card.className=`sched-card${s.enabled?'':' disabled'}`;
+        card.id=`sc-${s.id}`;
+
+        const typeLabel={daily:'Daily',weekly:'Weekly',once:'One‑time'}[s.sched_type]||s.sched_type;
+        const typeClass=s.sched_type;
+
+        // Destination display
+        const destText=s.dest_type==='direct'
+            ? `<i class="fas fa-user"></i> ${s.node_id||'unknown'}`
+            : `<i class="fas fa-broadcast-tower"></i> Ch ${s.channel}`;
+        const unitsLabel = s.units === 'imperial' ? '°F/mph' : '°C/km/h';
+
+        // Schedule display
+        let schedText='';
+        if (s.sched_type==='daily'){
+            schedText=`<i class="fas fa-clock"></i> Daily ${String(s.hour).padStart(2,'0')}:${String(s.minute).padStart(2,'0')} UTC`;
+        } else if (s.sched_type==='weekly'){
+            const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+            const dayStr=(s.days||[]).map(d=>dayNames[d]).join(', ');
+            schedText=`<i class="fas fa-calendar-week"></i> ${dayStr} ${String(s.hour).padStart(2,'0')}:${String(s.minute).padStart(2,'0')} UTC`;
+        } else {
+            const dt=s.run_at?new Date(s.run_at*1000).toLocaleString():'–';
+            schedText=`<i class="fas fa-bolt"></i> ${dt}`;
+        }
+
+        // Next run
+        let nextText='–';
+        if (!s.enabled) nextText='Paused';
+        else if (s.sched_type==='once'&&!s.enabled) nextText='Completed';
+        else if (s.next_run) nextText=timeUntil(s.next_run);
+
+        // Status dot
+        let dotClass='off';
+        if (s.enabled&&s.sched_type==='once'&&s.run_count>0) dotClass='once-done';
+        else if (s.enabled) dotClass='on';
+
+        // Last run
+        const lastRun=s.last_run?new Date(s.last_run*1000).toLocaleString():'Never';
+
+        card.innerHTML=`
+        <div class="sched-card-header">
+            <div class="sched-card-title">
+                <span class="status-dot ${dotClass}"></span>
+                ${escHtml(s.label||'Untitled')}
+            </div>
+            <div class="sched-card-type ${typeClass}">${typeLabel}</div>
+        </div>
+        <div class="sched-card-meta">
+            <span>${destText}</span>
+            <span>${schedText}</span>
+            <span><i class="fas fa-thermometer-half"></i> ${unitsLabel}</span>
+            <span><i class="fas fa-map-marker-alt"></i> ${s.lat.toFixed(3)}, ${s.lon.toFixed(3)}</span>
+            <span><i class="fas fa-forward"></i> ${nextText}</span>
+            <span><i class="fas fa-history"></i> Last: ${lastRun}</span>
+            <span><i class="fas fa-check-circle"></i> Runs: ${s.run_count}</span>
+        </div>
+        <div class="sched-card-actions">
+            <button class="btn-sm green" onclick="runNow('${s.id}')"><i class="fas fa-play"></i> Run now</button>
+            <button class="btn-sm" onclick="toggleSchedule('${s.id}')">
+                <i class="fas fa-${s.enabled?'pause':'play'}"></i> ${s.enabled?'Pause':'Resume'}
+            </button>
+            <button class="btn-sm danger" onclick="deleteSchedule('${s.id}','${escHtml(s.label||'Untitled')}')">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </div>`;
+        list.appendChild(card);
+    });
+}
+
+function timeUntil(unixTs){
+    const diff=Math.round(unixTs-Date.now()/1000);
+    if (diff<0) return 'overdue';
+    if (diff<60) return `in ${diff}s`;
+    if (diff<3600) return `in ${Math.floor(diff/60)}m`;
+    if (diff<86400) return `in ${Math.floor(diff/3600)}h ${Math.floor((diff%3600)/60)}m`;
+    return `in ${Math.floor(diff/86400)}d ${Math.floor((diff%86400)/3600)}h`;
+}
+
+function escHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+function updateBadge(n){
+    const b=document.getElementById('sched-badge');
+    if (n>0){b.textContent=n;b.style.display='inline-block';}else{b.style.display='none';}
+}
+
+async function toggleSchedule(id){
+    try {
+        const res=await fetch(`/api/plugins/weather/schedules/${id}/toggle`,{method:'POST'});
+        const d=await res.json();
+        if (!res.ok) throw new Error(d.detail);
+        showToast(d.enabled?'Schedule resumed':'Schedule paused','ok');
+        await loadSchedules();
+    } catch(e){showToast(`Error: ${e.message}`,'err');}
+}
+
+async function deleteSchedule(id,label){
+    if (!confirm(`Delete schedule "${label}"?`)) return;
+    try {
+        const res=await fetch(`/api/plugins/weather/schedules/${id}`,{method:'DELETE'});
+        if (!res.ok) throw new Error((await res.json()).detail);
+        showToast(`Deleted "${label}"`,'ok');
+        await loadSchedules();
+    } catch(e){showToast(`Error: ${e.message}`,'err');}
+}
+
+async function runNow(id){
+    try {
+        const res=await fetch(`/api/plugins/weather/schedules/${id}/run-now`,{method:'POST'});
+        const d=await res.json();
+        if (!res.ok) throw new Error(d.detail);
+        showToast('Weather sent! '+d.message.substring(0,50)+'…','ok');
+        await loadSchedules();
+    } catch(e){showToast(`Error: ${e.message}`,'err');}
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEAFLET TOOLTIP STYLE
+══════════════════════════════════════════════════════════════════════════════ */
+const ttStyle=document.createElement('style');
+ttStyle.textContent='.leaflet-tooltip-dark{background:var(--bg2)!important;border:1px solid var(--bd2)!important;color:var(--txt)!important;font-family:var(--mono);font-size:.7rem;border-radius:5px;box-shadow:0 2px 8px rgba(0,0,0,.6);white-space:nowrap;}.leaflet-tooltip-dark.leaflet-tooltip-top::before{border-top-color:var(--bd2)!important;}';
+document.head.appendChild(ttStyle);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════════════════════ */
+async function init(){
+    const prefs=loadPrefs();
+    applyPrefs(prefs);
+    initMap();
+    // Set min datetime for one-time picker to now
+    const now=new Date();
+    now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+    document.getElementById('sf-datetime').min=now.toISOString().slice(0,16);
+    document.getElementById('sf-datetime').value=now.toISOString().slice(0,16);
+
+    await Promise.all([loadChannels(),loadNodes()]);
+    await loadSchedules();
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "id": "medi",
+  "name": "Medi AI",
+  "version": "1.0.2",
+  "author": "MeshDash",
+  "description": "Provides medical advice via local offline models or external hosted LLMs (OpenAI, Gemini, Nvidia) over direct message or channel communication. Includes session management, a live query queue, and reliable message delivery using automated chunking, ACK tracking, and retry mechanisms.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/medi",
+  "static_prefix": "/static/plugins/medi",
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Medi AI",
+      "icon": "fa-user-md",
+      "href": "/plugin/medi/index.html"
+    }
+  ]
+}

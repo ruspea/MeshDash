@@ -1,0 +1,437 @@
+<style>
+    .ap{max-width:750px;margin:0 auto;padding:20px;}
+    .ac{background:var(--bg1);border:1px solid var(--bd2);border-radius:var(--r);margin-bottom:16px;overflow:hidden;}
+    .ah{padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--bd2);font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--txt2);display:flex;align-items:center;gap:8px;}
+    .ab2{padding:16px 20px;}
+    .ar{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd);}
+    .ar:last-child{border-bottom:none;}
+    .al{font-family:var(--mono);font-size:11px;color:var(--txt3);}
+    .av{font-family:var(--mono);font-size:12px;color:var(--txt);display:flex;align-items:center;gap:8px;}
+    .b{font-size:9px;padding:2px 8px;border-radius:3px;font-family:var(--mono);font-weight:700;text-transform:uppercase;}
+    .b-on{background:rgba(0,240,144,.1);color:var(--ok);border:1px solid rgba(0,240,144,.3);}
+    .b-off{background:rgba(255,48,80,.1);color:var(--err);border:1px solid rgba(255,48,80,.3);}
+    .b-na{background:rgba(90,128,168,.1);color:var(--txt3);border:1px solid var(--bd2);}
+    .b-w{background:rgba(255,180,0,.1);color:#ffb400;border:1px solid rgba(255,180,0,.3);}
+    .b-acc{background:rgba(0,200,245,.08);color:var(--acc);border:1px solid rgba(0,200,245,.3);}
+    .bt{font-family:var(--sans);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:1px;padding:8px 16px;border-radius:4px;cursor:pointer;transition:all .2s;border:1px solid;display:inline-flex;align-items:center;gap:6px;}
+    .bt-s{padding:4px 10px;font-size:9px;}
+    .bt-p{background:rgba(0,200,245,.08);color:var(--acc);border-color:rgba(0,200,245,.3);}
+    .bt-p:hover{background:rgba(0,200,245,.15);border-color:var(--acc);}
+    .bt-d{background:rgba(255,48,80,.08);color:var(--err);border-color:rgba(255,48,80,.3);}
+    .bt-d:hover{background:rgba(255,48,80,.15);border-color:var(--err);}
+    .bt-w{background:rgba(255,180,0,.08);color:#ffb400;border-color:rgba(255,180,0,.3);}
+    .bt:disabled{opacity:.4;cursor:not-allowed;}
+    .aa{padding:12px;border-radius:4px;font-size:12px;font-family:var(--mono);margin-bottom:16px;display:flex;align-items:flex-start;gap:10px;}
+    .aa-i{background:rgba(0,200,245,.06);border:1px solid rgba(0,200,245,.2);color:var(--acc);}
+    .aa-o{background:rgba(0,240,144,.06);border:1px solid rgba(0,240,144,.2);color:var(--ok);}
+    .aa-e{background:rgba(255,48,80,.06);border:1px solid rgba(255,48,80,.2);color:var(--err);}
+    .ai{width:100%;background:var(--bg);border:1px solid var(--bd2);color:var(--txt);font-family:var(--mono);font-size:13px;padding:9px 10px;border-radius:4px;outline:none;box-sizing:border-box;}
+    .ai:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(0,200,245,.1);}
+    .as{background:var(--bg);border:1px solid var(--bd2);color:var(--txt);font-family:var(--mono);font-size:12px;padding:8px;border-radius:4px;outline:none;}
+    .qrc{text-align:center;padding:16px;}
+    .qrc img{max-width:200px;border-radius:4px;border:2px solid var(--bd2);}
+    .mk{font-family:var(--mono);font-size:13px;color:var(--acc);letter-spacing:2px;word-break:break-all;text-align:center;padding:10px;background:var(--bg);border:1px solid var(--bd2);border-radius:4px;margin:10px 0;cursor:pointer;}
+    .ti{width:160px;background:var(--bg);border:1px solid var(--bd2);color:var(--txt);font-family:var(--mono);font-size:20px;padding:10px;border-radius:4px;text-align:center;letter-spacing:6px;outline:none;}
+    .ti:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(0,200,245,.1);}
+    .bcg{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin:12px 0;}
+    .bc{font-family:var(--mono);font-size:13px;padding:6px 10px;background:var(--bg);border:1px solid var(--bd2);border-radius:3px;text-align:center;color:var(--ok);letter-spacing:1px;}
+    .ut{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;}
+    .ut th{text-align:left;padding:8px 10px;color:var(--txt3);font-weight:600;text-transform:uppercase;border-bottom:1px solid var(--bd2);font-size:10px;}
+    .ut td{padding:8px 10px;border-bottom:1px solid var(--bd);color:var(--txt);vertical-align:middle;}
+    .ut tr:hover td{background:rgba(255,255,255,.02);}
+    .ua{display:flex;gap:4px;flex-wrap:wrap;}
+    .fr{display:flex;gap:10px;margin-bottom:10px;align-items:flex-end;}
+    .fc{display:flex;flex-direction:column;gap:4px;flex:1;}
+    .fc label{font-family:var(--mono);font-size:10px;color:var(--txt3);text-transform:uppercase;}
+    .mbg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9000;justify-content:center;align-items:center;}
+    .mdl{background:var(--bg1);border:1px solid var(--bd2);border-radius:4px;padding:20px;max-width:420px;width:90%;}
+    .mdl h3{font-family:var(--mono);font-size:13px;color:var(--txt);margin:0 0 12px;text-transform:uppercase;}
+    /* Profile card */
+    .prof-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    .prof-stat{background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);padding:12px;text-align:center;}
+    .prof-val{font-size:20px;font-weight:900;font-family:var(--mono);color:var(--acc);}
+    .prof-lbl{font-size:8px;color:var(--txt3);letter-spacing:.5px;margin-top:2px;font-family:var(--mono);text-transform:uppercase;}
+    /* MFA guide */
+    .guide-step{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--bd);}
+    .guide-step:last-child{border-bottom:none;}
+    .guide-num{width:28px;height:28px;border-radius:50%;background:rgba(0,200,245,.1);border:1px solid rgba(0,200,245,.3);color:var(--acc);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:13px;flex-shrink:0;}
+    .guide-txt{flex:1;}
+    .guide-txt strong{color:var(--txt);font-size:12px;}
+    .guide-txt p{color:var(--txt2);font-size:11px;margin:4px 0 0;line-height:1.5;}
+    /* Admin stats */
+    .stat-row{display:flex;gap:12px;margin-bottom:12px;}
+    .stat-box{flex:1;background:var(--bg);border:1px solid var(--bd2);border-radius:var(--r);padding:14px;text-align:center;}
+    .stat-box .sv{font-size:26px;font-weight:900;font-family:var(--mono);}
+    .stat-box .sl{font-size:8px;color:var(--txt3);letter-spacing:.5px;margin-top:2px;font-family:var(--mono);text-transform:uppercase;}
+    .login-bar{display:flex;align-items:flex-end;gap:2px;height:40px;}
+    .login-bar-seg{flex:1;background:var(--acc);border-radius:2px 2px 0 0;min-width:4px;opacity:.7;transition:opacity .2s;}
+    .login-bar-seg:hover{opacity:1;}
+    </style>
+    
+    <div class="ap">
+        <div style="margin-bottom:20px;">
+            <h2 style="font-family:var(--mono);font-size:16px;color:var(--txt);margin:0;text-transform:uppercase;">
+                <i class="fas fa-user-shield" style="color:var(--acc);margin-right:8px;"></i>Account & Security
+            </h2>
+            <p style="font-size:11px;color:var(--txt3);margin:4px 0 0;font-family:var(--mono);" id="page-subtitle">Loading account details...</p>
+        </div>
+    
+        <div id="mfa-alert-area"></div>
+    
+        <!-- ═══ YOUR PROFILE ═══ -->
+        <div class="ac">
+            <div class="ah"><i class="fas fa-id-card"></i> Your Profile</div>
+            <div class="ab2">
+                <div class="ar"><span class="al">Username</span><span class="av" id="p-user"><i class="fas fa-spinner fa-spin" style="color:var(--txt3);font-size:10px;"></i></span></div>
+                <div class="ar"><span class="al">Role</span><span class="av" id="p-role">—</span></div>
+                <div class="ar"><span class="al">Account Created</span><span class="av" id="p-created">—</span></div>
+                <div class="ar"><span class="al">Last Login</span><span class="av" id="p-lastlogin">—</span></div>
+                <div class="ar"><span class="al">Total Logins</span><span class="av" id="p-logincount">—</span></div>
+                <div class="ar"><span class="al">Account Status</span><span class="av" id="p-status">—</span></div>
+            </div>
+        </div>
+    
+        <!-- ═══ MFA STATUS + GUIDE ═══ -->
+        <div class="ac">
+            <div class="ah"><i class="fas fa-shield-halved"></i> Multi-Factor Authentication</div>
+            <div class="ab2">
+                <div class="ar"><span class="al">TOTP Status</span><span class="av" id="mfa-status-badge"><i class="fas fa-spinner fa-spin" style="color:var(--txt3);font-size:10px;"></i></span></div>
+                <div class="ar" id="mfa-backup-row" style="display:none;"><span class="al">Backup Codes Remaining</span><span class="av" id="mfa-backup-count">—</span></div>
+                <div class="ar" style="border-bottom:none;justify-content:flex-end;gap:8px;">
+                    <button class="bt bt-p" id="mfa-enable-btn" style="display:none;" onclick="startMfaSetup()"><i class="fas fa-plus"></i> Enable MFA</button>
+                    <button class="bt bt-d" id="mfa-disable-btn" style="display:none;" onclick="showDisableFlow()"><i class="fas fa-trash"></i> Disable MFA</button>
+                </div>
+            </div>
+        </div>
+    
+        <!-- MFA Setup Guide (shown when MFA is OFF) -->
+        <div class="ac" id="mfa-guide" style="display:none;">
+            <div class="ah"><i class="fas fa-book-open"></i> How to Enable MFA</div>
+            <div class="ab2">
+                <p style="font-size:12px;color:var(--txt2);margin:0 0 16px;line-height:1.6;">Multi-factor authentication adds an extra layer of security. Even if someone obtains your password, they cannot access your account without your authenticator device.</p>
+                <div class="guide-step"><div class="guide-num">1</div><div class="guide-txt"><strong>Install an Authenticator App</strong><p>Download Google Authenticator, Authy, or Microsoft Authenticator on your phone. Any TOTP-compatible app will work.</p></div></div>
+                <div class="guide-step"><div class="guide-num">2</div><div class="guide-txt"><strong>Click "Enable MFA" Above</strong><p>A QR code will appear. Open your authenticator app and scan it — or type the manual key if scanning isn't possible.</p></div></div>
+                <div class="guide-step"><div class="guide-num">3</div><div class="guide-txt"><strong>Enter the 6-Digit Code</strong><p>Your authenticator will show a code that changes every 30 seconds. Enter the current code to confirm the link between your account and your device.</p></div></div>
+                <div class="guide-step"><div class="guide-num">4</div><div class="guide-txt"><strong>Save Your Backup Codes</strong><p>You'll receive 8 one-time backup codes. Store them somewhere safe (password manager, printed copy). If you lose your authenticator device, these are your only way back in.</p></div></div>
+            </div>
+        </div>
+    
+        <!-- MFA Setup Flow -->
+        <div id="mfa-setup-flow" class="ac" style="display:none;">
+            <div class="ah"><i class="fas fa-qrcode"></i> MFA Setup</div>
+            <div class="ab2">
+                <div id="mfa-step-qr">
+                    <p style="font-size:12px;color:var(--txt2);margin:0 0 12px;">Scan this QR code with your authenticator app.</p>
+                    <div class="qrc"><img id="mfa-qr-img" src="" alt="QR"></div>
+                    <p style="font-size:10px;color:var(--txt3);text-align:center;margin:8px 0 4px;">Or enter manually:</p>
+                    <div class="mk" id="mfa-manual-key" onclick="navigator.clipboard.writeText(this.textContent).then(()=>{this.style.borderColor='var(--ok)';setTimeout(()=>this.style.borderColor='var(--bd2)',1500);})" title="Click to copy"></div>
+                    <div style="text-align:center;margin-top:16px;">
+                        <p style="font-size:11px;color:var(--txt2);margin:0 0 10px;">Enter the 6-digit code to confirm:</p>
+                        <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+                            <input type="text" id="mfa-confirm-code" class="ti" maxlength="6" inputmode="numeric" placeholder="000000">
+                            <button class="bt bt-p" id="mfa-confirm-btn" onclick="confirmMfa()"><i class="fas fa-check"></i> Confirm</button>
+                        </div>
+                    </div>
+                </div>
+                <div id="mfa-step-codes" style="display:none;">
+                    <div class="aa aa-o"><i class="fas fa-circle-check"></i><div>MFA enabled. Save these backup codes — they will not be shown again.</div></div>
+                    <div class="bcg" id="mfa-codes-grid"></div>
+                    <div style="text-align:center;margin-top:12px;">
+                        <button class="bt bt-p" onclick="copyBackupCodes()"><i class="fas fa-copy"></i> Copy All</button>
+                        <button class="bt bt-p" onclick="closeMfaSetup()" style="margin-left:8px;"><i class="fas fa-check"></i> Done</button>
+                    </div>
+                </div>
+                <div style="text-align:center;margin-top:12px;"><a href="#" onclick="cancelMfaSetup();return false;" style="color:var(--txt3);font-size:10px;font-family:var(--mono);text-decoration:none;" id="mfa-cancel-link"><i class="fas fa-times"></i> Cancel</a></div>
+            </div>
+        </div>
+    
+        <!-- MFA Disable -->
+        <div id="mfa-disable-flow" class="ac" style="display:none;">
+            <div class="ah" style="color:var(--err);"><i class="fas fa-triangle-exclamation"></i> Disable MFA</div>
+            <div class="ab2">
+                <p style="font-size:12px;color:var(--txt2);margin:0 0 8px;">Enter your password to confirm.</p>
+                <input type="password" id="mfa-disable-password" class="ai" placeholder="Enter password" autocomplete="current-password">
+                <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:10px;">
+                    <button class="bt bt-p" onclick="cancelDisable()">Cancel</button>
+                    <button class="bt bt-d" id="mfa-disable-confirm-btn" onclick="confirmDisable()"><i class="fas fa-trash"></i> Disable</button>
+                </div>
+            </div>
+        </div>
+    
+        <!-- ═══ ADMIN: DASHBOARD STATS ═══ -->
+        <div id="admin-stats-section" style="display:none;">
+            <div class="ac">
+                <div class="ah"><i class="fas fa-chart-bar"></i> System Overview</div>
+                <div class="ab2">
+                    <div class="stat-row">
+                        <div class="stat-box"><div class="sv" id="s-total" style="color:var(--acc);">—</div><div class="sl">Total Users</div></div>
+                        <div class="stat-box"><div class="sv" id="s-active" style="color:var(--ok);">—</div><div class="sl">Active</div></div>
+                        <div class="stat-box"><div class="sv" id="s-suspended" style="color:var(--err);">—</div><div class="sl">Suspended</div></div>
+                        <div class="stat-box"><div class="sv" id="s-mfa" style="color:var(--acc);">—</div><div class="sl">MFA Enabled</div></div>
+                    </div>
+                    <div class="stat-row">
+                        <div class="stat-box"><div class="sv" id="s-admins" style="color:var(--ok);">—</div><div class="sl">Admins</div></div>
+                        <div class="stat-box"><div class="sv" id="s-operators" style="color:var(--acc);">—</div><div class="sl">Operators</div></div>
+                        <div class="stat-box"><div class="sv" id="s-spectators" style="color:var(--txt3);">—</div><div class="sl">Spectators</div></div>
+                        <div class="stat-box"><div class="sv" id="s-logins" style="color:var(--acc);">—</div><div class="sl">Total Logins</div></div>
+                    </div>
+                    <div style="margin-top:8px;">
+                        <p style="font-family:var(--mono);font-size:10px;color:var(--txt3);margin:0 0 6px;text-transform:uppercase;">Login Activity (per user)</p>
+                        <div class="login-bar" id="login-bar"></div>
+                        <div id="login-bar-labels" style="display:flex;gap:2px;margin-top:4px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <!-- ═══ ADMIN: USER MANAGEMENT ═══ -->
+        <div id="user-mgmt-section" style="display:none;">
+            <div class="ac">
+                <div class="ah"><i class="fas fa-users-gear"></i> User Management<span style="flex:1;"></span><button class="bt bt-p bt-s" onclick="toggleCreatePanel()"><i class="fas fa-user-plus"></i> New User</button></div>
+                <div class="ab2" style="padding:0;">
+                    <div id="create-user-panel" style="display:none;padding:16px;border-bottom:1px solid var(--bd2);background:var(--bg2);">
+                        <p style="font-family:var(--mono);font-size:11px;color:var(--acc);margin:0 0 12px;text-transform:uppercase;"><i class="fas fa-user-plus"></i> Create New User</p>
+                        <div class="fr">
+                            <div class="fc"><label>Username</label><input type="text" id="new-username" class="ai" placeholder="operator_name" autocomplete="off"></div>
+                            <div class="fc"><label>Role</label>
+                                <select id="new-role" class="as" style="width:100%;padding:9px;">
+                                    <option value="0">Admin — Full system access</option>
+                                    <option value="1" selected>Operator — Standard access</option>
+                                    <option value="2">Spectator — Read-only</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="fr">
+                            <div class="fc" style="flex:2;"><label>Password</label>
+                                <div style="display:flex;gap:6px;">
+                                    <input type="text" id="new-password" class="ai" placeholder="Min. 6 characters" autocomplete="new-password">
+                                    <button class="bt bt-p bt-s" onclick="generatePassword()" style="white-space:nowrap;"><i class="fas fa-dice"></i> Generate</button>
+                                </div>
+                            </div>
+                            <div class="fc" style="flex:0 0 auto;"><label>Security</label>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;text-transform:none;font-size:12px;color:var(--txt);"><input type="checkbox" id="new-force-mfa"> Require MFA</label>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;justify-content:flex-end;">
+                            <button class="bt bt-p" onclick="toggleCreatePanel()">Cancel</button>
+                            <button class="bt bt-p" id="create-user-btn" onclick="createUser()"><i class="fas fa-check"></i> Create</button>
+                        </div>
+                        <div id="create-user-result" style="margin-top:10px;"></div>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                            <table class="ut">
+                            <thead><tr><th>User</th><th>Role</th><th>MFA</th><th>Status</th><th>Last Login</th><th>Logins</th><th style="text-align:right;">Actions</th></tr></thead>
+                            <tbody id="users-tbody"><tr><td colspan="7" style="text-align:center;color:var(--txt3);padding:20px;"><i class="fas fa-spinner fa-spin"></i></td></tr></tbody>
+                        </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal -->
+    <div class="mbg" id="acct-modal" style="display:none;">
+        <div class="mdl">
+            <h3 id="modal-title">Confirm</h3>
+            <p id="modal-body" style="font-size:12px;color:var(--txt2);margin:0 0 16px;"></p>
+            <div id="modal-input-area"></div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+                <button class="bt bt-p" onclick="closeModal()">Cancel</button>
+                <button class="bt" id="modal-confirm-btn" onclick="modalConfirm()">Confirm</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+    (function(){
+        let _bcc=[], _mcb=null;
+        function sa(t,m){const a=document.getElementById('mfa-alert-area');const c=t==='error'?'aa-e':t==='ok'?'aa-o':'aa-i';const i=t==='error'?'fa-triangle-exclamation':t==='ok'?'fa-circle-check':'fa-circle-info';a.innerHTML=`<div class="aa ${c}"><i class="fas ${i}"></i><span>${m}</span></div>`;setTimeout(()=>a.innerHTML='',10000);}
+        function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+        function ago(d){if(!d)return'Never';const ms=Date.now()-new Date(d+'Z').getTime();const s=Math.floor(ms/1000);if(s<60)return'Just now';const m=Math.floor(s/60);if(m<60)return m+'m ago';const h=Math.floor(m/60);if(h<24)return h+'h ago';const dy=Math.floor(h/24);return dy+'d ago';}
+        function fmtDate(d){if(!d)return'—';try{return new Date(d+'Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}catch(e){return d;}}
+    
+        window.openModal=function(t,b,bc,bt2,ih,cb){document.getElementById('modal-title').textContent=t;document.getElementById('modal-body').innerHTML=b;document.getElementById('modal-input-area').innerHTML=ih||'';const btn=document.getElementById('modal-confirm-btn');btn.className='bt '+(bc||'bt-p');btn.innerHTML=bt2||'Confirm';_mcb=cb;document.getElementById('acct-modal').style.display='flex';const fi=document.querySelector('#modal-input-area input');if(fi)setTimeout(()=>fi.focus(),100);};
+        window.closeModal=function(){document.getElementById('acct-modal').style.display='none';_mcb=null;};
+        window.modalConfirm=function(){if(_mcb)_mcb();};
+    
+        // ─── Profile ───
+        async function loadProfile(){
+            try{
+                const r=await fetch('/api/account/me');
+                const d=await r.json();
+                document.getElementById('p-user').innerHTML=`<strong style="color:var(--acc);font-size:14px;">${esc(d.username)}</strong>`;
+                const rl={0:'<span class="b b-on">Admin</span>',1:'<span class="b b-acc">Operator</span>',2:'<span class="b b-na">Spectator</span>'};
+                document.getElementById('p-role').innerHTML=(rl[d.role]||'—')+` <span style="color:var(--txt3);font-size:10px;margin-left:4px;">${d.role_label}</span>`;
+                document.getElementById('p-created').textContent=fmtDate(d.created_at);
+                document.getElementById('p-lastlogin').textContent=d.last_login?ago(d.last_login)+' ('+fmtDate(d.last_login)+')':'First session';
+                document.getElementById('p-logincount').textContent=d.login_count||'0';
+                document.getElementById('p-status').innerHTML=d.disabled?'<span class="b b-off">Suspended</span>':'<span class="b b-on">Active</span>';
+                document.getElementById('page-subtitle').textContent=`Signed in as ${d.username} · ${d.role_label}`;
+    
+                // Show MFA guide if not enabled
+                if(!d.totp_enabled){document.getElementById('mfa-guide').style.display='block';}else{document.getElementById('mfa-guide').style.display='none';}
+            }catch(e){}
+        }
+    
+        // ─── MFA ───
+        async function loadStatus(){
+            try{
+                const r=await fetch('/api/totp/status');
+                const d=await r.json();
+                const badge=document.getElementById('mfa-status-badge');
+                const eBtn=document.getElementById('mfa-enable-btn'),dBtn=document.getElementById('mfa-disable-btn');
+                const bRow=document.getElementById('mfa-backup-row');
+                if(!d.totp_available){badge.innerHTML='<span class="b b-na">NOT AVAILABLE</span>';eBtn.style.display='none';dBtn.style.display='none';return;}
+                if(d.totp_enabled){
+                    badge.innerHTML='<span class="b b-on">ENABLED</span>';eBtn.style.display='none';dBtn.style.display='inline-flex';bRow.style.display='flex';
+                    const cnt=document.getElementById('mfa-backup-count');cnt.textContent=d.backup_codes_remaining;
+                    cnt.style.color=d.backup_codes_remaining<=2?'var(--err)':'';
+                    if(d.backup_codes_remaining<=2)sa('info','You have '+d.backup_codes_remaining+' backup codes left. Consider disabling and re-enabling MFA to generate new ones.');
+                }else{badge.innerHTML='<span class="b b-off">DISABLED</span>';eBtn.style.display='inline-flex';dBtn.style.display='none';bRow.style.display='none';}
+            }catch(e){document.getElementById('mfa-status-badge').innerHTML='<span class="b b-na">ERROR</span>';}
+        }
+    
+        window.startMfaSetup=async function(){
+            const btn=document.getElementById('mfa-enable-btn');btn.disabled=true;
+            try{
+                const r=await fetch('/api/totp/setup',{method:'POST',headers:{'X-CSRF-Token':window._csrfToken||''}});
+                const d=await r.json();
+                if(!r.ok)throw new Error(d.detail||'Setup failed');
+                document.getElementById('mfa-qr-img').src=d.qr_code;
+                document.getElementById('mfa-manual-key').textContent=d.secret;
+                document.getElementById('mfa-step-qr').style.display='block';
+                document.getElementById('mfa-step-codes').style.display='none';
+                document.getElementById('mfa-cancel-link').style.display='block';
+                document.getElementById('mfa-setup-flow').style.display='block';
+                document.getElementById('mfa-guide').style.display='none';
+                document.getElementById('mfa-confirm-code').value='';
+                document.getElementById('mfa-confirm-code').focus();
+            }catch(e){sa('error',e.message||'MFA setup failed.');}finally{btn.disabled=false;}
+        };
+        window.confirmMfa=async function(){
+            const code=document.getElementById('mfa-confirm-code').value.trim();
+            if(!code||code.length!==6){sa('error','Enter a valid 6-digit code.');return;}
+            const btn=document.getElementById('mfa-confirm-btn');btn.disabled=true;
+            const fd=new FormData();fd.append('code',code);
+            try{
+                const r=await fetch('/api/totp/confirm',{method:'POST',body:fd});
+                const d=await r.json();
+                if(!r.ok)throw new Error(d.detail||'Failed');
+                _bcc=d.backup_codes||[];
+                document.getElementById('mfa-codes-grid').innerHTML=_bcc.map(c=>`<div class="bc">${c}</div>`).join('');
+                document.getElementById('mfa-step-qr').style.display='none';
+                document.getElementById('mfa-step-codes').style.display='block';
+                document.getElementById('mfa-cancel-link').style.display='none';
+                document.getElementById('mfa-alert-area').innerHTML='';
+            }catch(e){sa('error',e.message);document.getElementById('mfa-confirm-code').value='';document.getElementById('mfa-confirm-code').focus();}
+            finally{btn.disabled=false;}
+        };
+        window.copyBackupCodes=function(){navigator.clipboard.writeText(_bcc.join('\n')).then(()=>sa('ok','Copied.'));};
+        window.closeMfaSetup=function(){document.getElementById('mfa-setup-flow').style.display='none';_bcc=[];loadStatus();loadProfile();};
+        window.cancelMfaSetup=function(){document.getElementById('mfa-setup-flow').style.display='none';document.getElementById('mfa-guide').style.display='block';};
+        window.showDisableFlow=function(){document.getElementById('mfa-disable-flow').style.display='block';document.getElementById('mfa-disable-password').value='';document.getElementById('mfa-disable-password').focus();};
+        window.cancelDisable=function(){document.getElementById('mfa-disable-flow').style.display='none';};
+        window.confirmDisable=async function(){
+            const pw=document.getElementById('mfa-disable-password').value;
+            if(!pw){sa('error','Password required.');return;}
+            const btn=document.getElementById('mfa-disable-confirm-btn');btn.disabled=true;
+            const fd=new FormData();fd.append('password',pw);
+            try{const r=await fetch('/api/totp/disable',{method:'POST',body:fd});const d=await r.json();if(!r.ok)throw new Error(d.detail||'Failed');document.getElementById('mfa-disable-flow').style.display='none';sa('ok','MFA disabled.');loadStatus();loadProfile();}
+            catch(e){sa('error',e.message);}finally{btn.disabled=false;}
+        };
+    
+        // ─── Admin: Users ───
+        let _usersCache=[];
+        async function loadUsers(){
+            try{
+                const r=await fetch('/api/users');
+                if(r.status===403)return;
+                const d=await r.json();
+                _usersCache=d.users||[];
+                document.getElementById('user-mgmt-section').style.display='block';
+                document.getElementById('admin-stats-section').style.display='block';
+                renderUsers(_usersCache);
+                renderStats(_usersCache);
+            }catch(e){}
+        }
+    
+        function renderStats(users){
+            const total=users.length;
+            const active=users.filter(u=>!u.disabled).length;
+            const suspended=users.filter(u=>u.disabled).length;
+            const mfa=users.filter(u=>u.totp_enabled).length;
+            const admins=users.filter(u=>u.role===0).length;
+            const operators=users.filter(u=>u.role===1).length;
+            const spectators=users.filter(u=>u.role===2).length;
+            const totalLogins=users.reduce((s,u)=>s+(u.login_count||0),0);
+            document.getElementById('s-total').textContent=total;
+            document.getElementById('s-active').textContent=active;
+            document.getElementById('s-suspended').textContent=suspended;
+            document.getElementById('s-mfa').textContent=mfa;
+            document.getElementById('s-admins').textContent=admins;
+            document.getElementById('s-operators').textContent=operators;
+            document.getElementById('s-spectators').textContent=spectators;
+            document.getElementById('s-logins').textContent=totalLogins;
+    
+            // Login bar chart
+            const bar=document.getElementById('login-bar');
+            const labels=document.getElementById('login-bar-labels');
+            const maxL=Math.max(1,...users.map(u=>u.login_count||0));
+            bar.innerHTML=users.map(u=>{
+                const h=Math.max(2,Math.round(((u.login_count||0)/maxL)*38));
+                const col=u.disabled?'var(--err)':u.role===0?'var(--ok)':u.role===2?'var(--txt3)':'var(--acc)';
+                return `<div class="login-bar-seg" style="height:${h}px;background:${col};" title="${esc(u.username)}: ${u.login_count||0} logins"></div>`;
+            }).join('');
+            labels.innerHTML=users.map(u=>`<div style="flex:1;min-width:4px;font-family:var(--mono);font-size:7px;color:var(--txt3);text-align:center;overflow:hidden;white-space:nowrap;">${esc(u.username).substring(0,3)}</div>`).join('');
+        }
+    
+        function renderUsers(users){
+            const tb=document.getElementById('users-tbody');
+            if(!users||!users.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--txt3);padding:20px;">No users.</td></tr>';return;}
+            tb.innerHTML=users.map(u=>{
+                const rb=u.role===0?'<span class="b b-on">Admin</span>':u.role===2?'<span class="b b-na">Spectator</span>':'<span class="b b-acc">Operator</span>';
+                const mb=u.totp_enabled?'<span class="b b-on">Active</span>':u.force_mfa?'<span class="b b-w">Pending</span>':'<span class="b b-off">Off</span>';
+                const sb=u.disabled?'<span class="b b-off">Suspended</span>':'<span class="b b-on">Active</span>';
+                const ll=u.last_login?ago(u.last_login):'Never';
+                const lc=u.login_count||0;
+                return `<tr>
+                    <td><strong>${esc(u.username)}</strong></td><td>${rb}</td><td>${mb}</td><td>${sb}</td><td>${ll}</td><td>${lc}</td>
+                    <td style="text-align:right;"><div class="ua" style="justify-content:flex-end;">
+                        <button class="bt bt-p bt-s" onclick="editUserRole('${esc(u.username)}',${u.role})" title="Change role"><i class="fas fa-user-pen"></i></button>
+                        <button class="bt bt-p bt-s" onclick="resetUserPassword('${esc(u.username)}')" title="Reset password"><i class="fas fa-key"></i></button>
+                        ${u.totp_enabled?`<button class="bt bt-w bt-s" onclick="resetUserMfa('${esc(u.username)}')" title="Reset MFA"><i class="fas fa-shield-halved"></i></button>`:''}
+                        ${!u.force_mfa&&!u.totp_enabled?`<button class="bt bt-p bt-s" onclick="forceUserMfa('${esc(u.username)}')" title="Enforce MFA"><i class="fas fa-lock"></i></button>`:''}
+                        ${u.disabled?`<button class="bt bt-p bt-s" onclick="toggleSuspend('${esc(u.username)}',false)" title="Reactivate"><i class="fas fa-user-check"></i></button>`:`<button class="bt bt-w bt-s" onclick="toggleSuspend('${esc(u.username)}',true)" title="Suspend"><i class="fas fa-user-slash"></i></button>`}
+                        <button class="bt bt-d bt-s" onclick="deleteUser('${esc(u.username)}')" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div></td></tr>`;
+            }).join('');
+        }
+    
+        window.toggleCreatePanel=function(){const p=document.getElementById('create-user-panel');const v=getComputedStyle(p).display!=='none';p.style.display=v?'none':'block';if(!v)document.getElementById('new-username').focus();document.getElementById('create-user-result').innerHTML='';};
+        window.generatePassword=async function(){try{const r=await fetch('/api/users/generate-password',{method:'POST',headers:{'X-CSRF-Token':window._csrfToken||''}});const d=await r.json();document.getElementById('new-password').value=d.password;}catch(e){sa('error','Failed.');}};
+        window.createUser=async function(){
+            const un=document.getElementById('new-username').value.trim(),pw=document.getElementById('new-password').value.trim(),rl=parseInt(document.getElementById('new-role').value),fm=document.getElementById('new-force-mfa').checked;
+            if(!un||un.length<2){sa('error','Username: min 2 chars.');return;}if(!pw||pw.length<6){sa('error','Password: min 6 chars.');return;}
+            const btn=document.getElementById('create-user-btn');btn.disabled=true;
+            try{const r=await fetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json','X-CSRF-Token':window._csrfToken||''},body:JSON.stringify({username:un,password:pw,role:rl,force_mfa:fm})});const d=await r.json();if(!r.ok)throw new Error(d.detail||'Failed');
+                document.getElementById('create-user-result').innerHTML=`<div class="aa aa-o" style="margin:0;"><i class="fas fa-circle-check"></i><div><strong>${esc(un)}</strong> created as <strong>${d.role_label}</strong>.${fm?' MFA required on first login.':''}<br><span style="color:var(--txt2);font-size:10px;">Credentials: <strong>${esc(un)}</strong> / <strong>${esc(pw)}</strong></span></div></div>`;
+                document.getElementById('new-username').value='';document.getElementById('new-password').value='';document.getElementById('new-force-mfa').checked=false;loadUsers();
+            }catch(e){sa('error',e.message);}finally{btn.disabled=false;}
+        };
+    
+        window.editUserRole=function(u,cr){openModal('Change Role',`Update role for <strong>${esc(u)}</strong>:`,'bt-p','<i class="fas fa-check"></i> Update',`<select id="modal-role" class="as" style="width:100%;"><option value="0" ${cr===0?'selected':''}>Admin</option><option value="1" ${cr===1?'selected':''}>Operator</option><option value="2" ${cr===2?'selected':''}>Spectator</option></select>`,async()=>{try{const r=await fetch(`/api/users/${encodeURIComponent(u)}/role`,{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':window._csrfToken||''},body:JSON.stringify({role:parseInt(document.getElementById('modal-role').value)})});if(!r.ok){const d=await r.json();throw new Error(d.detail);}closeModal();sa('ok',`${u} role updated.`);loadUsers();}catch(e){sa('error',e.message);closeModal();}});};
+        window.resetUserPassword=function(u){openModal('Reset Password',`New password for <strong>${esc(u)}</strong>:`,'bt-p','<i class="fas fa-key"></i> Reset',`<div style="display:flex;gap:6px;"><input type="text" id="modal-pw" class="ai" placeholder="Min 6 chars"><button class="bt bt-p bt-s" onclick="fetch('/api/users/generate-password',{method:'POST',headers:{'X-CSRF-Token':window._csrfToken||''}}).then(r=>r.json()).then(d=>{document.getElementById('modal-pw').value=d.password;})" style="white-space:nowrap;"><i class="fas fa-dice"></i></button></div>`,async()=>{const pw=document.getElementById('modal-pw').value.trim();if(!pw||pw.length<6){sa('error','Min 6 chars.');return;}try{const r=await fetch(`/api/users/${encodeURIComponent(u)}/password`,{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':window._csrfToken||''},body:JSON.stringify({password:pw})});if(!r.ok){const d=await r.json();throw new Error(d.detail);}closeModal();sa('ok',`Password reset for ${u}. New: ${pw}`);}catch(e){sa('error',e.message);closeModal();}});};
+        window.resetUserMfa=function(u){openModal('Reset MFA',`Remove MFA for <strong>${esc(u)}</strong>. If enforced, they\'ll set up again on next login.`,'bt-w','<i class="fas fa-shield-halved"></i> Reset','',async()=>{try{const r=await fetch(`/api/users/${encodeURIComponent(u)}/mfa`,{method:'DELETE',headers:{'X-CSRF-Token':window._csrfToken||''}});if(!r.ok){const d=await r.json();throw new Error(d.detail);}closeModal();sa('ok',`MFA reset for ${u}.`);loadUsers();}catch(e){sa('error',e.message);closeModal();}});};
+        window.forceUserMfa=function(u){openModal('Enforce MFA',`<strong>${esc(u)}</strong> must set up MFA on next login.`,'bt-p','<i class="fas fa-lock"></i> Enforce','',async()=>{try{const r=await fetch(`/api/users/${encodeURIComponent(u)}/force-mfa`,{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':window._csrfToken||''},body:JSON.stringify({force_mfa:true})});if(!r.ok){const d=await r.json();throw new Error(d.detail);}closeModal();sa('ok',`MFA enforced for ${u}.`);loadUsers();}catch(e){sa('error',e.message);closeModal();}});};
+        window.toggleSuspend=function(u,s){const a=s?'Suspend':'Reactivate';openModal(`${a} User`,s?`<strong>${esc(u)}</strong> will be locked out immediately.`:`<strong>${esc(u)}</strong> can log in again.`,s?'bt-w':'bt-p',`<i class="fas fa-${s?'user-slash':'user-check'}"></i> ${a}`,'',async()=>{try{const r=await fetch(`/api/users/${encodeURIComponent(u)}/suspend`,{method:'PUT',headers:{'Content-Type':'application/json','X-CSRF-Token':window._csrfToken||''},body:JSON.stringify({suspended:s})});if(!r.ok){const d=await r.json();throw new Error(d.detail);}closeModal();sa('ok',`${u} ${s?'suspended':'reactivated'}.`);loadUsers();}catch(e){sa('error',e.message);closeModal();}});};
+        window.deleteUser=function(u){openModal('Delete User',`<strong style="color:var(--err);">Permanently delete ${esc(u)}?</strong> This cannot be undone.`,'bt-d','<i class="fas fa-trash"></i> Delete','',async()=>{try{const r=await fetch(`/api/users/${encodeURIComponent(u)}`,{method:'DELETE',headers:{'X-CSRF-Token':window._csrfToken||''}});if(!r.ok){const d=await r.json();throw new Error(d.detail);}closeModal();sa('ok',`${u} deleted.`);loadUsers();}catch(e){sa('error',e.message);closeModal();}});};
+    
+        document.getElementById('mfa-confirm-code')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();confirmMfa();}});
+        document.getElementById('mfa-disable-password')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();confirmDisable();}});
+    
+        window.AccountPageInit=function(){loadProfile();loadStatus();loadUsers();};
+        loadProfile();loadStatus();loadUsers();
+    })();
+    </script>

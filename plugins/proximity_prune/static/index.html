@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Proximity Pruner</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg,var(--bg));color:var(--txt,var(--txt));font-family:var(--sans,system-ui,-apple-system,sans-serif);font-size:12px;}
+.shell{height:100%;display:flex;flex-direction:column;overflow:hidden;}
+.top{flex-shrink:0;padding:14px 18px;border-bottom:1px solid var(--bd2);background:var(--bg2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;}
+.scroll{flex:1;overflow-y:auto;padding:16px 18px 24px;}
+.scroll::-webkit-scrollbar{width:4px;}.scroll::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px;}
+.ph{display:flex;align-items:center;gap:10px;}
+.ph-ico{font-size:20px;color:var(--err);text-shadow:0 0 8px rgba(255,48,80,.4);}
+.ph-title{font-size:14px;font-family:var(--mono);font-weight:900;letter-spacing:2px;}
+.ph-sub{font-size:9px;color:var(--txt3);font-family:var(--mono);}
+
+.kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
+@media(max-width:700px){.kpi-grid{grid-template-columns:1fr;}}
+.kpi{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);padding:12px;}
+.kpi.alert{border-color:rgba(255,48,80,.4);}
+.kpi.safe{border-color:rgba(0,232,122,.4);}
+.kpi-lbl{font-size:9px;color:var(--txt3);font-family:var(--mono);letter-spacing:1px;}
+.kpi-val{font-size:26px;font-weight:900;font-family:var(--mono);margin-top:4px;}
+
+.main-layout{display:grid;grid-template-columns:340px 1fr;gap:12px;}
+@media(max-width:800px){.main-layout{grid-template-columns:1fr;}}
+.ctrl{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:0;}
+.map-wrap{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);position:relative;overflow:hidden;min-height:320px;}
+#preview-map{width:100%;height:100%;background:var(--bg);}
+
+.row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.04);}
+.row.col{flex-direction:column;align-items:flex-start;gap:8px;padding:10px 0;}
+.row:last-child{border-bottom:none;}
+.lbl{font-family:var(--mono);font-size:11px;font-weight:bold;color:var(--txt);}
+.desc{font-size:9px;color:var(--txt3);font-family:var(--mono);margin-top:3px;line-height:1.4;}
+
+.inp-sel{background:var(--bg);border:1px solid var(--bd2);color:var(--acc);padding:7px 10px;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:bold;width:100%;cursor:pointer;}
+.inp-num{width:100%;margin-top:4px;accent-color:var(--err);cursor:pointer;}
+.inp-txt{background:var(--bg);border:1px solid var(--bd2);color:var(--txt);padding:6px 8px;border-radius:4px;font-family:var(--mono);font-size:11px;width:100px;}
+
+.tog{position:relative;width:38px;height:19px;flex-shrink:0;}
+.tog input{opacity:0;width:0;height:0;position:absolute;}
+.tog-sl{position:absolute;inset:0;background:var(--bd2);border-radius:9px;cursor:pointer;transition:background .2s;}
+.tog-sl::after{content:'';position:absolute;width:13px;height:13px;left:3px;top:3px;background:var(--txt3);border-radius:50%;transition:all .2s;}
+.tog input:checked+.tog-sl{background:var(--err);}
+.tog input:checked+.tog-sl::after{transform:translateX(18px);background:#000;}
+
+.btn-prune{background:rgba(255,48,80,.1);border:1px solid var(--err);color:var(--err);padding:10px 12px;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:bold;cursor:pointer;transition:all .2s;width:100%;margin-top:auto;display:flex;align-items:center;justify-content:center;gap:7px;}
+.btn-prune:hover{background:var(--err);color:#000;box-shadow:0 0 12px rgba(255,48,80,.4);}
+.btn-ico{background:var(--bg);border:1px solid var(--bd2);color:var(--txt);padding:6px 10px;border-radius:4px;cursor:pointer;transition:.15s;font-size:10px;font-family:var(--mono);flex-shrink:0;}
+.btn-ico:hover{border-color:var(--acc);color:var(--acc);}
+
+.map-overlay{position:absolute;inset:0;z-index:1000;background:rgba(6,11,18,.85);display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--txt3);font-family:var(--mono);text-align:center;padding:20px;gap:10px;}
+.map-overlay h3{font-size:12px;color:var(--warn);letter-spacing:1px;}
+.map-overlay p{font-size:10px;line-height:1.6;max-width:240px;}
+
+.loc-banner{background:rgba(255,168,38,.07);border:1px solid rgba(255,168,38,.3);border-radius:4px;padding:10px 12px;margin-bottom:10px;font-size:10px;font-family:var(--mono);color:var(--warn);line-height:1.5;display:none;}
+.loc-banner.show{display:block;}
+.loc-banner.ok{border-color:rgba(0,232,122,.3);background:rgba(0,232,122,.05);color:var(--ok);}
+.loc-banner.err{border-color:rgba(255,48,80,.3);background:rgba(255,48,80,.05);color:var(--err);}
+
+.leaflet-popup-content-wrapper{background:var(--bg2);color:var(--txt);border:1px solid var(--bd2);border-radius:4px;font-family:var(--mono);font-size:10px;}
+.leaflet-popup-tip{background:var(--bg2);}
+
+.spin{animation:pp-spin .7s linear infinite;display:inline-block;}
+@keyframes pp-spin{to{transform:rotate(360deg);}}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="top">
+  <div class="plugin-header">
+            <span class="ph-ico">✂️</span>
+            <div>
+                <div class="ph-title">PROXIMITY PRUNE</div>
+                <div class="ph-sub">by MeshDash</div>
+            </div>
+        </div>
+  </div>
+
+<div class="scroll">
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="kpi-lbl"><i class="fas fa-globe"></i> Active Radius</div><div class="kpi-val" id="kpi-rad" style="color:var(--acc);">— km</div></div>
+    <div class="kpi safe"><div class="kpi-lbl"><i class="fas fa-shield-alt"></i> Kept</div><div class="kpi-val" id="kpi-keep" style="color:var(--ok);">0</div></div>
+    <div class="kpi alert"><div class="kpi-lbl"><i class="fas fa-trash"></i> To Prune</div><div class="kpi-val" id="kpi-prune" style="color:var(--err);">0</div></div>
+  </div>
+
+  <div class="main-layout" style="margin-bottom:12px;">
+    <!-- Controls -->
+    <div class="ctrl">
+
+      <!-- Slot selector -->
+      <div class="row col" style="padding-top:0;">
+        <div><div class="lbl">TARGET RADIO (SLOT)</div><div class="desc">Settings are stored per radio slot.</div></div>
+        <select id="slot-select" class="inp-sel" onchange="loadSlotData()"></select>
+      </div>
+
+      <!-- Location section -->
+      <div class="row col">
+        <div><div class="lbl">ANCHOR LOCATION</div><div class="desc">Centre point for the boundary ring. Uses radio GPS if available, then manual fallback.</div></div>
+        <div id="loc-banner" class="loc-banner"></div>
+        <div style="display:flex;gap:6px;align-items:center;width:100%;flex-wrap:wrap;">
+          <input type="number" id="conf-lat" class="inp-txt" placeholder="Latitude" step="any">
+          <input type="number" id="conf-lon" class="inp-txt" placeholder="Longitude" step="any">
+          <button class="btn-ico" id="detect-btn" title="Get from browser GPS"><i class="fas fa-crosshairs"></i> DETECT</button>
+        </div>
+        <div class="desc">Manual fallback — used when radio has no GPS fix.</div>
+      </div>
+
+      <!-- Radius -->
+      <div class="row col">
+        <div style="display:flex;justify-content:space-between;width:100%;align-items:center;">
+          <div class="lbl">BOUNDARY RADIUS</div>
+          <div style="font-family:var(--mono);font-weight:bold;color:var(--acc);" id="radius-lbl">10.0 km</div>
+        </div>
+        <input type="range" id="conf-radius" class="inp-num" min="1" max="250" step="0.5" value="10" oninput="updateRadius()">
+      </div>
+
+      <!-- Auto prune -->
+      <div class="row">
+        <div><div class="lbl">BACKGROUND AUTO-PRUNE</div><div class="desc">Silently remove out-of-bounds nodes every 5 minutes.</div></div>
+        <label class="tog"><input type="checkbox" id="conf-auto"><span class="tog-sl"></span></label>
+      </div>
+
+      <!-- No GPS -->
+      <div class="row">
+        <div><div class="lbl">REMOVE NO-GPS NODES</div><div class="desc">Also delete nodes with no position data.</div></div>
+        <label class="tog"><input type="checkbox" id="conf-nogps"><span class="tog-sl"></span></label>
+      </div>
+
+      <div style="margin-top:12px;">
+        <button class="btn-prune" id="btn-prune"><i class="fas fa-trash-alt"></i> COMMIT &amp; PRUNE NOW</button>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div class="map-wrap">
+      <div id="preview-map"></div>
+      <div id="map-overlay" class="map-overlay"><div><i class="fas fa-circle-notch fa-spin" style="font-size:24px;color:var(--acc);margin-bottom:8px;"></i></div><p>Loading…</p></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+'use strict';
+var API_BASE = '/api/plugins/proximity_prune';
+var _cfg = { slots: {} };
+var _activeNodes = [];
+var _localLat = null, _localLon = null;
+var _map = null, _boundaryCircle = null, _markersLayer = null;
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function toast(m,t){try{window.parent.triggerToast(m,t||'ok');}catch(e){}}
+
+/* ── Map ── */
+function initMap(){
+    _map = L.map('preview-map',{zoomControl:false,attributionControl:false}).setView([20,0],2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19}).addTo(_map);
+    _markersLayer = L.layerGroup().addTo(_map);
+}
+
+/* ── Geolocation detect ── */
+function detectLocation(){
+    var btn = document.getElementById('detect-btn');
+    var banner = document.getElementById('loc-banner');
+    btn.innerHTML = '<i class="fas fa-circle-notch spin"></i>';
+    btn.disabled = true;
+    banner.className = 'loc-banner show';
+    banner.innerHTML = '<i class="fas fa-circle-notch spin"></i> Requesting browser location…';
+
+    if (!navigator.geolocation) {
+        banner.className = 'loc-banner show err';
+        banner.innerHTML = '<i class="fas fa-times-circle"></i> Browser geolocation not supported. Enter coordinates manually above.';
+        btn.innerHTML = '<i class="fas fa-crosshairs"></i> DETECT';
+        btn.disabled = false;
+        return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+        function(pos){
+            var lat = parseFloat(pos.coords.latitude.toFixed(6));
+            var lon = parseFloat(pos.coords.longitude.toFixed(6));
+            document.getElementById('conf-lat').value = lat;
+            document.getElementById('conf-lon').value = lon;
+            banner.className = 'loc-banner show ok';
+            banner.innerHTML = '<i class="fas fa-check-circle"></i> Location acquired: ' + lat + ', ' + lon;
+            btn.innerHTML = '<i class="fas fa-crosshairs"></i> DETECT';
+            btn.disabled = false;
+            setTimeout(function(){banner.className='loc-banner';}, 4000);
+            updateMapPreview(true);
+        },
+        function(err){
+            banner.className = 'loc-banner show err';
+            banner.innerHTML = '<i class="fas fa-times-circle"></i> Location denied: ' + err.message + '<br>'
+                + '<span style="font-size:9px;">Enter your coordinates manually in the fields above and save.</span>';
+            btn.innerHTML = '<i class="fas fa-crosshairs"></i> DETECT';
+            btn.disabled = false;
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+}
+
+/* ── Slot selector ── */
+async function populateSlots(){
+    try {
+        var r = await fetch('/api/slots', { credentials: 'include' });
+        if (!r.ok) throw new Error('slots API failed');
+        var slots = await r.json();
+        var sel = document.getElementById('slot-select');
+        Object.entries(slots).forEach(function(entry){
+            var sid = entry[0], s = entry[1];
+            var opt = document.createElement('option');
+            opt.value = sid;
+            opt.textContent = ((s.label || sid).toUpperCase()) + ' [' + sid + ']';
+            sel.appendChild(opt);
+        });
+        loadSlotData();
+    } catch(e){
+        document.getElementById('map-overlay').style.display = 'flex';
+        document.getElementById('map-overlay').querySelector('p').textContent = 'Failed to load radio slots.';
+    }
+}
+
+async function loadSlotData(){
+    var sid = document.getElementById('slot-select').value;
+    if (!sid) return;
+
+    var overlay = document.getElementById('map-overlay');
+    if (sid === 'all'){
+        overlay.style.display = 'flex';
+        overlay.innerHTML = '<i class="fas fa-ban" style="font-size:30px;color:var(--err);margin-bottom:10px;"></i><h3>UNSUPPORTED</h3><p>Select a specific radio slot — "All Radios" cannot be pruned.</p>';
+        return;
+    }
+
+    var slotCfg = (_cfg.slots || {})[sid] || { enabled: false, radius_km: 10.0, prune_no_gps: false };
+    document.getElementById('conf-auto').checked = !!slotCfg.enabled;
+    document.getElementById('conf-nogps').checked = !!slotCfg.prune_no_gps;
+    document.getElementById('conf-radius').value = slotCfg.radius_km || 10.0;
+    document.getElementById('conf-lat').value = slotCfg.manual_lat != null ? slotCfg.manual_lat : '';
+    document.getElementById('conf-lon').value = slotCfg.manual_lon != null ? slotCfg.manual_lon : '';
+    updateRadius();
+
+    overlay.style.display = 'flex';
+    overlay.innerHTML = '<div style="font-size:24px;color:var(--acc)"><i class="fas fa-circle-notch fa-spin"></i></div><p style="margin-top:8px;">Loading fleet data…</p>';
+
+    try {
+        var results = await Promise.all([
+            fetch('/api/nodes?slot_id=' + sid, { credentials: 'include' }),
+            fetch('/api/local_node/full?slot_id=' + sid, { credentials: 'include' })
+        ]);
+        if (!results[0].ok || !results[1].ok) throw new Error('API error');
+
+        var nodesObj = await results[0].json();
+        var localObj = await results[1].json();
+
+        _localLat = localObj.latitude || localObj.position?.latitude || null;
+        _localLon = localObj.longitude || localObj.position?.longitude || null;
+        _activeNodes = Object.values(nodesObj);
+
+        overlay.style.display = 'none';
+
+        // Auto-detect if no anchor at all
+        var hasRadioGPS = _localLat && _localLon && !(_localLat===0 && _localLon===0);
+        var hasManual = slotCfg.manual_lat && slotCfg.manual_lon;
+        if (!hasRadioGPS && !hasManual) {
+            _promptLocation();
+        } else {
+            updateMapPreview(true);
+        }
+    } catch(e){
+        overlay.style.display = 'flex';
+        overlay.innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size:30px;color:var(--err);margin-bottom:10px;"></i><h3>TELEMETRY ERROR</h3><p>Could not reach the selected radio slot.</p>';
+    }
+}
+
+/* ── Auto-prompt for location when no anchor exists ── */
+function _promptLocation(){
+    var banner = document.getElementById('loc-banner');
+    banner.className = 'loc-banner show';
+    banner.innerHTML = '<i class="fas fa-exclamation-triangle"></i> No GPS fix from radio and no manual location set.'
+        + '<br><button id="banner-detect-btn" style="margin-top:6px;background:none;border:1px solid var(--warn);color:var(--warn);padding:3px 10px;border-radius:3px;font-family:var(--mono);font-size:9px;cursor:pointer;">DETECT BROWSER LOCATION</button>';
+    var b = document.getElementById('banner-detect-btn');
+    if (b) b.addEventListener('click', detectLocation);
+}
+
+/* ── Radius display ── */
+function updateRadius(){
+    var v = parseFloat(document.getElementById('conf-radius').value) || 10.0;
+    document.getElementById('radius-lbl').textContent = v.toFixed(1) + ' km';
+    document.getElementById('kpi-rad').textContent = v.toFixed(1) + ' km';
+    updateMapPreview(false);
+}
+
+/* ── Map preview ── */
+function updateMapPreview(recenter){
+    if (!_map) return;
+    var sid = document.getElementById('slot-select').value;
+    var slotCfg = (_cfg.slots || {})[sid] || {};
+
+    var lat = _localLat, lon = _localLon;
+    var hasRadioGPS = lat && lon && !(lat===0 && lon===0);
+    if (!hasRadioGPS){
+        var mLat = parseFloat(document.getElementById('conf-lat').value);
+        var mLon = parseFloat(document.getElementById('conf-lon').value);
+        if (!isNaN(mLat) && !isNaN(mLon)) { lat = mLat; lon = mLon; }
+    }
+
+    if (!lat || !lon || isNaN(lat) || isNaN(lon)){
+        document.getElementById('map-overlay').style.display = 'flex';
+        document.getElementById('map-overlay').innerHTML = '<i class="fas fa-satellite-dish" style="font-size:30px;color:var(--warn);margin-bottom:10px;"></i><h3>NO ANCHOR</h3><p>No radio GPS and no manual location set.<br>Use the DETECT button or enter coordinates above.</p>';
+        return;
+    }
+    document.getElementById('map-overlay').style.display = 'none';
+
+    var radiusKm = parseFloat(document.getElementById('conf-radius').value) || 10.0;
+    var pruneNoGps = document.getElementById('conf-nogps').checked;
+
+    if (_boundaryCircle) _map.removeLayer(_boundaryCircle);
+    _boundaryCircle = L.circle([lat, lon], {
+        radius: radiusKm * 1000,
+        color: 'var(--err)', weight: 2, fillOpacity: 0.05, interactive: false, dashArray: '5 5'
+    }).addTo(_map);
+
+    _markersLayer.clearLayers();
+    L.circleMarker([lat, lon], {
+        radius: 7, color: '#fff', fillColor: 'var(--acc)', fillOpacity: 1, weight: 2
+    }).bindTooltip('Anchor', {direction:'top'}).addTo(_markersLayer);
+
+    var keepCount = 0, pruneCount = 0;
+    _activeNodes.forEach(function(n){
+        if (n.isLocal || n.is_local) return;
+        var nLat = n.position?.latitude || n.latitude;
+        var nLon = n.position?.longitude || n.longitude;
+        var name = n.user?.longName || n.user?.shortName || n.long_name || n.node_id || '?';
+        var isPruned = false, reason = '';
+
+        if (!nLat || !nLon || (nLat===0 && nLon===0)){
+            isPruned = pruneNoGps;
+            reason = 'No GPS';
+        } else {
+            var dist = haversine(lat, lon, nLat, nLon);
+            isPruned = dist > radiusKm;
+            reason = dist.toFixed(1) + ' km';
+        }
+        if (isPruned) pruneCount++; else keepCount++;
+
+        if (nLat && nLon && !(nLat===0 && nLon===0)){
+            var color = isPruned ? 'var(--err)' : 'var(--ok)';
+            L.circleMarker([nLat, nLon], {
+                radius: 4, color: color, fillColor: color,
+                fillOpacity: isPruned ? 0.3 : 0.8, weight: 1
+            }).bindTooltip(esc(name) + '<br><span style="color:' + color + '">' + (isPruned ? 'PRUNE' : 'KEEP') + ' (' + reason + ')</span>',
+                { direction: 'top' }).addTo(_markersLayer);
+        }
+    });
+
+    document.getElementById('kpi-keep').textContent = keepCount;
+    document.getElementById('kpi-prune').textContent = pruneCount;
+
+    if (recenter && _boundaryCircle){
+        _map.fitBounds(_boundaryCircle.getBounds(), { padding: [20, 20] });
+    }
+}
+
+function haversine(lat1, lon1, lat2, lon2){
+    var R = 6371;
+    var dLat = (lat2-lat1) * Math.PI/180;
+    var dLon = (lon2-lon1) * Math.PI/180;
+    var a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+/* ── Save config ── */
+async function saveConfig(){
+    var sid = document.getElementById('slot-select').value;
+    if (!sid || sid === 'all') return;
+    if (!_cfg.slots) _cfg.slots = {};
+    var mLat = parseFloat(document.getElementById('conf-lat').value);
+    var mLon = parseFloat(document.getElementById('conf-lon').value);
+    _cfg.slots[sid] = {
+        enabled:     document.getElementById('conf-auto').checked,
+        radius_km:   parseFloat(document.getElementById('conf-radius').value) || 10.0,
+        prune_no_gps: document.getElementById('conf-nogps').checked,
+        manual_lat:  !isNaN(mLat) ? mLat : null,
+        manual_lon:  !isNaN(mLon) ? mLon : null,
+    };
+    try {
+        var r = await fetch(API_BASE + '/config', {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(_cfg),
+        });
+        if (r.ok) toast('Settings saved.', 'ok');
+        else throw new Error('HTTP ' + r.status);
+    } catch(e){ toast('Save failed: ' + e.message, 'err'); }
+}
+
+/* ── Force prune ── */
+async function forcePrune(){
+    var sid = document.getElementById('slot-select').value;
+    if (!sid || sid === 'all') return;
+    await saveConfig();
+    var btn = document.getElementById('btn-prune');
+    btn.innerHTML = '<i class="fas fa-circle-notch spin"></i> PRUNING…';
+    btn.disabled = true;
+    try {
+        var r = await fetch(API_BASE + '/prune_now/' + sid, { method: 'POST', credentials: 'include' });
+        if (r.ok) toast('Prune complete.', 'ok');
+        else throw new Error('HTTP ' + r.status);
+        loadSlotData();
+    } catch(e){ toast('Prune failed: ' + e.message, 'err'); }
+    btn.innerHTML = '<i class="fas fa-trash-alt"></i> COMMIT &amp; PRUNE NOW';
+    btn.disabled = false;
+}
+
+/* ── Init ── */
+async function _init() {
+    initMap();
+    document.getElementById('detect-btn').addEventListener('click', detectLocation);
+    document.getElementById('btn-prune').addEventListener('click', forcePrune);
+    document.getElementById('conf-radius').addEventListener('input', updateRadius);
+    document.getElementById('conf-nogps').addEventListener('change', function(){ updateMapPreview(false); });
+    document.getElementById('conf-lat').addEventListener('change', function(){ updateMapPreview(true); });
+    document.getElementById('conf-lon').addEventListener('change', function(){ updateMapPreview(true); });
+    document.getElementById('conf-auto').addEventListener('change', function(){
+        // Auto-save when background pruner toggled so daemon picks it up immediately
+        saveConfig();
+    });
+
+    try {
+        var r = await fetch(API_BASE + '/config', { credentials: 'include', cache: 'no-store' });
+        if (r.ok) _cfg = await r.json();
+    } catch(e){}
+
+    await populateSlots();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _init);
+} else {
+    _init();
+}
+</script>
+</body>
+</html>

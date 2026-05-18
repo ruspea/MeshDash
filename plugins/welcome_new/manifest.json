@@ -1,0 +1,18 @@
+{
+  "id": "welcome_new",
+  "name": "Welcome New Nodes",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Automatically DMs newly discovered mesh nodes with a welcome message. Configurable message, cooldown, and delivery options.",
+  "watchdog": true,
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/welcome_new",
+  "static_prefix": "/static/plugins/welcome_new",
+  "nav_menu": [
+    {
+      "label": "Welcome",
+      "href": "/plugin/welcome_new/index.html",
+      "icon": "fa-comments"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "proximity_prune",
+  "name": "Proximity Pruner",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Automatically purge nodes beyond a set radius from your database. Configurable per-radio with an interactive live map preview.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/proximity_prune",
+  "static_prefix": "/static/plugins/proximity_prune",
+  "bridge": "bridge.html",
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Proximity Pruner",
+      "icon": "fa-compress-arrows-alt",
+      "href": "/plugin/proximity_prune/index.html"
+    }
+  ]
+}

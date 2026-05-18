@@ -1,0 +1,23 @@
+{
+  "id": "node_admin",
+  "name": "Node Admin",
+  "version": "1.3.1",
+  "author": "MeshDash",
+  "description": "Complete remote node management. Configure identity, device role, LoRa radio, position settings, and MQTT on any node in the mesh. Includes guided setup for remote admin key configuration, reboot, factory reset, and node database purge.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/node_admin",
+  "static_prefix": "/static/plugins/node_admin",
+  "bridge": "bridge.html",
+  "permissions": [
+    "modal_tabs",
+    "node_badges"
+  ],
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Node Admin",
+      "icon": "fa-sliders",
+      "href": "/plugin/node_admin/index.html"
+    }
+  ]
+}
