@@ -3,6 +3,7 @@ annotated-types==0.7.0
 anyio==4.13.0
 aiosqlite==0.22.1
 attrs==26.1.0
+apprise==1.10.0
 Automat==25.4.16
 babel==2.18.0
 bcrypt==4.0.1
@@ -68,6 +69,7 @@ pyotp==2.9.0
 pyparsing==3.3.2
 Pypubsub==4.0.7
 pyrsistent==0.20.0
+pywebpush==2.3.0
 pyserial==3.5
 pyserial-asyncio-fast==0.16
 python-dateutil==2.9.0.post0
