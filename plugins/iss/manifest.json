@@ -1,0 +1,18 @@
+{
+  "id": "iss",
+  "name": "ISS Tracker",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Real-time International Space Station tracker. Plot the ISS on a map, view crew details, and set up automatic mesh alerts when the station flies within your defined radius.",
+  "entry_point": "main.py",
+  "watchdog": true,
+  "router_prefix": "/api/plugins/iss",
+  "static_prefix": "/static/plugins/iss",
+  "nav_menu": [
+    {
+      "label": "ISS Tracker",
+      "icon": "fa-satellite",
+      "href": "/plugin/iss/index.html"
+    }
+  ]
+}

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>PKI Alerts Bridge</title>
+<link rel="stylesheet" href="/static/css/plugin.css"></head>
+<body>
+<script>
+'use strict';
+
+const PLUGIN_ID = 'pki_alerts';
+const API_BASE = `/api/plugins/${PLUGIN_ID}`;
+
+let _enabled = true;
+const _badgeConfig = {
+    id: 'pki-alert',
+    pluginId: PLUGIN_ID,
+    html: `<div class="pki-ribbon">⚠️ PKI MISMATCH</div>`,
+    css: `
+        .pki-ribbon {
+            background: var(--err); color: #fff; font-family: var(--mono, monospace); font-size: 8px; font-weight: 900;
+            padding: 3px 8px; border-radius: 4px; box-shadow: 0 0 10px rgba(255,48,80,0.8);
+            border: 1px solid #fff; animation: pki-pulse 1s infinite alternate; cursor: help;
+        }
+        @keyframes pki-pulse { from { transform: scale(1); } to { transform: scale(1.05); } }
+    `
+};
+
+const _checkedNodes = new Set();
+const _spoofedNodes = new Set();
+
+function getMeshVal(n, ...keys) {
+    if (!n) return null;
+    const nests = ['deviceMetrics', 'user', 'position', 'localConfig'];
+    for (const k of keys) {
+        if (n[k] != null) return n[k];
+        for (const nest of nests) {
+            if (n[nest] && n[nest][k] != null) return n[nest][k];
+        }
+    }
+    return null;
+}
+
+async function checkNodeKey(node) {
+    if (!_enabled) return;
+    if (!node || !node.node_id || !node.user || !node.user.publicKey) return;
+
+    const pubKey = node.user.publicKey;
+    const checkFingerprint = `${node.node_id}:${pubKey}`;
+    
+    if (_checkedNodes.has(checkFingerprint)) {
+        if (_spoofedNodes.has(node.node_id)) window.parent.PluginBridge.addNodeBadge(node.node_id, _badgeConfig);
+        return;
+    }
+
+    let hw = getMeshVal(node, 'hardware_model_string', 'hw_model_str', 'hardware_model', 'hwModel') || 'Unknown';
+    if (hw.includes('.')) hw = hw.split('.').pop();
+    
+    const payload = {
+        node_id: node.node_id,
+        public_key: pubKey,
+        short_name: getMeshVal(node, 'short_name', 'shortName') || 'Unknown',
+        long_name: getMeshVal(node, 'long_name', 'longName') || 'Unknown',
+        hardware_model: hw,
+        macaddr: getMeshVal(node, 'macaddr') || 'Unknown',
+        snr: node.snr !== undefined ? node.snr : null,
+        rssi: node.rssi !== undefined ? node.rssi : null,
+        battery: getMeshVal(node, 'battery_level', 'batteryLevel')
+    };
+
+    try {
+        const res = await fetch(`${API_BASE}/check`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        _checkedNodes.add(checkFingerprint);
+
+        if (data.status === 'SPOOF_DETECTED') {
+            _spoofedNodes.add(node.node_id);
+            if (data.risk === 'HIGH') {
+                window.parent.PluginBridge.toast(`🚨 CRITICAL: Possible cloned node detected for ${node.node_id}! RF Anomaly present.`, 'err');
+            } else {
+                window.parent.PluginBridge.toast(`⚠️ PKI Mismatch: ${node.node_id} key changed, but RF profile matches.`, 'warn');
+            }
+            window.parent.PluginBridge.addNodeBadge(node.node_id, _badgeConfig);
+        } else if (data.status === 'KEY_VERIFIED') {
+            if (_spoofedNodes.has(node.node_id)) {
+                _spoofedNodes.delete(node.node_id);
+                window.parent.PluginBridge.removeNodeBadge(node.node_id, 'pki-alert');
+            }
+        }
+    } catch(e) {}
+}
+
+function init() {
+    fetch(`${API_BASE}/config`).then(r => r.json()).then(d => _enabled = d.enabled).catch(()=>{});
+    window.parent.PluginBridge.onNodeUpdate((node, packet) => checkNodeKey(node));
+    window.parent.PluginBridge.getNodes().forEach(([nid, node]) => checkNodeKey(node));
+
+    // Check for duplicate key groups and badge all affected nodes
+    fetch(`${API_BASE}/duplicates`).then(r => r.json()).then(data => {
+        const groups = data.duplicates || [];
+        if (!groups.length) return;
+        groups.forEach(g => {
+            g.node_ids.forEach(nid => {
+                const badgeCfg = {
+                    id: 'pki-clone',
+                    pluginId: PLUGIN_ID,
+                    html: `<div class="pki-clone-ribbon">🔑 CLONE</div>`,
+                    css: `
+                        .pb-badge-zone { position: absolute; top: -6px; left: -6px; z-index: 11; }
+                        .pki-clone-ribbon {
+                            background: var(--pur); color: #fff; font-family: var(--mono, monospace); font-size: 8px; font-weight: 900;
+                            padding: 3px 6px; border-radius: 4px; box-shadow: 0 0 10px rgba(180,0,255,0.8);
+                            border: 1px solid rgba(255,255,255,0.3); animation: clone-pulse 1.5s infinite alternate; cursor: help;
+                        }
+                        @keyframes clone-pulse { from { opacity: 1; } to { opacity: 0.6; } }
+                    `
+                };
+                if (window.parent.PluginBridge.addNodeBadge) window.parent.PluginBridge.addNodeBadge(nid, badgeCfg);
+            });
+            if (g.risk === 'CRITICAL') {
+                window.parent.PluginBridge.toast(`🔑 CRITICAL: ${g.node_count} nodes share the same public key! Possible cloning: ${g.node_ids.join(', ')}`, 'err');
+            } else {
+                window.parent.PluginBridge.toast(`⚠️ Duplicate key group: ${g.node_count} nodes share a key (${g.node_ids.join(', ')})`, 'warn');
+            }
+        });
+    }).catch(() => {});
+}
+
+(function _wait() {
+    if (window.parent && window.parent.PluginBridge && typeof window.parent.PluginBridge.onNodeUpdate === 'function') {
+        init();
+    } else { setTimeout(_wait, 200); }
+})();
+</script>
+</body>
+</html>

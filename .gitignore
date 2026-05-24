@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Runtime data
+data/
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+
+# Config (contains secrets)
+.mesh-dash_config
+
+# Virtual environments
+venv/
+mesh-dash_venv/
+
+# Backups
+backup/
+mesh-dash_backup_*/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env

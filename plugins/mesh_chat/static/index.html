@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mesh Chat AI</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700;800&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:12px}
+
+/* SCANLINE OVERLAY */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.03) 2px,rgba(0,0,0,.03) 4px);pointer-events:none;z-index:9999}
+
+/* SHELL */
+.shell{height:100%;display:flex;flex-direction:column}
+
+/* HEADER */
+.hdr{flex-shrink:0;height:52px;background:linear-gradient(90deg,var(--bg),var(--bg1));border-bottom:1px solid var(--acc);display:flex;align-items:center;padding:0 20px;gap:20px;position:relative}
+.hdr::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,.6),transparent);animation:scan 4s ease-in-out infinite}
+@keyframes scan{0%,100%{opacity:.3}50%{opacity:1}}
+
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo-icon{width:34px;height:34px;border:1.5px solid var(--acc);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--acc);background:rgba(0,212,255,.08);box-shadow:0 0 12px rgba(0,212,255,.2)}
+.logo-text{display:flex;flex-direction:column;line-height:1}
+.logo-name{font-family:var(--sans);font-size:15px;font-weight:800;color:var(--txt);letter-spacing:2px}
+.logo-sub{font-size:10px;color:var(--acc);letter-spacing:3px;opacity:.7;margin-top:1px}
+
+.hdr-stats{display:flex;gap:24px;margin-left:auto}
+.stat{text-align:center}
+.stat-val{font-size:17px;font-weight:800;color:var(--acc);line-height:1;font-family:var(--sans)}
+.stat-lbl{font-size:9px;color:var(--txt3);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px}
+
+.hdr-nav{display:flex;gap:6px;margin-left:20px}
+.nav-tab{display:flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--bd2);border-radius:4px;background:transparent;color:var(--txt2);font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.nav-tab:hover{border-color:var(--acc);color:var(--acc);background:rgba(0,212,255,.06)}
+.nav-tab.active{border-color:var(--acc);color:var(--acc);background:rgba(0,212,255,.12);box-shadow:0 0 8px rgba(0,212,255,.15)}
+.nav-tab i{font-size:10px}
+
+/* MAIN AREA */
+.main{flex:1;overflow:hidden;display:flex}
+.page{width:100%;height:100%;overflow-y:auto;padding:16px;display:none;flex-direction:column;gap:14px}
+.page.active{display:flex}
+
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;overflow:hidden;flex-shrink:0}
+.card-head{padding:9px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.015)}
+.card-title{font-size:11px;letter-spacing:1.5px;font-weight:700;text-transform:uppercase;color:var(--txt2);display:flex;align-items:center;gap:7px}
+.card-title i{color:var(--acc);font-size:10px}
+.card-body{padding:14px}
+
+/* HOW-TO PAGE */
+.guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.guide-grid-full{grid-column:1/-1}
+@media(max-width:900px){.guide-grid{grid-template-columns:1fr}}
+
+.how-block{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+.how-head{padding:10px 14px;background:rgba(0,212,255,.04);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:8px}
+.how-head-icon{width:26px;height:26px;border-radius:4px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--acc)}
+.how-head-title{font-family:var(--sans);font-size:12px;font-weight:700;color:var(--txt)}
+.how-head-sub{font-size:11px;color:var(--txt3);letter-spacing:.5px;margin-top:1px}
+.how-body{padding:14px;display:flex;flex-direction:column;gap:8px}
+
+.cmd-row{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:rgba(255,255,255,.02);border-radius:4px;border:1px solid rgba(255,255,255,.04)}
+.cmd-label{background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25);color:var(--acc);padding:3px 8px;border-radius:3px;font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0;font-family:var(--mono)}
+.cmd-desc{font-size:9.5px;color:var(--txt);line-height:1.5;font-family:var(--sans,'Syne',sans-serif)}
+.cmd-desc strong{color:var(--txt);font-weight:600}
+.cmd-example{font-size:11px;color:var(--txt3);margin-top:2px;font-family:var(--mono)}
+
+.prefix-banner{background:linear-gradient(135deg,rgba(0,212,255,.08),rgba(0,232,150,.05));border:1px solid rgba(0,212,255,.25);border-radius:6px;padding:14px 16px;display:flex;align-items:center;gap:14px}
+.prefix-tag{font-family:var(--mono);font-size:18px;font-weight:800;color:var(--acc);background:rgba(0,212,255,.1);border:1.5px solid rgba(0,212,255,.3);padding:6px 14px;border-radius:4px;letter-spacing:1px;box-shadow:0 0 16px rgba(0,212,255,.15)}
+.prefix-info{flex:1}
+.prefix-info-title{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--txt);margin-bottom:3px}
+.prefix-info-desc{font-size:9.5px;color:var(--txt2);line-height:1.6;font-family:var(--sans,'Syne',sans-serif)}
+
+.mode-pill-grid{display:flex;flex-wrap:wrap;gap:6px;padding:10px 0}
+.mode-pill{padding:4px 10px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:.5px;border:1px solid;display:flex;align-items:center;gap:5px}
+.mp-0{background:rgba(0,212,255,.08);border-color:rgba(0,212,255,.3);color:var(--acc)}
+.mp-1{background:rgba(0,232,150,.08);border-color:rgba(0,232,150,.3);color:var(--ok)}
+.mp-2{background:rgba(255,170,0,.08);border-color:rgba(255,170,0,.3);color:var(--amb)}
+.mp-3{background:rgba(180,100,255,.08);border-color:rgba(180,100,255,.3);color:var(--pur)}
+.mp-4{background:rgba(255,51,88,.08);border-color:rgba(255,51,88,.3);color:var(--err)}
+
+.step-list{display:flex;flex-direction:column;gap:6px}
+.step{display:flex;align-items:flex-start;gap:10px}
+.step-num{width:20px;height:20px;border-radius:50%;background:rgba(0,212,255,.12);border:1px solid rgba(0,212,255,.3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--acc);flex-shrink:0;margin-top:1px}
+.step-text{font-size:9.5px;color:var(--txt);line-height:1.5;font-family:var(--sans,'Syne',sans-serif)}
+.step-text strong{color:var(--txt)}
+.step-text code{font-family:var(--mono);font-size:9px;color:var(--acc);background:rgba(0,212,255,.08);padding:1px 5px;border-radius:2px}
+
+/* LIVE PAGE */
+.live-grid{display:grid;grid-template-columns:1fr 2fr;gap:14px;flex:1;min-height:0}
+.flex-card{display:flex;flex-direction:column;min-height:0}
+.flex-card .card-body{flex:1;overflow-y:auto;padding:0}
+
+.q-item{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:10px}
+.q-node{font-size:10px;color:var(--acc);font-weight:700}
+.q-text{font-size:9px;color:var(--txt2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:200px;font-family:var(--sans,'Syne',sans-serif)}
+.q-badge{padding:2px 7px;border-radius:8px;font-size:10px;font-weight:700;letter-spacing:.5px;flex-shrink:0}
+.qb-proc{background:rgba(255,170,0,.1);border:1px solid rgba(255,170,0,.3);color:var(--amb)}
+.qb-pend{background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);color:var(--acc)}
+.qb-done{background:rgba(0,232,150,.1);border:1px solid rgba(0,232,150,.3);color:var(--ok)}
+.qb-err{background:rgba(255,51,88,.1);border:1px solid rgba(255,51,88,.3);color:var(--err)}
+
+.sess-item{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:10px}
+.sess-node{font-size:10px;color:var(--acc);font-weight:700;font-family:var(--mono)}
+.sess-id{font-size:11px;color:var(--txt3);margin-left:6px;font-family:var(--mono)}
+.sess-meta{font-size:11px;color:var(--txt3);margin-top:2px;font-family:var(--sans,'Syne',sans-serif)}
+
+/* CONFIG PAGE */
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:860px){.cfg-grid{grid-template-columns:1fr}}
+
+.status-strip{border-radius:5px;padding:12px 15px;margin-bottom:14px;border-left:3px solid var(--acc);background:rgba(0,212,255,.04);display:flex;align-items:center;gap:12px;transition:all .3s}
+.status-strip.busy{border-color:var(--amb);background:rgba(255,170,0,.05);animation:pulsebg 2s infinite}
+.status-strip.ok{border-color:var(--ok);background:rgba(0,232,150,.04)}
+.status-strip.err{border-color:var(--err);background:rgba(255,51,88,.04)}
+@keyframes pulsebg{0%,100%{box-shadow:none}50%{box-shadow:0 0 20px rgba(255,170,0,.15)}}
+.stat-icon{font-size:16px}
+.stat-info{}
+.stat-label{font-size:11px;font-weight:700;margin-bottom:2px}
+.stat-prog{font-size:9.5px;color:var(--txt2);font-family:var(--sans,'Syne',sans-serif)}
+
+/* FORMS */
+.form-group{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
+.form-label{font-size:10px;color:var(--txt3);letter-spacing:1.5px;text-transform:uppercase;display:flex;align-items:center;gap:5px}
+.form-label .tip{color:var(--txt3);cursor:help;font-size:11px}
+.form-input,.form-select,.form-textarea{background:var(--bg);border:1px solid var(--bd2);color:var(--txt);padding:7px 10px;border-radius:4px;font-family:var(--mono);font-size:10px;width:100%;transition:border-color .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 2px rgba(0,212,255,.08)}
+.form-input:disabled,.form-select:disabled,.form-textarea:disabled{opacity:.45;cursor:not-allowed}
+.form-textarea{resize:vertical;min-height:80px;font-family:var(--sans,'Syne',sans-serif);font-size:10px;line-height:1.5}
+.form-hint{font-size:11px;color:var(--txt3);margin-top:2px;line-height:1.4;font-family:var(--sans,'Syne',sans-serif)}
+.form-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.toggle-wrap{display:flex;align-items:center;gap:8px;cursor:pointer}
+.toggle-label{font-size:9.5px;color:var(--txt)}
+
+/* TOGGLE SWITCH */
+.toggle{position:relative;width:34px;height:18px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--bd2);border-radius:9px;transition:.2s;border:1px solid var(--bd)}
+.toggle-slider::before{content:'';position:absolute;width:12px;height:12px;left:2px;top:2px;background:var(--txt3);border-radius:50%;transition:.2s}
+.toggle input:checked+.toggle-slider{background:rgba(0,212,255,.25);border-color:var(--acc)}
+.toggle input:checked+.toggle-slider::before{transform:translateX(16px);background:var(--acc)}
+
+/* BUTTONS */
+.btn{padding:6px 13px;border-radius:4px;font-family:var(--mono);font-size:9px;font-weight:700;cursor:pointer;transition:all .15s;border:1px solid;display:inline-flex;align-items:center;gap:6px;letter-spacing:.5px;white-space:nowrap}
+.btn-primary{background:rgba(0,212,255,.1);border-color:var(--acc);color:var(--acc)}
+.btn-primary:hover:not(:disabled){background:var(--acc);color:#000;box-shadow:0 0 12px rgba(0,212,255,.3)}
+.btn-ghost{background:transparent;border-color:var(--bd2);color:var(--txt3)}
+.btn-ghost:hover:not(:disabled){border-color:var(--txt2);color:var(--txt)}
+.btn-danger{background:rgba(255,51,88,.08);border-color:var(--err);color:var(--err)}
+.btn-danger:hover:not(:disabled){background:var(--err);color:#000}
+.btn-success{background:rgba(0,232,150,.08);border-color:var(--ok);color:var(--ok)}
+.btn-success:hover:not(:disabled){background:var(--ok);color:#000}
+.btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+.btn-sm{padding:3px 9px;font-size:11px}
+
+/* PROMPTS PAGE */
+.prompts-grid{display:grid;grid-template-columns:3fr 2fr;gap:14px;flex:1;min-height:400px}
+@media(max-width:900px){.prompts-grid{grid-template-columns:1fr}}
+.prompt-item{padding:11px 13px;border-bottom:1px solid rgba(255,255,255,.04)}
+.prompt-name{font-size:11px;font-weight:700;color:var(--acc);margin-bottom:2px;font-family:var(--sans)}
+.prompt-desc{font-size:9px;color:var(--txt2);margin-bottom:5px;font-family:var(--sans,'Syne',sans-serif)}
+.prompt-sys{font-size:11px;color:var(--txt3);line-height:1.5;border-left:2px solid var(--bd2);padding-left:8px;font-family:var(--sans,'Syne',sans-serif)}
+.prompt-actions{margin-top:6px;display:flex;gap:6px;align-items:center}
+.default-chip{font-size:10px;padding:2px 7px;border-radius:8px;background:rgba(0,232,150,.1);border:1px solid rgba(0,232,150,.3);color:var(--ok);font-weight:700;letter-spacing:.5px}
+
+/* MODAL */
+#msg-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-box{background:var(--bg2);border:1px solid var(--acc);border-radius:8px;width:620px;max-width:90vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 0 40px rgba(0,212,255,.15)}
+.modal-head{padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-title{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--txt)}
+.modal-body{padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;flex:1}
+.msg-bubble{padding:9px 13px;border-radius:5px;max-width:85%;font-family:var(--sans,'Syne',sans-serif);font-size:11px;line-height:1.5}
+.msg-user{background:rgba(0,212,255,.08);border:1px solid rgba(0,212,255,.2);align-self:flex-end;color:var(--txt)}
+.msg-ai{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);align-self:flex-start;color:var(--txt)}
+.msg-role{font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--txt3);text-transform:uppercase;margin-bottom:4px;font-family:var(--mono)}
+
+.empty{text-align:center;padding:28px 16px;color:var(--txt3);font-size:9px;letter-spacing:.5px}
+.empty i{display:block;font-size:22px;margin-bottom:8px;opacity:.3}
+
+/* MODEL DOWNLOAD SECTION */
+.dl-section{border-top:1px solid var(--bd);margin-top:12px;padding-top:12px}
+.preset-cards{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.preset-card{padding:9px 11px;border:1px solid var(--bd);border-radius:4px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:10px}
+.preset-card:hover,.preset-card.sel{border-color:var(--acc);background:rgba(0,212,255,.05)}
+.preset-card.sel .preset-radio{background:var(--acc)}
+.preset-radio{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--acc);flex-shrink:0;transition:.15s}
+.preset-name{font-size:10px;font-weight:700;color:var(--txt);flex:1}
+.preset-meta{font-size:11px;color:var(--txt3);margin-top:1px;font-family:var(--sans,'Syne',sans-serif)}
+.preset-size{font-size:11px;padding:2px 6px;border-radius:3px;font-weight:700}
+.ps-sm{background:rgba(0,232,150,.1);color:var(--ok);border:1px solid rgba(0,232,150,.2)}
+.ps-md{background:rgba(255,170,0,.1);color:var(--amb);border:1px solid rgba(255,170,0,.2)}
+.ps-lg{background:rgba(255,51,88,.1);color:var(--err);border:1px solid rgba(255,51,88,.2)}
+
+.divider{height:1px;background:var(--bd);margin:12px 0}
+.section-label{font-size:10px;color:var(--txt3);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--bd)}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+
+<div class="hdr">
+  <div class="logo">
+    <div class="logo-icon"><i class="fas fa-robot"></i></div>
+    <div class="logo-text">
+      <div class="logo-name">MESH CHAT</div>
+      <div class="logo-sub">AI ASSISTANT</div>
+    </div>
+  </div>
+  <div class="hdr-stats">
+    <div class="stat"><div class="stat-val" id="k-sess">0</div><div class="stat-lbl">Sessions</div></div>
+    <div class="stat"><div class="stat-val" id="k-msgs">0</div><div class="stat-lbl">Messages</div></div>
+    <div class="stat"><div class="stat-val" id="k-queue">0</div><div class="stat-lbl">Queue</div></div>
+  </div>
+  <div class="hdr-nav">
+    <button class="nav-tab" onclick="show('guide')" id="n-guide"><i class="fas fa-book-open"></i> How to Use</button>
+    <button class="nav-tab active" onclick="show('live')" id="n-live"><i class="fas fa-bolt"></i> Live</button>
+    <button class="nav-tab" onclick="show('cfg')" id="n-cfg"><i class="fas fa-sliders-h"></i> Config & Model</button>
+    <button class="nav-tab" onclick="show('prompts')" id="n-prompts"><i class="fas fa-masks-theater"></i> Modes</button>
+  </div>
+</div>
+
+<div class="main">
+
+<div class="page" id="p-guide">
+  <div class="prefix-banner">
+    <div class="prefix-tag">chat.</div>
+    <div class="prefix-info">
+      <div class="prefix-info-title">The Command Prefix</div>
+      <div class="prefix-info-desc">Every message to the AI must begin with <strong>chat.</strong> — this is how the plugin distinguishes AI requests from normal Meshtastic traffic. Anything after this prefix is sent directly to the AI.</div>
+    </div>
+    <div style="text-align:center;flex-shrink:0">
+      <div style="font-size:11px;color:var(--txt3);letter-spacing:1px;margin-bottom:4px">ROUTER PREFIX (API)</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--txt2);background:var(--bg3);border:1px solid var(--bd);padding:4px 9px;border-radius:3px">/api/plugins/mesh_chat</div>
+    </div>
+  </div>
+
+  <div class="guide-grid">
+
+    <div class="how-block">
+      <div class="how-head">
+        <div class="how-head-icon"><i class="fas fa-paper-plane"></i></div>
+        <div><div class="how-head-title">Sending Messages</div><div class="how-head-sub">How to chat with the AI from any node</div></div>
+      </div>
+      <div class="how-body">
+        <div class="step-list">
+          <div class="step"><div class="step-num">1</div><div class="step-text">Open your Meshtastic client and navigate to the <strong>channel</strong> the plugin is listening on (set in Config)</div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-text">Type your message starting with <code>chat.</code> followed immediately by your question or text — no space after the dot</div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-text">Send the message. The AI will reply <strong>directly to your node</strong> as a private DM, so only you see the response</div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-text">Responses over <strong>200 bytes</strong> are automatically chunked and sent in sequence with delivery acknowledgment</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="how-block">
+      <div class="how-head">
+        <div class="how-head-icon"><i class="fas fa-terminal"></i></div>
+        <div><div class="how-head-title">Command Reference</div><div class="how-head-sub">All valid chat. commands</div></div>
+      </div>
+      <div class="how-body">
+        <div class="cmd-row">
+          <div class="cmd-label">chat.&lt;message&gt;</div>
+          <div><div class="cmd-desc">Send any message to the AI and receive a response</div><div class="cmd-example">e.g. chat.What is the weather like in space?</div></div>
+        </div>
+        <div class="cmd-row">
+          <div class="cmd-label">chat.help</div>
+          <div><div class="cmd-desc">Receive a quick reference of all commands back to your node</div><div class="cmd-example">Sends the help text as a DM to you</div></div>
+        </div>
+        <div class="cmd-row">
+          <div class="cmd-label">chat.mode</div>
+          <div><div class="cmd-desc">List all available AI personality modes by name</div><div class="cmd-example">Returns a numbered list of modes</div></div>
+        </div>
+        <div class="cmd-row">
+          <div class="cmd-label">chat.mode.&lt;name&gt;</div>
+          <div><div class="cmd-desc">Switch your session to a specific AI personality mode</div><div class="cmd-example">e.g. chat.mode.Storyteller</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="how-block">
+      <div class="how-head">
+        <div class="how-head-icon"><i class="fas fa-masks-theater"></i></div>
+        <div><div class="how-head-title">Personality Modes</div><div class="how-head-sub">Per-session AI behaviour switching</div></div>
+      </div>
+      <div class="how-body">
+        <div style="font-size:9.5px;color:var(--txt2);line-height:1.6;margin-bottom:8px;font-family:var(--sans,'Syne',sans-serif)">
+          Each session remembers your chosen mode. Switching modes mid-conversation takes effect on your next message. Modes are created and managed in the <strong style="color:var(--txt)">Modes</strong> tab by admins.
+        </div>
+        <div class="mode-pill-grid" id="guide-modes">
+          <div class="mode-pill mp-0"><i class="fas fa-bolt"></i> Concise Q&amp;A</div>
+          <div class="mode-pill mp-1"><i class="fas fa-handshake"></i> Helpful Assistant</div>
+          <div class="mode-pill mp-2"><i class="fas fa-book"></i> Storyteller</div>
+          <div class="mode-pill mp-3"><i class="fas fa-brain"></i> Philosophical Debater</div>
+          <div class="mode-pill mp-4"><i class="fas fa-comments"></i> Chatterbox</div>
+        </div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:var(--mono)">
+          Send <span style="color:var(--acc)">chat.mode</span> from your node to see the current live list
+        </div>
+      </div>
+    </div>
+
+    <div class="how-block">
+      <div class="how-head">
+        <div class="how-head-icon"><i class="fas fa-history"></i></div>
+        <div><div class="how-head-title">Sessions & Memory</div><div class="how-head-sub">How conversation context works</div></div>
+      </div>
+      <div class="how-body">
+        <div class="step-list">
+          <div class="step"><div class="step-num"><i class="fas fa-user" style="font-size:10px"></i></div><div class="step-text">Each Meshtastic node gets its own <strong>independent session</strong>. Your chat history is private to your node ID.</div></div>
+          <div class="step"><div class="step-num"><i class="fas fa-clock" style="font-size:10px"></i></div><div class="step-text">Sessions expire after the configured <strong>Session Timeout</strong> (default 5 min). After expiry, a new session starts fresh with no prior context.</div></div>
+          <div class="step"><div class="step-num"><i class="fas fa-layer-group" style="font-size:10px"></i></div><div class="step-text">The AI <strong>does not retain context</strong> between separate sessions — each new session begins without memory of previous ones.</div></div>
+          <div class="step"><div class="step-num"><i class="fas fa-eye" style="font-size:10px"></i></div><div class="step-text">Admins can view full session transcripts in the <strong>Live</strong> tab by clicking View on any session row.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="how-block guide-grid-full">
+      <div class="how-head">
+        <div class="how-head-icon" style="background:rgba(255,170,0,.1);border-color:rgba(255,170,0,.3)"><i class="fas fa-shield-alt" style="color:var(--amb)"></i></div>
+        <div><div class="how-head-title">Admin Functions</div><div class="how-head-sub">What admins can configure in the Config & Model and Modes tabs</div></div>
+      </div>
+      <div class="how-body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div>
+          <div style="font-size:11px;color:var(--amb);letter-spacing:1.5px;font-weight:700;text-transform:uppercase;margin-bottom:8px">⚙ Core Settings</div>
+          <div class="step-list">
+            <div class="step"><div class="step-num" style="background:rgba(255,170,0,.1);border-color:rgba(255,170,0,.3);color:var(--amb)"><i class="fas fa-power-off" style="font-size:10px"></i></div><div class="step-text"><strong>Enable/Disable</strong> the plugin without uninstalling it</div></div>
+            <div class="step"><div class="step-num" style="background:rgba(255,170,0,.1);border-color:rgba(255,170,0,.3);color:var(--amb)"><i class="fas fa-broadcast-tower" style="font-size:10px"></i></div><div class="step-text">Set the <strong>Channel Index</strong> (0–7) the plugin listens on for broadcast messages</div></div>
+            <div class="step"><div class="step-num" style="background:rgba(255,170,0,.1);border-color:rgba(255,170,0,.3);color:var(--amb)"><i class="fas fa-hourglass" style="font-size:10px"></i></div><div class="step-text">Configure <strong>Session Timeout</strong> in seconds before a session expires</div></div>
+            <div class="step"><div class="step-num" style="background:rgba(255,170,0,.1);border-color:rgba(255,170,0,.3);color:var(--amb)"><i class="fas fa-star" style="font-size:10px"></i></div><div class="step-text">Choose the <strong>Default Mode</strong> applied to all new sessions</div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--acc);letter-spacing:1.5px;font-weight:700;text-transform:uppercase;margin-bottom:8px">⬇ Model Management</div>
+          <div class="step-list">
+            <div class="step"><div class="step-num"><i class="fas fa-microchip" style="font-size:10px"></i></div><div class="step-text">Select from <strong>preset models</strong> (Qwen 1.5B, Phi-3 Mini, Llama 3 8B), configure a custom GGUF, or use hosted API providers.</div></div>
+            <div class="step"><div class="step-num"><i class="fas fa-download" style="font-size:10px"></i></div><div class="step-text"><strong>Download & Apply</strong> streams local models from HuggingFace Hub directly onto the server.</div></div>
+            <div class="step"><div class="step-num"><i class="fas fa-pause-circle" style="font-size:10px"></i></div><div class="step-text">During download, inference is <strong>paused</strong>. Status bar shows live progress and re-enables controls when complete.</div></div>
+            <div class="step"><div class="step-num"><i class="fas fa-cloud" style="font-size:10px"></i></div><div class="step-text">Using a <strong>hosted API provider</strong> requires an active key and avoids local hardware RAM/CPU constraints.</div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--ok);letter-spacing:1.5px;font-weight:700;text-transform:uppercase;margin-bottom:8px">🎭 Modes Management</div>
+          <div class="step-list">
+            <div class="step"><div class="step-num" style="background:rgba(0,232,150,.1);border-color:rgba(0,232,150,.3);color:var(--ok)"><i class="fas fa-plus" style="font-size:10px"></i></div><div class="step-text"><strong>Create custom modes</strong> with a name, description, and full system prompt — users switch via chat.mode.&lt;name&gt;</div></div>
+            <div class="step"><div class="step-num" style="background:rgba(0,232,150,.1);border-color:rgba(0,232,150,.3);color:var(--ok)"><i class="fas fa-eye" style="font-size:10px"></i></div><div class="step-text">The <strong>system prompt</strong> is the hidden instruction given to the AI before each response — controls its entire personality</div></div>
+            <div class="step"><div class="step-num" style="background:rgba(0,232,150,.1);border-color:rgba(0,232,150,.3);color:var(--ok)"><i class="fas fa-trash" style="font-size:10px"></i></div><div class="step-text">Delete any mode <strong>except the last remaining one</strong> — the plugin always requires at least one active mode</div></div>
+            <div class="step"><div class="step-num" style="background:rgba(0,232,150,.1);border-color:rgba(0,232,150,.3);color:var(--ok)"><i class="fas fa-exchange-alt" style="font-size:10px"></i></div><div class="step-text">The <strong>Default Mode</strong> is set in Config and applies to all new sessions automatically</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="page active" id="p-live">
+  <div class="live-grid" style="flex:1;min-height:0">
+    <div class="card flex-card">
+      <div class="card-head">
+        <span class="card-title"><i class="fas fa-bolt"></i> Processing Queue</span>
+        <span id="q-count" style="font-size:11px;color:var(--txt3)">0 items</span>
+      </div>
+      <div id="queue-list" class="card-body"><div class="empty"><i class="fas fa-inbox"></i>No active requests</div></div>
+    </div>
+    <div class="card flex-card">
+      <div class="card-head">
+        <span class="card-title"><i class="fas fa-history"></i> Recent Sessions</span>
+        <span id="s-count" style="font-size:11px;color:var(--txt3)">0 sessions</span>
+      </div>
+      <div id="sess-list" class="card-body"><div class="empty"><i class="fas fa-comments"></i>No sessions yet</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="p-cfg">
+  <div class="status-strip" id="sys-strip">
+    <div class="stat-icon"><i id="sys-icon" class="fas fa-circle-notch fa-spin" style="color:var(--acc)"></i></div>
+    <div class="stat-info" style="flex:1">
+      <div class="stat-label">System Status: <span id="sys-stat" style="color:var(--acc)">Checking...</span></div>
+      <div class="stat-prog" id="sys-prog"></div>
+    </div>
+    <div style="font-size:11px;color:var(--txt3);letter-spacing:1px">AUTO-REFRESHES · 3s</div>
+  </div>
+
+  <div class="cfg-grid">
+    <div class="card">
+      <div class="card-head"><span class="card-title"><i class="fas fa-sliders-h"></i> Core Settings</span></div>
+      <div class="card-body">
+        <div class="form-row">
+          <label class="toggle-wrap">
+            <label class="toggle"><input type="checkbox" id="c-en"><span class="toggle-slider"></span></label>
+            <span class="toggle-label">Enable Mesh Chat AI</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Channel Index <span class="tip" title="The Meshtastic channel (0–7) this plugin listens on for broadcast messages">(?)</span></label>
+          <input class="form-input" id="c-ch" type="number" min="0" max="7">
+          <div class="form-hint">0 = primary channel. Must match the channel your mesh users are broadcasting on.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Session Timeout (seconds) <span class="tip" title="Inactive sessions older than this are automatically closed">(s)</span></label>
+          <input class="form-input" id="c-to" type="number" min="10">
+          <div class="form-hint">Default: 300s (5 min). Sessions that expire lose their conversation history.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Default Mode <span class="tip" title="The AI personality applied to all new sessions">(i)</span></label>
+          <select class="form-select" id="c-def-prompt"></select>
+          <div class="form-hint">Applied automatically to every new session. Users can override with chat.mode.&lt;name&gt;</div>
+        </div>
+        <button class="btn btn-primary" id="btn-save-cfg" onclick="saveCfg()"><i class="fas fa-save"></i> Save Settings</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-title"><i class="fas fa-microchip"></i> Model Management</span></div>
+      <div class="card-body">
+
+        <div class="form-group" style="margin-bottom:15px">
+          <label class="form-label">AI Provider</label>
+          <select class="form-select" id="c-prov" onchange="toggleProv()">
+            <option value="local">Local Model (llama.cpp)</option>
+            <option value="openai">OpenAI API</option>
+            <option value="nvidia">Nvidia NIM API</option>
+            <option value="gemini">Google Gemini API</option>
+          </select>
+        </div>
+
+        <div id="prov-local">
+          <div style="font-size:11px;color:var(--txt2);line-height:1.6;margin-bottom:12px;padding:9px 11px;background:rgba(0,212,255,.04);border-radius:4px;border:1px solid rgba(0,212,255,.12);font-family:var(--sans,'Syne',sans-serif)">
+            Models run locally via <strong style="color:var(--txt)">llama.cpp</strong>. Downloaded from HuggingFace Hub and loaded into RAM. Inference is fully offline after download.
+          </div>
+
+          <div class="section-label">Select Preset</div>
+          <div class="preset-cards" id="preset-cards">
+            <div class="preset-card sel" data-preset="qwen1.5b" onclick="selectPreset('qwen1.5b',this)">
+              <div class="preset-radio"></div>
+              <div style="flex:1">
+                <div class="preset-name">Qwen 2.5 1.5B Instruct</div>
+                <div class="preset-meta">Qwen/Qwen2.5-1.5B-Instruct-GGUF · Q4_K_M</div>
+              </div>
+              <span class="preset-size ps-sm">1.5 GB</span>
+            </div>
+            <div class="preset-card" data-preset="phi3" onclick="selectPreset('phi3',this)">
+              <div class="preset-radio"></div>
+              <div style="flex:1">
+                <div class="preset-name">Phi-3.1 Mini 4K Instruct</div>
+                <div class="preset-meta">bartowski/Phi-3.1-mini-4k-instruct-GGUF · Q4_K_M</div>
+              </div>
+              <span class="preset-size ps-md">2.5 GB</span>
+            </div>
+            <div class="preset-card" data-preset="llama3" onclick="selectPreset('llama3',this)">
+              <div class="preset-radio"></div>
+              <div style="flex:1">
+                <div class="preset-name">Llama 3 8B Instruct</div>
+                <div class="preset-meta">QuantFactory/Meta-Llama-3-8B-Instruct-GGUF · Q4_K_M</div>
+              </div>
+              <span class="preset-size ps-lg">5.5 GB</span>
+            </div>
+            <div class="preset-card" data-preset="custom" onclick="selectPreset('custom',this)">
+              <div class="preset-radio"></div>
+              <div style="flex:1">
+                <div class="preset-name">Custom HuggingFace Model</div>
+                <div class="preset-meta">Specify repo and GGUF filename manually</div>
+              </div>
+              <span class="preset-size" style="font-size:11px;color:var(--txt3)">Custom</span>
+            </div>
+          </div>
+
+          <div id="custom-fields" style="display:none">
+            <div class="divider"></div>
+            <div class="section-label">Custom Model</div>
+            <div class="form-group"><label class="form-label">HuggingFace Repo</label><input class="form-input" id="m-repo" placeholder="org/ModelName-GGUF"></div>
+            <div class="form-group"><label class="form-label">GGUF Filename</label><input class="form-input" id="m-file" placeholder="model-name-q4_k_m.gguf"></div>
+          </div>
+          <div id="preset-hidden-repo" style="display:none"><input id="m-repo-p" type="hidden"><input id="m-file-p" type="hidden"></div>
+
+          <button class="btn btn-primary" id="btn-dl-model" onclick="dlModel()" style="margin-top:12px;width:100%;justify-content:center"><i class="fas fa-download"></i> Download & Apply Local Model</button>
+          <div style="font-size:11px;color:var(--txt3);text-align:center;margin-top:5px;font-family:var(--sans,'Syne',sans-serif)">Inference pauses during download. Progress shown in status bar above.</div>
+        </div>
+
+        <div id="prov-hosted" style="display:none">
+          <div class="divider"></div>
+          <div class="section-label">API Configuration</div>
+          <div class="form-group">
+            <label class="form-label">API Key</label>
+            <input class="form-input" id="c-apikey" type="password" placeholder="Enter API Key">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Model Name</label>
+            <input class="form-input" id="c-apimodel" type="text" placeholder="e.g. gpt-4o-mini, gemini-2.5-flash">
+            <div class="form-hint">Exact model string expected by the provider.</div>
+          </div>
+          <button class="btn btn-primary" id="btn-save-api" onclick="saveCfg()" style="margin-top:12px;width:100%;justify-content:center"><i class="fas fa-save"></i> Save API Config</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="p-prompts">
+  <div class="prompts-grid">
+    <div class="card flex-card">
+      <div class="card-head">
+        <span class="card-title"><i class="fas fa-list"></i> Active Modes</span>
+        <span id="p-count" style="font-size:11px;color:var(--txt3)"></span>
+      </div>
+      <div id="prompt-list" class="card-body"><div class="empty"><i class="fas fa-masks-theater"></i>Loading...</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-title"><i class="fas fa-plus-circle"></i> Create New Mode</span></div>
+      <div class="card-body">
+        <div style="font-size:9px;color:var(--txt3);line-height:1.6;margin-bottom:12px;font-family:var(--sans,'Syne',sans-serif);padding:8px 10px;background:rgba(255,255,255,.02);border-radius:4px;border-left:2px solid var(--acc)">
+          Modes are AI personality presets. The <strong style="color:var(--txt)">system prompt</strong> is hidden from users and controls how the AI responds. Users activate modes via <span style="color:var(--acc);font-family:var(--mono)">chat.mode.&lt;name&gt;</span>.
+        </div>
+        <div class="form-group">
+          <label class="form-label">Mode Name</label>
+          <input class="form-input" id="p-name" placeholder="e.g. Pirate, Doctor, Coach">
+          <div class="form-hint">Users type this exact name to switch modes. Keep it short, no spaces recommended.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Description</label>
+          <input class="form-input" id="p-desc" placeholder="e.g. Responds like an old sea pirate">
+          <div class="form-hint">Shown in the admin panel and returned when a user sends chat.mode</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">System Prompt</label>
+          <textarea class="form-textarea" id="p-sys" placeholder="You are a salty sea pirate from the 1700s. Respond in character using nautical slang..."></textarea>
+          <div class="form-hint">This is the actual instruction sent to the AI model before every response. Be specific for best results.</div>
+        </div>
+        <button class="btn btn-primary" onclick="addPrompt()"><i class="fas fa-plus"></i> Create Mode</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<div id="msg-modal" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title">Session Transcript</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="modal-mode" style="font-size:11px;color:var(--txt3)"></span>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('msg-modal').style.display='none'"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div id="msg-list" class="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const API = '/api/plugins/mesh_chat';
+const modelPresets = {
+  'qwen1.5b': { repo: 'Qwen/Qwen2.5-1.5B-Instruct-GGUF', file: 'qwen2.5-1.5b-instruct-q4_k_m.gguf' },
+  'phi3':     { repo: 'bartowski/Phi-3.1-mini-4k-instruct-GGUF', file: 'Phi-3.1-mini-4k-instruct-Q4_K_M.gguf' },
+  'llama3':   { repo: 'QuantFactory/Meta-Llama-3-8B-Instruct-GGUF', file: 'Meta-Llama-3-8B-Instruct.Q4_K_M.gguf' }
+};
+let currentDbRepo = '', currentDbFile = '', promptMap = {}, activePreset = 'qwen1.5b';
+
+function show(id) {
+  document.querySelectorAll('.page,.nav-tab').forEach(e => e.classList.remove('active'));
+  document.getElementById('p-'+id).classList.add('active');
+  document.getElementById('n-'+id).classList.add('active');
+}
+
+function selectPreset(key, el) {
+  activePreset = key;
+  document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  const cf = document.getElementById('custom-fields');
+  cf.style.display = key === 'custom' ? 'block' : 'none';
+  if (key !== 'custom') {
+    document.getElementById('m-repo').value = modelPresets[key]?.repo || '';
+    document.getElementById('m-file').value = modelPresets[key]?.file || '';
+  }
+}
+
+function matchPreset(repo, file) {
+  for (const [k, v] of Object.entries(modelPresets)) {
+    if (v.repo === repo && v.file === file) return k;
+  }
+  return 'custom';
+}
+
+function toggleProv() {
+  const prov = document.getElementById('c-prov').value;
+  document.getElementById('prov-local').style.display = prov === 'local' ? 'block' : 'none';
+  document.getElementById('prov-hosted').style.display = prov !== 'local' ? 'block' : 'none';
+}
+
+function ago(ts) {
+  const s = Math.floor(Date.now()/1000 - ts);
+  if (s < 60) return s+'s'; if (s < 3600) return Math.floor(s/60)+'m';
+  if (s < 86400) return Math.floor(s/3600)+'h'; return Math.floor(s/86400)+'d';
+}
+
+function qbClass(s) {
+  return {processing:'qb-proc',pending:'qb-pend',completed:'qb-done',error:'qb-err'}[s]||'qb-pend';
+}
+function sbClass(s) {
+  return {active:'qb-done',expired:'qb-err',inactive:'qb-err'}[s]||'qb-pend';
+}
+
+async function poll() {
+  try {
+    const r = await fetch(API+'/state'); const d = await r.json();
+    document.getElementById('k-sess').textContent = d.stats.total_sessions;
+    document.getElementById('k-msgs').textContent = d.stats.total_msgs;
+    document.getElementById('k-queue').textContent = d.queue.length;
+    document.getElementById('q-count').textContent = d.queue.length+' item'+(d.queue.length!==1?'s':'');
+    document.getElementById('s-count').textContent = d.sessions.length+' session'+(d.sessions.length!==1?'s':'');
+
+    const stat = d.config.status;
+    const strip = document.getElementById('sys-strip');
+    const statEl = document.getElementById('sys-stat');
+    const iconEl = document.getElementById('sys-icon');
+    
+    if (d.config.provider !== 'local') {
+      statEl.textContent = 'USING HOSTED API';
+      document.getElementById('sys-prog').textContent = d.config.provider.toUpperCase();
+      strip.className = 'status-strip ok';
+      iconEl.className='fas fa-cloud'; iconEl.style.color='var(--ok)'; statEl.style.color='var(--ok)';
+    } else {
+      statEl.textContent = stat.toUpperCase();
+      document.getElementById('sys-prog').textContent = d.config.progress || '';
+
+      const isBusy = stat === 'downloading' || stat === 'installing_deps';
+      strip.className = 'status-strip'+(isBusy?' busy':stat==='ready'?' ok':stat==='error'?' err':'');
+      if (isBusy) { iconEl.className='fas fa-circle-notch fa-spin'; iconEl.style.color='var(--amb)'; statEl.style.color='var(--amb)'; }
+      else if (stat==='ready') { iconEl.className='fas fa-check-circle'; iconEl.style.color='var(--ok)'; statEl.style.color='var(--ok)'; }
+      else if (stat==='error') { iconEl.className='fas fa-exclamation-triangle'; iconEl.style.color='var(--err)'; statEl.style.color='var(--err)'; }
+      else { iconEl.className='fas fa-info-circle'; iconEl.style.color='var(--acc)'; statEl.style.color='var(--acc)'; }
+    }
+
+    const disableAll = stat === 'downloading' || stat === 'installing_deps';
+    ['btn-save-cfg','btn-dl-model','btn-save-api','c-en','c-ch','c-to','c-def-prompt','c-prov','c-apikey','c-apimodel'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.disabled = disableAll;
+    });
+    document.querySelectorAll('.preset-card').forEach(c => c.style.pointerEvents = disableAll ? 'none' : '');
+    if (disableAll) { document.getElementById('m-repo').disabled=true; document.getElementById('m-file').disabled=true; }
+    else { document.getElementById('m-repo').disabled=false; document.getElementById('m-file').disabled=false; }
+
+    const sel = document.getElementById('c-def-prompt');
+    const curVal = sel.value;
+    sel.innerHTML = d.prompts.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+    if (curVal && [...sel.options].some(o=>o.value===curVal)) sel.value = curVal;
+    else if (d.config.default_prompt_id) sel.value = d.config.default_prompt_id;
+
+    if (!document.activeElement.matches('input,textarea,select') && !disableAll) {
+      document.getElementById('c-en').checked = d.config.enabled;
+      document.getElementById('c-ch').value = d.config.channel_index;
+      document.getElementById('c-to').value = d.config.session_timeout;
+      document.getElementById('c-prov').value = d.config.provider || 'local';
+      document.getElementById('c-apikey').value = d.config.api_key || '';
+      document.getElementById('c-apimodel').value = d.config.api_model || '';
+      toggleProv();
+
+      if (currentDbRepo !== d.config.model_repo || currentDbFile !== d.config.model_file) {
+        currentDbRepo = d.config.model_repo; currentDbFile = d.config.model_file;
+        document.getElementById('m-repo').value = currentDbRepo;
+        document.getElementById('m-file').value = currentDbFile;
+        const matched = matchPreset(currentDbRepo, currentDbFile);
+        activePreset = matched;
+        document.querySelectorAll('.preset-card').forEach(c => {
+          c.classList.toggle('sel', c.dataset.preset === matched);
+        });
+        document.getElementById('custom-fields').style.display = matched==='custom'?'block':'none';
+      }
+    }
+
+    promptMap = {}; d.prompts.forEach(p => promptMap[p.id] = p.name);
+    const defId = d.config.default_prompt_id;
+    const modeColors = ['mp-0','mp-1','mp-2','mp-3','mp-4'];
+    document.getElementById('p-count').textContent = d.prompts.length+' mode'+(d.prompts.length!==1?'s':'');
+
+    document.getElementById('prompt-list').innerHTML = d.prompts.length ? d.prompts.map((p,i) => `
+      <div class="prompt-item">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <div class="prompt-name">${p.name}</div>
+          ${p.id===defId?'<span class="default-chip">DEFAULT</span>':''}
+        </div>
+        <div class="prompt-desc">${p.description}</div>
+        <div class="prompt-sys">${p.sys_prompt}</div>
+        <div class="prompt-actions">
+          <span style="font-size:11px;color:var(--txt3);font-family:var(--mono)">chat.mode.${p.name.replace(/\s+/g,'')}</span>
+          ${d.prompts.length>1?`<button class="btn btn-danger btn-sm" onclick="delPrompt(${p.id})" style="margin-left:auto"><i class="fas fa-trash"></i> Delete</button>`:'<button class="btn btn-ghost btn-sm" disabled style="margin-left:auto" title="Cannot delete the only mode"><i class="fas fa-lock"></i> Last</button>'}
+        </div>
+      </div>`).join('') : '<div class="empty"><i class="fas fa-masks-theater"></i>No modes defined</div>';
+
+    document.getElementById('guide-modes').innerHTML = d.prompts.map((p,i)=>`
+      <div class="mode-pill ${modeColors[i%modeColors.length]}">
+        <i class="fas fa-circle" style="font-size:9px"></i> ${p.name}
+      </div>`).join('');
+
+    document.getElementById('queue-list').innerHTML = d.queue.length ? d.queue.map(i=>`
+      <div class="q-item">
+        <div style="flex:1">
+          <div class="q-node">${i.node_id}</div>
+          <div class="q-text">${i.query}</div>
+        </div>
+        <span class="q-badge ${qbClass(i.status)}">${i.status.toUpperCase()}</span>
+      </div>`).join('') : '<div class="empty"><i class="fas fa-inbox"></i>No active requests</div>';
+
+    document.getElementById('sess-list').innerHTML = d.sessions.length ? d.sessions.map(i=>`
+      <div class="sess-item">
+        <div style="flex:1">
+          <div><span class="sess-node">${i.node_id}</span><span class="sess-id">#${i.id}</span></div>
+          <div class="sess-meta">Mode: ${promptMap[i.prompt_id]||'Unknown'} &nbsp;·&nbsp; Updated ${ago(i.updated_at)} ago</div>
+        </div>
+        <span class="q-badge ${sbClass(i.status)}">${i.status.toUpperCase()}</span>
+        <button class="btn btn-ghost btn-sm" onclick="viewSess('${i.id}','${i.node_id}',${i.prompt_id})"><i class="fas fa-eye"></i> View</button>
+      </div>`).join('') : '<div class="empty"><i class="fas fa-comments"></i>No sessions yet</div>';
+  } catch(e) {}
+}
+
+async function saveCfg() {
+  const isApiBtn = event && event.target && event.target.id === 'btn-save-api';
+  const btnId = isApiBtn ? 'btn-save-api' : 'btn-save-cfg';
+  const btn = document.getElementById(btnId);
+  const origHtml = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Saving...'; btn.disabled=true;
+  await fetch(API+'/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    enabled: document.getElementById('c-en').checked,
+    channel_index: parseInt(document.getElementById('c-ch').value)||0,
+    session_timeout: parseInt(document.getElementById('c-to').value)||300,
+    default_prompt_id: parseInt(document.getElementById('c-def-prompt').value)||1,
+    provider: document.getElementById('c-prov').value,
+    api_key: document.getElementById('c-apikey').value,
+    api_model: document.getElementById('c-apimodel').value
+  })});
+  btn.innerHTML = '<i class="fas fa-check"></i> Saved'; btn.disabled=false;
+  setTimeout(()=>{ btn.innerHTML=origHtml; }, 1500);
+  poll();
+}
+
+async function dlModel() {
+  const repo = document.getElementById('m-repo').value.trim();
+  const file = document.getElementById('m-file').value.trim();
+  if (!repo || !file) { alert("Repo and filename are required."); return; }
+  if (!confirm(`Download model?\n\n${repo}\n${file}\n\nInference will pause until download and install is complete.`)) return;
+  const btn = document.getElementById('btn-dl-model');
+  btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Starting Download...'; btn.disabled=true;
+  await fetch(API+'/model/download',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_repo:repo,model_file:file})});
+  poll();
+}
+
+async function addPrompt() {
+  const n=document.getElementById('p-name').value.trim();
+  const d=document.getElementById('p-desc').value.trim();
+  const s=document.getElementById('p-sys').value.trim();
+  if(!n||!d||!s){alert("All fields are required to create a mode.");return;}
+  const r=await fetch(API+'/prompts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,description:d,sys_prompt:s})});
+  if(r.ok){document.getElementById('p-name').value='';document.getElementById('p-desc').value='';document.getElementById('p-sys').value='';poll();}
+  else{alert("Failed to create mode. The name may already be taken.");}
+}
+
+async function delPrompt(id) {
+  if(!confirm("Delete this mode? Any sessions using it will fall back to the default."))return;
+  await fetch(API+'/prompts/'+id,{method:'DELETE'});
+  poll();
+}
+
+async function viewSess(id, nodeId, promptId) {
+  document.getElementById('modal-title').textContent = 'Session: '+nodeId+' #'+id;
+  document.getElementById('modal-mode').textContent = 'Mode: '+(promptMap[promptId]||'Unknown');
+  document.getElementById('msg-list').innerHTML = '<div class="empty"><i class="fas fa-circle-notch fa-spin"></i></div>';
+  document.getElementById('msg-modal').style.display='flex';
+  const r=await fetch(API+'/sessions/'+id+'/messages');
+  const d=await r.json();
+  document.getElementById('msg-list').innerHTML = d.messages.length ? d.messages.map(m=>`
+    <div class="msg-bubble ${m.role==='user'?'msg-user':'msg-ai'}">
+      <div class="msg-role">${m.role}</div>
+      ${m.content}
+    </div>`).join('') : '<div class="empty">No messages in this session</div>';
+}
+
+// Init
+document.getElementById('m-repo').value = modelPresets['qwen1.5b'].repo;
+document.getElementById('m-file').value = modelPresets['qwen1.5b'].file;
+toggleProv();
+setInterval(poll, 3000);
+poll();
+</script>
+</body>
+</html>

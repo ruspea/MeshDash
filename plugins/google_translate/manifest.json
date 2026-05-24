@@ -1,0 +1,19 @@
+{
+  "id": "google_translate",
+  "name": "Google Translate",
+  "version": "1.0.2",
+  "author": "MeshDash",
+  "description": "Site-wide Google Translate integration. Injects the translate widget into the MeshDash UI so all content \u2014 node names, messages, menus \u2014 can be translated into any language.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/google_translate",
+  "static_prefix": "/static/plugins/google_translate",
+  "bridge": "bridge.html",
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Translate",
+      "icon": "fa-language",
+      "href": "/plugin/google_translate/index.html"
+    }
+  ]
+}

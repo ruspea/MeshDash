@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Apprise Notify</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:12px;overflow:hidden;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px;}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,200,245,.35);}
+
+/* ── Master layout ── */
+.page{display:flex;flex-direction:column;height:100%;overflow:hidden;}
+.topbar{display:flex;align-items:center;gap:12px;padding:0 16px;height:48px;
+  background:var(--bg2);border-bottom:1px solid var(--bd2);flex-shrink:0;}
+.topbar-title{font-family:var(--mono);font-size:12px;font-weight:800;color:var(--acc);letter-spacing:1px;}
+.body{display:flex;flex:1;min-height:0;overflow:hidden;}
+
+/* ── Left nav ── */
+.lnav{width:220px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--bd2);
+  display:flex;flex-direction:column;overflow:hidden;}
+.lnav-section{font-family:var(--mono);font-size:11px;font-weight:800;letter-spacing:2px;
+  color:var(--txt3);padding:14px 14px 5px;text-transform:uppercase;}
+.lnav-item{display:flex;align-items:center;gap:10px;padding:9px 14px;
+  cursor:pointer;color:var(--txt2);font-size:11px;font-weight:600;
+  border-left:2px solid transparent;transition:all .12s;}
+.lnav-item:hover{background:var(--bg3);color:var(--txt);}
+.lnav-item.active{background:var(--acc-dim);color:var(--acc);border-left-color:var(--acc);}
+.lnav-item i{font-size:13px;width:15px;text-align:center;opacity:.8;}
+.lnav-badge{font-size:11px;font-weight:800;padding:1px 5px;border-radius:3px;
+  background:rgba(0,200,245,.12);border:1px solid rgba(0,200,245,.2);color:var(--acc);margin-left:auto;}
+.lnav-badge.err{background:rgba(255,48,80,.1);border-color:rgba(255,48,80,.2);color:var(--err);}
+.lnav-badge.ok{background:rgba(0,232,122,.1);border-color:rgba(0,232,122,.2);color:var(--ok);}
+
+/* ── Main content ── */
+.main{flex:1;min-width:0;min-height:0;overflow-y:auto;display:flex;flex-direction:column;}
+
+/* ── Cards & sections ── */
+.card{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);margin-bottom:14px;}
+.card-h{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--bd);}
+.card-title{font-family:var(--mono);font-size:10px;font-weight:800;color:var(--txt);
+  text-transform:uppercase;letter-spacing:1px;}
+.card-b{padding:14px 16px;}
+
+/* ── Status bar ── */
+.status-bar{display:flex;gap:14px;padding:10px 16px;background:var(--bg1);
+  border-bottom:1px solid var(--bd2);flex-shrink:0;flex-wrap:wrap;}
+.sb-stat{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--txt3);}
+.sb-val{font-weight:800;color:var(--acc);}
+.sb-val.ok{color:var(--ok);}
+.sb-val.err{color:var(--err);}
+.sb-val.warn{color:var(--warn);}
+.sb-dot{width:7px;height:7px;border-radius:50%;background:var(--bd2);}
+.sb-dot.on{background:var(--ok);box-shadow:var(--glow-sm) var(--ok-glow);}
+.sb-dot.off{background:var(--err);}
+
+/* ── Wizard ── */
+.wizard-wrap{padding:16px;max-width:760px;}
+.wiz-steps{display:flex;align-items:center;gap:0;margin-bottom:24px;position:relative;}
+.wiz-steps::before{content:'';position:absolute;top:16px;left:16px;right:16px;
+  height:2px;background:var(--bd2);z-index:0;}
+.wiz-step{display:flex;flex-direction:column;align-items:center;gap:6px;
+  flex:1;position:relative;z-index:1;cursor:pointer;}
+.wiz-num{width:32px;height:32px;border-radius:50%;border:2px solid var(--bd2);
+  background:var(--bg2);display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:11px;font-weight:800;color:var(--txt3);
+  transition:all .2s;}
+.wiz-step.done .wiz-num{border-color:var(--ok);background:rgba(0,232,122,.1);color:var(--ok);}
+.wiz-step.active .wiz-num{border-color:var(--acc);background:var(--acc-dim);color:var(--acc);
+  box-shadow:var(--glow-sm) var(--acc-glow);}
+.wiz-lbl{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.5px;
+  color:var(--txt3);text-transform:uppercase;white-space:nowrap;}
+.wiz-step.active .wiz-lbl{color:var(--acc);}
+.wiz-step.done .wiz-lbl{color:var(--ok);}
+
+.wiz-pane{display:none;}
+.wiz-pane.active{display:block;}
+
+/* ── Form elements ── */
+.fr{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+.fr-lbl{font-family:var(--mono);font-size:9px;font-weight:700;color:var(--txt3);
+  letter-spacing:.7px;text-transform:uppercase;}
+.fr-hint{font-family:var(--mono);font-size:11px;color:var(--txt3);line-height:1.5;margin-top:2px;}
+.fr-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.fr-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+
+input[type=text],input[type=number],input[type=time],select,textarea{
+  background:rgba(6,11,18,.7);border:1px solid var(--bd2);color:var(--txt);
+  padding:7px 10px;border-radius:var(--r);font-family:inherit;font-size:11px;
+  width:100%;box-sizing:border-box;-webkit-appearance:none;appearance:none;
+  transition:border-color .15s;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--acc);
+  box-shadow:0 0 0 2px rgba(0,200,245,.1);}
+input:hover:not(:focus),select:hover:not(:focus),textarea:hover:not(:focus){border-color:var(--bd3);}
+select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a6a88'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;cursor:pointer;}
+select option{background:var(--bg2);color:var(--txt);}
+input[type=number]{-moz-appearance:textfield;}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+textarea{resize:vertical;min-height:60px;line-height:1.5;}
+
+input[type=checkbox]{-webkit-appearance:none;appearance:none;
+  width:15px;height:15px;background:var(--bg3);border:1px solid var(--bd2);
+  border-radius:3px;cursor:pointer;position:relative;flex-shrink:0;
+  transition:all .15s;padding:0;vertical-align:middle;}
+input[type=checkbox]:hover{border-color:var(--acc);}
+input[type=checkbox]:checked{background:var(--acc);border-color:var(--acc);
+  box-shadow:var(--glow-sm) rgba(0,200,245,.4);}
+input[type=checkbox]:checked::after{content:'';position:absolute;
+  left:4px;top:1px;width:4px;height:8px;border:2px solid #000;
+  border-top:none;border-left:none;transform:rotate(45deg);}
+
+.chk-row{display:flex;align-items:center;gap:8px;font-family:var(--mono);
+  font-size:10px;color:var(--txt2);cursor:pointer;padding:3px 0;}
+.chk-row:hover{color:var(--txt);}
+
+/* ── Buttons ── */
+.btn{background:var(--bg3);color:var(--txt);border:1px solid var(--bd2);
+  padding:8px 16px;border-radius:var(--r);cursor:pointer;font-size:10px;
+  font-weight:700;transition:all .15s;text-transform:uppercase;
+  letter-spacing:.5px;font-family:var(--sans);white-space:nowrap;
+  display:inline-flex;align-items:center;gap:5px;}
+.btn:hover{background:var(--bd2);color:var(--txt);border-color:var(--txt3);}
+.btn:active{transform:scale(.97);}
+.btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none;}
+.btn-sm{padding:4px 10px;font-size:9px;}
+.btn-acc{background:var(--acc-dim);color:var(--acc);border-color:rgba(0,200,245,.35);}
+.btn-acc:hover{background:var(--acc);color:#000;border-color:var(--acc);box-shadow:var(--glow-sm) var(--acc-glow);}
+.btn-ok{background:rgba(0,232,122,.08);color:var(--ok);border-color:rgba(0,232,122,.3);}
+.btn-ok:hover{background:var(--ok);color:#000;border-color:var(--ok);}
+.btn-err{background:rgba(255,48,80,.08);color:var(--err);border-color:rgba(255,48,80,.3);}
+.btn-err:hover{background:var(--err);color:var(--txt);border-color:var(--err);}
+.btn-warn{background:rgba(255,168,38,.08);color:var(--warn);border-color:rgba(255,168,38,.3);}
+.btn-warn:hover{background:var(--warn);color:#000;border-color:var(--warn);}
+.btn-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+
+/* ── Destination cards ── */
+.dest-card{display:flex;align-items:center;gap:10px;padding:10px 12px;
+  background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);
+  margin-bottom:6px;transition:border-color .12s;}
+.dest-card:hover{border-color:var(--bd3);}
+.dest-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0;}
+.dest-info{flex:1;min-width:0;}
+.dest-name{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--txt);}
+.dest-url{font-family:var(--mono);font-size:11px;color:var(--txt3);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:1px;}
+.dest-status{font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:2px;
+  flex-shrink:0;}
+.dest-status.ok{color:var(--ok);background:rgba(0,232,122,.08);border:1px solid rgba(0,232,122,.2);}
+.dest-status.err{color:var(--err);background:rgba(255,48,80,.08);border:1px solid rgba(255,48,80,.2);}
+.dest-status.idle{color:var(--txt3);background:var(--bg);border:1px solid var(--bd);}
+
+/* ── Rule cards ── */
+.rule-card{padding:12px 14px;background:var(--bg3);border:1px solid var(--bd2);
+  border-radius:var(--r);margin-bottom:8px;cursor:pointer;transition:all .12s;
+  border-left:3px solid var(--bd2);}
+.rule-card:hover{border-color:var(--acc);border-left-color:var(--acc);}
+.rule-card.enabled{border-left-color:var(--ok);}
+.rule-card.disabled{border-left-color:var(--bd2);opacity:.6;}
+.rule-top{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.rule-name{font-family:var(--mono);font-size:11px;font-weight:700;color:var(--txt);}
+.rule-event{font-family:var(--mono);font-size:11px;padding:2px 6px;border-radius:2px;
+  color:var(--acc);background:var(--acc-dim);border:1px solid rgba(0,200,245,.2);}
+.rule-meta{font-family:var(--mono);font-size:9px;color:var(--txt3);display:flex;gap:12px;flex-wrap:wrap;}
+.rule-actions{display:flex;gap:6px;margin-left:auto;}
+
+/* ── Event type selector ── */
+.event-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:4px;}
+.event-btn{display:flex;flex-direction:column;gap:4px;padding:10px 8px;
+  background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);
+  cursor:pointer;font-family:var(--mono);transition:all .12s;}
+.event-btn:hover{border-color:var(--acc);}
+.event-btn.active{border-color:var(--acc);background:var(--acc-dim);}
+.event-btn-icon{font-size:18px;text-align:center;}
+.event-btn-name{font-size:9px;font-weight:800;color:var(--txt);letter-spacing:.5px;text-transform:uppercase;}
+.event-btn-desc{font-size:11px;color:var(--txt3);line-height:1.4;}
+.event-btn.active .event-btn-name{color:var(--acc);}
+
+/* ── Day selector ── */
+.day-grid{display:flex;gap:5px;flex-wrap:wrap;}
+.day-btn{width:36px;height:32px;border-radius:3px;border:1px solid var(--bd2);
+  background:var(--bg3);color:var(--txt3);font-family:var(--mono);font-size:9px;
+  font-weight:800;cursor:pointer;transition:all .12s;display:flex;align-items:center;justify-content:center;}
+.day-btn.active{border-color:var(--acc);background:var(--acc-dim);color:var(--acc);}
+.day-btn:hover{border-color:var(--bd3);}
+
+/* ── Token chips ── */
+.token-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;}
+.token{font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:2px;
+  background:rgba(0,200,245,.06);border:1px solid rgba(0,200,245,.18);
+  color:var(--acc);cursor:pointer;transition:all .1s;user-select:none;}
+.token:hover{background:rgba(0,200,245,.14);}
+
+/* ── Tag input ── */
+.tag-wrap{display:flex;flex-wrap:wrap;gap:4px;padding:6px 8px;
+  background:rgba(6,11,18,.7);border:1px solid var(--bd2);border-radius:var(--r);
+  min-height:38px;cursor:text;transition:border-color .15s;}
+.tag-wrap:focus-within{border-color:var(--acc);}
+.tag-chip{display:flex;align-items:center;gap:4px;padding:2px 7px;
+  background:var(--acc-dim);border:1px solid rgba(0,200,245,.25);border-radius:2px;
+  font-family:var(--mono);font-size:9px;color:var(--acc);}
+.tag-chip-del{background:none;border:none;color:var(--acc);cursor:pointer;font-size:11px;
+  padding:0;line-height:1;opacity:.7;}
+.tag-chip-del:hover{opacity:1;}
+.tag-input{border:none;background:transparent;color:var(--txt);font-family:var(--mono);
+  font-size:10px;outline:none;min-width:80px;flex:1;}
+
+/* ── Dest checkboxes ── */
+.dest-pick-list{display:flex;flex-direction:column;gap:5px;}
+.dest-pick-item{display:flex;align-items:center;gap:10px;padding:8px 10px;
+  background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);
+  cursor:pointer;transition:border-color .12s;}
+.dest-pick-item:hover{border-color:var(--acc);}
+.dest-pick-item.selected{border-color:var(--acc);background:var(--acc-dim);}
+
+/* ── Summary review card ── */
+.review-section{margin-bottom:14px;}
+.review-hd{font-family:var(--mono);font-size:11px;font-weight:800;letter-spacing:1.5px;
+  color:var(--txt3);text-transform:uppercase;margin-bottom:6px;
+  padding-bottom:4px;border-bottom:1px solid var(--bd);}
+.review-row{display:flex;justify-content:space-between;padding:4px 0;
+  font-family:var(--mono);font-size:10px;border-bottom:1px dashed var(--bd);}
+.review-row:last-child{border-bottom:none;}
+.rk{color:var(--txt3);}
+.rv{color:var(--txt);font-weight:700;text-align:right;max-width:60%;}
+.rv.acc{color:var(--acc);}
+.rv.ok{color:var(--ok);}
+.rv.warn{color:var(--warn);}
+
+/* ── Log table ── */
+.log-row{display:grid;grid-template-columns:90px 1fr 80px 60px;gap:8px;
+  padding:6px 10px;border-bottom:1px solid var(--bd);font-family:var(--mono);font-size:9px;}
+.log-row:hover{background:rgba(0,200,245,.02);}
+.log-ts{color:var(--txt3);}
+.log-body{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt2);}
+.log-dest{color:var(--txt3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.log-ok{color:var(--ok);}
+.log-err{color:var(--err);}
+
+/* ── Apprise URL helper popup ── */
+.url-helper{background:var(--bg1);border:1px solid var(--bd2);border-radius:var(--r);
+  padding:12px;margin-top:8px;}
+.url-service-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin-top:8px;}
+.url-service{display:flex;align-items:center;gap:6px;padding:6px 8px;
+  background:var(--bg3);border:1px solid var(--bd2);border-radius:3px;
+  cursor:pointer;font-family:var(--mono);font-size:9px;color:var(--txt2);
+  transition:all .1s;}
+.url-service:hover{border-color:var(--acc);color:var(--acc);}
+.url-service i{font-size:13px;width:16px;text-align:center;}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:32px 16px;color:var(--txt3);
+  font-family:var(--mono);font-size:10px;line-height:1.8;}
+.empty i{font-size:28px;display:block;margin-bottom:10px;color:var(--bd2);}
+
+/* ── Section divider ── */
+.sec-div{height:1px;background:var(--bd);margin:14px 0;}
+
+/* ── Inline info box ── */
+.info-box{background:rgba(0,200,245,.04);border:1px solid rgba(0,200,245,.15);
+  border-left:3px solid var(--acc);border-radius:var(--r);padding:10px 12px;
+  font-family:var(--mono);font-size:9px;color:var(--txt2);line-height:1.6;margin-bottom:12px;}
+.warn-box{background:rgba(255,168,38,.04);border:1px solid rgba(255,168,38,.15);
+  border-left:3px solid var(--warn);border-radius:var(--r);padding:10px 12px;
+  font-family:var(--mono);font-size:9px;color:var(--txt2);line-height:1.6;margin-bottom:12px;}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Top bar ── -->
+  <div class="topbar">
+    <i class="fas fa-bell" style="color:var(--acc);font-size:14px;"></i>
+    <span class="topbar-title">APPRISE NOTIFY</span>
+    <span id="tb-apprise-status" style="font-family:var(--mono);font-size:9px;padding:2px 8px;
+      border-radius:2px;margin-left:4px;"></span>
+    <div style="margin-left:auto;display:flex;gap:8px;">
+      <button class="btn btn-sm btn-acc" onclick="W.newRule()">
+        <i class="fas fa-plus"></i> NEW RULE
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Status bar ── -->
+  <div class="status-bar" id="status-bar">
+    <div class="sb-stat"><div class="sb-dot" id="sb-apprise-dot"></div><span>Apprise</span> <span class="sb-val" id="sb-apprise-val">—</span></div>
+    <div class="sb-stat"><i class="fas fa-bell" style="color:var(--acc);font-size:10px;"></i><span>Rules Active</span> <span class="sb-val" id="sb-rules">—</span></div>
+    <div class="sb-stat"><i class="fas fa-link" style="color:var(--txt3);font-size:10px;"></i><span>Destinations</span> <span class="sb-val" id="sb-dests">—</span></div>
+    <div class="sb-stat"><i class="fas fa-paper-plane" style="color:var(--ok);font-size:10px;"></i><span>Total Sent</span> <span class="sb-val ok" id="sb-fires">—</span></div>
+    <div class="sb-stat"><i class="fas fa-exclamation-circle" style="color:var(--err);font-size:10px;"></i><span>Failed</span> <span class="sb-val err" id="sb-failed">—</span></div>
+  </div>
+
+  <div class="body">
+
+    <!-- ── Left nav ── -->
+    <div class="lnav">
+      <div class="lnav-section">Manage</div>
+      <div class="lnav-item active" data-view="destinations" onclick="V.show('destinations',this)">
+        <i class="fas fa-link"></i> Destinations
+        <span class="lnav-badge" id="nav-dest-cnt">0</span>
+      </div>
+      <div class="lnav-item" data-view="rules" onclick="V.show('rules',this)">
+        <i class="fas fa-bell"></i> Rules
+        <span class="lnav-badge" id="nav-rule-cnt">0</span>
+      </div>
+      <div class="lnav-section">Debug</div>
+      <div class="lnav-item" data-view="log" onclick="V.show('log',this)">
+        <i class="fas fa-list-ul"></i> Delivery Log
+      </div>
+      <div class="lnav-section">Setup</div>
+      <div class="lnav-item" data-view="help" onclick="V.show('help',this)">
+        <i class="fas fa-circle-info"></i> URL Reference
+      </div>
+    </div>
+
+    <!-- ══════════════════════ MAIN ══════════════════════ -->
+    <div class="main" id="main-content" style="padding:16px;">
+
+      <!-- ───── DESTINATIONS VIEW ───── -->
+      <div id="view-destinations">
+        <div class="card">
+          <div class="card-h">
+            <i class="fas fa-link" style="color:var(--acc);"></i>
+            <span class="card-title">Notification Destinations</span>
+            <button class="btn btn-sm btn-acc" style="margin-left:auto;" onclick="D.openForm()">
+              <i class="fas fa-plus"></i> ADD DESTINATION
+            </button>
+          </div>
+          <div class="card-b">
+            <div class="info-box">
+              A <b>Destination</b> is any service you want to notify — Discord, Telegram, Slack, Email, SMS, and 130+ more.
+              Each destination has an <b>Apprise URL</b> like <code style="color:var(--acc)">discord://webhook_id/token</code>.
+              Add your destinations here, test them, then reference them in your notification rules.
+            </div>
+            <div id="dest-list"><div class="empty"><i class="fas fa-link"></i>No destinations yet.<br>Add one above to get started.</div></div>
+          </div>
+        </div>
+
+        <!-- Add/Edit destination form (hidden by default) -->
+        <div class="card" id="dest-form" style="display:none;">
+          <div class="card-h">
+            <i class="fas fa-plus-circle" style="color:var(--acc);"></i>
+            <span class="card-title" id="dest-form-title">Add Destination</span>
+            <button class="btn btn-sm" style="margin-left:auto;" onclick="D.closeForm()">✕ CANCEL</button>
+          </div>
+          <div class="card-b">
+
+            <div class="fr-2">
+              <div class="fr">
+                <span class="fr-lbl">Display Name</span>
+                <input type="text" id="df-name" placeholder="e.g. My Discord Server">
+                <span class="fr-hint">A label so you can identify this destination in rules.</span>
+              </div>
+              <div class="fr" style="position:relative;">
+                <span class="fr-lbl">Apprise URL</span>
+                <input type="text" id="df-url" placeholder="discord://webhook_id/token">
+                <span class="fr-hint">The Apprise URL for this service. <a onclick="V.show('help')" style="color:var(--acc);cursor:pointer;">See URL reference →</a></span>
+              </div>
+            </div>
+
+            <!-- Quick-pick service icons -->
+            <div class="fr">
+              <span class="fr-lbl">Quick pick — click to fill URL format</span>
+              <div class="url-service-grid" id="service-grid"></div>
+            </div>
+
+            <div class="fr">
+              <label class="chk-row"><input type="checkbox" id="df-enabled" checked> Enabled</label>
+            </div>
+
+            <div class="btn-row">
+              <button class="btn btn-acc" onclick="D.save()"><i class="fas fa-save"></i> SAVE</button>
+              <button class="btn btn-ok" id="test-btn" onclick="D.test()" style="display:none;">
+                <i class="fas fa-paper-plane"></i> SEND TEST
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ───── RULES VIEW ───── -->
+      <div id="view-rules" style="display:none;">
+        <div class="card">
+          <div class="card-h">
+            <i class="fas fa-bell" style="color:var(--acc);"></i>
+            <span class="card-title">Notification Rules</span>
+            <button class="btn btn-sm btn-acc" style="margin-left:auto;" onclick="W.newRule()">
+              <i class="fas fa-plus"></i> NEW RULE WIZARD
+            </button>
+          </div>
+          <div class="card-b">
+            <div id="rule-list"><div class="empty"><i class="fas fa-bell"></i>No rules yet.<br>Click "New Rule Wizard" to create your first notification rule.</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ───── WIZARD (overlays rules view when active) ───── -->
+      <div id="view-wizard" style="display:none;">
+        <div class="wizard-wrap">
+
+          <!-- Step progress -->
+          <div class="wiz-steps" id="wiz-steps">
+            <div class="wiz-step active" data-step="1" onclick="W.goStep(1)">
+              <div class="wiz-num">1</div><div class="wiz-lbl">Event</div>
+            </div>
+            <div class="wiz-step" data-step="2" onclick="W.goStep(2)">
+              <div class="wiz-num">2</div><div class="wiz-lbl">Filters</div>
+            </div>
+            <div class="wiz-step" data-step="3" onclick="W.goStep(3)">
+              <div class="wiz-num">3</div><div class="wiz-lbl">Schedule</div>
+            </div>
+            <div class="wiz-step" data-step="4" onclick="W.goStep(4)">
+              <div class="wiz-num">4</div><div class="wiz-lbl">Deliver</div>
+            </div>
+            <div class="wiz-step" data-step="5" onclick="W.goStep(5)">
+              <div class="wiz-num">5</div><div class="wiz-lbl">Review</div>
+            </div>
+          </div>
+
+          <!-- ── Step 1: Event type ── -->
+          <div class="wiz-pane active card" id="wiz-1">
+            <div class="card-h">
+              <i class="fas fa-bolt" style="color:var(--acc);"></i>
+              <span class="card-title">Step 1 — What triggers this notification?</span>
+            </div>
+            <div class="card-b">
+              <div class="fr">
+                <span class="fr-lbl">Rule Name</span>
+                <input type="text" id="w-name" placeholder="e.g. DMs from node !aabb → Telegram">
+              </div>
+
+              <div class="fr">
+                <span class="fr-lbl">Event Type — choose one</span>
+                <div class="event-grid" id="event-grid"></div>
+              </div>
+
+              <!-- Dynamic description -->
+              <div class="info-box" id="event-desc-box" style="margin-top:0;"></div>
+
+              <div class="fr">
+                <span class="fr-lbl">Radio Slot</span>
+                <select id="w-slot">
+                  <option value="node_0">node_0 (default)</option>
+                </select>
+                <span class="fr-hint">Which radio/connection to watch for this event.</span>
+              </div>
+
+              <div class="btn-row" style="margin-top:8px;">
+                <button class="btn" onclick="W.cancel()">✕ CANCEL</button>
+                <button class="btn btn-acc" onclick="W.goStep(2)">NEXT — Filters <i class="fas fa-arrow-right"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Step 2: Filters ── -->
+          <div class="wiz-pane card" id="wiz-2">
+            <div class="card-h">
+              <i class="fas fa-filter" style="color:var(--acc);"></i>
+              <span class="card-title">Step 2 — Filter: who, what, which channel?</span>
+            </div>
+            <div class="card-b">
+              <div class="info-box">
+                All filters are <b>optional</b>. Leave blank to match everything. Multiple filters stack as AND — all must pass for the notification to fire.
+              </div>
+
+              <div class="fr">
+                <span class="fr-lbl">Node Whitelist — only fire for these nodes</span>
+                <div class="tag-wrap" id="node-tags-wrap" onclick="document.getElementById('node-tag-input').focus()">
+                  <input class="tag-input" id="node-tag-input" placeholder="type a node ID or name and press Enter…"
+                    onkeydown="W.nodeTagKey(event)" oninput="W.nodeAutocomplete(this.value)">
+                </div>
+                <div id="node-ac-drop" style="display:none;position:relative;"></div>
+                <span class="fr-hint">Leave empty to match <b>all nodes</b>. Add specific node IDs like <code style="color:var(--acc)">!aabb1234</code> to only fire for them.</span>
+              </div>
+
+              <div class="fr-2">
+                <div class="fr" id="filter-channel-row">
+                  <span class="fr-lbl">Channel</span>
+                  <select id="w-channel">
+                    <option value="-1">Any channel</option>
+                    <option value="0">Channel 0 (primary)</option>
+                    <option value="1">Channel 1</option>
+                    <option value="2">Channel 2</option>
+                    <option value="3">Channel 3</option>
+                    <option value="4">Channel 4</option>
+                    <option value="5">Channel 5</option>
+                    <option value="6">Channel 6</option>
+                    <option value="7">Channel 7</option>
+                  </select>
+                  <span class="fr-hint">Only fire for messages on this channel. Any = all channels.</span>
+                </div>
+                <div class="fr" id="filter-dir-row">
+                  <span class="fr-lbl">Direction</span>
+                  <select id="w-direction">
+                    <option value="both">Both (incoming &amp; outgoing)</option>
+                    <option value="incoming">Incoming only</option>
+                    <option value="outgoing">Outgoing only</option>
+                  </select>
+                  <span class="fr-hint">Incoming = from mesh to you. Outgoing = you sent it.</span>
+                </div>
+              </div>
+
+              <div class="fr" id="filter-keywords-row">
+                <span class="fr-lbl">Keywords — message must contain at least one</span>
+                <div class="tag-wrap" id="kw-inc-wrap" onclick="document.getElementById('kw-inc-input').focus()">
+                  <input class="tag-input" id="kw-inc-input" placeholder="type keyword and press Enter…"
+                    onkeydown="W.kwIncKey(event)">
+                </div>
+                <span class="fr-hint">Leave empty to fire for <b>all messages</b>. Add words like <code style="color:var(--acc)">HELP</code> or <code style="color:var(--acc)">SOS</code> to only fire when those words appear.</span>
+              </div>
+
+              <div class="fr" id="filter-kwexclude-row">
+                <span class="fr-lbl">Keywords — suppress if message contains any of these</span>
+                <div class="tag-wrap" id="kw-exc-wrap" onclick="document.getElementById('kw-exc-input').focus()">
+                  <input class="tag-input" id="kw-exc-input" placeholder="type keyword and press Enter…"
+                    onkeydown="W.kwExcKey(event)">
+                </div>
+                <span class="fr-hint">Add words that should <b>prevent</b> the notification firing — e.g. filter out automated status reports.</span>
+              </div>
+
+              <div class="fr-2">
+                <div class="fr" id="filter-hops-row">
+                  <span class="fr-lbl">Hop Range</span>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <input type="number" id="w-minhops" min="0" max="7" placeholder="min" style="width:70px;">
+                    <span style="color:var(--txt3);font-family:var(--mono);font-size:10px;">to</span>
+                    <input type="number" id="w-maxhops" min="0" max="7" placeholder="max" style="width:70px;">
+                  </div>
+                  <span class="fr-hint">Only fire for packets within this hop range. Leave both blank for any hops.</span>
+                </div>
+                <div class="fr" id="filter-offline-row" style="display:none;">
+                  <span class="fr-lbl">Offline Threshold (minutes)</span>
+                  <input type="number" id="w-offline-thresh" min="5" max="10080" value="60">
+                  <span class="fr-hint">How long a node must be silent before triggering "offline". Default: 60 min.</span>
+                </div>
+              </div>
+
+              <div class="btn-row" style="margin-top:8px;">
+                <button class="btn" onclick="W.goStep(1)"><i class="fas fa-arrow-left"></i> BACK</button>
+                <button class="btn btn-acc" onclick="W.goStep(3)">NEXT — Schedule <i class="fas fa-arrow-right"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Step 3: DnD + Rate limit ── -->
+          <div class="wiz-pane card" id="wiz-3">
+            <div class="card-h">
+              <i class="fas fa-clock" style="color:var(--acc);"></i>
+              <span class="card-title">Step 3 — When is this allowed to fire?</span>
+            </div>
+            <div class="card-b">
+              <div class="info-box">
+                Use <b>Do Not Disturb</b> to silence notifications during certain hours or days (e.g. overnight, weekends).
+                Use <b>Rate Limiting</b> to cap how many notifications a rule can send per hour — useful for noisy rules.
+              </div>
+
+              <!-- DnD toggle -->
+              <div class="fr">
+                <label class="chk-row">
+                  <input type="checkbox" id="w-dnd-enabled" onchange="W.toggleDnD(this.checked)">
+                  <span style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--txt);">Enable Do Not Disturb window</span>
+                </label>
+              </div>
+
+              <div id="dnd-options" style="display:none;">
+                <div class="fr">
+                  <span class="fr-lbl">Quiet days — click to toggle (dark = silenced)</span>
+                  <div class="day-grid" id="day-grid">
+                    <div class="day-btn" data-bit="1"  onclick="W.toggleDay(1)">Mon</div>
+                    <div class="day-btn" data-bit="2"  onclick="W.toggleDay(2)">Tue</div>
+                    <div class="day-btn" data-bit="4"  onclick="W.toggleDay(4)">Wed</div>
+                    <div class="day-btn" data-bit="8"  onclick="W.toggleDay(8)">Thu</div>
+                    <div class="day-btn" data-bit="16" onclick="W.toggleDay(16)">Fri</div>
+                    <div class="day-btn" data-bit="32" onclick="W.toggleDay(32)">Sat</div>
+                    <div class="day-btn" data-bit="64" onclick="W.toggleDay(64)">Sun</div>
+                    <div class="day-btn" style="background:rgba(0,200,245,.05);border-color:var(--acc);color:var(--acc);font-size:11px;" onclick="W.setDays(127)">ALL</div>
+                    <div class="day-btn" style="font-size:11px;" onclick="W.setDays(0)">NONE</div>
+                  </div>
+                  <span class="fr-hint" style="margin-top:4px;">Highlighted = silenced on that day. 0 selected = DnD applies every day.</span>
+                </div>
+
+                <div class="fr-2">
+                  <div class="fr">
+                    <span class="fr-lbl">Quiet from</span>
+                    <input type="time" id="w-dnd-start" value="22:00">
+                  </div>
+                  <div class="fr">
+                    <span class="fr-lbl">Quiet until</span>
+                    <input type="time" id="w-dnd-end" value="07:00">
+                  </div>
+                </div>
+                <div class="info-box" style="margin-bottom:0;">
+                  Windows that <b>cross midnight</b> are supported — e.g. 22:00 → 07:00 will silence from 10pm until 7am.
+                  For a midday window, set e.g. 12:00 → 13:00.
+                </div>
+              </div>
+
+              <div class="sec-div"></div>
+
+              <!-- Rate limit -->
+              <div class="fr">
+                <span class="fr-lbl">Rate Limit — maximum fires per window</span>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <input type="number" id="w-rate-n" min="0" max="1000" value="0" style="width:70px;">
+                  <span style="color:var(--txt3);font-family:var(--mono);font-size:10px;">per</span>
+                  <input type="number" id="w-rate-win" min="1" max="1440" value="60" style="width:70px;">
+                  <span style="color:var(--txt3);font-family:var(--mono);font-size:10px;">minutes</span>
+                </div>
+                <span class="fr-hint">Set to <b>0</b> to disable rate limiting. Example: 5 per 60 minutes = max 5 notifications per hour.</span>
+              </div>
+
+              <div class="btn-row" style="margin-top:8px;">
+                <button class="btn" onclick="W.goStep(2)"><i class="fas fa-arrow-left"></i> BACK</button>
+                <button class="btn btn-acc" onclick="W.goStep(4)">NEXT — Delivery <i class="fas fa-arrow-right"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Step 4: Destinations + message template ── -->
+          <div class="wiz-pane card" id="wiz-4">
+            <div class="card-h">
+              <i class="fas fa-paper-plane" style="color:var(--acc);"></i>
+              <span class="card-title">Step 4 — Where to send it &amp; what to say</span>
+            </div>
+            <div class="card-b">
+
+              <div class="fr">
+                <span class="fr-lbl">Send to — select one or more destinations</span>
+                <div class="dest-pick-list" id="dest-pick-list">
+                  <div class="empty" style="padding:16px;"><i class="fas fa-link" style="display:inline;font-size:14px;"></i> No destinations configured yet. <a onclick="V.show('destinations',document.querySelector('[data-view=destinations]'))" style="color:var(--acc);cursor:pointer;">Add destinations first →</a></div>
+                </div>
+              </div>
+
+              <div class="sec-div"></div>
+
+              <div class="fr">
+                <span class="fr-lbl">Notification Priority</span>
+                <select id="w-priority">
+                  <option value="info">ℹ Info (blue)</option>
+                  <option value="success">✅ Success (green)</option>
+                  <option value="warning">⚠ Warning (yellow)</option>
+                  <option value="failure">🔴 Failure (red)</option>
+                </select>
+                <span class="fr-hint">Affects the colour/icon shown in services that support it (e.g. Pushover, Gotify).</span>
+              </div>
+
+              <div class="fr">
+                <span class="fr-lbl">Notification Title</span>
+                <input type="text" id="w-title-tmpl" value="Mesh Alert — {event}">
+                <span class="fr-hint">Available tokens:</span>
+                <div class="token-row" id="title-tokens"></div>
+              </div>
+
+              <div class="fr">
+                <span class="fr-lbl">Notification Body</span>
+                <textarea id="w-body-tmpl" rows="3">[{ts}] {node} ({short}): {msg}
+Channel {channel} · {hops} hops · SNR {snr}</textarea>
+                <span class="fr-hint">Available tokens:</span>
+                <div class="token-row" id="body-tokens"></div>
+              </div>
+
+              <div class="btn-row" style="margin-top:8px;">
+                <button class="btn" onclick="W.goStep(3)"><i class="fas fa-arrow-left"></i> BACK</button>
+                <button class="btn btn-acc" onclick="W.goStep(5)">NEXT — Review <i class="fas fa-arrow-right"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Step 5: Review ── -->
+          <div class="wiz-pane card" id="wiz-5">
+            <div class="card-h">
+              <i class="fas fa-check-circle" style="color:var(--ok);"></i>
+              <span class="card-title">Step 5 — Review &amp; Save</span>
+            </div>
+            <div class="card-b">
+              <div id="review-content"></div>
+              <div class="sec-div"></div>
+              <div class="btn-row">
+                <button class="btn" onclick="W.goStep(4)"><i class="fas fa-arrow-left"></i> BACK</button>
+                <button class="btn btn-ok" id="wiz-save-btn" onclick="W.save()">
+                  <i class="fas fa-save"></i> SAVE RULE
+                </button>
+                <button class="btn btn-warn" id="wiz-test-btn" onclick="W.testSave()" style="display:none;">
+                  <i class="fas fa-paper-plane"></i> SAVE &amp; TEST FIRE
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /wizard-wrap -->
+      </div><!-- /view-wizard -->
+
+      <!-- ───── LOG VIEW ───── -->
+      <div id="view-log" style="display:none;">
+        <div class="card">
+          <div class="card-h">
+            <i class="fas fa-list-ul" style="color:var(--acc);"></i>
+            <span class="card-title">Delivery Log</span>
+            <button class="btn btn-sm btn-err" style="margin-left:auto;" onclick="L.clear()">CLEAR LOG</button>
+          </div>
+          <div class="card-b" style="padding:0;">
+            <div class="log-row" style="background:var(--bg3);font-family:var(--mono);font-size:11px;font-weight:700;color:var(--txt3);letter-spacing:.5px;padding:6px 10px;">
+              <span>TIME</span><span>RULE → BODY</span><span>DESTINATION</span><span>STATUS</span>
+            </div>
+            <div id="log-rows" style="max-height:calc(100vh - 280px);overflow-y:auto;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ───── HELP / URL REFERENCE VIEW ───── -->
+      <div id="view-help" style="display:none;">
+        <div class="card">
+          <div class="card-h">
+            <i class="fas fa-circle-info" style="color:var(--acc);"></i>
+            <span class="card-title">Apprise URL Reference</span>
+          </div>
+          <div class="card-b" id="help-content"></div>
+        </div>
+      </div>
+
+    </div><!-- /main-content -->
+  </div><!-- /body -->
+</div><!-- /page -->
+
+<script>
+'use strict';
+const API = '/api/plugins/apprise_notify';
+const $ = id => document.getElementById(id);
+const _esc = s => String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const _fmt = ts => ts ? new Date(ts*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '—';
+
+// ── Apprise service catalogue ────────────────────────────────────────────────
+const SERVICES = [
+  {name:'Discord',    icon:'fab fa-discord',   color:'#5865f2', schema:'discord',   tmpl:'discord://webhook_id/token',                   doc:'https://github.com/caronc/apprise/wiki/Notify_discord'},
+  {name:'Telegram',   icon:'fab fa-telegram',  color:'#2ca5e0', schema:'tgram',     tmpl:'tgram://bot_token/chat_id',                    doc:'https://github.com/caronc/apprise/wiki/Notify_telegram'},
+  {name:'Slack',      icon:'fab fa-slack',     color:'#4a154b', schema:'slack',     tmpl:'slack://TokenA/TokenB/TokenC/Channel',         doc:'https://github.com/caronc/apprise/wiki/Notify_slack'},
+  {name:'Email',      icon:'fas fa-envelope',  color:'#ea4335', schema:'mailto',    tmpl:'mailto://user:pass@gmail.com',                 doc:'https://github.com/caronc/apprise/wiki/Notify_email'},
+  {name:'Pushover',   icon:'fas fa-mobile-alt',color:'#249ded', schema:'pover',     tmpl:'pover://user_key@app_token',                   doc:'https://github.com/caronc/apprise/wiki/Notify_pushover'},
+  {name:'Gotify',     icon:'fas fa-server',    color:'#3ab0a4', schema:'gotify',    tmpl:'gotify://hostname/token',                      doc:'https://github.com/caronc/apprise/wiki/Notify_gotify'},
+  {name:'Teams',      icon:'fab fa-microsoft', color:'#6264a7', schema:'msteams',   tmpl:'msteams://TokenA/TokenB/TokenC/TokenD',        doc:'https://github.com/caronc/apprise/wiki/Notify_msteams'},
+  {name:'Ntfy',       icon:'fas fa-bullhorn',  color:'#8c5ddc', schema:'ntfy',      tmpl:'ntfy://topic  or  ntfys://ntfy.sh/topic',      doc:'https://github.com/caronc/apprise/wiki/Notify_ntfy'},
+  {name:'Matrix',     icon:'fas fa-hashtag',   color:'#0dbd8b', schema:'matrix',    tmpl:'matrix://user:pass@hostname/#room',             doc:'https://github.com/caronc/apprise/wiki/Notify_matrix'},
+  {name:'Signal',     icon:'fas fa-comment',   color:'#2592e9', schema:'signal',    tmpl:'signal://host:port/+from/+to',                 doc:'https://github.com/caronc/apprise/wiki/Notify_signal'},
+  {name:'MQTT',       icon:'fas fa-exchange-alt',color:'#660066',schema:'mqtt',     tmpl:'mqtt://hostname/topic',                        doc:'https://github.com/caronc/apprise/wiki/Notify_mqtt'},
+  {name:'PushBullet', icon:'fas fa-arrows-alt-h',color:'#4ab367',schema:'pbul',     tmpl:'pbul://access_token',                          doc:'https://github.com/caronc/apprise/wiki/Notify_pushbullet'},
+  {name:'Mattermost', icon:'fas fa-comment-dots',color:'#0072c6',schema:'mmost',    tmpl:'mmost://hostname/api_token/#channel',           doc:'https://github.com/caronc/apprise/wiki/Notify_mattermost'},
+  {name:'Home Asst.', icon:'fas fa-home',      color:'#03a9f4', schema:'hassio',    tmpl:'hassio://longlivedtoken@hostname',              doc:'https://github.com/caronc/apprise/wiki/Notify_homeassistant'},
+  {name:'Apprise API',icon:'fas fa-plug',      color:'var(--acc)', schema:'apprise',   tmpl:'apprise://hostname/key',                       doc:'https://github.com/caronc/apprise-api'},
+  {name:'Webhook',    icon:'fas fa-link',      color:'var(--txt2)', schema:'json',      tmpl:'json://hostname/path',                         doc:'https://github.com/caronc/apprise/wiki/Notify_JSON'},
+];
+
+// ── Event type definitions ────────────────────────────────────────────────────
+const EVENT_TYPES = [
+  {id:'message',      icon:'fas fa-comments',   name:'Channel Message',
+   desc:'Any message received on the mesh — any node, any channel. Use channel/keyword filters to narrow.',
+   showDir:true,  showCh:true,  showKw:true,  showHops:true,  showOffline:false},
+  {id:'dm',           icon:'fas fa-envelope',   name:'Direct Message',
+   desc:'A private direct message (DM) to or from your local node. Select direction to only get incoming or sent.',
+   showDir:true,  showCh:false, showKw:true,  showHops:true,  showOffline:false},
+  {id:'node_online',  icon:'fas fa-circle',     name:'Node Came Online',
+   desc:'A node is heard on the mesh for the first time, or after being offline (based on last_heard gap).',
+   showDir:false, showCh:false, showKw:false, showHops:false, showOffline:false},
+  {id:'node_offline', icon:'fas fa-circle-xmark',name:'Node Went Offline',
+   desc:'A node has not been heard for the configured offline threshold. Scanner runs every 2 minutes.',
+   showDir:false, showCh:false, showKw:false, showHops:false, showOffline:true},
+  {id:'node_seen',    icon:'fas fa-eye',        name:'Node Heartbeat',
+   desc:'Any packet at all received from a specific node — useful as a heartbeat/watchdog for critical nodes.',
+   showDir:false, showCh:false, showKw:false, showHops:true,  showOffline:false},
+  {id:'packet',       icon:'fas fa-wifi',       name:'Raw Packet',
+   desc:'Every packet received on the mesh regardless of type. Very high volume — use rate limiting.',
+   showDir:false, showCh:true,  showKw:false, showHops:true,  showOffline:false},
+];
+
+const TOKENS = [
+  {t:'{node}',    d:'Long node name'},
+  {t:'{short}',   d:'Short name (4 chars)'},
+  {t:'{node_id}', d:'Node ID (!aabb1234)'},
+  {t:'{msg}',     d:'Message text'},
+  {t:'{channel}', d:'Channel index (0-7)'},
+  {t:'{hops}',    d:'Hop count used'},
+  {t:'{snr}',     d:'SNR in dB'},
+  {t:'{bat}',     d:'Battery %'},
+  {t:'{event}',   d:'Event type'},
+  {t:'{ts}',      d:'HH:MM:SS timestamp'},
+  {t:'{slot}',    d:'Radio slot ID'},
+];
+
+// ── View manager ─────────────────────────────────────────────────────────────
+const V = {
+  show(view, navEl) {
+    ['destinations','rules','wizard','log','help'].forEach(v => {
+      const el = $('view-'+v);
+      if (el) el.style.display = v === view ? '' : 'none';
+    });
+    document.querySelectorAll('.lnav-item').forEach(el =>
+      el.classList.toggle('active', el.dataset.view === view));
+    if (view === 'log')  L.load();
+    if (view === 'help') H.render();
+    if (view === 'rules') R.load();
+    if (view === 'destinations') D.load();
+  }
+};
+
+// ── Status bar ───────────────────────────────────────────────────────────────
+async function loadStatus() {
+  try {
+    const s = await fetch(API+'/status').then(r=>r.json());
+    const dot = $('sb-apprise-dot'), val = $('sb-apprise-val');
+    const tb  = $('tb-apprise-status');
+    if (s.apprise_installed) {
+      dot.className='sb-dot on'; val.textContent='Installed'; val.className='sb-val ok';
+      if (tb) { tb.textContent='✓ APPRISE READY'; tb.style.cssText='color:var(--ok);background:rgba(0,232,122,.08);border:1px solid rgba(0,232,122,.2);font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:2px;'; }
+    } else {
+      dot.className='sb-dot off'; val.textContent='Not installed'; val.className='sb-val err';
+      if (tb) { tb.textContent='⚠ pip install apprise'; tb.style.cssText='color:var(--warn);background:rgba(255,168,38,.08);border:1px solid rgba(255,168,38,.2);font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:2px;'; }
+    }
+    $('sb-rules').textContent  = s.rules_active + ' / ' + s.rules_total;
+    $('sb-dests').textContent  = s.dests_active + ' / ' + s.dests_total;
+    $('sb-fires').textContent  = s.total_fires;
+    $('sb-failed').textContent = s.total_failed;
+    $('sb-failed').className   = 'sb-val ' + (s.total_failed > 0 ? 'err' : 'ok');
+  } catch(e) {}
+}
+
+// ── Destinations ─────────────────────────────────────────────────────────────
+const D = {
+  _all: [],
+  _editId: null,
+
+  async load() {
+    try {
+      const d = await fetch(API+'/destinations').then(r=>r.json());
+      this._all = d.destinations || [];
+      this._render();
+      $('nav-dest-cnt').textContent = this._all.length;
+    } catch(e) {}
+  },
+
+  _render() {
+    const list = $('dest-list');
+    if (!this._all.length) {
+      list.innerHTML = '<div class="empty"><i class="fas fa-link"></i>No destinations yet.<br>Add one above to get started.</div>';
+      return;
+    }
+    list.innerHTML = this._all.map(d => `
+      <div class="dest-card">
+        <div class="dest-icon">${_svcIcon(d.url)}</div>
+        <div class="dest-info">
+          <div class="dest-name">${_esc(d.name)}</div>
+          <div class="dest-url">${_esc(_maskUrl(d.url))}</div>
+        </div>
+        <span class="dest-status ${d.enabled?'ok':'idle'}">${d.enabled?'ENABLED':'DISABLED'}</span>
+        <div class="btn-row">
+          <button class="btn btn-sm btn-ok" onclick="D.test('${d.id}')"><i class="fas fa-paper-plane"></i> TEST</button>
+          <button class="btn btn-sm" onclick="D.edit('${d.id}')"><i class="fas fa-pencil"></i></button>
+          <button class="btn btn-sm btn-err" onclick="D.del('${d.id}')"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>`).join('');
+  },
+
+  openForm(id) {
+    $('dest-form').style.display = '';
+    $('dest-form-title').textContent = id ? 'Edit Destination' : 'Add Destination';
+    if (!id) { $('df-name').value=''; $('df-url').value=''; $('df-enabled').checked=true; this._editId=null; }
+    $('test-btn').style.display = id ? 'inline-flex' : 'none';
+    _buildServiceGrid();
+    $('dest-form').scrollIntoView({behavior:'smooth'});
+  },
+
+  closeForm() { $('dest-form').style.display='none'; this._editId=null; },
+
+  edit(id) {
+    const d = this._all.find(x=>x.id===id);
+    if (!d) return;
+    this._editId = id;
+    this.openForm(id);
+    $('df-name').value = d.name;
+    $('df-url').value  = d.url;
+    $('df-enabled').checked = d.enabled;
+    $('test-btn').style.display = 'inline-flex';
+    $('test-btn').onclick = () => this.test(id);
+  },
+
+  async save() {
+    const body = { name:$('df-name').value.trim(), url:$('df-url').value.trim(), enabled:$('df-enabled').checked };
+    if (!body.name || !body.url) { alert('Name and URL are required'); return; }
+    const method = this._editId ? 'PATCH' : 'POST';
+    const url    = this._editId ? `${API}/destinations/${this._editId}` : `${API}/destinations`;
+    await fetch(url, {method, headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+    this.closeForm();
+    await this.load();
+    loadStatus();
+    window.triggerToast?.('Destination saved', 'ok');
+  },
+
+  async del(id) {
+    if (!confirm('Delete this destination? Any rules using it will stop sending to it.')) return;
+    await fetch(`${API}/destinations/${id}`, {method:'DELETE'});
+    await this.load();
+    loadStatus();
+    window.triggerToast?.('Destination deleted', 'warn');
+  },
+
+  async test(id) {
+    const did = id || this._editId;
+    if (!did) return;
+    const btn = event.target.closest('button');
+    if (btn) { btn.disabled=true; btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> SENDING…'; }
+    try {
+      const r = await fetch(`${API}/destinations/${did}/test`, {method:'POST'}).then(r=>r.json());
+      if (r.success) {
+        window.triggerToast?.('Test notification sent!', 'ok');
+        const card = document.querySelector(`.dest-card [onclick*="${did}"]`)?.closest('.dest-card');
+        if (card) { const s=card.querySelector('.dest-status'); if(s){s.textContent='✓ DELIVERED';s.className='dest-status ok';} }
+      } else {
+        window.triggerToast?.('Test failed: ' + (r.error||'unknown'), 'err');
+      }
+    } catch(e) { window.triggerToast?.('Test error: '+e.message, 'err'); }
+    finally { if (btn) { btn.disabled=false; btn.innerHTML='<i class="fas fa-paper-plane"></i> TEST'; } }
+  },
+};
+
+// ── Wizard ────────────────────────────────────────────────────────────────────
+const W = {
+  _step: 1,
+  _editId: null,
+  _days: 0,       // bitmask
+  _nodeTags: [],  // node whitelist
+  _kwInc: [],     // keyword include
+  _kwExc: [],     // keyword exclude
+  _destSel: [],   // selected dest IDs
+
+  newRule() {
+    this._reset();
+    V.show('wizard');
+    document.querySelectorAll('.lnav-item').forEach(el=>el.classList.remove('active'));
+    this.goStep(1);
+    _buildEventGrid();
+    _buildTokenChips();
+    _loadDestPicker();
+    _loadNodeList();
+  },
+
+  _reset() {
+    this._step=1; this._editId=null; this._days=0;
+    this._nodeTags=[]; this._kwInc=[]; this._kwExc=[]; this._destSel=[];
+    ['w-name','w-slot','w-channel','w-direction','w-minhops','w-maxhops',
+     'w-offline-thresh','w-dnd-start','w-dnd-end','w-rate-n','w-rate-win',
+     'w-priority','w-title-tmpl','w-body-tmpl'].forEach(id=>{
+      const el=$(id); if(!el)return;
+      if(el.tagName==='SELECT'){el.selectedIndex=0;}
+      else if(el.type==='checkbox'){el.checked=false;}
+      else{el.value=el.defaultValue||'';}
+    });
+    $('w-offline-thresh').value='60';
+    $('w-dnd-start').value='22:00';
+    $('w-dnd-end').value='07:00';
+    $('w-rate-n').value='0';
+    $('w-rate-win').value='60';
+    $('w-title-tmpl').value='Mesh Alert — {event}';
+    $('w-body-tmpl').value='[{ts}] {node} ({short}): {msg}\nChannel {channel} · {hops} hops · SNR {snr}';
+    this._renderNodeTags();
+    this._renderKwTags('inc');
+    this._renderKwTags('exc');
+    document.querySelectorAll('.day-btn').forEach(b=>b.classList.remove('active'));
+    $('dnd-options').style.display='none';
+    $('w-dnd-enabled').checked=false;
+    // Reset event buttons
+    document.querySelectorAll('.event-btn').forEach(b=>b.classList.remove('active'));
+    const first=document.querySelector('.event-btn');
+    if(first){first.classList.add('active');_updateEventDesc(first.dataset.etype);}
+    this._updateFilterVisibility();
+  },
+
+  cancel() { V.show('rules', document.querySelector('[data-view=rules]')); R.load(); },
+
+  goStep(n) {
+    if (n < 1 || n > 5) return;
+    // Validate step 1
+    if (n > 1 && !$('w-name').value.trim()) { $('w-name').focus(); window.triggerToast?.('Please enter a rule name first','warn'); return; }
+    this._step = n;
+    document.querySelectorAll('.wiz-pane').forEach((p,i)=>p.classList.toggle('active',i===n-1));
+    document.querySelectorAll('.wiz-step').forEach(s=>{
+      const sn=parseInt(s.dataset.step);
+      s.classList.toggle('active',sn===n);
+      s.classList.toggle('done',sn<n);
+      s.querySelector('.wiz-num').textContent = sn < n ? '✓' : sn;
+    });
+    if (n===4) _loadDestPicker();
+    if (n===5) this._renderReview();
+    document.querySelector('.wizard-wrap')?.scrollIntoView({behavior:'smooth'});
+  },
+
+  toggleDnD(on) { $('dnd-options').style.display = on ? '' : 'none'; },
+
+  toggleDay(bit) {
+    this._days ^= bit;
+    document.querySelectorAll('.day-btn[data-bit]').forEach(b=>{
+      b.classList.toggle('active', !!(this._days & parseInt(b.dataset.bit)));
+    });
+  },
+
+  setDays(v) {
+    this._days = v;
+    document.querySelectorAll('.day-btn[data-bit]').forEach(b=>{
+      b.classList.toggle('active', !!(this._days & parseInt(b.dataset.bit)));
+    });
+  },
+
+  _updateFilterVisibility() {
+    const active = document.querySelector('.event-btn.active');
+    const etype  = active?.dataset.etype || 'message';
+    const def    = EVENT_TYPES.find(e=>e.id===etype) || EVENT_TYPES[0];
+    $('filter-channel-row').style.display  = def.showCh      ? '' : 'none';
+    $('filter-dir-row').style.display      = def.showDir     ? '' : 'none';
+    $('filter-keywords-row').style.display = def.showKw      ? '' : 'none';
+    $('filter-kwexclude-row').style.display= def.showKw      ? '' : 'none';
+    $('filter-hops-row').style.display     = def.showHops    ? '' : 'none';
+    $('filter-offline-row').style.display  = def.showOffline ? '' : 'none';
+  },
+
+  // Node tag input
+  nodeTagKey(e) {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      const v = e.target.value.trim();
+      if (v && !this._nodeTags.includes(v)) { this._nodeTags.push(v); this._renderNodeTags(); }
+      e.target.value = '';
+      $('node-ac-drop').style.display='none';
+    } else if (e.key === 'Backspace' && !e.target.value) {
+      this._nodeTags.pop(); this._renderNodeTags();
+    }
+  },
+
+  nodeAutocomplete(q) {
+    const drop = $('node-ac-drop');
+    if (!q || q.length < 2) { drop.style.display='none'; return; }
+    const matches = (window._nodeList||[]).filter(n=>
+      n.long_name.toLowerCase().includes(q.toLowerCase()) || n.node_id.includes(q));
+    if (!matches.length) { drop.style.display='none'; return; }
+    drop.style.cssText='display:block;position:absolute;z-index:100;background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);width:280px;max-height:180px;overflow-y:auto;';
+    drop.innerHTML = matches.slice(0,8).map(n=>`
+      <div onclick="W.pickNode('${n.node_id}','${_esc(n.long_name)}')"
+        style="padding:7px 10px;cursor:pointer;font-family:var(--mono);font-size:10px;border-bottom:1px solid var(--bd);"
+        onmouseenter="this.style.background='var(--bg3)'" onmouseleave="this.style.background=''">
+        <b style="color:var(--acc);">${_esc(n.long_name)}</b>
+        <span style="color:var(--txt3);font-size:11px;margin-left:6px;">${n.node_id}</span>
+      </div>`).join('');
+  },
+
+  pickNode(id, name) {
+    if (!this._nodeTags.includes(id)) { this._nodeTags.push(id); this._renderNodeTags(); }
+    $('node-tag-input').value='';
+    $('node-ac-drop').style.display='none';
+  },
+
+  _renderNodeTags() {
+    const wrap = $('node-tags-wrap');
+    const inp  = $('node-tag-input');
+    wrap.querySelectorAll('.tag-chip').forEach(c=>c.remove());
+    this._nodeTags.forEach((t,i)=>{
+      const chip = document.createElement('div');
+      chip.className='tag-chip';
+      chip.innerHTML=`${_esc(t)}<button class="tag-chip-del" onclick="W._nodeTags.splice(${i},1);W._renderNodeTags()">✕</button>`;
+      wrap.insertBefore(chip,inp);
+    });
+  },
+
+  // Keyword tag inputs
+  kwIncKey(e) { this._kwKey(e,'inc'); },
+  kwExcKey(e) { this._kwKey(e,'exc'); },
+  _kwKey(e,which) {
+    if (e.key==='Enter'||e.key===',') {
+      e.preventDefault();
+      const arr = which==='inc'?this._kwInc:this._kwExc;
+      const v = e.target.value.trim();
+      if (v && !arr.includes(v)) { arr.push(v); this._renderKwTags(which); }
+      e.target.value='';
+    } else if (e.key==='Backspace'&&!e.target.value) {
+      (which==='inc'?this._kwInc:this._kwExc).pop();
+      this._renderKwTags(which);
+    }
+  },
+
+  _renderKwTags(which) {
+    const arr  = which==='inc'?this._kwInc:this._kwExc;
+    const wrap = $(which==='inc'?'kw-inc-wrap':'kw-exc-wrap');
+    const inp  = $(which==='inc'?'kw-inc-input':'kw-exc-input');
+    wrap.querySelectorAll('.tag-chip').forEach(c=>c.remove());
+    arr.forEach((t,i)=>{
+      const chip=document.createElement('div');
+      chip.className='tag-chip';
+      const del=`W._kwExc.splice(${i},1);W._renderKwTags('exc')`;
+      const dic=`W._kwInc.splice(${i},1);W._renderKwTags('inc')`;
+      chip.innerHTML=`${_esc(t)}<button class="tag-chip-del" onclick="${which==='inc'?dic:del}">✕</button>`;
+      wrap.insertBefore(chip,inp);
+    });
+  },
+
+  _renderReview() {
+    const active = document.querySelector('.event-btn.active');
+    const etype  = active?.dataset.etype||'message';
+    const def    = EVENT_TYPES.find(e=>e.id===etype)||EVENT_TYPES[0];
+    const dests  = (window._destList||[]).filter(d=>this._destSel.includes(d.id));
+    const days   = _daysLabel(this._days);
+    const dnd    = $('w-dnd-enabled')?.checked;
+    const rn     = parseInt($('w-rate-n')?.value||'0');
+
+    $('review-content').innerHTML = `
+      <div class="review-section">
+        <div class="review-hd">Rule</div>
+        <div class="review-row"><span class="rk">Name</span><span class="rv acc">${_esc($('w-name')?.value||'—')}</span></div>
+        <div class="review-row"><span class="rk">Event</span><span class="rv">${_esc(def.name)}</span></div>
+        <div class="review-row"><span class="rk">Slot</span><span class="rv">${_esc($('w-slot')?.value||'node_0')}</span></div>
+      </div>
+      <div class="review-section">
+        <div class="review-hd">Filters</div>
+        <div class="review-row"><span class="rk">Nodes</span><span class="rv">${this._nodeTags.length?this._nodeTags.join(', '):'All nodes'}</span></div>
+        ${def.showCh?`<div class="review-row"><span class="rk">Channel</span><span class="rv">${$('w-channel')?.value===-1?'Any':$('w-channel')?.value}</span></div>`:''}
+        ${def.showDir?`<div class="review-row"><span class="rk">Direction</span><span class="rv">${_esc($('w-direction')?.value||'both')}</span></div>`:''}
+        ${def.showKw?`<div class="review-row"><span class="rk">Include keywords</span><span class="rv">${this._kwInc.length?this._kwInc.join(', '):'Any message'}</span></div>`:''}
+        ${def.showKw?`<div class="review-row"><span class="rk">Exclude keywords</span><span class="rv">${this._kwExc.length?this._kwExc.join(', '):'None'}</span></div>`:''}
+        ${def.showOffline?`<div class="review-row"><span class="rk">Offline threshold</span><span class="rv">${$('w-offline-thresh')?.value||60} min</span></div>`:''}
+      </div>
+      <div class="review-section">
+        <div class="review-hd">Schedule</div>
+        <div class="review-row"><span class="rk">Do Not Disturb</span><span class="rv ${dnd?'warn':'ok'}">${dnd?`${$('w-dnd-start')?.value}–${$('w-dnd-end')?.value} on ${days||'every day'}`:'Off'}</span></div>
+        <div class="review-row"><span class="rk">Rate Limit</span><span class="rv">${rn>0?`Max ${rn} per ${$('w-rate-win')?.value||60} min`:'Unlimited'}</span></div>
+      </div>
+      <div class="review-section">
+        <div class="review-hd">Delivery</div>
+        <div class="review-row"><span class="rk">Destinations</span><span class="rv ${dests.length?'ok':'err'}">${dests.length?dests.map(d=>_esc(d.name)).join(', '):'⚠ None selected'}</span></div>
+        <div class="review-row"><span class="rk">Priority</span><span class="rv">${_esc($('w-priority')?.value||'info')}</span></div>
+        <div class="review-row"><span class="rk">Title</span><span class="rv">${_esc($('w-title-tmpl')?.value||'—')}</span></div>
+        <div class="review-row"><span class="rk">Body</span><span class="rv" style="font-size:11px;white-space:pre-wrap;">${_esc(($('w-body-tmpl')?.value||'').substring(0,120))}</span></div>
+      </div>`;
+
+    const warnDest = !dests.length;
+    $('wiz-save-btn').disabled = warnDest;
+    $('wiz-test-btn').style.display = warnDest ? 'none' : 'inline-flex';
+    if (warnDest) {
+      $('review-content').insertAdjacentHTML('beforeend',
+        '<div class="warn-box">⚠ No destinations selected. Go back to Step 4 and select at least one destination.</div>');
+    }
+  },
+
+  async save(andTest=false) {
+    const active = document.querySelector('.event-btn.active');
+    const body = {
+      name:                 $('w-name').value.trim(),
+      slot_id:              $('w-slot').value||'node_0',
+      event_type:           active?.dataset.etype||'message',
+      dest_ids:             this._destSel,
+      node_ids:             this._nodeTags,
+      channel_index:        parseInt($('w-channel')?.value??'-1'),
+      direction:            $('w-direction')?.value||'both',
+      keywords_include:     this._kwInc,
+      keywords_exclude:     this._kwExc,
+      min_hops:             parseInt($('w-minhops')?.value||'-1')||(-1),
+      max_hops:             parseInt($('w-maxhops')?.value||'-1')||(-1),
+      dnd_enabled:          $('w-dnd-enabled')?.checked||false,
+      dnd_days:             this._days,
+      dnd_start:            $('w-dnd-start')?.value||'22:00',
+      dnd_end:              $('w-dnd-end')?.value||'07:00',
+      rate_limit_n:         parseInt($('w-rate-n')?.value||'0'),
+      rate_limit_window_min:parseInt($('w-rate-win')?.value||'60'),
+      priority:             $('w-priority')?.value||'info',
+      title_tmpl:           $('w-title-tmpl')?.value||'Mesh Alert',
+      body_tmpl:            $('w-body-tmpl')?.value||'{node}: {msg}',
+      offline_threshold_min:parseInt($('w-offline-thresh')?.value||'60'),
+      enabled:              true,
+    };
+    const method = this._editId ? 'PATCH' : 'POST';
+    const url    = this._editId ? `${API}/rules/${this._editId}` : `${API}/rules`;
+    const res = await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data = await res.json();
+    const rid = this._editId || data.id;
+    if (andTest && rid) {
+      await fetch(`${API}/rules/${rid}/test`,{method:'POST'});
+      window.triggerToast?.('Rule saved & test fired!','ok');
+    } else {
+      window.triggerToast?.('Rule saved!','ok');
+    }
+    V.show('rules',document.querySelector('[data-view=rules]'));
+    R.load();
+    loadStatus();
+  },
+
+  testSave() { this.save(true); },
+};
+
+// ── Rules list ────────────────────────────────────────────────────────────────
+const R = {
+  _all: [],
+  async load() {
+    try {
+      const d = await fetch(API+'/rules').then(r=>r.json());
+      this._all = d.rules||[];
+      this._render();
+      $('nav-rule-cnt').textContent = this._all.length;
+      loadStatus();
+    } catch(e) {}
+  },
+
+  _render() {
+    const list = $('rule-list');
+    if (!this._all.length) {
+      list.innerHTML='<div class="empty"><i class="fas fa-bell"></i>No rules yet.<br>Click "New Rule Wizard" to create your first notification rule.</div>';
+      return;
+    }
+    const def_map = Object.fromEntries(EVENT_TYPES.map(e=>[e.id,e]));
+    list.innerHTML = this._all.map(r=>{
+      const def = def_map[r.event_type]||{name:r.event_type,icon:'fas fa-bolt'};
+      const ch  = r.channel_index>=0?` · CH${r.channel_index}`:'';
+      const ni  = r.node_ids?.length?` · ${r.node_ids.length} node(s)`:'';
+      const dnd = r.dnd_enabled?' · DnD ON':'';
+      const rl  = r.rate_limit_n>0?` · max ${r.rate_limit_n}/${r.rate_limit_window_min}m`:'';
+      return `<div class="rule-card ${r.enabled?'enabled':'disabled'}" onclick="R.expand('${r.id}')">
+        <div class="rule-top">
+          <span class="rule-event"><i class="${def.icon}"></i> ${def.name}</span>
+          <span class="rule-name">${_esc(r.name)}</span>
+          <div class="rule-actions" onclick="event.stopPropagation()">
+            <button class="btn btn-sm ${r.enabled?'btn-warn':'btn-ok'}" onclick="R.toggle('${r.id}',${r.enabled})">${r.enabled?'PAUSE':'ENABLE'}</button>
+            <button class="btn btn-sm btn-ok" onclick="R.test('${r.id}')"><i class="fas fa-paper-plane"></i></button>
+            <button class="btn btn-sm btn-err" onclick="R.del('${r.id}')"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+        <div class="rule-meta">
+          <span>Slot: ${r.slot_id}</span>
+          ${ni?`<span>Nodes: ${r.node_ids.join(', ')}</span>`:'<span>All nodes</span>'}
+          ${ch?`<span>${ch.slice(3)}</span>`:''}
+          ${r.fire_count?`<span>Fired: ${r.fire_count}×</span>`:''}
+          ${r.last_fired?`<span>Last: ${_fmt(r.last_fired)}</span>`:''}
+          ${dnd?`<span style="color:var(--warn);">DnD ${r.dnd_start}–${r.dnd_end}</span>`:''}
+          ${rl?`<span>Rate-limited</span>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  async toggle(id, enabled) {
+    const r = this._all.find(x=>x.id===id);
+    if (!r) return;
+    await fetch(`${API}/rules/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({...r,enabled:!enabled})});
+    await this.load();
+  },
+
+  async del(id) {
+    if (!confirm('Delete this rule?')) return;
+    await fetch(`${API}/rules/${id}`,{method:'DELETE'});
+    await this.load();
+    window.triggerToast?.('Rule deleted','warn');
+  },
+
+  async test(id) {
+    await fetch(`${API}/rules/${id}/test`,{method:'POST'});
+    window.triggerToast?.('Test notification fired','ok');
+    setTimeout(()=>L.load(),1000);
+  },
+
+  expand(id) { /* future: inline expand for edit */ },
+};
+
+// ── Log ───────────────────────────────────────────────────────────────────────
+const L = {
+  async load() {
+    try {
+      const d = await fetch(API+'/log?limit=200').then(r=>r.json());
+      const rows = $('log-rows');
+      if (!d.log.length) { rows.innerHTML='<div class="empty" style="padding:24px;"><i class="fas fa-inbox" style="display:inline;"></i> No deliveries logged yet.</div>'; return; }
+      rows.innerHTML = d.log.map(r=>`
+        <div class="log-row">
+          <span class="log-ts">${_fmt(r.ts)}</span>
+          <span class="log-body" title="${_esc(r.body)}">${_esc(r.rule_name)} → ${_esc(r.body?.substring(0,80)||'')}</span>
+          <span class="log-dest">${_esc(r.dest_name)}</span>
+          <span class="${r.success?'log-ok':'log-err'}">${r.success?'✓ OK':'✕ FAIL'} ${r.error?'· '+_esc(r.error.substring(0,30)):''}</span>
+        </div>`).join('');
+    } catch(e) {}
+  },
+  async clear() {
+    if (!confirm('Clear the entire delivery log?')) return;
+    await fetch(API+'/log',{method:'DELETE'});
+    await this.load();
+  },
+};
+
+// ── Help ─────────────────────────────────────────────────────────────────────
+const H = {
+  render() {
+    $('help-content').innerHTML = `
+      <div class="info-box">
+        Apprise uses a <b>URL-based</b> system to identify notification services. Each service has its own URL scheme.
+        Below are the most popular ones. Click any service for full documentation.
+        For all 130+ services visit <a href="https://github.com/caronc/apprise/wiki#notification-services" target="_blank" style="color:var(--acc);">apprise wiki →</a>
+      </div>
+      ${SERVICES.map(s=>`
+      <div style="display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--bd);">
+        <div style="width:30px;text-align:center;font-size:18px;flex-shrink:0;color:${s.color};margin-top:2px;">
+          <i class="${s.icon}"></i>
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:var(--mono);font-size:11px;font-weight:700;color:var(--txt);margin-bottom:3px;">
+            ${_esc(s.name)}
+          </div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--acc);background:var(--acc-dim);
+            border:1px solid rgba(0,200,245,.15);padding:4px 8px;border-radius:3px;
+            word-break:break-all;margin-bottom:4px;">${_esc(s.tmpl)}</div>
+          <a href="${s.doc}" target="_blank" style="font-family:var(--mono);font-size:11px;color:var(--txt3);">
+            Full docs →</a>
+        </div>
+        <button class="btn btn-sm" onclick="D._quickFill('${_esc(s.tmpl)}')" title="Use this template">USE</button>
+      </div>`).join('')}
+    `;
+  },
+};
+
+// ── Helper: service icon ──────────────────────────────────────────────────────
+function _svcIcon(url='') {
+  const u = url.toLowerCase();
+  if (u.startsWith('discord'))   return '<i class="fab fa-discord"   style="color:#5865f2;"></i>';
+  if (u.startsWith('tgram'))     return '<i class="fab fa-telegram"  style="color:#2ca5e0;"></i>';
+  if (u.startsWith('slack'))     return '<i class="fab fa-slack"     style="color:#4a154b;"></i>';
+  if (u.startsWith('mailto'))    return '<i class="fas fa-envelope"  style="color:#ea4335;"></i>';
+  if (u.startsWith('pover'))     return '<i class="fas fa-mobile-alt" style="color:#249ded;"></i>';
+  if (u.startsWith('gotify'))    return '<i class="fas fa-server"    style="color:#3ab0a4;"></i>';
+  if (u.startsWith('msteams'))   return '<i class="fab fa-microsoft" style="color:#6264a7;"></i>';
+  if (u.startsWith('ntfy'))      return '<i class="fas fa-bullhorn"  style="color:#8c5ddc;"></i>';
+  if (u.startsWith('matrix'))    return '<i class="fas fa-hashtag"   style="color:#0dbd8b;"></i>';
+  return '<i class="fas fa-link" style="color:var(--txt3);"></i>';
+}
+
+function _maskUrl(url='') {
+  // Mask credentials in URL for display
+  return url.replace(/:\/\/([^:@\s]+:[^@\s]+)@/, '://***:***@');
+}
+
+function _daysLabel(bits) {
+  const names = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  return names.filter((_,i)=>bits & (1<<i)).join(', ');
+}
+
+// ── Build event type grid ─────────────────────────────────────────────────────
+function _buildEventGrid() {
+  const g = $('event-grid');
+  if (!g) return;
+  g.innerHTML = EVENT_TYPES.map(e=>`
+    <div class="event-btn ${e.id==='message'?'active':''}" data-etype="${e.id}"
+      onclick="W._updateFilterVisibility(); document.querySelectorAll('.event-btn').forEach(b=>b.classList.remove('active')); this.classList.add('active'); _updateEventDesc('${e.id}');">
+      <div class="event-btn-icon"><i class="${e.icon}" style="color:var(--acc);"></i></div>
+      <div class="event-btn-name">${e.name}</div>
+      <div class="event-btn-desc">${e.desc}</div>
+    </div>`).join('');
+  _updateEventDesc('message');
+}
+
+function _updateEventDesc(etype) {
+  const def = EVENT_TYPES.find(e=>e.id===etype);
+  const box = $('event-desc-box');
+  if (box && def) {
+    box.innerHTML=`<i class="${def.icon}" style="color:var(--acc);margin-right:6px;"></i><b>${def.name}</b> — ${def.desc}`;
+  }
+  W._updateFilterVisibility();
+}
+
+// ── Build token chips ─────────────────────────────────────────────────────────
+function _buildTokenChips() {
+  ['title-tokens','body-tokens'].forEach(id=>{
+    const el=$(id);
+    if (!el) return;
+    el.innerHTML = TOKENS.map(t=>`
+      <div class="token" title="${t.d}"
+        onclick="const inp=$(id.includes('title')?'w-title-tmpl':'w-body-tmpl');if(inp)inp.value+='{${t.t.slice(1,-1)}}'">
+        ${t.t} <span style="color:var(--txt3);font-size:10px;">${t.d}</span>
+      </div>`).join('');
+    // Fix the onclick — needs the actual field id, not the loop var
+    el.querySelectorAll('.token').forEach((chip,i)=>{
+      chip.onclick=()=>{
+        const fieldId = id.includes('title')?'w-title-tmpl':'w-body-tmpl';
+        const inp=$(fieldId);
+        if(inp){inp.value+=TOKENS[i].t; inp.focus();}
+      };
+    });
+  });
+}
+
+// ── Build service quick-pick grid in destination form ─────────────────────────
+function _buildServiceGrid() {
+  const g=$('service-grid');
+  if (!g) return;
+  g.innerHTML = SERVICES.map(s=>`
+    <div class="url-service" onclick="$('df-url').value='${s.tmpl}';$('df-url').focus();">
+      <i class="${s.icon}" style="color:${s.color};"></i>
+      ${s.name}
+    </div>`).join('');
+}
+
+// ── Load destination picker for wizard step 4 ─────────────────────────────────
+async function _loadDestPicker() {
+  try {
+    const d = await fetch(API+'/destinations').then(r=>r.json());
+    window._destList = d.destinations||[];
+    const list = $('dest-pick-list');
+    if (!list) return;
+    if (!window._destList.length) {
+      list.innerHTML='<div class="empty" style="padding:16px;"><i class="fas fa-link" style="display:inline;font-size:14px;"></i> No destinations configured yet. <a onclick="V.show(\'destinations\',document.querySelector(\'[data-view=destinations]\'))" style="color:var(--acc);cursor:pointer;">Add destinations first →</a></div>';
+      return;
+    }
+    list.innerHTML = window._destList.map(d=>`
+      <div class="dest-pick-item ${W._destSel.includes(d.id)?'selected':''}"
+        onclick="W._toggleDestSel('${d.id}',this)">
+        <input type="checkbox" ${W._destSel.includes(d.id)?'checked':''} style="pointer-events:none;">
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:var(--mono);font-size:10px;font-weight:700;color:var(--txt);">${_esc(d.name)}</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);">${_esc(_maskUrl(d.url))}</div>
+        </div>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+W._toggleDestSel = function(id,el) {
+  const idx = this._destSel.indexOf(id);
+  if (idx>=0) this._destSel.splice(idx,1);
+  else this._destSel.push(id);
+  el.classList.toggle('selected',this._destSel.includes(id));
+  el.querySelector('input[type=checkbox]').checked = this._destSel.includes(id);
+};
+
+D._quickFill = function(tmpl) { $('df-url').value=tmpl; $('df-url').focus(); };
+
+// ── Load node list for autocomplete ──────────────────────────────────────────
+async function _loadNodeList() {
+  const slot = $('w-slot')?.value || 'node_0';
+  try {
+    const d = await fetch(`${API}/nodes/${encodeURIComponent(slot)}`).then(r=>r.json());
+    window._nodeList = d.nodes||[];
+  } catch(e) { window._nodeList=[]; }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+async function boot() {
+  await loadStatus();
+  D.load();
+  // Periodically refresh status
+  setInterval(loadStatus, 30000);
+}
+
+if (document.readyState==='loading') {
+  document.addEventListener('DOMContentLoaded', boot);
+} else {
+  boot();
+}
+</script>
+</body>
+</html>

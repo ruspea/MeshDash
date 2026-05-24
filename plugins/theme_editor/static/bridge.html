@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Theme Bridge</title>
+<style>body{margin:0;padding:0;background:transparent;}</style>
+</head>
+<body>
+<script>
+'use strict';
+/*
+ * Theme Editor Bridge v2.0
+ *
+ * Injects the saved :root CSS variable overrides into:
+ *   1. window.parent.document  — the main MeshDash shell
+ *   2. Every same-origin <iframe> in the parent page, including plugin
+ *      page iframes (served via /static/plugins/...) which have their
+ *      own document and therefore their own CSS cascade root.
+ *
+ * CSS variables do NOT cross iframe boundaries — each iframe document
+ * is an independent cascade root, so we must inject into each one.
+ *
+ * A MutationObserver watches for new iframes being added (happens when
+ * the user navigates to a plugin page) and injects immediately on load.
+ */
+
+var THEME_URL = '/api/plugins/theme_editor/theme';
+var STYLE_ID  = 'md-theme-override';
+
+var _currentCSS = '';   // the built CSS string, cached for re-injection
+
+/* ── Build the CSS string from an overrides dict ── */
+function _buildCSS(overrides) {
+    if (!overrides || !Object.keys(overrides).length) return '';
+
+    // Build a flat dict: start with explicit overrides, then derive missing vars.
+    // This ensures every dependent variable shifts together.
+    var vars = Object.assign({}, overrides);
+
+    // ── Background gradient ──
+    // bg → bg1 (+5) → bg2 (+14 from bg) → bg3 (+5 from bg2) → bg4 (+12 from bg2)
+    if (vars['--bg']) {
+        if (!vars['--bg1']) vars['--bg1'] = _lighten(vars['--bg'], 5);
+        if (!vars['--bg2']) vars['--bg2'] = _lighten(vars['--bg'], 14);
+    }
+    if (vars['--bg2']) {
+        if (!vars['--bg3']) vars['--bg3'] = _lighten(vars['--bg2'], 5);
+        if (!vars['--bg4']) vars['--bg4'] = _lighten(vars['--bg2'], 12);
+    }
+    // Border gradient
+    if (vars['--bd']) {
+        if (!vars['--bd3']) vars['--bd3'] = _lighten(vars['--bd'], 10);
+    }
+
+    // ── Glow/alpha derived vars ──
+    if (vars['--acc']) {
+        vars['--acc-glow'] = _rgba(vars['--acc'], 0.18);
+        vars['--acc-dim']  = _rgba(vars['--acc'], 0.06);
+        vars['--acc-mid']  = _rgba(vars['--acc'], 0.12);
+    }
+    if (vars['--ok'])    vars['--ok-glow']   = _rgba(vars['--ok'],    0.18);
+    if (vars['--warn'])  vars['--warn-glow'] = _rgba(vars['--warn'], 0.18);
+    if (vars['--err'])   vars['--err-glow']  = _rgba(vars['--err'],  0.18);
+    if (vars['--pur'])   vars['--pur-glow']  = _rgba(vars['--pur'],  0.18);
+
+    var lines = Object.entries(vars).map(function(e) {
+        return '  ' + e[0] + ': ' + e[1] + ';';
+    });
+
+    return ':root {\n' + lines.join('\n') + '\n}';
+}
+
+/* ── Inject into one document ── */
+function _injectIntoDoc(doc, css) {
+    if (!doc || !doc.head) return;
+    try {
+        var existing = doc.getElementById(STYLE_ID);
+        if (existing) {
+            // Update in place — avoids FOUC from remove/add cycle
+            if (existing.textContent === css) return; // no change
+            existing.textContent = css;
+            return;
+        }
+        if (!css) return;
+        var s = doc.createElement('style');
+        s.id = STYLE_ID;
+        s.setAttribute('data-theme-plugin', '1');
+        s.textContent = css;
+        doc.head.appendChild(s);
+    } catch(e) { /* cross-origin iframe — skip silently */ }
+}
+
+/* ── Remove theme from one document ── */
+function _removeFromDoc(doc) {
+    if (!doc) return;
+    try {
+        var el = doc.getElementById(STYLE_ID);
+        if (el) el.parentNode.removeChild(el);
+    } catch(e) {}
+}
+
+/* ── Inject into parent + all its iframes ── */
+function _applyOverrides(overrides) {
+    _currentCSS = _buildCSS(overrides);
+    var pd = window.parent.document;
+
+    // 1. Main document
+    _injectIntoDoc(pd, _currentCSS);
+
+    // 2. All iframes in the parent page
+    _injectAllIframes(pd);
+
+    // 3. Dispatch custom event so app.js can re-inject into plugin iframes
+    try {
+        pd.dispatchEvent(new CustomEvent('theme-changed', { detail: { css: _currentCSS } }));
+    } catch(e) {}
+}
+
+function _injectAllIframes(pd) {
+    try {
+        var iframes = pd.querySelectorAll('iframe');
+        iframes.forEach(function(iframe) {
+            _injectIntoIframe(iframe);
+        });
+    } catch(e) {}
+}
+
+/* ── Inject into a single iframe, waiting for it to load if needed ── */
+function _injectIntoIframe(iframe) {
+    // Skip our own bridge iframes and hidden bridge container iframes
+    // (they don't use style.css and don't need theming)
+    try {
+        var src = iframe.src || '';
+        // Only theme iframes that load a real HTML page with style.css
+        // Plugin pages: /static/plugins/... or served via /plugin/...
+        // Skip: bridge iframes (src="about:blank", "#", or bridge.html)
+        if (!src || src === 'about:blank' || src.endsWith('#')) return;
+        if (src.includes('/bridge.html')) return;
+    } catch(e) { return; }
+
+    function _tryInject() {
+        try {
+            var doc = iframe.contentDocument || iframe.contentWindow?.document;
+            if (!doc) return;
+            if (doc.readyState === 'loading') {
+                // Wait for load, then inject
+                iframe.addEventListener('load', function _onLoad() {
+                    iframe.removeEventListener('load', _onLoad);
+                    try {
+                        var d = iframe.contentDocument || iframe.contentWindow?.document;
+                        if (d) _injectIntoDoc(d, _currentCSS);
+                    } catch(e) {}
+                }, { once: true });
+            } else {
+                // Document ready, inject now
+                _injectIntoDoc(doc, _currentCSS);
+            }
+        } catch(e) { /* sandbox cross-origin — skip silently */ }
+    }
+
+    _tryInject();
+}
+
+/* ── MutationObserver — catch iframes added dynamically ── */
+function _watchForIframes(pd) {
+    var obs = new (window.parent.MutationObserver)(function(mutations) {
+        mutations.forEach(function(m) {
+            m.addedNodes.forEach(function(node) {
+                if (!node || node.nodeType !== 1) return;
+                // Directly added iframe
+                if (node.tagName === 'IFRAME') {
+                    // Wire load event before it fires
+                    node.addEventListener('load', function() {
+                        try { _injectIntoDoc(node.contentDocument, _currentCSS); } catch(e) {}
+                    }, { once: false }); // not once — plugin pages may navigate
+                    _injectIntoIframe(node);
+                }
+                // Iframe added inside a subtree (e.g. inside a card)
+                var nested = node.querySelectorAll ? node.querySelectorAll('iframe') : [];
+                nested.forEach(function(iframe) {
+                    iframe.addEventListener('load', function() {
+                        try { _injectIntoDoc(iframe.contentDocument, _currentCSS); } catch(e) {}
+                    }, { once: false });
+                    _injectIntoIframe(iframe);
+                });
+            });
+        });
+    });
+
+    obs.observe(pd.body, { childList: true, subtree: true });
+}
+
+/* ── Hex helpers ── */
+function _rgba(hex, alpha) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    var r = parseInt(hex.substring(0,2),16);
+    var g = parseInt(hex.substring(2,4),16);
+    var b = parseInt(hex.substring(4,6),16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
+function _lighten(hex, amount) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    var r = Math.min(255, parseInt(hex.substring(0,2),16) + amount);
+    var g = Math.min(255, parseInt(hex.substring(2,4),16) + amount);
+    var b = Math.min(255, parseInt(hex.substring(4,6),16) + amount);
+    return '#' + [r,g,b].map(function(v){ return v.toString(16).padStart(2,'0'); }).join('');
+}
+
+/* ── Boot ── */
+(function _waitParent() {
+    try {
+        if (window.parent && window.parent.document && window.parent.document.body) {
+            fetch(THEME_URL, { credentials: 'include', cache: 'no-store' })
+                .then(function(r) { return r.ok ? r.json() : null; })
+                .then(function(d) {
+                    if (d && d.overrides && Object.keys(d.overrides).length) {
+                        _applyOverrides(d.overrides);
+                    }
+                    // Start watching for dynamically added iframes regardless
+                    _watchForIframes(window.parent.document);
+                    console.log('[Theme Bridge] v2.0 ready — '
+                        + Object.keys((d && d.overrides) || {}).length + ' override(s).');
+                })
+                .catch(function(e) {
+                    // Even if theme load fails, watch for iframes
+                    _watchForIframes(window.parent.document);
+                    console.warn('[Theme Bridge] load error:', e);
+                });
+        } else {
+            setTimeout(_waitParent, 100);
+        }
+    } catch(e) { setTimeout(_waitParent, 150); }
+})();
+
+/* Expose for live updates from the settings page */
+window._themeApply = _applyOverrides;
+</script>
+</body>
+</html>

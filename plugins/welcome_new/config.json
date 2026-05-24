@@ -1,0 +1,11 @@
+{
+  "enabled": false,
+  "message": "Welcome to the mesh! \ud83e\udd80\nThis node runs MeshDash \u2014 here's what's available:\n\u2022 Send 'ping' for a response\n\u2022 Send 'weather' for current conditions\n\u2022 Send 'help' for more commands\nHappy meshing!",
+  "dest_type": "direct",
+  "channel": 0,
+  "cooldown_hours": 24.0,
+  "include_telemetry": false,
+  "include_position": false,
+  "welcome_self": false,
+  "ignore_local": true
+}

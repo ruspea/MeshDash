@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Polar Grid Bridge</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>body{margin:0;padding:0;background:transparent;}</style>
+</head>
+<body>
+<script>
+'use strict';
+
+/* --------------------------------------------------------------------------
+ * Polar Grid - bridge.html v1.1
+ * -------------------------------------------------------------------------- */
+
+const PLUGIN_ID  = 'polar_grid';
+const CONFIG_URL = '/api/plugins/polar_grid/config';
+
+/* -- State -- */
+var _cfg = {
+    enabled: false, unit: 'km',
+    rings: [1, 2, 5, 10, 25, 50], azimuths: 12,
+    ring_color: 'var(--acc)', azimuth_color: 'var(--warn)',
+    ring_opacity: 0.45, azimuth_opacity: 0.35,
+    ring_weight: 1.5, azimuth_weight: 1.0,
+    label_rings: true, fill_bands: true, show_cardinal: true,
+    manual_lat: null, manual_lon: null, minimise_nodes: false
+};
+var _ringGroup    = null;
+var _azGroup      = null;
+var _labelGroup   = null;
+var _nodeGroup    = null;  /* node dot markers on rings */
+var _centreMark   = null;  /* draggable centre marker */
+var _centreLatLng = null;  /* current centre (may differ from home node) */
+var _toolBtn      = null;  /* the button injected into the map toolbar */
+var _toolbarRetryCount = 0;
+var _toolbarMaxRetries = 20;
+var _bandPopup    = null;  /* currently open band popup */
+var _mapWatcher   = null;  /* setInterval that watches for map becoming available */
+
+/* -- Unit conversion to metres -- */
+var UNIT_TO_M = { km: 1000, mi: 1609.344, nm: 1852 };
+
+function _toMetres(val) {
+    return val * (UNIT_TO_M[_cfg.unit] || 1000);
+}
+
+function _unitLabel() {
+    return { km: 'km', mi: 'mi', nm: 'NM' }[_cfg.unit] || 'km';
+}
+
+/* --------------------------------------------------------------------------
+ * Haversine helpers
+ * -------------------------------------------------------------------------- */
+function _destPoint(lat, lon, bearingDeg, distMetres) {
+    var R  = 6371008.8;
+    var d  = distMetres / R;
+    var b  = bearingDeg * Math.PI / 180;
+    var φ1 = lat * Math.PI / 180;
+    var λ1 = lon * Math.PI / 180;
+    var φ2 = Math.asin(
+        Math.sin(φ1) * Math.cos(d) +
+        Math.cos(φ1) * Math.sin(d) * Math.cos(b)
+    );
+    var λ2 = λ1 + Math.atan2(
+        Math.sin(b) * Math.sin(d) * Math.cos(φ1),
+        Math.cos(d) - Math.sin(φ1) * Math.sin(φ2)
+    );
+    return [φ2 * 180 / Math.PI, ((λ2 * 180 / Math.PI) + 540) % 360 - 180];
+}
+
+function _distMetres(lat1, lon1, lat2, lon2) {
+    var R  = 6371008.8;
+    var φ1 = lat1 * Math.PI / 180;
+    var φ2 = lat2 * Math.PI / 180;
+    var dφ = (lat2 - lat1) * Math.PI / 180;
+    var dλ = (lon2 - lon1) * Math.PI / 180;
+    var a  = Math.sin(dφ/2)*Math.sin(dφ/2) +
+             Math.cos(φ1)*Math.cos(φ2)*Math.sin(dλ/2)*Math.sin(dλ/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function _getMap() {
+    try { 
+        // Try multiple ways to find the map
+        // 1. C2MapApp.map (legacy)
+        if (window.parent.C2MapApp?.map) return window.parent.C2MapApp.map;
+        // 2. app.map (common pattern)
+        if (window.parent.app?.map) return window.parent.app.map;
+        // 3. window.map
+        if (window.parent.map) return window.parent.map;
+        // 4. Find map container and get map instance from it
+        var mapEl = window.parent.document.getElementById('main-c2-map');
+        if (mapEl && mapEl._leaflet_map) return mapEl._leaflet_map;
+        // 5. Try to find any Leaflet map on the page
+        var containers = window.parent.document.querySelectorAll('.leaflet-container');
+        for (var i = 0; i < containers.length; i++) {
+            if (containers[i]._leaflet_map) return containers[i]._leaflet_map;
+        }
+        return null; 
+    } catch(e) { return null; }
+}
+
+function _getL() {
+    try { return window.parent.L || null; } catch(e) { return null; }
+}
+
+/* -- Find local node lat/lon with manual fallback -- */
+function _getHomeLatLon() {
+    var lat = null, lon = null;
+    
+    // 1. Try to get live GPS from the node
+    try {
+        var ms = window.parent.meshState;
+        var lid = ms?.local_node_id;
+        if (lid && ms?.nodes?.[lid]) {
+            var node = ms.nodes[lid];
+            lat = node.position?.latitude || node.latitude;
+            lon = node.position?.longitude || node.longitude;
+        }
+    } catch(e) {
+        // Silently catch cross-origin or missing state errors
+    }
+    
+    // 2. Valid live GPS check
+    if (lat != null && lon != null && !(lat === 0 && lon === 0)) {
+        return [parseFloat(lat), parseFloat(lon)];
+    }
+    
+    // 3. Fallback check (runs safely outside the try/catch)
+    if (_cfg.manual_lat != null && _cfg.manual_lon != null) {
+        return [parseFloat(_cfg.manual_lat), parseFloat(_cfg.manual_lon)];
+    }
+    
+    return null;
+}
+
+function _getAllNodePositions() {
+    try {
+        var ms  = window.parent.meshState;
+        var lid = ms?.local_node_id;
+        var out = [];
+        Object.entries(ms?.nodes || {}).forEach(function(entry) {
+            var nid = entry[0], n = entry[1];
+            var lat = n.position?.latitude || n.latitude;
+            var lon = n.position?.longitude || n.longitude;
+            if (!lat || !lon || (lat===0 && lon===0)) return;
+            var label = n.user?.longName || n.user?.shortName || n.long_name || n.short_name || nid;
+            out.push({ nid: nid, lat: parseFloat(lat), lon: parseFloat(lon),
+                       label: label, isLocal: nid === lid });
+        });
+        return out;
+    } catch(e) { return []; }
+}
+
+/* --------------------------------------------------------------------------
+ * Draw / clear
+ * -------------------------------------------------------------------------- */
+function _clear() {
+    var map = _getMap(), L2 = _getL();
+    if (!map || !L2) return;
+    [_ringGroup, _azGroup, _labelGroup, _nodeGroup].forEach(function(g) {
+        if (g) { try { map.removeLayer(g); } catch(e) {} }
+    });
+    _ringGroup = _azGroup = _labelGroup = _nodeGroup = null;
+    if (_centreMark) { try { map.removeLayer(_centreMark); } catch(e) {} _centreMark = null; }
+    if (_bandPopup)  { try { map.closePopup(_bandPopup); } catch(e) {} _bandPopup = null; }
+}
+
+function draw() {
+    var map = _getMap(), L2 = _getL();
+    if (!map || !L2) return;
+
+    _clear();
+    if (!_cfg.enabled) return;
+
+    /* Determine centre point */
+    if (!_centreLatLng) {
+        var home = _getHomeLatLon();
+        if (!home) {
+            /* Fallback failed entirely - bail out cleanly */
+            _clear();
+            return;
+        }
+        _centreLatLng = home;
+    }
+
+    var clat = _centreLatLng[0], clon = _centreLatLng[1];
+    var allNodes = _getAllNodePositions();
+
+    /* Sort rings ascending */
+    var sortedRings = _cfg.rings.slice().sort(function(a, b) { return a - b; });
+    var maxRingM    = _toMetres(sortedRings[sortedRings.length - 1]);
+    var azCount     = Math.max(0, _cfg.azimuths);
+
+    _ringGroup  = L2.layerGroup().addTo(map);
+    _azGroup    = L2.layerGroup().addTo(map);
+    _labelGroup = L2.layerGroup().addTo(map);
+    _nodeGroup  = L2.layerGroup().addTo(map);
+
+    /* -- Azimuth lines -- */
+    if (azCount > 0) {
+        var azExtendM = maxRingM * 1.05;  /* 5% beyond outermost ring */
+        for (var i = 0; i < azCount; i++) {
+            var bearing  = (360 / azCount) * i;
+            var endpoint = _destPoint(clat, clon, bearing, azExtendM);
+            var line     = L2.polyline([[clat, clon], endpoint], {
+                color:   _cfg.azimuth_color,
+                weight:  _cfg.azimuth_weight,
+                opacity: _cfg.azimuth_opacity,
+                dashArray: '4 6',
+                interactive: false,
+            });
+            _azGroup.addLayer(line);
+        }
+    }
+
+    /* -- Cardinal / intercardinal labels -- */
+    if (_cfg.show_cardinal && azCount > 0) {
+        var cardDist = maxRingM * 1.12;
+        var cardinals = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+        var step = azCount >= 8 ? 45 : 90;
+        for (var deg = 0; deg < 360; deg += step) {
+            var cpos  = _destPoint(clat, clon, deg, cardDist);
+            var cidx  = Math.round(deg / 22.5) % 16;
+            var label = L2.marker(cpos, {
+                icon: L2.divIcon({
+                    html: '<div style="font-family:var(--mono,monospace);font-size:9px;font-weight:900;'
+                        + 'color:' + _cfg.azimuth_color + ';opacity:0.8;'
+                        + 'text-shadow:0 0 4px rgba(0,0,0,0.8);white-space:nowrap;'
+                        + 'transform:translate(-50%,-50%);">'
+                        + cardinals[cidx] + '</div>',
+                    className: '',
+                    iconSize: [0, 0],
+                }),
+                interactive: false,
+                keyboard: false,
+            });
+            _labelGroup.addLayer(label);
+        }
+    }
+
+    /* -- Range rings -- */
+    sortedRings.forEach(function(ringVal, idx) {
+        var ringM = _toMetres(ringVal);
+
+        /* Alternating subtle fill between bands */
+        if (_cfg.fill_bands && idx % 2 === 1) {
+            var innerM = idx > 0 ? _toMetres(sortedRings[idx - 1]) : 0;
+            var fill   = L2.circle([clat, clon], {
+                radius:      ringM,
+                color:       'none',
+                fillColor:   _cfg.ring_color,
+                fillOpacity: 0.04,
+                interactive: false,
+                weight:      0,
+            });
+            _ringGroup.addLayer(fill);
+            if (innerM > 0) {
+                var inner = L2.circle([clat, clon], {
+                    radius:      innerM,
+                    color:       'none',
+                    fillColor:   'var(--bg)',
+                    fillOpacity: 0.04,
+                    interactive: false,
+                    weight:      0,
+                });
+                _ringGroup.addLayer(inner);
+            }
+        }
+
+        var circle = L2.circle([clat, clon], {
+            radius:      ringM,
+            color:       _cfg.ring_color,
+            weight:      _cfg.ring_weight,
+            opacity:     _cfg.ring_opacity,
+            fillOpacity: 0,
+            interactive: true,
+        });
+
+        /* -- Ring click -> band popup -- */
+        (function(rv, rm, prevM) {
+            circle.on('click', function(e) {
+                L2.DomEvent.stopPropagation(e);
+                if (_bandPopup) { map.closePopup(_bandPopup); _bandPopup = null; }
+
+                var inBand = allNodes.filter(function(n) {
+                    var d = _distMetres(clat, clon, n.lat, n.lon);
+                    return d <= rm && d > prevM;
+                });
+                inBand.sort(function(a, b) {
+                    return _distMetres(clat, clon, a.lat, a.lon) - _distMetres(clat, clon, b.lat, b.lon);
+                });
+
+                var unitL = _unitLabel();
+                var prevLabel = prevM > 0 ? (prevM / (UNIT_TO_M[_cfg.unit]||1000)).toFixed(2) + unitL : '0';
+                var thisLabel = rv.toFixed(rv < 10 ? 1 : 0) + unitL;
+
+                var rows = inBand.map(function(n) {
+                    var d  = _distMetres(clat, clon, n.lat, n.lon);
+                    var du = (d / (UNIT_TO_M[_cfg.unit]||1000)).toFixed(2);
+                    var bearing = _bearing(clat, clon, n.lat, n.lon);
+                    var cardDir = _bearingToCard(bearing);
+                    return '<tr style="border-bottom:1px solid rgba(255,255,255,0.06);">'
+                         + '<td style="padding:3px 8px;color:var(--acc,var(--acc));">' + n.label + '</td>'
+                         + '<td style="padding:3px 8px;color:var(--txt2,var(--txt2));text-align:right;">' + du + ' ' + unitL + '</td>'
+                         + '<td style="padding:3px 8px;color:var(--txt3,var(--txt3));text-align:right;">' + Math.round(bearing) + '° ' + cardDir + '</td>'
+                         + '</tr>';
+                }).join('');
+
+                var html = '<div style="font-family:var(--mono,monospace);font-size:10px;min-width:220px;">'
+                    + '<div style="font-weight:900;color:var(--acc,var(--acc));margin-bottom:6px;font-size:11px;">'
+                    + '⊙ BAND: ' + prevLabel + ' – ' + thisLabel + '</div>';
+
+                if (inBand.length === 0) {
+                    html += '<div style="color:var(--txt3,var(--txt3));padding:4px 0;">No nodes in this band</div>';
+                } else {
+                    html += '<table style="width:100%;border-collapse:collapse;">'
+                         + '<thead><tr style="border-bottom:1px solid rgba(0,200,245,0.3);">'
+                         + '<th style="padding:2px 8px;color:var(--txt3,var(--txt3));font-weight:normal;text-align:left;">NODE</th>'
+                         + '<th style="padding:2px 8px;color:var(--txt3,var(--txt3));font-weight:normal;text-align:right;">DIST</th>'
+                         + '<th style="padding:2px 8px;color:var(--txt3,var(--txt3));font-weight:normal;text-align:right;">BEARING</th>'
+                         + '</tr></thead><tbody>' + rows + '</tbody></table>';
+                }
+                html += '</div>';
+
+                _bandPopup = L2.popup({ className: 'polar-grid-popup', maxWidth: 320, minWidth: 220 })
+                .setLatLng(e.latlng).setContent(html).openOn(map);
+            });
+        })(ringVal, ringM, idx > 0 ? _toMetres(sortedRings[idx - 1]) : 0);
+
+        _ringGroup.addLayer(circle);
+
+        /* -- Ring distance label -- */
+        if (_cfg.label_rings) {
+            var labelPos = _destPoint(clat, clon, 0, ringM);
+            var lbl = _unitLabel();
+            var txt  = ringVal < 1 ? (ringVal * 1000).toFixed(0) + (lbl==='km'?'m':lbl==='mi'?'ft':'m')
+                     : ringVal.toFixed(ringVal < 10 ? 1 : 0) + lbl;
+            var rlabel = L2.marker(labelPos, {
+                icon: L2.divIcon({
+                    html: '<div style="font-family:var(--mono,monospace);font-size:8px;font-weight:700;'
+                        + 'color:' + _cfg.ring_color + ';opacity:0.85;'
+                        + 'background:rgba(6,11,18,0.7);padding:1px 4px;border-radius:2px;'
+                        + 'white-space:nowrap;transform:translate(-50%,-100%);">' + txt + '</div>',
+                    className: '', iconSize: [0, 0],
+                }),
+                interactive: false, keyboard: false,
+            });
+            _labelGroup.addLayer(rlabel);
+        }
+    });
+
+    /* -- Node dots -- */
+    allNodes.forEach(function(n) {
+        var d    = _distMetres(clat, clon, n.lat, n.lon);
+        var du   = (d / (UNIT_TO_M[_cfg.unit] || 1000)).toFixed(2);
+        var lbl  = _unitLabel();
+        var bear = _bearing(clat, clon, n.lat, n.lon);
+        var card = _bearingToCard(bear);
+
+        var dot = L2.circleMarker([n.lat, n.lon], {
+            radius:      3,
+            color:       n.isLocal ? 'var(--ok)' : _cfg.ring_color,
+            fillColor:   n.isLocal ? 'var(--ok)' : _cfg.ring_color,
+            fillOpacity: 0.9,
+            weight:      1.5,
+            interactive: true,
+        });
+        dot.bindTooltip(
+            '<div style="font-family:var(--mono,monospace);font-size:9px;line-height:1.6;">'
+            + '<strong style="color:var(--acc,var(--acc));">' + n.label + '</strong><br>'
+            + du + ' ' + lbl + '  ·  ' + Math.round(bear) + '° ' + card
+            + '</div>',
+            { direction: 'top', opacity: 0.95 }
+        );
+        _nodeGroup.addLayer(dot);
+    });
+
+    /* -- Centre marker -- */
+    _centreMark = L2.marker([clat, clon], {
+        draggable: true, zIndexOffset: 1000,
+        icon: L2.divIcon({
+            html: '<div id="pg-centre-icon" style="width:20px;height:20px;border:2px solid ' + _cfg.ring_color + ';border-radius:50%;background:rgba(0,200,245,0.15);box-shadow:0 0 10px ' + _cfg.ring_color + ';cursor:grab;position:relative;"><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:4px;height:4px;background:' + _cfg.ring_color + ';border-radius:50%;"></div></div>',
+            className: '', iconSize: [20, 20], iconAnchor: [10, 10],
+        }),
+    }).addTo(map);
+
+    _centreMark.on('drag', function(e) {
+        _centreLatLng = [e.latlng.lat, e.latlng.lng];
+        draw(); 
+    });
+
+    _centreMark.on('dblclick', function() {
+        var home = _getHomeLatLon();
+        if (home) {
+            _centreLatLng = home;
+            draw();
+            window.parent.triggerToast?.('Polar Grid: reset to home node', 'ok');
+        }
+    });
+
+    _centreMark.bindTooltip(
+        '<div style="font-family:var(--mono,monospace);font-size:9px;">⊕ POLAR GRID CENTRE<br><span style="color:var(--txt3,var(--txt3));">Drag to move · Dbl-click to reset</span></div>',
+        { direction: 'top', permanent: false }
+    );
+}
+
+function _bearing(lat1, lon1, lat2, lon2) {
+    var φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
+    var dλ = (lon2 - lon1) * Math.PI / 180;
+    var y  = Math.sin(dλ) * Math.cos(φ2);
+    var x  = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(dλ);
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+var _CARDS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+function _bearingToCard(b) { return _CARDS[Math.round(b / 22.5) % 16]; }
+
+/* --------------------------------------------------------------------------
+ * Toolbar injections & Styles
+ * -------------------------------------------------------------------------- */
+
+function _applyMinimiseStyle() {
+    var doc = window.parent.document;
+    var styleId = 'pg-mini-css';
+    var existing = doc.getElementById(styleId);
+    if (_cfg.minimise_nodes) {
+        if (!existing) {
+            var s = doc.createElement('style');
+            s.id = styleId;
+            s.innerHTML = '.c2-node-marker { transform: scale(0.35) !important; opacity: 0.65; } .c2-node-marker > div:nth-child(2) { border-width: 1px !important; }';
+            doc.head.appendChild(s);
+        }
+    } else {
+        if (existing) existing.remove();
+    }
+}
+
+function _injectToolbarBtn() {
+    /* 
+     * Find the map toolbar - try multiple strategies:
+     * 1. Direct #map-toolbar selector
+     * 2. Fallback to finding the .map-tb-group with margin-left:auto (right-side buttons)
+     * 3. Legacy selector for older versions
+     */
+    var toolbar = null;
+    var insertTarget = null;
+    
+    // Strategy 1: Find #map-toolbar directly, then locate the right-side group
+    var mapToolbar = window.parent.document.querySelector('#map-toolbar');
+    if (mapToolbar) {
+        // Find the right-side button group (margin-left:auto)
+        insertTarget = mapToolbar.querySelector('.map-tb-group[style*="margin-left"]') ||
+                       mapToolbar.querySelector('div[style*="margin-left:auto"]');
+        toolbar = mapToolbar;
+    }
+    
+    // Strategy 2: Legacy - find via card structure
+    if (!toolbar) {
+        toolbar = window.parent.document.querySelector('#main-c2-map')
+            ?.closest('.card')?.querySelector('.ch > div[style*="margin-left:auto"]');
+        insertTarget = toolbar;
+    }
+    
+    // Strategy 3: Any .ch with margin-left:auto child
+    if (!toolbar) {
+        toolbar = window.parent.document.querySelector('.ch > div[style*="margin-left:auto"]');
+        insertTarget = toolbar;
+    }
+    
+    if (!toolbar) { 
+        _toolbarRetryCount++;
+        if (_toolbarRetryCount <= _toolbarMaxRetries) {
+            setTimeout(_injectToolbarBtn, 500); 
+        }
+        return; 
+    }
+
+    /* 1. Inject Main Grid Toggle */
+    if (!window.parent.document.getElementById('pg-toolbar-btn')) {
+        var btn = window.parent.document.createElement('button');
+        btn.id        = 'pg-toolbar-btn';
+        btn.className = 'btn btn-sm';
+        btn.title     = 'Toggle Polar Grid overlay';
+        btn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;font-size:9px;';
+        btn.innerHTML = '<i class="fas fa-crosshairs"></i> POLAR GRID';
+        
+        btn.addEventListener('click', function() {
+            _cfg.enabled = !_cfg.enabled;
+            
+            if (_cfg.enabled) {
+                // Pre-flight check: do we have a location to draw around?
+                if (!_centreLatLng && !_getHomeLatLon()) {
+                    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> LOCATING...';
+                    btn.disabled = true;
+                    
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                            function(pos) {
+                                _cfg.manual_lat = parseFloat(pos.coords.latitude.toFixed(6));
+                                _cfg.manual_lon = parseFloat(pos.coords.longitude.toFixed(6));
+                                
+                                // Save to backend
+                                fetch(CONFIG_URL, {
+                                    method: 'POST', credentials: 'include',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(_cfg)
+                                }).catch(function(){});
+                                
+                                _updateBtnState();
+                                btn.disabled = false;
+                                window.parent.triggerToast?.('Location acquired from browser', 'ok');
+                                draw();
+                            },
+                            function(err) {
+                                window.parent.triggerToast?.('GPS missing & Browser location denied. Set manually in plugin settings.', 'err');
+                                _cfg.enabled = false;
+                                _updateBtnState();
+                                btn.disabled = false;
+                                _clear();
+                            },
+                            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                        );
+                    } else {
+                        window.parent.triggerToast?.('Browser location not supported. Set manually in settings.', 'err');
+                        _cfg.enabled = false;
+                        _updateBtnState();
+                        btn.disabled = false;
+                        _clear();
+                    }
+                    return; // exit early, draw() will be called on success
+                }
+                
+                // Normal path: we have location, save state and draw
+                fetch(CONFIG_URL, {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(_cfg),
+                }).catch(function() {});
+                _updateBtnState();
+                draw();
+                window.parent.triggerToast?.('Polar Grid ON', 'ok');
+                
+            } else {
+                // Turning OFF
+                fetch(CONFIG_URL, {
+                    method: 'POST', credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(_cfg),
+                }).catch(function() {});
+                _updateBtnState();
+                _clear();
+                window.parent.triggerToast?.('Polar Grid OFF', 'warn');
+            }
+        });
+
+        // Insert the button - try to find REFRESH button as anchor, otherwise prepend to right group
+        if (insertTarget) {
+            var refreshBtn = insertTarget.querySelector('button[onclick*="c2ManualRefresh"]') ||
+                             insertTarget.querySelector('button[onclick*="c2FetchAndDrawMap"]');
+            if (refreshBtn) {
+                insertTarget.insertBefore(btn, refreshBtn);
+            } else {
+                // Prepend to the right-side group
+                insertTarget.insertBefore(btn, insertTarget.firstChild);
+            }
+        } else {
+            toolbar.appendChild(btn);
+        }
+
+        _toolBtn = btn;
+        _updateBtnState();
+        console.log('[Polar Grid] ✓ Toolbar button injected');
+    }
+
+    /* 2. Inject MINIMISE Nodes Toggle - find auto-refresh toggle as anchor */
+    if (!window.parent.document.getElementById('pg-mini-wrap')) {
+        var miniWrap = window.parent.document.createElement('div');
+        miniWrap.id = 'pg-mini-wrap';
+        miniWrap.className = 'map-tb-group';  // Match existing toolbar group style
+        miniWrap.style.cssText = 'display:flex; align-items:center; gap:6px;';
+        miniWrap.innerHTML = '<span class="map-tb-lbl" style="font-size:8px;">MINI</span>' +
+            '<label class="tog"><input type="checkbox" id="pg-mini-chk"><span class="tog-sl"></span></label>';
+
+        var chk = miniWrap.querySelector('#pg-mini-chk');
+        chk.checked = _cfg.minimise_nodes;
+        chk.addEventListener('change', function() {
+            _cfg.minimise_nodes = this.checked;
+            _applyMinimiseStyle();
+            fetch(CONFIG_URL, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(_cfg),
+            }).catch(function(){});
+        });
+
+        // Find auto-refresh wrapper as anchor point
+        var autoRefWrap = window.parent.document.querySelector('#map-auto-ref')?.closest('.map-tb-group') ||
+                          window.parent.document.querySelector('input[id="map-auto-ref"]')?.closest('div');
+        if (autoRefWrap && autoRefWrap.parentNode) {
+            autoRefWrap.parentNode.insertBefore(miniWrap, autoRefWrap);
+        } else if (insertTarget) {
+            insertTarget.parentNode.insertBefore(miniWrap, insertTarget);
+        } else {
+            toolbar.appendChild(miniWrap);
+        }
+        console.log('[Polar Grid] ✓ Minimise toggle injected');
+    }
+    
+    _applyMinimiseStyle();
+}
+
+function _updateBtnState() {
+    if (!_toolBtn) return;
+    _toolBtn.className = _cfg.enabled ? 'btn btn-sm btn-acc' : 'btn btn-sm';
+    _toolBtn.innerHTML = '<i class="fas fa-crosshairs"></i> ' + (_cfg.enabled ? 'POLAR GRID ON' : 'POLAR GRID');
+}
+
+function _init() {
+    if (!window.parent.document.getElementById('pg-popup-style')) {
+        var s = window.parent.document.createElement('style');
+        s.id = 'pg-popup-style';
+        s.textContent = [
+            '.polar-grid-popup .leaflet-popup-content-wrapper{',
+            '  background:var(--bg2,var(--bg2));color:var(--txt,var(--txt));',
+            '  border:1px solid var(--acc,var(--acc));border-radius:6px;',
+            '  font-family:var(--mono,monospace);box-shadow:0 8px 30px rgba(0,0,0,0.8);}',
+            '.polar-grid-popup .leaflet-popup-tip{background:var(--bg2,var(--bg2));}',
+            '.polar-grid-popup .leaflet-popup-content{margin:10px 14px;}',
+        ].join('');
+        window.parent.document.head.appendChild(s);
+    }
+
+    _injectToolbarBtn();
+
+    clearInterval(_mapWatcher);
+    _mapWatcher = setInterval(function() {
+        var map = _getMap();
+        if (!map) return;
+        if (_cfg.enabled && !_ringGroup) draw();
+    }, 2000);
+}
+
+async function _boot() {
+    try {
+        var r = await fetch(CONFIG_URL, { credentials: 'include', cache: 'no-store' });
+        if (r.ok) {
+            var d = await r.json();
+            Object.assign(_cfg, d);
+        }
+    } catch(e) {}
+
+    _init();
+    if (_cfg.enabled) draw();
+    console.log('[Polar Grid Bridge] v1.1 ready.');
+}
+
+/* Poll config every 20s */
+setInterval(async function() {
+    try {
+        var r = await fetch(CONFIG_URL, { credentials: 'include', cache: 'no-store' });
+        if (!r.ok) return;
+        var d = await r.json();
+        var wasEnabled = _cfg.enabled;
+        var wasMini    = _cfg.minimise_nodes;
+        
+        Object.assign(_cfg, d);
+        _updateBtnState();
+        
+        if (wasMini !== _cfg.minimise_nodes) {
+            var chk = window.parent.document.getElementById('pg-mini-chk');
+            if (chk) chk.checked = _cfg.minimise_nodes;
+            _applyMinimiseStyle();
+        }
+
+        if (_cfg.enabled && !wasEnabled) draw();
+        else if (!_cfg.enabled && wasEnabled) _clear();
+        else if (_cfg.enabled) draw(); 
+    } catch(e) {}
+}, 20000);
+
+(function _waitParent() {
+    try {
+        // Wait for parent document to be ready and either:
+        // 1. C2MapApp exists (legacy)
+        // 2. #map-toolbar exists (new structure)
+        // 3. meshState exists (app loaded)
+        var ready = window.parent && window.parent.document && (
+            window.parent.C2MapApp !== undefined ||
+            window.parent.document.getElementById('map-toolbar') ||
+            window.parent.meshState !== undefined
+        );
+        if (ready) {
+            _boot();
+        } else { setTimeout(_waitParent, 200); }
+    } catch(e) { setTimeout(_waitParent, 200); }
+})();
+</script>
+</body>
+</html>

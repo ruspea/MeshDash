@@ -1,0 +1,19 @@
+{
+  "id": "push_notifications",
+  "name": "Push Notifications",
+  "version": "2.1.2",
+  "author": "MeshDash",
+  "description": "Real-time Web Push alerts via SSE bridge. DMs, channel messages, keyword watchlists, position reports, telemetry alerts, node events, SOS detection, quiet hours and a live packet log.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/push_notifications",
+  "static_prefix": "/static/plugins/push_notifications",
+  "bridge": "bridge.html",
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Push Notifications",
+      "icon": "fa-bell",
+      "href": "/plugin/push_notifications/index.html?v=2.1.1"
+    }
+  ]
+}

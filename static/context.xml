@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<menu>
+    <item icon="fas fa-search" action="window.openGlobalSearch()">Global Search</item>
+    
+    <menu label="Core" icon="fas fa-layer-group">
+        <item icon="fas fa-sitemap" action="loadView('overview')">Overview</item>
+        <item icon="fas fa-map" action="loadView('map')">Map</item>
+    </menu>
+    
+    <menu label="Comms" icon="fas fa-comments">
+        <item icon="fas fa-envelope" action="loadView('dmes')">Direct Message</item>
+        <item icon="fas fa-broadcast-tower" action="loadView('channels')">Channels</item>
+    </menu>
+    
+    <menu label="Tools" icon="fas fa-tools">
+        <item icon="fas fa-desktop" action="loadView('monitor')">Monitor</item>
+        <item icon="fas fa-chart-line" action="loadView('analytics')">Analytics</item>
+        <item icon="fas fa-columns" action="loadView('compare')">Node Comparison</item>
+        <item icon="fas fa-water" action="loadView('shark')">Mesh Shark</item>
+        <item icon="fas fa-route" action="loadView('traceroute')">Traceroute</item>
+        <item icon="fas fa-microchip" action="loadView('iot')">Web Telemetry</item>
+        <item icon="fas fa-tasks" action="loadView('tasks')">Automated Tasks</item>
+        <item icon="fas fa-reply" action="loadView('autoreply')">Auto Reply</item>
+        <item icon="fas fa-project-diagram" action="window.open('/plugin/mesh_visualizer/index.html', '_blank')">Mesh Visualizer</item>
+    </menu>
+    
+    <menu label="System" icon="fas fa-cogs">
+        <item icon="fas fa-cog" action="loadView('node_config')">Node Config</item>
+        <item icon="fas fa-sliders-h" action="loadView('settings')">Settings</item>
+        <item icon="fas fa-puzzle-piece" action="loadView('plugins')">Plugins</item>
+    </menu>
+    
+    <menu label="External Links" icon="fas fa-external-link-alt">
+        <item icon="fas fa-globe" href="https://meshdash.co.uk/" target="_blank">MeshDash Website</item>
+        <item icon="fas fa-book" href="https://meshdash.co.uk/dox/" target="_blank">Documentation</item>
+        <item icon="fas fa-upload" href="https://meshdash.co.uk/?p=plugin-development" target="_blank">Plugin Submission</item>
+    </menu>
+    
+    <item icon="fas fa-satellite-dish" action="window.C2Diagnostics.openModal()">Diagnostics</item>
+    <item icon="fas fa-sign-out-alt" action="window.location.href='/logout'">Logout</item>
+</menu>

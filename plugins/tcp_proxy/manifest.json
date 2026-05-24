@@ -1,0 +1,20 @@
+{
+  "id": "tcp_proxy",
+  "name": "TCP Proxy",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Exposes a virtual Meshtastic TCP server, allowing the official mobile apps, Python CLI, or any compatible client to connect to MeshDash as if it were a physical radio. Supports persistent sessions, offline message queuing, and real-time bidirectional traffic proxying.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/tcp_proxy",
+  "static_prefix": "/static/plugins/tcp_proxy",
+  "bridge": null,
+  "permissions": [],
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "TCP Proxy",
+      "icon": "fa-network-wired",
+      "href": "/plugin/tcp_proxy/index.html"
+    }
+  ]
+}

@@ -1,0 +1,1915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Hello Mesh — Plugin Developer Reference</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+html,body{height:100%;margin:0;padding:0;}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--txt);font-family:var(--sans);min-height:100%;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,212,255,.012) 2px,rgba(0,212,255,.012) 4px);pointer-events:none;z-index:9999;}
+
+/* HEADER */
+.hdr{background:linear-gradient(135deg,var(--bg1),var(--bg2));border-bottom:1px solid var(--bd);padding:24px 36px;position:relative;overflow:hidden;}
+.hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--acc),var(--ok),transparent);}
+.hdr-inner{display:flex;align-items:center;gap:18px;max-width:1500px;margin:0 auto;}
+.hdr-icon{width:48px;height:48px;background:linear-gradient(135deg,var(--acc),var(--acc));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;box-shadow:0 0 28px rgba(0,212,255,.35);flex-shrink:0;}
+.hdr-title{font-size:1.55rem;font-weight:800;color:var(--txt);letter-spacing:-.5px;}
+.hdr-sub{font-family:var(--mono);font-size:.72rem;color:var(--txt2);margin-top:2px;}
+.hdr-right{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.badge{font-family:var(--mono);font-size:.62rem;font-weight:700;padding:3px 9px;border-radius:4px;letter-spacing:.5px;text-transform:uppercase;}
+.b-acc{background:rgba(0,212,255,.1);color:var(--acc);border:1px solid rgba(0,212,255,.2);}
+.b-grn{background:rgba(0,255,157,.08);color:var(--ok);border:1px solid rgba(0,255,157,.18);}
+.b-ylw{background:rgba(255,209,102,.08);color:var(--warn);border:1px solid rgba(255,209,102,.18);}
+
+/* LAYOUT */
+.layout{display:flex;max-width:1500px;margin:0 auto;min-height:100%;}
+
+/* SIDEBAR */
+.sidebar{width:270px;flex-shrink:0;border-right:1px solid var(--bd);padding:20px 0;position:sticky;top:0;height:calc(100vh - 97px);overflow-y:auto;}
+.sb-grp{padding:0 14px 14px;}
+.sb-lbl{font-family:var(--mono);font-size:.58rem;font-weight:700;color:var(--txt3);letter-spacing:1.5px;text-transform:uppercase;padding:0 8px;margin-bottom:6px;display:block;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:6px;cursor:pointer;transition:all .14s;font-size:.78rem;font-weight:600;color:var(--txt2);border:1px solid transparent;margin-bottom:1px;user-select:none;}
+.nav-item:hover{background:var(--bg2);color:var(--txt);}
+.nav-item.active{background:rgba(0,212,255,.07);color:var(--acc);border-color:rgba(0,212,255,.18);}
+.nav-dot{width:5px;height:5px;border-radius:50%;background:var(--txt3);flex-shrink:0;}
+.nav-item.active .nav-dot{background:var(--acc);box-shadow:0 0 5px var(--acc);}
+.nav-dot-get{background:var(--ok);}
+.nav-dot-post{background:var(--warn);}
+.nav-dot-del{background:var(--err);}
+.nav-dot-info{background:var(--acc);}
+.nav-dot-plug{background:var(--pur);}
+.nav-method{font-family:var(--mono);font-size:.58rem;font-weight:700;padding:2px 5px;border-radius:3px;background:rgba(0,255,157,.08);color:var(--ok);margin-left:auto;flex-shrink:0;}
+.nav-item.active .nav-method{background:rgba(0,212,255,.1);color:var(--acc);}
+.sb-divider{height:1px;background:var(--bd);margin:8px 14px 14px;}
+
+/* MAIN */
+.main{flex:1;padding:28px 36px;overflow-y:auto;}
+
+/* INTRO */
+.intro{background:linear-gradient(135deg,var(--bg2),var(--bg3));border:1px solid var(--bd2);border-radius:12px;padding:26px 30px;margin-bottom:24px;position:relative;overflow:hidden;}
+.intro::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--acc),var(--ok),var(--warn),var(--pur));}
+.intro h2{font-size:1.1rem;font-weight:700;color:var(--txt);margin-bottom:7px;}
+.intro p{font-family:var(--mono);font-size:.73rem;color:var(--txt2);line-height:1.75;}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px;}
+.chip{font-family:var(--mono);font-size:.62rem;padding:3px 9px;border-radius:20px;border:1px solid var(--bd2);color:var(--txt2);}
+.chip.g{border-color:rgba(0,255,157,.22);color:var(--ok);}
+.chip.a{border-color:rgba(0,212,255,.22);color:var(--acc);}
+.chip.y{border-color:rgba(255,209,102,.22);color:var(--warn);}
+.chip.p{border-color:rgba(199,146,234,.22);color:var(--pur);}
+
+/* HOW-IT-WORKS */
+.howto{background:var(--bg2);border:1px solid var(--bd2);border-radius:10px;padding:18px 22px;margin-bottom:24px;}
+.howto h3{font-family:var(--mono);font-size:.65rem;font-weight:700;color:var(--acc);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:14px;}
+.howto-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;}
+.howto-step{display:flex;align-items:flex-start;gap:9px;}
+.step-n{font-family:var(--mono);font-size:.62rem;font-weight:700;width:20px;height:20px;border-radius:50%;background:rgba(0,212,255,.1);color:var(--acc);border:1px solid rgba(0,212,255,.22);display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px;}
+.step-t{font-family:var(--mono);font-size:.68rem;color:var(--txt2);line-height:1.6;}
+.step-t strong{color:var(--txt);}
+
+/* SECTION HEADING */
+.sec-hd{display:flex;align-items:center;gap:12px;margin:30px 0 18px;padding-top:4px;}
+.sec-hd:first-child{margin-top:0;}
+.sec-hd h3{font-size:.78rem;font-weight:700;color:var(--txt2);text-transform:uppercase;letter-spacing:1.2px;white-space:nowrap;}
+.sec-hd::after{content:'';flex:1;height:1px;background:var(--bd);}
+.sec-hd .sec-icon{font-size:.8rem;}
+
+/* ENDPOINT CARD */
+.ep-card{background:var(--bg1);border:1px solid var(--bd);border-radius:10px;margin-bottom:10px;overflow:hidden;transition:border-color .18s;}
+.ep-card:hover{border-color:var(--bd2);}
+.ep-card.running{border-color:rgba(0,212,255,.4);}
+.ep-card.ok{border-color:rgba(0,255,157,.3);}
+.ep-card.err{border-color:rgba(255,77,109,.3);}
+
+.ep-hd{display:flex;align-items:center;gap:12px;padding:15px 20px;cursor:pointer;user-select:none;}
+.ep-method{font-family:var(--mono);font-size:.6rem;font-weight:700;padding:3px 7px;border-radius:3px;background:rgba(0,255,157,.08);color:var(--ok);border:1px solid rgba(0,255,157,.18);flex-shrink:0;}
+.ep-method-post{background:rgba(255,209,102,.08);color:var(--warn);border-color:rgba(255,209,102,.18);}
+.ep-method-del{background:rgba(255,77,109,.08);color:var(--err);border-color:rgba(255,77,109,.18);}
+.ep-method-info{background:rgba(0,212,255,.08);color:var(--acc);border-color:rgba(0,212,255,.18);}
+.ep-path{font-family:var(--mono);font-size:.75rem;color:var(--acc);font-weight:500;}
+.ep-path .param{color:var(--warn);}
+.ep-desc{font-family:var(--mono);font-size:.67rem;color:var(--txt3);margin-top:2px;}
+.ep-hd-r{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.ep-auth{font-family:var(--mono);font-size:.58rem;padding:2px 6px;border-radius:3px;background:rgba(0,212,255,.08);color:var(--acc);border:1px solid rgba(0,212,255,.18);}
+.ep-chev{color:var(--txt3);font-size:.65rem;transition:transform .18s;}
+.ep-card.open .ep-chev{transform:rotate(180deg);}
+.ep-body{display:none;border-top:1px solid var(--bd);}
+.ep-card.open .ep-body{display:block;}
+
+/* TABS */
+.ep-tabs{display:flex;border-bottom:1px solid var(--bd);padding:0 20px;}
+.ep-tab{font-family:var(--mono);font-size:.67rem;font-weight:600;padding:9px 14px;cursor:pointer;color:var(--txt2);border-bottom:2px solid transparent;transition:all .13s;}
+.ep-tab:hover{color:var(--txt);}
+.ep-tab.active{color:var(--acc);border-bottom-color:var(--acc);}
+
+/* PANELS */
+.ep-panel{display:none;padding:18px 20px;}
+.ep-panel.active{display:block;}
+
+.about-desc{font-family:var(--mono);font-size:.73rem;color:var(--txt2);line-height:1.8;margin-bottom:14px;}
+.learn-box{background:var(--bg2);border:1px solid var(--bd);border-radius:7px;padding:12px 16px;}
+.learn-box h4{font-family:var(--mono);font-size:.6rem;font-weight:700;color:var(--acc);text-transform:uppercase;letter-spacing:1px;margin-bottom:9px;}
+.learn-item{display:flex;align-items:flex-start;gap:8px;font-family:var(--mono);font-size:.69rem;color:var(--txt2);margin-bottom:5px;line-height:1.6;}
+.learn-item::before{content:'→';color:var(--ok);flex-shrink:0;}
+.learn-item code{color:var(--acc);background:rgba(0,212,255,.07);padding:1px 5px;border-radius:3px;font-size:.67rem;}
+
+/* CALLOUTS */
+.callout{border-radius:7px;padding:12px 16px;margin:12px 0;font-family:var(--mono);font-size:.7rem;line-height:1.7;color:var(--txt);}
+.callout-info{background:rgba(0,212,255,.06);border-left:3px solid var(--acc);}
+.callout-warn{background:rgba(255,209,102,.06);border-left:3px solid var(--warn);}
+.callout-ok{background:rgba(0,255,157,.06);border-left:3px solid var(--ok);}
+.callout-err{background:rgba(255,77,109,.06);border-left:3px solid var(--err);}
+
+/* PARAMS BOX */
+.params-box{background:var(--bg2);border:1px solid var(--bd);border-radius:7px;padding:12px 16px;margin-bottom:14px;}
+.params-box h4{font-family:var(--mono);font-size:.6rem;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:1px;margin-bottom:9px;}
+.param-row{display:flex;align-items:baseline;gap:10px;font-family:var(--mono);font-size:.68rem;margin-bottom:5px;}
+.param-name{color:var(--warn);min-width:120px;}
+.param-type{color:var(--txt3);font-size:.63rem;}
+.param-desc{color:var(--txt2);}
+.req-tag{font-size:.58rem;padding:1px 5px;border-radius:3px;background:rgba(255,77,109,.15);color:var(--err);margin-left:4px;}
+.opt-tag{font-size:.58rem;padding:1px 5px;border-radius:3px;background:rgba(148,163,184,.12);color:var(--txt2);margin-left:4px;}
+
+/* REF TABLE */
+.ref-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.68rem;margin:10px 0;}
+.ref-table th{background:var(--bg2);color:var(--txt2);font-weight:700;text-align:left;padding:7px 10px;border-bottom:1px solid var(--bd);font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;}
+.ref-table td{padding:7px 10px;border-bottom:1px solid var(--bd);color:var(--txt2);vertical-align:top;}
+.ref-table td:first-child{color:var(--acc);white-space:nowrap;}
+.ref-table tr:last-child td{border-bottom:none;}
+
+/* CODE BLOCK */
+.code-block{background:var(--bg);border:1px solid var(--bd);border-radius:7px;overflow:hidden;margin-bottom:12px;}
+.cb-hd{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;background:var(--bg2);border-bottom:1px solid var(--bd);}
+.cb-lang{font-family:var(--mono);font-size:.59rem;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;}
+.copy-btn{font-family:var(--mono);font-size:.59rem;font-weight:600;color:var(--txt3);background:none;border:1px solid var(--bd);padding:2px 7px;border-radius:3px;cursor:pointer;transition:all .13s;}
+.copy-btn:hover{color:var(--acc);border-color:var(--acc);}
+pre{font-family:var(--mono);font-size:.7rem;line-height:1.75;padding:14px;overflow-x:auto;color:var(--txt);white-space:pre;}
+.kw{color:var(--pur);}.fn{color:var(--acc);}.st{color:var(--ok);}.cm{color:var(--txt3);font-style:italic;}.nu{color:var(--warn);}.at{color:var(--acc);}
+
+/* TRY PANEL */
+.try-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.param-input-group{display:flex;align-items:center;gap:7px;}
+.param-input-group label{font-family:var(--mono);font-size:.67rem;color:var(--txt2);}
+.param-input{font-family:var(--mono);font-size:.68rem;background:var(--bg2);border:1px solid var(--bd2);color:var(--txt);padding:5px 10px;border-radius:5px;width:80px;outline:none;}
+.param-input:focus{border-color:var(--acc);}
+.param-input.wide{width:180px;}
+select.param-input{width:130px;}
+.run-btn{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);font-size:.72rem;font-weight:700;padding:8px 20px;border-radius:7px;border:none;cursor:pointer;background:linear-gradient(135deg,var(--acc),var(--acc));color:var(--bg);transition:all .18s;letter-spacing:.2px;}
+.run-btn:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(0,212,255,.4);}
+.run-btn:active{transform:translateY(0);}
+.run-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;}
+.run-btn-warn{background:linear-gradient(135deg,var(--warn),var(--warn));color:var(--bg);}
+.run-btn-warn:hover{box-shadow:0 4px 18px rgba(255,209,102,.4);}
+.spin{animation:spin 1s linear infinite;display:inline-block;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.resp-meta{display:flex;align-items:center;gap:10px;margin-bottom:7px;}
+.resp-status{font-family:var(--mono);font-size:.62rem;font-weight:700;padding:3px 7px;border-radius:3px;}
+.s-ok{background:rgba(0,255,157,.1);color:var(--ok);}
+.s-err{background:rgba(255,77,109,.1);color:var(--err);}
+.resp-time{font-family:var(--mono);font-size:.62rem;color:var(--txt3);}
+.resp-out{background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:14px;font-family:var(--mono);font-size:.69rem;line-height:1.7;color:var(--txt);overflow-x:auto;max-height:400px;overflow-y:auto;white-space:pre;}
+.resp-placeholder{font-family:var(--mono);font-size:.7rem;color:var(--txt3);padding:28px;text-align:center;border:1px dashed var(--bd);border-radius:7px;}
+
+/* WATCHDOG BADGE */
+.wd-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(0,255,157,.08);border:1px solid rgba(0,255,157,.2);border-radius:20px;padding:4px 14px;font-family:var(--mono);font-size:.68rem;color:var(--ok);margin-bottom:14px;}
+.wd-badge.dead{background:rgba(255,77,109,.08);border-color:rgba(255,77,109,.2);color:var(--err);}
+
+/* SSE output */
+.sse-out{background:var(--bg);border:1px solid var(--bd);border-radius:7px;padding:14px;font-family:var(--mono);font-size:.68rem;line-height:1.7;color:var(--txt);overflow-y:auto;max-height:220px;white-space:pre-wrap;word-break:break-all;}
+
+/* STATUS BAR */
+#status-bar{position:fixed;bottom:0;left:0;right:0;background:var(--bg1);border-top:1px solid var(--bd);padding:6px 24px;display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:.65rem;color:var(--txt2);z-index:200;}
+#status-bar .dot{width:7px;height:7px;border-radius:50%;}
+.pulse{animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* JSON highlight */
+.jk{color:var(--acc);}.js{color:var(--ok);}.jn{color:var(--warn);}.jb{color:var(--pur);}.jnu{color:var(--txt3);}
+
+/* scrollbar */
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px;}
+
+@media(max-width:820px){.sidebar{display:none;}.main{padding:16px;}.hdr{padding:16px;}}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-inner">
+    <div class="hdr-icon">📡</div>
+    <div>
+      <div class="hdr-title">Hello Mesh</div>
+      <div class="hdr-sub">Plugin Developer Reference &amp; API Explorer · MeshDash Plugin System</div>
+    </div>
+    <div class="hdr-right">
+      <span class="badge b-grn">● Live</span>
+      <span class="badge b-acc">v1.0.0</span>
+      <span class="badge b-ylw">Read-Only</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sb-grp">
+    <span class="sb-lbl">Getting Started</span>
+    <div class="nav-item active" onclick="jumpTo('s-intro')"><span class="nav-dot nav-dot-info"></span>What is a Plugin?</div>
+    <div class="nav-item" onclick="jumpTo('s-structure')"><span class="nav-dot nav-dot-info"></span>File Structure</div>
+    <div class="nav-item" onclick="jumpTo('s-manifest')"><span class="nav-dot nav-dot-plug"></span>manifest.json</div>
+    <div class="nav-item" onclick="jumpTo('s-config')"><span class="nav-dot nav-dot-info"></span>Config File</div>
+    <div class="nav-item" onclick="jumpTo('s-lifecycle')"><span class="nav-dot nav-dot-plug"></span>init_plugin &amp; Lifecycle</div>
+    <div class="nav-item" onclick="jumpTo('s-watchdog')"><span class="nav-dot nav-dot-info"></span>Watchdog Heartbeat</div>
+    <div class="nav-item" onclick="jumpTo('s-logging')"><span class="nav-dot nav-dot-info"></span>Plugin Logging</div>
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-grp">
+    <span class="sb-lbl">Core API Endpoints</span>
+    <div class="nav-item" onclick="jumpTo('s-status')"><span class="nav-dot nav-dot-get"></span>Status &amp; Stats<span class="nav-method">GET</span></div>
+    <div class="nav-item" onclick="jumpTo('s-nodes')"><span class="nav-dot nav-dot-get"></span>Nodes<span class="nav-method">GET</span></div>
+    <div class="nav-item" onclick="jumpTo('s-packets')"><span class="nav-dot nav-dot-get"></span>Packets<span class="nav-method">GET</span></div>
+    <div class="nav-item" onclick="jumpTo('s-messages')"><span class="nav-dot nav-dot-get"></span>Message History<span class="nav-method">GET</span></div>
+    <div class="nav-item" onclick="jumpTo('s-mesh')"><span class="nav-dot nav-dot-post"></span>Send to Mesh<span class="nav-method" style="background:rgba(255,209,102,.08);color:var(--warn)">POST</span></div>
+    <div class="nav-item" onclick="jumpTo('s-network')"><span class="nav-dot nav-dot-get"></span>Neighbors / Routes<span class="nav-method">GET</span></div>
+    <div class="nav-item" onclick="jumpTo('s-local')"><span class="nav-dot nav-dot-get"></span>Local Node &amp; Channels<span class="nav-method">GET</span></div>
+    <div class="nav-item" onclick="jumpTo('s-history')"><span class="nav-dot nav-dot-get"></span>Node History<span class="nav-method">GET</span></div>
+    <div class="nav-item" onclick="jumpTo('s-metrics')"><span class="nav-dot nav-dot-get"></span>Metrics &amp; Counts<span class="nav-method">GET</span></div>
+    <div class="nav-item" onclick="jumpTo('s-system')"><span class="nav-dot nav-dot-plug"></span>System &amp; Plugins</div>
+    <div class="nav-item" onclick="jumpTo('s-pluginlogs')"><span class="nav-dot nav-dot-get"></span>Plugin Logs API<span class="nav-method">GET</span></div>
+  </div>
+  <div class="sb-divider"></div>
+  <div class="sb-grp">
+    <span class="sb-lbl">Tools</span>
+    <div class="nav-item" onclick="jumpTo('s-monitor')"><span class="nav-dot nav-dot-post"></span>Web Monitor / Extract<span class="nav-method" style="background:rgba(255,209,102,.08);color:var(--warn)">POST</span></div>
+    <div class="nav-item" onclick="jumpTo('s-sse')"><span class="nav-dot nav-dot-info"></span>SSE Live Stream</div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+<!-- ═══════ INTRO ═══════ -->
+<div id="s-intro" class="intro">
+  <h2>📡 Hello Mesh — Plugin Developer Reference</h2>
+  <p>The authoritative plugin developer reference for MeshDash. Every section is backed by the actual <strong style="color:var(--acc)">md.py source</strong> — no guesswork. Hit <strong style="color:var(--ok)">▶ Run</strong> on any live endpoint to call it against your instance and see the real response.</p>
+  <div class="chips">
+    <span class="chip g">FastAPI Router</span><span class="chip a">Context Injection</span>
+    <span class="chip y">DatabaseManager</span><span class="chip g">Live Node Data</span>
+    <span class="chip a">Radio Connection</span><span class="chip p">SSE Real-Time</span>
+    <span class="chip y">Watchdog Heartbeat</span><span class="chip g">Plugin Lifecycle</span>
+  </div>
+</div>
+
+<!-- HOW IT WORKS BOX -->
+<div class="howto">
+  <h3>⚙️ How the Plugin System Works</h3>
+  <div class="howto-grid">
+    <div class="howto-step"><div class="step-n">1</div><div class="step-t"><strong>manifest.json</strong><br>Declares ID, name, version, nav menu, router prefix, static prefix, and the required <code style="color:var(--acc)">watchdog</code> field</div></div>
+    <div class="howto-step"><div class="step-n">2</div><div class="step-t"><strong>main.py</strong><br>Must expose <code style="color:var(--acc)">plugin_router</code> (a FastAPI APIRouter) and <code style="color:var(--acc)">init_plugin(context)</code></div></div>
+    <div class="howto-step"><div class="step-n">3</div><div class="step-t"><strong>Context Injection</strong><br>MeshDash calls <code style="color:var(--acc)">init_plugin()</code> in a daemon thread, injecting db_manager, meshtastic_data, connection_manager, event_loop, logger, watchdog dict</div></div>
+    <div class="howto-step"><div class="step-n">4</div><div class="step-t"><strong>static/ folder</strong><br>HTML/CSS/JS auto-served at <code style="color:var(--ok)">/static/plugins/{id}/</code> — framed inside the MeshDash shell via <code>/plugin/{id}/</code></div></div>
+    <div class="howto-step"><div class="step-n">5</div><div class="step-t"><strong>Route Prefix</strong><br>All Python routes mount at <code style="color:var(--warn)">/api/plugins/{your_id}/your_route</code> — a 503 guard is applied when stopped</div></div>
+    <div class="howto-step"><div class="step-n">6</div><div class="step-t"><strong>Watchdog</strong><br>Opt-in monitor: write <code style="color:var(--acc)">wd[plugin_id] = time.time()</code> every ≤120 s or all routes return 503 with status "hung"</div></div>
+  </div>
+</div>
+
+
+<!-- ═══════════════ GETTING STARTED ═══════════════ -->
+<div class="sec-hd" id="s-structure"><span class="sec-icon">📁</span><h3>Getting Started</h3></div>
+
+<!-- FILE STRUCTURE -->
+<div class="ep-card" id="card-structure">
+  <div class="ep-hd" onclick="toggle('structure')">
+    <span class="ep-method ep-method-info">GUIDE</span>
+    <div><div class="ep-path">Required File Structure</div><div class="ep-desc">Every plugin is a folder inside plugins/ with two required files</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('structure','about')">About</div>
+      <div class="ep-tab" onclick="tab('structure','code')">Minimal Example</div>
+    </div>
+    <div class="ep-panel active" id="structure-about">
+      <div class="about-desc">Every plugin must be a folder inside <code style="color:var(--acc)">plugins/</code> relative to <code>md.py</code>. The folder name can be anything but the <code>id</code> field in <code>manifest.json</code> is the canonical identifier MeshDash uses throughout.</div>
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">Directory Layout</span><button class="copy-btn" onclick="copyPre('c-dirtree')">Copy</button></div>
+<pre id="c-dirtree">plugins/
+└── my_plugin/              ← folder name (anything)
+    ├── manifest.json       ← REQUIRED — tells core everything
+    ├── main.py             ← entry_point (configurable in manifest)
+    └── static/             ← optional — files auto-served over HTTP
+        └── index.html</pre></div>
+      <div class="learn-box"><h4>What the core does at startup</h4>
+        <div class="learn-item">Scans <code>plugins/</code> for subdirectories containing <code>manifest.json</code></div>
+        <div class="learn-item">Validates the manifest — <strong style="color:var(--err)">rejects any plugin missing the watchdog key</strong></div>
+        <div class="learn-item">Mounts the plugin's <code>static/</code> folder at <code>static_prefix</code></div>
+        <div class="learn-item">Imports the <code>entry_point</code> Python file and mounts <code>plugin_router</code> at <code>router_prefix</code></div>
+        <div class="learn-item">Calls <code>init_plugin(context)</code> inside a <strong style="color:var(--warn)">daemon thread with 15 s timeout</strong></div>
+      </div>
+    </div>
+    <div class="ep-panel" id="structure-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">manifest.json — minimum viable</span><button class="copy-btn" onclick="copyPre('c-minmani')">Copy</button></div>
+<pre id="c-minmani">{
+  <span class="st">"id"</span>:             <span class="st">"my_plugin"</span>,
+  <span class="st">"name"</span>:           <span class="st">"My Plugin"</span>,
+  <span class="st">"version"</span>:        <span class="st">"1.0.0"</span>,
+  <span class="st">"author"</span>:         <span class="st">"You"</span>,
+  <span class="st">"description"</span>:    <span class="st">"Does something cool."</span>,
+  <span class="st">"entry_point"</span>:    <span class="st">"main.py"</span>,
+  <span class="st">"router_prefix"</span>:  <span class="st">"/api/plugins/my_plugin"</span>,
+  <span class="st">"static_prefix"</span>:  <span class="st">"/static/plugins/my_plugin"</span>,
+  <span class="st">"watchdog"</span>:       <span class="kw">false</span>
+}</pre></div>
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">main.py — minimum viable</span><button class="copy-btn" onclick="copyPre('c-minmain')">Copy</button></div>
+<pre id="c-minmain"><span class="kw">from</span> fastapi <span class="kw">import</span> APIRouter
+
+core_context: dict = {}
+<span class="at">plugin_router</span> = APIRouter()
+
+<span class="kw">def</span> <span class="fn">init_plugin</span>(context: dict):
+    core_context.update(context)
+
+<span class="at">@plugin_router.get</span>(<span class="st">"/hello"</span>)
+<span class="kw">async def</span> <span class="fn">hello</span>():
+    <span class="kw">return</span> {<span class="st">"message"</span>: <span class="st">"Hello from my_plugin!"</span>}</pre></div>
+      <div class="callout callout-ok">That's it. No heartbeat needed when <code>"watchdog": false</code>. Route is live at <code>/api/plugins/my_plugin/hello</code>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- MANIFEST -->
+<div class="ep-card" id="card-manifest">
+  <div class="ep-hd" onclick="toggle('manifest')">
+    <span class="ep-method ep-method-info">MANIFEST</span>
+    <div><div class="ep-path" id="s-manifest">manifest.json — Every Field Explained</div><div class="ep-desc">The manifest is validated on load — missing watchdog immediately rejects the plugin</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('manifest','about')">Fields</div>
+      <div class="ep-tab" onclick="tab('manifest','code')">Full Example</div>
+    </div>
+    <div class="ep-panel active" id="manifest-about">
+      <div class="callout callout-err">⚠️ <strong>Breaking rule:</strong> The <code>watchdog</code> field is REQUIRED. Any plugin whose manifest omits it is immediately set to <code>invalid_manifest</code> status and none of its routes or static files are mounted. Add it — even as <code>false</code>.</div>
+      <table class="ref-table">
+        <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+        <tr><td>id <span class="req-tag">REQUIRED</span></td><td>string</td><td>Unique identifier. <code>[a-zA-Z0-9_-]+</code> only. Used as the key in PLUGIN_REGISTRY and in all URLs.</td></tr>
+        <tr><td>name <span class="req-tag">REQUIRED</span></td><td>string</td><td>Human-readable display name shown in Plugins page and nav menu.</td></tr>
+        <tr><td>version <span class="opt-tag">optional</span></td><td>string</td><td>Semantic version string e.g. <code>"1.0.0"</code>. Shown in the Plugins page.</td></tr>
+        <tr><td>author <span class="opt-tag">optional</span></td><td>string</td><td>Author name shown in the Plugins page.</td></tr>
+        <tr><td>description <span class="opt-tag">optional</span></td><td>string</td><td>Short description shown in the Plugins page card.</td></tr>
+        <tr><td>entry_point <span class="req-tag">REQUIRED</span></td><td>string</td><td>Filename of the Python file to import. Usually <code>"main.py"</code>. Relative to the plugin folder.</td></tr>
+        <tr><td>router_prefix <span class="req-tag">REQUIRED</span></td><td>string</td><td>URL prefix for all <code>plugin_router</code> routes. E.g. <code>"/api/plugins/my_plugin"</code>. A 503 guard is applied when plugin is stopped.</td></tr>
+        <tr><td>static_prefix <span class="req-tag">REQUIRED</span></td><td>string</td><td>URL prefix where the plugin's <code>static/</code> folder is mounted. E.g. <code>"/static/plugins/my_plugin"</code>.</td></tr>
+        <tr><td>watchdog <span class="req-tag">REQUIRED</span></td><td>boolean</td><td><code>true</code> = plugin must heartbeat every ≤120 s or be marked hung. <code>false</code> = never monitored. <strong>Must be explicitly present.</strong></td></tr>
+        <tr><td>nav_menu <span class="opt-tag">optional</span></td><td>array</td><td>Array of <code>{"label":"…","icon":"fa-…","href":"…"}</code> objects. Each becomes a nav sidebar entry. Links to <code>/static/plugins/…</code> are auto-rewritten to <code>/plugin/…</code>.</td></tr>
+      </table>
+    </div>
+    <div class="ep-panel" id="manifest-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">manifest.json — full example with nav menu</span><button class="copy-btn" onclick="copyPre('c-fullmani')">Copy</button></div>
+<pre id="c-fullmani">{
+  <span class="st">"id"</span>:             <span class="st">"hello_mesh"</span>,
+  <span class="st">"name"</span>:           <span class="st">"Hello Mesh"</span>,
+  <span class="st">"version"</span>:        <span class="st">"1.0.0"</span>,
+  <span class="st">"author"</span>:         <span class="st">"MeshDash"</span>,
+  <span class="st">"description"</span>:    <span class="st">"Interactive API explorer and plugin tutorial."</span>,
+  <span class="st">"entry_point"</span>:    <span class="st">"main.py"</span>,
+  <span class="st">"router_prefix"</span>:  <span class="st">"/api/plugins/hello_mesh"</span>,
+  <span class="st">"static_prefix"</span>:  <span class="st">"/static/plugins/hello_mesh"</span>,
+  <span class="st">"watchdog"</span>:       <span class="kw">true</span>,
+  <span class="st">"nav_menu"</span>: [{
+    <span class="st">"label"</span>: <span class="st">"Hello Mesh"</span>,
+    <span class="st">"icon"</span>:  <span class="st">"fa-graduation-cap"</span>,
+    <span class="st">"href"</span>:  <span class="st">"/plugin/hello_mesh/index.html"</span>
+  }]
+}</pre></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIG FILE -->
+<div class="ep-card" id="card-config">
+  <div class="ep-hd" onclick="toggle('config')">
+    <span class="ep-method ep-method-info">CONFIG</span>
+    <div><div class="ep-path" id="s-config">The MeshDash Config File — All Keys</div><div class="ep-desc">.mesh-dash_config — KEY=value format, one per line</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('config','about')">All Keys</div>
+      <div class="ep-tab" onclick="tab('config','code')">Example Config</div>
+    </div>
+    <div class="ep-panel active" id="config-about">
+      <div class="about-desc">MeshDash reads <code style="color:var(--acc)">.mesh-dash_config</code> in the same directory as <code>md.py</code>. Simple <code>KEY=value</code> format — one per line, <code>#</code> for comments. Strings do not need quotes. Booleans accept <code>true/false/1/0/yes/no/on</code>.</div>
+      <div class="callout callout-info">Plugin code can access the running config via <code>GET /api/system/config</code> (auth required). Read it from your plugin using an httpx call to <code>http://127.0.0.1:8000/api/system/config</code> with the session cookie.</div>
+      <table class="ref-table">
+        <tr><th>Key</th><th>Default</th><th>Description</th></tr>
+        <tr><td>MESHTASTIC_HOST</td><td>192.168.0.0</td><td>IP/hostname of the Meshtastic device (TCP mode).</td></tr>
+        <tr><td>MESHTASTIC_PORT</td><td>4403</td><td>TCP port of the Meshtastic device.</td></tr>
+        <tr><td>MESHTASTIC_CONNECTION_TYPE</td><td>SERIAL</td><td><code>SERIAL</code>, <code>TCP</code>, or <code>BLE</code>.</td></tr>
+        <tr><td>MESHTASTIC_SERIAL_PORT</td><td><em>empty</em></td><td>Serial port path e.g. <code>/dev/ttyUSB0</code>. Leave empty to auto-detect.</td></tr>
+        <tr><td>MESHTASTIC_BLE_MAC</td><td><em>empty</em></td><td>BLE MAC address for BLE connection mode.</td></tr>
+        <tr><td>WEBSERVER_HOST</td><td>0.0.0.0</td><td>Host interface uvicorn binds to.</td></tr>
+        <tr><td>WEBSERVER_PORT</td><td>8000</td><td>HTTP port uvicorn listens on.</td></tr>
+        <tr><td>DB_PATH</td><td>meshtastic_data.db</td><td>Path to the main SQLite database.</td></tr>
+        <tr><td>TASK_DB_PATH</td><td>tasks.db</td><td>Path to the tasks/scheduler SQLite database.</td></tr>
+        <tr><td>MAX_PACKETS_MEMORY</td><td>200</td><td>Max packets kept in the in-process ring buffer.</td></tr>
+        <tr><td>HISTORY_DAYS</td><td>1</td><td>Days of average metrics history to keep.</td></tr>
+        <tr><td>LOG_LEVEL</td><td>INFO</td><td>Logging verbosity: <code>DEBUG</code>, <code>INFO</code>, <code>WARNING</code>, <code>ERROR</code>.</td></tr>
+        <tr><td>AUTH_SECRET_KEY</td><td><em>random</em></td><td>JWT signing secret. Change this in production.</td></tr>
+        <tr><td>AUTH_TOKEN_EXPIRE_MINUTES</td><td>30</td><td>How long session tokens are valid.</td></tr>
+        <tr><td>COMMUNITY_API</td><td>false</td><td>Enable the community C2 / heartbeat channel.</td></tr>
+        <tr><td>COMMUNITY_API_KEY</td><td><em>placeholder</em></td><td>API key for the community C2 service.</td></tr>
+        <tr><td>HEARTBEAT_INTERVAL_MINUTES</td><td>1</td><td>How often the core sends a C2 heartbeat if enabled.</td></tr>
+        <tr><td>SEND_LOCAL_NODE_LOCATION</td><td>true</td><td>Include local node GPS in C2 heartbeat.</td></tr>
+        <tr><td>SEND_OTHER_NODES_LOCATION</td><td>true</td><td>Include neighbour node GPS in C2 heartbeat.</td></tr>
+        <tr><td>LOCATION_OFFSET_ENABLED</td><td>false</td><td>Apply a random GPS offset to all reported positions.</td></tr>
+        <tr><td>LOCATION_OFFSET_METERS</td><td>0.0</td><td>Max offset radius in metres when offset is enabled.</td></tr>
+        <tr><td>C2_ACCESS_LEVEL</td><td>read</td><td>C2 permission tier: <code>read</code>, <code>write</code>, or <code>admin</code>.</td></tr>
+        <tr><td>C2_MAX_REQUESTS_PER_SYNC</td><td>10</td><td>Max commands processed per C2 sync cycle.</td></tr>
+        <tr><td>C2_SYNC_INTERVAL_SECONDS</td><td>15</td><td>How often the C2 worker polls for queued commands.</td></tr>
+        <tr><td>INITIAL_ADMIN_USERNAME</td><td><em>empty</em></td><td>Used only once during first-run setup. Auto-deleted after use.</td></tr>
+        <tr><td>INITIAL_ADMIN_PASSWORD</td><td><em>empty</em></td><td>As above.</td></tr>
+      </table>
+    </div>
+    <div class="ep-panel" id="config-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">.mesh-dash_config — example</span><button class="copy-btn" onclick="copyPre('c-configex')">Copy</button></div>
+<pre id="c-configex"><span class="cm"># MeshDash Configuration</span>
+MESHTASTIC_CONNECTION_TYPE=TCP
+MESHTASTIC_HOST=192.168.1.50
+MESHTASTIC_PORT=4403
+WEBSERVER_PORT=8080
+LOG_LEVEL=DEBUG
+AUTH_SECRET_KEY=change_me_to_something_random_and_long
+AUTH_TOKEN_EXPIRE_MINUTES=120
+MAX_PACKETS_MEMORY=500
+HISTORY_DAYS=7</pre></div>
+    </div>
+  </div>
+</div>
+
+<!-- LIFECYCLE -->
+<div class="ep-card" id="card-lifecycle">
+  <div class="ep-hd" onclick="toggle('lifecycle')">
+    <span class="ep-method ep-method-info">LIFECYCLE</span>
+    <div><div class="ep-path" id="s-lifecycle">init_plugin &amp; The Context Dict</div><div class="ep-desc">What MeshDash injects at boot and the critical thread-safety rule</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('lifecycle','about')">Context Keys</div>
+      <div class="ep-tab" onclick="tab('lifecycle','code')">Background Tasks</div>
+    </div>
+    <div class="ep-panel active" id="lifecycle-about">
+      <div class="callout callout-err">⚠️ <strong>Never call <code>asyncio.get_event_loop().create_task()</code> from init_plugin.</strong> Inside a thread, this returns a different non-running loop. Your task will be silently created on a dead loop and never execute. Use <code>asyncio.run_coroutine_threadsafe(coro, loop)</code> with <code>context["event_loop"]</code> instead.</div>
+      <table class="ref-table">
+        <tr><th>Key</th><th>Type</th><th>Description</th></tr>
+        <tr><td>db_manager</td><td>DatabaseManager</td><td>Direct access to the MeshDash SQLite layer. Provides <code>get_all_nodes()</code>, <code>get_messages()</code>, <code>get_recent_packets()</code>, etc. Use <code>asyncio.to_thread()</code> in async routes.</td></tr>
+        <tr><td>meshtastic_data</td><td>MeshtasticData</td><td>In-memory state object. <code>.nodes</code>, <code>.local_node_info</code>, <code>.connection_status</code>, <code>.packets</code>. Fast dict lookups — no to_thread needed.</td></tr>
+        <tr><td>connection_manager</td><td>MeshtasticConnectionManager</td><td>The radio interface. <code>await cm.sendText(msg, destinationId, channelIndex)</code>. Always check <code>cm.is_ready.is_set()</code> before sending.</td></tr>
+        <tr><td>event_loop</td><td>asyncio.AbstractEventLoop</td><td>The live uvicorn event loop. Use with <code>run_coroutine_threadsafe()</code> to schedule async tasks from inside <code>init_plugin</code>.</td></tr>
+        <tr><td>logger</td><td>logging.Logger</td><td>Namespaced logger (<code>plugin.&lt;id&gt;</code>). Output captured in 250-line ring buffer accessible via <code>GET /api/system/plugins/&lt;id&gt;/logs</code>.</td></tr>
+        <tr><td>plugin_watchdog</td><td>dict[str, float]</td><td>Shared watchdog dict. Write <code>context["plugin_watchdog"][context["plugin_id"]] = time.time()</code> every ≤120 s to stay alive.</td></tr>
+        <tr><td>plugin_id</td><td>str</td><td>Your plugin's registered ID string. Use as the key when writing to <code>plugin_watchdog</code>.</td></tr>
+      </table>
+    </div>
+    <div class="ep-panel" id="lifecycle-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">Python — correct pattern for starting background tasks</span><button class="copy-btn" onclick="copyPre('c-bgpattern')">Copy</button></div>
+<pre id="c-bgpattern"><span class="kw">import</span> asyncio, time
+
+core_context: dict = {}
+<span class="at">plugin_router</span> = APIRouter()
+
+<span class="kw">async def</span> <span class="fn">_my_background_task</span>():
+    <span class="kw">while</span> <span class="kw">True</span>:
+        <span class="kw">await</span> asyncio.sleep(60)
+        logger = core_context.get(<span class="st">"logger"</span>)
+        <span class="kw">if</span> logger: logger.info(<span class="st">"Background tick"</span>)
+
+<span class="kw">def</span> <span class="fn">init_plugin</span>(context: dict):
+    core_context.update(context)
+    loop = core_context.get(<span class="st">"event_loop"</span>)   <span class="cm"># the real uvicorn loop</span>
+    <span class="kw">if</span> loop <span class="kw">is None</span>: <span class="kw">return</span>
+
+    <span class="cm"># ✅ Correct — schedules on the running loop from a thread</span>
+    asyncio.run_coroutine_threadsafe(_my_background_task(), loop)
+
+    <span class="cm"># ❌ Wrong — get_event_loop() from a thread returns the wrong loop</span>
+    <span class="cm"># asyncio.get_event_loop().create_task(_my_background_task())</span></pre></div>
+    </div>
+  </div>
+</div>
+
+<!-- WATCHDOG -->
+<div class="ep-card" id="card-watchdog">
+  <div class="ep-hd" onclick="toggle('watchdog')">
+    <span class="ep-method ep-method-info">WATCHDOG</span>
+    <div><div class="ep-path" id="s-watchdog">Watchdog Heartbeat — How It Works</div><div class="ep-desc">Opt-in monitoring: miss 120 s and all your routes return 503</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('watchdog','about')">How It Works</div>
+      <div class="ep-tab" onclick="tab('watchdog','code')">Implementation</div>
+      <div class="ep-tab" onclick="tab('watchdog','try')">▶ Live Status</div>
+    </div>
+    <div class="ep-panel active" id="watchdog-about">
+      <div class="about-desc">MeshDash has a background task (<code style="color:var(--acc)">plugin_watchdog_worker</code>) that wakes every 30 s and checks the last heartbeat timestamp for every opted-in plugin. If more than <strong style="color:var(--warn)">120 seconds</strong> have passed since the last ping, the plugin is marked <code>hung</code> and all its routes return <code>503 Service Unavailable</code>.</div>
+      <div class="callout callout-info">This is <strong>opt-in</strong>. If your manifest has <code>"watchdog": false</code>, the core never adds you to the watchdog dict and never marks you hung, no matter how long you are silent.</div>
+      <div class="learn-box"><h4>Core internal logic</h4>
+        <div class="learn-item">Module-level dict: <code>_plugin_watchdog: Dict[str, float] = {}</code> — key = plugin id, value = last unix timestamp</div>
+        <div class="learn-item">On load with <code>watchdog: true</code>, core seeds it: <code>_plugin_watchdog[pid] = time.time()</code></div>
+        <div class="learn-item">Worker checks every 30 s: if <code>time.time() - _plugin_watchdog[pid] > 120</code> → status = "hung"</div>
+        <div class="learn-item">Plugin pings by writing: <code>wd[pid] = time.time()</code> where <code>wd = context["plugin_watchdog"]</code></div>
+      </div>
+    </div>
+    <div class="ep-panel" id="watchdog-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">Python — complete watchdog heartbeat implementation</span><button class="copy-btn" onclick="copyPre('c-wd')">Copy</button></div>
+<pre id="c-wd"><span class="kw">import</span> asyncio, time
+
+<span class="kw">async def</span> <span class="fn">_watchdog_heartbeat</span>():
+    <span class="kw">while</span> <span class="kw">True</span>:
+        <span class="kw">await</span> asyncio.sleep(<span class="nu">30</span>)        <span class="cm"># ping every 30 s (well within 120 s limit)</span>
+        wd  = core_context.get(<span class="st">"plugin_watchdog"</span>)
+        pid = core_context.get(<span class="st">"plugin_id"</span>)
+        <span class="kw">if</span> wd <span class="kw">is not None and</span> pid:
+            wd[pid] = time.time()       <span class="cm"># reset the timer</span>
+
+<span class="kw">def</span> <span class="fn">init_plugin</span>(context: dict):
+    core_context.update(context)
+    loop = core_context.get(<span class="st">"event_loop"</span>)
+    <span class="kw">if</span> loop:
+        asyncio.run_coroutine_threadsafe(_watchdog_heartbeat(), loop)</pre></div>
+      <div class="callout callout-warn">⚠️ If you set <code>"watchdog": true</code> but forget to implement the heartbeat, your plugin will start fine but go <code>hung</code> after 120 s. Either implement the heartbeat <em>or</em> use <code>"watchdog": false</code>.</div>
+    </div>
+    <div class="ep-panel" id="watchdog-try">
+      <div id="wd-badge-el" class="wd-badge">🐕 Checking watchdog…</div>
+      <div class="try-controls">
+        <button class="run-btn" onclick="checkWatchdog()">▶ Check Live Status</button>
+      </div>
+      <div id="resp-watchdog"><div class="resp-placeholder">Hit Check to query the watchdog status from /api/plugins/hello_mesh/info</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGGING -->
+<div class="ep-card" id="card-logging">
+  <div class="ep-hd" onclick="toggle('logging')">
+    <span class="ep-method ep-method-info">LOGGING</span>
+    <div><div class="ep-path" id="s-logging">Plugin Logging — Ring Buffer &amp; API</div><div class="ep-desc">Captured to a 250-line ring buffer, viewable via API or the Plugins page</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('logging','about')">About</div>
+      <div class="ep-tab" onclick="tab('logging','code')">Code</div>
+      <div class="ep-tab" onclick="tab('logging','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="logging-about">
+      <div class="about-desc">The core attaches a <code style="color:var(--acc)">MemoryLogHandler</code> to <code>logging.getLogger("plugin.&lt;id&gt;")</code> when your plugin loads. This captures up to <strong style="color:var(--warn)">250 lines</strong> in a thread-safe ring buffer. You can view them in the Plugins page Logs modal, or call the API directly.</div>
+      <div class="learn-box"><h4>API endpoints</h4>
+        <div class="learn-item"><code>GET /api/system/plugins/{plugin_id}/logs</code> — returns last 250 log lines</div>
+        <div class="learn-item"><code>DELETE /api/system/plugins/{plugin_id}/logs</code> — clears the ring buffer</div>
+        <div class="learn-item">Each log entry: <code>{"t": unix_ts, "lvl": "INFO", "msg": "…"}</code></div>
+        <div class="learn-item">Always use the injected logger — never hardcode a logger name</div>
+      </div>
+    </div>
+    <div class="ep-panel" id="logging-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">Python — correct logger usage</span><button class="copy-btn" onclick="copyPre('c-logcode')">Copy</button></div>
+<pre id="c-logcode"><span class="kw">def</span> <span class="fn">init_plugin</span>(context: dict):
+    core_context.update(context)
+    log = context.get(<span class="st">"logger"</span>)     <span class="cm"># logging.getLogger("plugin.my_plugin")</span>
+    log.info(<span class="st">"Plugin started"</span>)
+
+<span class="cm"># In your route handlers:</span>
+<span class="at">@plugin_router.get</span>(<span class="st">"/something"</span>)
+<span class="kw">async def</span> <span class="fn">something</span>():
+    log = core_context.get(<span class="st">"logger"</span>)
+    log.debug(<span class="st">"Request received"</span>)
+    log.warning(<span class="st">"Something odd"</span>)
+    log.error(<span class="st">"Something broke"</span>)
+    <span class="kw">return</span> {<span class="st">"ok"</span>: <span class="kw">True</span>}</pre></div>
+    </div>
+    <div class="ep-panel" id="logging-try">
+      <div class="try-controls">
+        <button class="run-btn" onclick="runLogDemo()">▶ Emit Logs &amp; Fetch Buffer</button>
+      </div>
+      <div id="resp-logging"><div class="resp-placeholder">Hit Run to emit test log lines then fetch the ring buffer</div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════ CORE API ENDPOINTS ═══════════════ -->
+<div class="sec-hd" id="s-status"><span class="sec-icon">🌐</span><h3>Core API Endpoints</h3></div>
+<p style="font-family:var(--mono);font-size:.71rem;color:var(--txt2);margin-bottom:18px;line-height:1.75;background:var(--bg2);border:1px solid var(--bd);border-radius:7px;padding:12px 16px;">These are the main MeshDash REST endpoints — the same ones the dashboard frontend uses. Call them from your plugin's JavaScript with <code style="color:var(--acc)">fetch('/api/...')</code> or from Python using httpx.</p>
+
+<!-- STATUS -->
+<div class="ep-card" id="card-status">
+  <div class="ep-hd" onclick="toggle('status')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/status</div><div class="ep-desc">System health, connection state, local node info — also renews JWT if near expiry</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('status','about')">About</div>
+      <div class="ep-tab" onclick="tab('status','code')">JS Example</div>
+      <div class="ep-tab" onclick="tab('status','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="status-about">
+      <div class="about-desc">The primary status endpoint. Call this on plugin load to check if it's safe to interact with the radio. Also handles sliding token renewal — calling /api/status refreshes your session if more than half the token lifetime has elapsed.</div>
+      <div class="learn-box"><h4>Response fields</h4>
+        <div class="learn-item"><code>is_system_ready</code> — true when radio is fully connected and accepting commands</div>
+        <div class="learn-item"><code>connection_status</code> — human-readable: "Connected", "Reconnecting", "Initializing", etc.</div>
+        <div class="learn-item"><code>local_node_info</code> — your radio: node_id, long_name, hardware_model, firmware_version, channels</div>
+        <div class="learn-item"><code>last_error</code> — last connection error string if any (null when healthy)</div>
+      </div>
+    </div>
+    <div class="ep-panel" id="status-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">JavaScript — plugin frontend</span><button class="copy-btn" onclick="copyPre('c-statusjs')">Copy</button></div>
+<pre id="c-statusjs"><span class="kw">async function</span> <span class="fn">checkStatus</span>() {
+    <span class="kw">const</span> res  = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="st">'/api/status'</span>);
+    <span class="kw">const</span> data = <span class="kw">await</span> res.json();
+
+    <span class="kw">if</span> (!data.is_system_ready) {
+        showWarning(<span class="st">'Radio not ready: '</span> + data.connection_status);
+        <span class="kw">return</span>;
+    }
+    <span class="kw">const</span> node = data.local_node_info;
+    console.log(<span class="st">'Local node:'</span>, node.long_name, node.node_id);
+}
+<span class="fn">checkStatus</span>();</pre></div>
+    </div>
+    <div class="ep-panel" id="status-try">
+      <div class="try-controls"><button class="run-btn" onclick="run('status','/api/status',{})">▶ Run Request</button></div>
+      <div id="resp-status"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="ep-card" id="card-stats">
+  <div class="ep-hd" onclick="toggle('stats')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/stats</div><div class="ep-desc">In-memory packet/node statistics — total counts, per-type breakdown, connection state</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('stats','about')">About</div>
+      <div class="ep-tab" onclick="tab('stats','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="stats-about">
+      <div class="about-desc">Returns in-memory packet/node statistics as tracked by <code style="color:var(--acc)">MeshtasticData</code>. Includes total counts, per-type breakdowns, and connection state. Resets on MeshDash restart — use DB counts for persistent totals.</div>
+      <div class="learn-box"><h4>Key fields</h4>
+        <div class="learn-item"><code>packets_received_session</code>, <code>text_messages_session</code>, <code>position_updates_session</code></div>
+        <div class="learn-item"><code>telemetry_reports_session</code>, <code>elapsed_time_session</code> (seconds), <code>nodes_seen_session</code></div>
+        <div class="learn-item">Also accessible as <code>mesh_data.get_serializable_stats()</code> from plugin Python code</div>
+      </div>
+    </div>
+    <div class="ep-panel" id="stats-try">
+      <div class="try-controls"><button class="run-btn" onclick="run('stats','/api/stats',{})">▶ Run Request</button></div>
+      <div id="resp-stats"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONNECTION HISTORY -->
+<div class="ep-card" id="card-connhist">
+  <div class="ep-hd" onclick="toggle('connhist')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/system/connection_history<span class="param">?limit=60</span></div><div class="ep-desc">Historical log of connection state changes — uptime graph data</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('connhist','about')">About</div>
+      <div class="ep-tab" onclick="tab('connhist','code')">JS Example</div>
+      <div class="ep-tab" onclick="tab('connhist','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="connhist-about">
+      <div class="about-desc">Returns the radio connection status log. Entries are created on every state change and on a 60-second heartbeat. Values: 0.9=Connected, 0.5=Initialising/Waiting, 0.1=Disconnected. Useful for plotting uptime over time in a plugin.</div>
+      <div class="params-box"><h4>Query Parameters</h4>
+        <div class="param-row"><span class="param-name">limit</span><span class="param-type">int · default: 60</span><span class="param-desc">Max rows to return</span></div>
+      </div>
+    </div>
+    <div class="ep-panel" id="connhist-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">JavaScript — uptime calculation</span><button class="copy-btn" onclick="copyPre('c-connhistjs')">Copy</button></div>
+<pre id="c-connhistjs"><span class="kw">const</span> history = <span class="kw">await</span> <span class="fn">fetch</span>(
+    <span class="st">'/api/system/connection_history?limit=60'</span>
+).then(r => r.json());
+
+<span class="cm">// history is oldest-first, value: 0.9=up, 0.5=init, 0.1=down</span>
+<span class="kw">const</span> uptime = history.filter(h => h.value >= <span class="nu">0.9</span>).length;
+<span class="kw">const</span> pct    = ((uptime / history.length) * <span class="nu">100</span>).toFixed(<span class="nu">1</span>);
+console.log(<span class="st">`Uptime: ${pct}% over last ${history.length} samples`</span>);</pre></div>
+    </div>
+    <div class="ep-panel" id="connhist-try">
+      <div class="try-controls">
+        <div class="param-input-group"><label>limit</label><input class="param-input" id="p-connhist-limit" type="number" value="60" min="1" max="500"/></div>
+        <button class="run-btn" onclick="run('connhist','/api/system/connection_history',{limit:'p-connhist-limit'})">▶ Run Request</button>
+      </div>
+      <div id="resp-connhist"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ NODES ═══ -->
+<div class="sec-hd" id="s-nodes"><span class="sec-icon">📡</span><h3>Nodes</h3></div>
+
+<!-- ALL NODES -->
+<div class="ep-card" id="card-nodes">
+  <div class="ep-hd" onclick="toggle('nodes')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/nodes</div><div class="ep-desc">Full in-memory nodes dict — same data powering the main dashboard map</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('nodes','about')">About</div>
+      <div class="ep-tab" onclick="tab('nodes','code')">JS Example</div>
+      <div class="ep-tab" onclick="tab('nodes','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="nodes-about">
+      <div class="about-desc">Returns the complete live node dict keyed by node ID (e.g. <code style="color:var(--acc)">"!ab12cd34"</code>). Each value contains user info, position, device metrics, last heard, SNR, RSSI, battery, voltage, and more. This is the same store powering the main dashboard map and node list.</div>
+      <div class="learn-box"><h4>Key fields per node</h4>
+        <div class="learn-item"><code>node_id</code>, <code>long_name</code>, <code>short_name</code>, <code>last_heard</code>, <code>snr</code>, <code>rssi</code></div>
+        <div class="learn-item"><code>battery_level</code>, <code>voltage</code>, <code>latitude</code>, <code>longitude</code>, <code>altitude</code></div>
+        <div class="learn-item"><code>isLocal: true</code> on the node that is your directly connected radio</div>
+        <div class="learn-item">Use <code>Object.values(nodes)</code> to iterate in JavaScript</div>
+      </div>
+    </div>
+    <div class="ep-panel" id="nodes-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">JavaScript — plugin frontend</span><button class="copy-btn" onclick="copyPre('c-nodesjs')">Copy</button></div>
+<pre id="c-nodesjs"><span class="kw">const</span> nodes = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="st">'/api/nodes'</span>).then(r => r.json());
+<span class="kw">const</span> nodeList = Object.values(nodes);
+
+<span class="cm">// Find nodes with GPS</span>
+<span class="kw">const</span> located = nodeList.filter(n => n.latitude && n.longitude);
+
+<span class="cm">// Find nodes seen in last 30 minutes</span>
+<span class="kw">const</span> recent = nodeList.filter(n =>
+    n.last_heard > (Date.now()/<span class="nu">1000</span>) - <span class="nu">1800</span>
+);
+
+<span class="cm">// Find local node</span>
+<span class="kw">const</span> localNode = nodeList.find(n => n.isLocal);
+console.log(<span class="st">`${nodeList.length} total, ${located.length} with GPS`</span>);</pre></div>
+    </div>
+    <div class="ep-panel" id="nodes-try">
+      <div class="try-controls"><button class="run-btn" onclick="run('nodes','/api/nodes',{})">▶ Run Request</button></div>
+      <div id="resp-nodes"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- SINGLE NODE -->
+<div class="ep-card" id="card-singlenode">
+  <div class="ep-hd" onclick="toggle('singlenode')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/nodes/<span class="param">{node_id}</span></div><div class="ep-desc">Returns a single node by ID — 404 if not in memory</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('singlenode','about')">About</div>
+      <div class="ep-tab" onclick="tab('singlenode','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="singlenode-about">
+      <div class="about-desc">Returns a single node object by ID. Returns HTTP 404 if the node ID is not currently in memory. For a memory-first + DB fallback pattern, see the plugin code example in the Hello Mesh demo endpoints.</div>
+      <div class="params-box"><h4>Path Parameters</h4>
+        <div class="param-row"><span class="param-name">node_id</span><span class="param-type">string · required</span><span class="param-desc">Node ID in !hex format, e.g. <code>!a1b2c3d4</code></span></div>
+      </div>
+    </div>
+    <div class="ep-panel" id="singlenode-try">
+      <div class="try-controls">
+        <div class="param-input-group"><label>node_id</label><input class="param-input wide" id="p-singlenode-id" type="text" placeholder="!a1b2c3d4"/></div>
+        <button class="run-btn" onclick="runPath('singlenode','/api/nodes/','p-singlenode-id')">▶ Run Request</button>
+      </div>
+      <div id="resp-singlenode"><div class="resp-placeholder">Enter a node ID then hit Run</div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ PACKETS ═══ -->
+<div class="sec-hd" id="s-packets"><span class="sec-icon">📦</span><h3>Packets</h3></div>
+
+<!-- LIVE PACKETS -->
+<div class="ep-card" id="card-packets">
+  <div class="ep-hd" onclick="toggle('packets')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/packets<span class="param">?limit=50</span></div><div class="ep-desc">In-memory ring buffer — fast, no DB query, resets on restart</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('packets','about')">About</div>
+      <div class="ep-tab" onclick="tab('packets','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="packets-about">
+      <div class="about-desc">Returns packets from the <strong style="color:var(--ok)">in-memory ring buffer</strong> (max size set by <code>MAX_PACKETS_MEMORY</code> config key, default 200). Fast — no DB read. Use this for the live feed.</div>
+      <div class="params-box"><h4>Query Parameters</h4>
+        <div class="param-row"><span class="param-name">limit</span><span class="param-type">int · default: 50</span><span class="param-desc">Max packets to return</span></div>
+      </div>
+    </div>
+    <div class="ep-panel" id="packets-try">
+      <div class="try-controls">
+        <div class="param-input-group"><label>limit</label><input class="param-input" id="p-packets-limit" type="number" value="10" min="1" max="200"/></div>
+        <button class="run-btn" onclick="run('packets','/api/packets',{limit:'p-packets-limit'})">▶ Run Request</button>
+      </div>
+      <div id="resp-packets"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- PACKET HISTORY -->
+<div class="ep-card" id="card-pkthist">
+  <div class="ep-hd" onclick="toggle('pkthist')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/packets/history<span class="param">?limit=100</span></div><div class="ep-desc">Persistent packet history from SQLite — all packet types</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('pkthist','about')">About</div>
+      <div class="ep-tab" onclick="tab('pkthist','code')">JS Example</div>
+      <div class="ep-tab" onclick="tab('pkthist','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="pkthist-about">
+      <div class="about-desc">Returns packets from the <strong style="color:var(--ok)">SQLite database</strong>. Survives restarts. Unlike messages/history which is text-only, this includes every meaningful packet type. Junk packets (Ack, Routing Error, Encrypted, Unknown) are intentionally not stored to keep the DB lean.</div>
+      <div class="learn-box"><h4>Packet types you'll see</h4>
+        <div class="learn-item"><code>Message</code> — text message with decoded text payload</div>
+        <div class="learn-item"><code>Position</code> — GPS coordinates with altitude, precision, satellite count</div>
+        <div class="learn-item"><code>Telemetry</code> — battery, voltage, channel utilisation, environment sensors</div>
+        <div class="learn-item"><code>Node Info</code> — node identity broadcast (name, hardware model, role)</div>
+        <div class="learn-item"><code>Traceroute</code>, <code>Paxcounter</code>, <code>Range Test</code></div>
+      </div>
+    </div>
+    <div class="ep-panel" id="pkthist-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">JavaScript — group by type</span><button class="copy-btn" onclick="copyPre('c-pkthistjs')">Copy</button></div>
+<pre id="c-pkthistjs"><span class="kw">const</span> packets = <span class="kw">await</span> <span class="fn">fetch</span>(
+    <span class="st">'/api/packets/history?limit=50'</span>
+).then(r => r.json());
+
+<span class="cm">// Group by packet type</span>
+<span class="kw">const</span> byType = packets.reduce((acc, p) => {
+    <span class="kw">const</span> t = p.packet_type || <span class="st">'Unknown'</span>;
+    acc[t] = (acc[t] || <span class="nu">0</span>) + <span class="nu">1</span>;
+    <span class="kw">return</span> acc;
+}, {});
+
+<span class="cm">// Average SNR across all packets</span>
+<span class="kw">const</span> withSnr = packets.filter(p => p.rx_snr != null);
+<span class="kw">const</span> avgSnr  = withSnr.reduce((s,p) => s + p.rx_snr, <span class="nu">0</span>) / withSnr.length;
+console.log(<span class="st">`Average SNR: ${avgSnr.toFixed(1)} dB`</span>);</pre></div>
+    </div>
+    <div class="ep-panel" id="pkthist-try">
+      <div class="try-controls">
+        <div class="param-input-group"><label>limit</label><input class="param-input" id="p-pkthist-limit" type="number" value="10" min="1" max="100"/></div>
+        <button class="run-btn" onclick="run('pkthist','/api/packets/history',{limit:'p-pkthist-limit'})">▶ Run Request</button>
+      </div>
+      <div id="resp-pkthist"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- HARDWARE LOGS -->
+<div class="ep-card" id="card-hwlogs">
+  <div class="ep-hd" onclick="toggle('hwlogs')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/hardware_logs<span class="param">?limit=50</span></div><div class="ep-desc">Hardware event log — reboots, disconnections, firmware events</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('hwlogs','about')">About</div>
+      <div class="ep-tab" onclick="tab('hwlogs','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="hwlogs-about">
+      <div class="about-desc">Hardware logs capture admin-level events on mesh nodes — reboots, firmware updates, config changes via Admin packets, disconnection events. MeshDash logs these as they arrive so you have an audit trail of hardware events across your mesh.</div>
+      <div class="learn-box"><h4>Response fields</h4>
+        <div class="learn-item"><code>node_id</code>, <code>event_type</code>, <code>details</code> (JSON string), <code>timestamp</code></div>
+        <div class="learn-item">Useful for building an audit log plugin or remote device monitoring tool</div>
+      </div>
+    </div>
+    <div class="ep-panel" id="hwlogs-try">
+      <div class="try-controls"><button class="run-btn" onclick="run('hwlogs','/api/hardware_logs',{})">▶ Run Request</button></div>
+      <div id="resp-hwlogs"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ MESSAGES ═══ -->
+<div class="sec-hd" id="s-messages"><span class="sec-icon">💬</span><h3>Message History</h3></div>
+
+<div class="ep-card" id="card-messages">
+  <div class="ep-hd" onclick="toggle('messages')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/messages/history</div><div class="ep-desc">Persistent message history with optional from_id, to_id, channel, limit filters</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('messages','about')">About</div>
+      <div class="ep-tab" onclick="tab('messages','code')">JS Example</div>
+      <div class="ep-tab" onclick="tab('messages','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="messages-about">
+      <div class="about-desc">Returns text messages from the persistent database. Supports filtering by sender, recipient, channel, and time range. Returns newest-first. Use this endpoint for building a custom message display or chat plugin.</div>
+      <div class="params-box"><h4>Query Parameters</h4>
+        <div class="param-row"><span class="param-name">from_id</span><span class="param-type">string · optional</span><span class="param-desc">Filter by sender node ID e.g. <code>!ab12cd34</code></span></div>
+        <div class="param-row"><span class="param-name">to_id</span><span class="param-type">string · optional</span><span class="param-desc">Filter by recipient. Use <code>^all</code> for broadcasts.</span></div>
+        <div class="param-row"><span class="param-name">channel</span><span class="param-type">int · default: 0</span><span class="param-desc">Channel index (0-7). Only used for broadcast messages.</span></div>
+        <div class="param-row"><span class="param-name">limit</span><span class="param-type">int · default: 100</span><span class="param-desc">Max rows to return</span></div>
+      </div>
+    </div>
+    <div class="ep-panel" id="messages-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">JavaScript — filtering examples</span><button class="copy-btn" onclick="copyPre('c-msgsjs')">Copy</button></div>
+<pre id="c-msgsjs"><span class="cm">// Get last 20 messages on channel 0</span>
+<span class="kw">const</span> msgs = <span class="kw">await</span> <span class="fn">fetch</span>(
+    <span class="st">'/api/messages/history?limit=20&channel=0'</span>
+).then(r => r.json());
+
+<span class="cm">// Get DMs between two nodes</span>
+<span class="kw">const</span> dms = <span class="kw">await</span> <span class="fn">fetch</span>(
+    <span class="st">'/api/messages/history?from_id=!a1b2c3d4&to_id=!e5f6a7b8&limit=50'</span>
+).then(r => r.json());
+
+<span class="cm">// Each message: from_id, to_id, channel, text, timestamp, rx_snr, rx_rssi</span>
+msgs.forEach(m => {
+    <span class="kw">const</span> dt = <span class="kw">new</span> <span class="fn">Date</span>(m.timestamp * <span class="nu">1000</span>).toLocaleTimeString();
+    console.log(<span class="st">`[${dt}] ${m.from_id}: ${m.text}`</span>);
+});</pre></div>
+    </div>
+    <div class="ep-panel" id="messages-try">
+      <div class="try-controls">
+        <div class="param-input-group"><label>limit</label><input class="param-input" id="p-messages-limit" type="number" value="10" min="1" max="200"/></div>
+        <button class="run-btn" onclick="run('messages','/api/messages/history',{limit:'p-messages-limit'})">▶ Run Request</button>
+      </div>
+      <div id="resp-messages"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ SEND TO MESH ═══ -->
+<div class="sec-hd" id="s-mesh"><span class="sec-icon">📤</span><h3>Send to Mesh</h3></div>
+
+<div class="ep-card" id="card-mesh">
+  <div class="ep-hd" onclick="toggle('mesh')">
+    <span class="ep-method ep-method-post">POST</span>
+    <div><div class="ep-path">/api/messages</div><div class="ep-desc">Send a text message to the mesh — broadcast or DM — requires auth</div></div>
+    <div class="ep-hd-r"><span class="ep-auth">AUTH</span><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('mesh','about')">About</div>
+      <div class="ep-tab" onclick="tab('mesh','code')">Python (Preferred)</div>
+    </div>
+    <div class="ep-panel active" id="mesh-about">
+      <div class="callout callout-warn">This endpoint requires an authenticated session. From plugin Python code, use <code>connection_manager.sendText()</code> directly instead — it's faster and doesn't require session handling.</div>
+      <div class="params-box"><h4>Request Body (JSON)</h4>
+        <div class="param-row"><span class="param-name">message</span><span class="param-type">string <span class="req-tag">REQUIRED</span></span><span class="param-desc">Text string to transmit</span></div>
+        <div class="param-row"><span class="param-name">channel</span><span class="param-type">int · default: 0</span><span class="param-desc">Channel index 0-7</span></div>
+        <div class="param-row"><span class="param-name">destination</span><span class="param-type">string · optional</span><span class="param-desc">Target node ID for DM. Omit for broadcast to <code>^all</code></span></div>
+      </div>
+      <div class="about-desc">Response: <code style="color:var(--acc)">{"status":"sent","channel":0,"packet_id":…,"timestamp":…}</code></div>
+    </div>
+    <div class="ep-panel" id="mesh-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">Python — sending from plugin code (preferred)</span><button class="copy-btn" onclick="copyPre('c-sendpy')">Copy</button></div>
+<pre id="c-sendpy"><span class="kw">async def</span> <span class="fn">send_to_mesh</span>():
+    cm = core_context.get(<span class="st">"connection_manager"</span>)
+    <span class="kw">if not</span> cm <span class="kw">or not</span> cm.is_ready.is_set():
+        <span class="kw">raise</span> RuntimeError(<span class="st">"Radio not ready"</span>)
+
+    <span class="cm"># Broadcast to all nodes on channel 0</span>
+    <span class="kw">await</span> cm.sendText(<span class="st">"Hello mesh!"</span>, destinationId=<span class="st">"^all"</span>, channelIndex=<span class="nu">0</span>)
+
+    <span class="cm"># Direct message to a specific node</span>
+    <span class="kw">await</span> cm.sendText(<span class="st">"Private msg"</span>, destinationId=<span class="st">"!ab12cd34"</span>, channelIndex=<span class="nu">0</span>)</pre></div>
+      <div class="callout callout-info">Also available: <code>POST /api/alert?msg=TEXT</code> — convenience endpoint that broadcasts <code>ALERT: {msg}</code> as a system message to the mesh. Useful for testing.</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ NETWORK ═══ -->
+<div class="sec-hd" id="s-network"><span class="sec-icon">🕸️</span><h3>Network — Neighbors, Traceroutes, Waypoints</h3></div>
+
+<!-- NEIGHBORS -->
+<div class="ep-card" id="card-neighbors">
+  <div class="ep-hd" onclick="toggle('neighbors')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/neighbors</div><div class="ep-desc">Neighbor table — RF topology links with SNR values for each pair</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('neighbors','about')">About</div>
+      <div class="ep-tab" onclick="tab('neighbors','code')">JS Example</div>
+      <div class="ep-tab" onclick="tab('neighbors','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="neighbors-about">
+      <div class="about-desc">Returns the neighbour table — all nodes that have reported their direct RF neighbours via the NeighborInfo protocol. Each entry contains node_id, neighbors (array with SNR), and timestamp. The foundation for mesh topology visualisations.</div>
+      <div class="learn-box"><h4>What this data enables</h4>
+        <div class="learn-item">Building a force-directed graph or adjacency matrix of your mesh</div>
+        <div class="learn-item">Finding nodes with the most neighbours (potential relay bottlenecks)</div>
+        <div class="learn-item">Only populated if nodes have NeighborInfo module enabled in their config</div>
+      </div>
+    </div>
+    <div class="ep-panel" id="neighbors-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">JavaScript — adjacency list</span><button class="copy-btn" onclick="copyPre('c-nbrjs')">Copy</button></div>
+<pre id="c-nbrjs"><span class="kw">const</span> neighbors = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="st">'/api/neighbors'</span>).then(r => r.json());
+
+<span class="kw">const</span> graph = {};
+neighbors.forEach(n => {
+    <span class="kw">if</span> (!graph[n.node_id]) graph[n.node_id] = [];
+    graph[n.node_id].push({ id: n.neighbor_id, snr: n.snr });
+});
+
+<span class="cm">// Find most connected nodes (potential relays)</span>
+<span class="kw">const</span> sorted = Object.entries(graph)
+    .sort((a, b) => b[<span class="nu">1</span>].length - a[<span class="nu">1</span>].length);
+console.log(<span class="st">'Most connected:'</span>, sorted[<span class="nu">0</span>]);</pre></div>
+    </div>
+    <div class="ep-panel" id="neighbors-try">
+      <div class="try-controls"><button class="run-btn" onclick="run('neighbors','/api/neighbors',{})">▶ Run Request</button></div>
+      <div id="resp-neighbors"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- TRACEROUTES -->
+<div class="ep-card" id="card-traceroutes">
+  <div class="ep-hd" onclick="toggle('traceroutes')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/traceroutes<span class="param">?limit=50</span></div><div class="ep-desc">Traceroute history — hop-by-hop paths through the mesh</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('traceroutes','about')">About</div>
+      <div class="ep-tab" onclick="tab('traceroutes','code')">JS Example</div>
+      <div class="ep-tab" onclick="tab('traceroutes','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="traceroutes-about">
+      <div class="about-desc">Returns recorded traceroute results — the hop-by-hop paths packets have taken through the mesh. Each entry has from_id, to_id, route (ordered array of intermediate node IDs), and timestamp. Tells you how many hops a route takes and which nodes are acting as relays.</div>
+    </div>
+    <div class="ep-panel" id="traceroutes-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">JavaScript</span><button class="copy-btn" onclick="copyPre('c-trjs')">Copy</button></div>
+<pre id="c-trjs"><span class="kw">const</span> routes = <span class="kw">await</span> <span class="fn">fetch</span>(
+    <span class="st">'/api/traceroutes?limit=20'</span>
+).then(r => r.json());
+
+routes.forEach(r => {
+    <span class="kw">const</span> hops = r.route_path?.length || <span class="nu">0</span>;
+    <span class="kw">const</span> dt = <span class="kw">new</span> <span class="fn">Date</span>(r.timestamp * <span class="nu">1000</span>).toLocaleString();
+    console.log(<span class="st">`${r.from_id} → ${r.to_id}: ${hops} hops @ ${dt}`</span>);
+});</pre></div>
+    </div>
+    <div class="ep-panel" id="traceroutes-try">
+      <div class="try-controls"><button class="run-btn" onclick="run('traceroutes','/api/traceroutes?limit=20',{})">▶ Run Request</button></div>
+      <div id="resp-traceroutes"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- WAYPOINTS -->
+<div class="ep-card" id="card-waypoints">
+  <div class="ep-hd" onclick="toggle('waypoints')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/waypoints</div><div class="ep-desc">All waypoints broadcast on the mesh — named map markers with coordinates</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('waypoints','about')">About</div>
+      <div class="ep-tab" onclick="tab('waypoints','code')">JS Example</div>
+      <div class="ep-tab" onclick="tab('waypoints','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="waypoints-about">
+      <div class="about-desc">Returns all waypoints broadcast on the mesh. Each has from_id, name, description, latitude, longitude, icon, and timestamp. Coordinates are already converted from Meshtastic's integer format to decimal degrees.</div>
+    </div>
+    <div class="ep-panel" id="waypoints-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">JavaScript — GeoJSON conversion</span><button class="copy-btn" onclick="copyPre('c-wpjs')">Copy</button></div>
+<pre id="c-wpjs"><span class="kw">const</span> waypoints = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="st">'/api/waypoints'</span>).then(r => r.json());
+
+<span class="cm">// Convert to GeoJSON FeatureCollection for Leaflet/Mapbox</span>
+<span class="kw">const</span> geojson = {
+    type: <span class="st">'FeatureCollection'</span>,
+    features: waypoints
+        .filter(w => w.latitude && w.longitude)
+        .map(w => ({
+            type: <span class="st">'Feature'</span>,
+            geometry: { type: <span class="st">'Point'</span>, coordinates: [w.longitude, w.latitude] },
+            properties: { name: w.name, desc: w.description }
+        }))
+};
+console.log(<span class="st">`${geojson.features.length} mappable waypoints`</span>);</pre></div>
+    </div>
+    <div class="ep-panel" id="waypoints-try">
+      <div class="try-controls"><button class="run-btn" onclick="run('waypoints','/api/waypoints',{})">▶ Run Request</button></div>
+      <div id="resp-waypoints"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ LOCAL NODE / CHANNELS ═══ -->
+<div class="sec-hd" id="s-local"><span class="sec-icon">🖥️</span><h3>Local Node &amp; Channels</h3></div>
+
+<!-- LOCAL NODE FULL -->
+<div class="ep-card" id="card-local">
+  <div class="ep-hd" onclick="toggle('local')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/local_node/full</div><div class="ep-desc">Comprehensive local radio info — LoRa config, WiFi, GPS mode, reboot count</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('local','about')">About</div>
+      <div class="ep-tab" onclick="tab('local','code')">JS Example</div>
+      <div class="ep-tab" onclick="tab('local','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="local-about">
+      <div class="about-desc">The most detailed endpoint for local node info. Goes beyond /api/status to include LoRa configuration (region, hop limit, TX power, modem preset), Bluetooth state, WiFi SSID, GPS mode, position broadcast interval, node info broadcast interval, and reboot count. Returns 503 if the radio isn't ready yet.</div>
+      <div class="learn-box"><h4>Key fields not in /api/status</h4>
+        <div class="learn-item"><code>lora_region</code>, <code>lora_hop_limit</code>, <code>lora_tx_power</code>, <code>lora_use_preset</code></div>
+        <div class="learn-item"><code>bluetooth_enabled</code>, <code>wifi_ssid</code></div>
+        <div class="learn-item"><code>gps_mode</code>, <code>position_broadcast_secs</code>, <code>node_info_broadcast_secs</code></div>
+        <div class="learn-item"><code>reboot_count</code>, <code>has_wifi</code>, <code>has_bluetooth</code></div>
+      </div>
+    </div>
+    <div class="ep-panel" id="local-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">JavaScript</span><button class="copy-btn" onclick="copyPre('c-localjs')">Copy</button></div>
+<pre id="c-localjs"><span class="kw">const</span> node = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="st">'/api/local_node/full'</span>).then(r => r.json());
+console.log(<span class="st">'LoRa region:'</span>, node.lora_region);
+console.log(<span class="st">'Hop limit:'</span>,  node.lora_hop_limit);
+console.log(<span class="st">'TX power:'</span>,   node.lora_tx_power, <span class="st">'dBm'</span>);
+console.log(<span class="st">'Reboots:'</span>,    node.reboot_count);</pre></div>
+    </div>
+    <div class="ep-panel" id="local-try">
+      <div class="try-controls"><button class="run-btn" onclick="run('local','/api/local_node/full',{})">▶ Run Request</button></div>
+      <div id="resp-local"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- CHANNELS -->
+<div class="ep-card" id="card-channels">
+  <div class="ep-hd" onclick="toggle('channels')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/channels</div><div class="ep-desc">Channel configuration — names, roles, PSK, uplink/downlink flags</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('channels','about')">About</div>
+      <div class="ep-tab" onclick="tab('channels','code')">JS Example</div>
+      <div class="ep-tab" onclick="tab('channels','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="channels-about">
+      <div class="about-desc">Returns the channel configuration of the locally connected radio. Returns 503 if the radio is not connected. The PSK is returned as a base64 string — only share this over authenticated connections.</div>
+      <div class="learn-box"><h4>Response fields per channel</h4>
+        <div class="learn-item"><code>index</code> — channel slot (0 = primary, 1–7 = secondary)</div>
+        <div class="learn-item"><code>name</code> — human-readable channel name</div>
+        <div class="learn-item"><code>role</code> — "PRIMARY", "SECONDARY", or "DISABLED"</div>
+        <div class="learn-item"><code>psk</code> — base64 PSK (keep private!)</div>
+        <div class="learn-item"><code>uplink</code> / <code>downlink</code> — MQTT bridge flags</div>
+      </div>
+    </div>
+    <div class="ep-panel" id="channels-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">JavaScript — channel picker</span><button class="copy-btn" onclick="copyPre('c-chjs')">Copy</button></div>
+<pre id="c-chjs"><span class="kw">const</span> channels = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="st">'/api/channels'</span>).then(r => r.json());
+
+<span class="cm">// Get active (non-disabled) channels</span>
+<span class="kw">const</span> active = channels.filter(c => c.role !== <span class="st">'DISABLED'</span>);
+
+<span class="cm">// Build a channel picker dropdown</span>
+<span class="kw">const</span> select = document.getElementById(<span class="st">'channel-select'</span>);
+active.forEach(ch => {
+    <span class="kw">const</span> opt = document.createElement(<span class="st">'option'</span>);
+    opt.value = ch.index;
+    opt.textContent = <span class="st">`Ch ${ch.index}: ${ch.name}`</span>;
+    select.appendChild(opt);
+});</pre></div>
+    </div>
+    <div class="ep-panel" id="channels-try">
+      <div class="try-controls"><button class="run-btn" onclick="run('channels','/api/channels',{})">▶ Run Request</button></div>
+      <div id="resp-channels"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ NODE HISTORY ═══ -->
+<div class="sec-hd" id="s-history"><span class="sec-icon">📈</span><h3>Node History</h3></div>
+
+<div class="ep-card" id="card-history">
+  <div class="ep-hd" onclick="toggle('history')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/nodes/<span class="param">{node_id}</span>/history/<span class="param">{table_name}</span></div><div class="ep-desc">Per-node positions, telemetry, or packet history from the database</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('history','about')">About</div>
+      <div class="ep-tab" onclick="tab('history','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="history-about">
+      <div class="about-desc"><code style="color:var(--warn)">table_name</code> must be one of: <code style="color:var(--acc)">positions</code>, <code style="color:var(--acc)">telemetry</code>, <code style="color:var(--acc)">packets</code>. The positions and telemetry tables return timestamped rows perfect for time-series charting. The packets table returns raw decoded packet rows with decoded and raw as parsed JSON objects.</div>
+      <div class="params-box"><h4>Query Parameters</h4>
+        <div class="param-row"><span class="param-name">limit</span><span class="param-type">int · default: 1000 · max: 1000</span><span class="param-desc">Max rows to return</span></div>
+        <div class="param-row"><span class="param-name">start</span><span class="param-type">float · optional</span><span class="param-desc">Unix timestamp — only return rows after this time</span></div>
+        <div class="param-row"><span class="param-name">end</span><span class="param-type">float · optional</span><span class="param-desc">Unix timestamp — only return rows before this time</span></div>
+      </div>
+      <div class="learn-box"><h4>Also available</h4>
+        <div class="learn-item"><code>GET /api/nodes/{node_id}/count/{item_type}</code> — item_type: <code>messages_sent</code>, <code>positions</code>, or <code>telemetry</code></div>
+        <div class="learn-item">Supports optional <code>start</code> / <code>end</code> unix timestamps</div>
+        <div class="learn-item">Returns <code>{"node_id":…,"item_type":…,"count":…}</code></div>
+      </div>
+    </div>
+    <div class="ep-panel" id="history-try">
+      <div class="try-controls">
+        <div class="param-input-group"><label>node_id</label><input class="param-input wide" id="p-history-node" type="text" placeholder="!a1b2c3d4"/></div>
+        <div class="param-input-group"><label>table</label>
+          <select class="param-input" id="p-history-table">
+            <option value="positions">positions</option>
+            <option value="telemetry">telemetry</option>
+            <option value="packets">packets</option>
+          </select>
+        </div>
+        <div class="param-input-group"><label>limit</label><input class="param-input" id="p-history-limit" type="number" value="10" min="1" max="1000"/></div>
+        <button class="run-btn" onclick="runHistoryDemo()">▶ Run Request</button>
+      </div>
+      <div id="resp-history"><div class="resp-placeholder">Enter a node ID and select a table then hit Run</div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ METRICS / COUNTS ═══ -->
+<div class="sec-hd" id="s-metrics"><span class="sec-icon">📊</span><h3>Metrics &amp; Counts</h3></div>
+
+<!-- METRICS AVERAGES -->
+<div class="ep-card" id="card-metrics">
+  <div class="ep-hd" onclick="toggle('metrics')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/metrics/averages<span class="param">?limit=100</span></div><div class="ep-desc">Average SNR/RSSI/battery history — network health time series (5-min snapshots)</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('metrics','about')">About</div>
+      <div class="ep-tab" onclick="tab('metrics','code')">JS Example</div>
+      <div class="ep-tab" onclick="tab('metrics','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="metrics-about">
+      <div class="about-desc">Returns the most recent averaged network metrics snapshot plus up to <code>limit</code> historical snapshots. Each data point represents a 5-minute average snapshot across all active nodes. Shape: <code style="color:var(--acc)">{"most_recent": {…}, "history": [{…}]}</code>.</div>
+      <div class="learn-box"><h4>Fields per snapshot</h4>
+        <div class="learn-item"><code>timestamp</code>, <code>average_snr</code>, <code>average_rssi</code>, <code>node_count</code></div>
+        <div class="learn-item">24 points × 5 min = ~2 hours of history; 288 points = 24 hours</div>
+        <div class="learn-item">Perfect input for a Chart.js line chart showing RF quality over time</div>
+      </div>
+    </div>
+    <div class="ep-panel" id="metrics-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">JavaScript — Chart.js line chart</span><button class="copy-btn" onclick="copyPre('c-metricsjs')">Copy</button></div>
+<pre id="c-metricsjs"><span class="kw">const</span> data = <span class="kw">await</span> <span class="fn">fetch</span>(
+    <span class="st">'/api/metrics/averages?limit=48'</span>
+).then(r => r.json());
+
+<span class="kw">const</span> history  = data.history.reverse(); <span class="cm">// oldest first</span>
+<span class="kw">const</span> labels   = history.map(h =>
+    <span class="kw">new</span> <span class="fn">Date</span>(h.timestamp * <span class="nu">1000</span>).toLocaleTimeString()
+);
+
+<span class="kw">new</span> Chart(canvas, {
+    type: <span class="st">'line'</span>,
+    data: {
+        labels,
+        datasets: [
+            { label: <span class="st">'Avg SNR (dB)'</span>,   data: history.map(h => h.average_snr)  },
+            { label: <span class="st">'Avg RSSI (dBm)'</span>, data: history.map(h => h.average_rssi) }
+        ]
+    }
+});</pre></div>
+    </div>
+    <div class="ep-panel" id="metrics-try">
+      <div class="try-controls">
+        <div class="param-input-group"><label>limit</label><input class="param-input" id="p-metrics-limit" type="number" value="24" min="1" max="500"/></div>
+        <button class="run-btn" onclick="run('metrics','/api/metrics/averages',{limit:'p-metrics-limit'})">▶ Run Request</button>
+      </div>
+      <div id="resp-metrics"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- COUNTS TOTALS -->
+<div class="ep-card" id="card-counts">
+  <div class="ep-hd" onclick="toggle('counts')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/counts/totals</div><div class="ep-desc">Database record totals — messages, positions, telemetry</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('counts','about')">About</div>
+      <div class="ep-tab" onclick="tab('counts','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="counts-about">
+      <div class="about-desc">Returns total database counts: <code style="color:var(--acc)">total_messages</code>, <code style="color:var(--acc)">total_positions</code>, <code style="color:var(--acc)">total_telemetry</code>. Useful for plugin dashboards that need to show database size or data density. These counts survive restarts.</div>
+    </div>
+    <div class="ep-panel" id="counts-try">
+      <div class="try-controls"><button class="run-btn" onclick="run('counts','/api/counts/totals',{})">▶ Run Request</button></div>
+      <div id="resp-counts"><div class="resp-placeholder">Hit Run to fire this endpoint</div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ SYSTEM & PLUGINS ═══ -->
+<div class="sec-hd" id="s-system"><span class="sec-icon">⚙️</span><h3>System &amp; Plugin Management</h3></div>
+<p style="font-family:var(--mono);font-size:.71rem;color:var(--txt2);margin-bottom:18px;line-height:1.75;background:var(--bg2);border:1px solid var(--bd);border-radius:7px;padding:12px 16px;">All system management endpoints require authentication <span class="ep-auth" style="display:inline">AUTH</span>.</p>
+
+<!-- PLUGIN LIST -->
+<div class="ep-card" id="card-system">
+  <div class="ep-hd" onclick="toggle('system')">
+    <span class="ep-method ep-method-info">SYSTEM</span>
+    <div><div class="ep-path">Plugin Registry &amp; Management Endpoints</div><div class="ep-desc">List, toggle, install, delete, and inspect plugins at runtime</div></div>
+    <div class="ep-hd-r"><span class="ep-auth">AUTH</span><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('system','about')">Endpoints</div>
+      <div class="ep-tab" onclick="tab('system','try')">▶ Try Registry</div>
+    </div>
+    <div class="ep-panel active" id="system-about">
+      <div class="learn-box"><h4>GET /api/system/plugins</h4>
+        <div class="learn-item">Returns full plugin registry. Each entry has: <code>manifest</code>, <code>status</code> (running/stopped/crashed/hung/pending_restart/invalid_manifest/loading), <code>error</code>, <code>path</code>, <code>watchdog_monitored</code>, <code>last_watchdog_ping</code></div>
+      </div>
+      <div class="learn-box" style="margin-top:10px;"><h4>GET /api/system/plugins/menu</h4>
+        <div class="learn-item">Returns nav menu items from all running plugins. Links to <code>/static/plugins/…</code> are auto-rewritten to <code>/plugin/…</code> wrapper route.</div>
+      </div>
+      <div class="learn-box" style="margin-top:10px;"><h4>POST /api/system/plugins/{id}/toggle?action=start|stop</h4>
+        <div class="learn-item">Soft start/stop a plugin. <code>stop</code> writes a <code>.disabled</code> sentinel file. <code>start</code> removes it. Returns <code>requires_restart: true</code> if the plugin was previously crashed — Python modules cannot be hot-reloaded.</div>
+      </div>
+      <div class="learn-box" style="margin-top:10px;"><h4>DELETE /api/system/plugins/{id}</h4>
+        <div class="learn-item">Permanently deletes the plugin folder with <code>shutil.rmtree</code>. Irreversible. Returns <code>requires_restart: true</code>.</div>
+      </div>
+      <div class="learn-box" style="margin-top:10px;"><h4>POST /api/system/plugins/install</h4>
+        <div class="learn-item">Installs a plugin from a <code>.zip</code> file upload (multipart/form-data, field name <code>file</code>). Zip must contain valid <code>manifest.json</code> with <code>watchdog</code> field. Returns 409 if plugin ID already exists.</div>
+      </div>
+      <div class="learn-box" style="margin-top:10px;"><h4>POST /api/system/plugins/install-remote</h4>
+        <div class="learn-item">Downloads and installs from a remote <code>.zip</code> URL. Body: <code>{"url":"https://…/plugin.zip"}</code>. SSRF-protected: rejects RFC-1918 addresses.</div>
+      </div>
+      <div class="learn-box" style="margin-top:10px;"><h4>POST /api/system/restart</h4>
+        <div class="learn-item">Gracefully shuts down, broadcasts a restart message to the mesh, then does an <code>os.execv</code> self-restart. All plugins reload from scratch.</div>
+      </div>
+      <div class="learn-box" style="margin-top:10px;"><h4>GET / POST /api/system/config</h4>
+        <div class="learn-item"><code>GET</code> returns the current running config as JSON. <code>POST /api/system/config/update</code> with changed keys hot-reloads most settings at runtime. Some changes (DB path, port) require restart.</div>
+      </div>
+    </div>
+    <div class="ep-panel" id="system-try">
+      <div class="try-controls"><button class="run-btn" onclick="run('system','/api/system/plugins',{})">▶ Fetch Plugin Registry</button></div>
+      <div id="resp-system"><div class="resp-placeholder">Hit Run to fetch the full plugin registry</div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ PLUGIN LOGS API ═══ -->
+<div class="sec-hd" id="s-pluginlogs"><span class="sec-icon">📋</span><h3>Plugin Logs API</h3></div>
+
+<div class="ep-card" id="card-pluglogs">
+  <div class="ep-hd" onclick="toggle('pluglogs')">
+    <span class="ep-method">GET</span>
+    <div><div class="ep-path">/api/system/plugins/<span class="param">{plugin_id}</span>/logs</div><div class="ep-desc">Last 250 log lines from the plugin's memory ring buffer</div></div>
+    <div class="ep-hd-r"><span class="ep-auth">AUTH</span><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('pluglogs','about')">About</div>
+      <div class="ep-tab" onclick="tab('pluglogs','code')">Response Shape</div>
+      <div class="ep-tab" onclick="tab('pluglogs','try')">▶ Try It</div>
+    </div>
+    <div class="ep-panel active" id="pluglogs-about">
+      <div class="about-desc">Returns the last 250 log lines from the plugin's named logger ring buffer. Also available: <code style="color:var(--err)">DELETE /api/system/plugins/{id}/logs</code> to clear the buffer — useful for debugging: clear, trigger your action, fetch again.</div>
+      <div class="learn-box"><h4>Available endpoints</h4>
+        <div class="learn-item"><code>GET /api/system/plugins/{id}/logs</code> — fetch the ring buffer</div>
+        <div class="learn-item"><code>DELETE /api/system/plugins/{id}/logs</code> — clear the ring buffer</div>
+        <div class="learn-item">Log entries are structured: <code>{"t": unix_ts, "lvl": "INFO", "msg": "…"}</code></div>
+        <div class="learn-item">The Plugins page displays them colour-coded by level in the Logs modal</div>
+      </div>
+    </div>
+    <div class="ep-panel" id="pluglogs-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">Response shape</span></div>
+<pre>{
+  <span class="st">"plugin_id"</span>: <span class="st">"hello_mesh"</span>,
+  <span class="st">"count"</span>:     <span class="nu">12</span>,
+  <span class="st">"max"</span>:       <span class="nu">250</span>,
+  <span class="st">"logs"</span>: [
+    {<span class="st">"t"</span>: <span class="nu">1718000000.0</span>, <span class="st">"lvl"</span>: <span class="st">"INFO"</span>,    <span class="st">"msg"</span>: <span class="st">"Plugin started"</span>},
+    {<span class="st">"t"</span>: <span class="nu">1718000030.0</span>, <span class="st">"lvl"</span>: <span class="st">"DEBUG"</span>,   <span class="st">"msg"</span>: <span class="st">"Watchdog ping"</span>},
+    {<span class="st">"t"</span>: <span class="nu">1718000031.0</span>, <span class="st">"lvl"</span>: <span class="st">"WARNING"</span>, <span class="st">"msg"</span>: <span class="st">"Something odd"</span>},
+    {<span class="st">"t"</span>: <span class="nu">1718000032.0</span>, <span class="st">"lvl"</span>: <span class="st">"ERROR"</span>,   <span class="st">"msg"</span>: <span class="st">"Something broke"</span>}
+  ]
+}</pre></div>
+    </div>
+    <div class="ep-panel" id="pluglogs-try">
+      <div class="try-controls">
+        <button class="run-btn" onclick="runLogDemo()">▶ Emit Logs &amp; Fetch Buffer</button>
+      </div>
+      <div id="resp-pluglogs"><div class="resp-placeholder">Hit Run to emit test log lines from hello_mesh then fetch the ring buffer</div></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ WEB MONITOR ═══ -->
+<div class="sec-hd" id="s-monitor"><span class="sec-icon">🔍</span><h3>Web Monitor &amp; Content Extract</h3></div>
+
+<div class="ep-card" id="card-monitor">
+  <div class="ep-hd" onclick="toggle('monitor')">
+    <span class="ep-method ep-method-post">POST</span>
+    <div><div class="ep-path">/extract &amp; /api/monitor</div><div class="ep-desc">Fetch a URL server-side, extract text blocks, optionally broadcast to mesh</div></div>
+    <div class="ep-hd-r"><span class="ep-auth">AUTH</span><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('monitor','about')">About</div>
+      <div class="ep-tab" onclick="tab('monitor','code')">Parameters</div>
+    </div>
+    <div class="ep-panel active" id="monitor-about">
+      <div class="about-desc">Two related endpoints for web content extraction and mesh broadcasting. <code style="color:var(--acc)">POST /extract</code> fetches a URL server-side and returns text blocks. <code style="color:var(--acc)">POST /api/monitor</code> does the same but automatically broadcasts a chosen block to the mesh.</div>
+      <div class="callout callout-info">Both endpoints reject RFC-1918/loopback addresses (SSRF protection). Only public HTTPS URLs are accepted.</div>
+    </div>
+    <div class="ep-panel" id="monitor-code">
+      <div class="learn-box"><h4>POST /extract</h4>
+        <div class="learn-item"><code>url</code> <span class="req-tag">REQUIRED</span> — Public HTTPS URL to fetch</div>
+        <div class="learn-item"><code>block_id</code> <span class="opt-tag">optional</span> — Return only a specific block by index. Omit for all blocks (up to 50)</div>
+        <div class="learn-item">Returns <code>{"blocks": [{…}]}</code></div>
+      </div>
+      <div class="learn-box" style="margin-top:10px;"><h4>POST /api/monitor</h4>
+        <div class="learn-item"><code>url</code> <span class="req-tag">REQUIRED</span> — Public URL to fetch</div>
+        <div class="learn-item"><code>block_id</code> <span class="req-tag">REQUIRED</span> — Which block (from /extract output) to broadcast</div>
+        <div class="learn-item"><code>prefix</code> <span class="opt-tag">optional</span> — Prepended to the text e.g. <code>"News:"</code></div>
+        <div class="learn-item"><code>channel</code> <span class="opt-tag">optional</span> — Channel index. Default 0</div>
+        <div class="learn-item"><code>node_id</code> <span class="opt-tag">optional</span> — Target node for DM. Omit for broadcast</div>
+        <div class="learn-item">Text is truncated to 200 chars before transmitting</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ SSE ═══ -->
+<div class="sec-hd" id="s-sse"><span class="sec-icon">⚡</span><h3>SSE — Live Event Stream</h3></div>
+
+<div class="ep-card" id="card-sse">
+  <div class="ep-hd" onclick="toggle('sse')">
+    <span class="ep-method ep-method-info">SSE</span>
+    <div><div class="ep-path">/sse</div><div class="ep-desc">Server-Sent Events — live packets, node updates, stats pushed to the browser</div></div>
+    <div class="ep-hd-r"><span class="ep-chev">▼</span></div>
+  </div>
+  <div class="ep-body">
+    <div class="ep-tabs">
+      <div class="ep-tab active" onclick="tab('sse','about')">About</div>
+      <div class="ep-tab" onclick="tab('sse','code')">JS Example</div>
+      <div class="ep-tab" onclick="tab('sse','try')">▶ Live Feed</div>
+    </div>
+    <div class="ep-panel active" id="sse-about">
+      <div class="about-desc">Server-Sent Events stream. Connect and you immediately receive the current <code style="color:var(--acc)">connection_status</code> and full <code style="color:var(--acc)">nodes</code> list as bootstrap events, then a continuous stream of live events as they occur. Keepalive ping every 30 s. Max 50 concurrent SSE clients. Each client gets their own bounded queue (200 events).</div>
+      <div class="callout callout-info">The browser reconnects automatically on SSE disconnect — no need to handle reconnection manually. Bootstrap events re-fire on every connect so you always get a consistent starting state.</div>
+      <table class="ref-table">
+        <tr><th>event</th><th>data</th></tr>
+        <tr><td>connection_status</td><td>String — current connection state</td></tr>
+        <tr><td>nodes</td><td>JSON array of all known nodes (bootstrap snapshot)</td></tr>
+        <tr><td>packet</td><td>JSON object of a newly received/processed packet</td></tr>
+        <tr><td>node_update</td><td>JSON of updated node data</td></tr>
+        <tr><td>activity</td><td><code>"RX"</code> or <code>"TX"</code> pulse</td></tr>
+        <tr><td>stats</td><td>JSON stats snapshot broadcast periodically</td></tr>
+      </table>
+    </div>
+    <div class="ep-panel" id="sse-code">
+      <div class="code-block"><div class="cb-hd"><span class="cb-lang">JavaScript — complete SSE handler</span><button class="copy-btn" onclick="copyPre('c-ssejs')">Copy</button></div>
+<pre id="c-ssejs"><span class="kw">const</span> es = <span class="kw">new</span> <span class="fn">EventSource</span>(<span class="st">'/sse'</span>);
+
+<span class="cm">// React to new packets the instant they arrive</span>
+es.addEventListener(<span class="st">'packet'</span>, e => {
+    <span class="kw">const</span> pkt = <span class="fn">JSON.parse</span>(e.data);
+    <span class="kw">if</span> (pkt.app_packet_type === <span class="st">'Message'</span>) {
+        addMessageToUI(pkt.fromId, pkt.decoded?.text, pkt.channel);
+    }
+    <span class="kw">if</span> (pkt.app_packet_type === <span class="st">'Telemetry'</span>) {
+        updateBatteryDisplay(pkt.fromId, pkt.decoded?.telemetry);
+    }
+});
+
+<span class="cm">// Node position updates for live map</span>
+es.addEventListener(<span class="st">'node_update'</span>, e => {
+    <span class="kw">const</span> node = <span class="fn">JSON.parse</span>(e.data);
+    <span class="kw">if</span> (node.latitude && node.longitude)
+        updateNodeOnMap(node.node_id, node.latitude, node.longitude);
+});
+
+<span class="cm">// Track radio connection state</span>
+es.addEventListener(<span class="st">'connection_status'</span>, e => {
+    <span class="kw">const</span> status = <span class="fn">JSON.parse</span>(e.data);
+    document.getElementById(<span class="st">'status-badge'</span>).textContent = status;
+    document.getElementById(<span class="st">'status-badge'</span>).className =
+        status === <span class="st">'Connected'</span> ? <span class="st">'badge-green'</span> : <span class="st">'badge-red'</span>;
+});
+
+<span class="cm">// Stats update periodically</span>
+es.addEventListener(<span class="st">'stats'</span>, e => {
+    <span class="kw">const</span> stats = <span class="fn">JSON.parse</span>(e.data);
+    document.getElementById(<span class="st">'pkt-count'</span>).textContent =
+        stats.packets_received_session;
+});
+
+es.onerror = () => console.warn(<span class="st">'SSE disconnected, auto-reconnecting…'</span>);</pre></div>
+    </div>
+    <div class="ep-panel" id="sse-try">
+      <div class="try-controls">
+        <button class="run-btn" id="sse-connect-btn" onclick="toggleSSE()">▶ Connect to SSE</button>
+      </div>
+      <div id="sse-live" class="sse-out">Click Connect to open the SSE stream and see live events.</div>
+    </div>
+  </div>
+</div>
+
+<div style="height:60px"></div>
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- STATUS BAR -->
+<div id="status-bar">
+  <div class="dot pulse" id="status-dot" style="background:var(--warn)"></div>
+  <span id="status-text">Checking connection…</span>
+  <span style="margin-left:auto;font-size:.6rem;">Hello Mesh v1.0.0 · MeshDash Plugin Reference</span>
+</div>
+
+<script>
+// ── TOGGLE CARD ──────────────────────────────────────────────────────────────
+function toggle(id){
+  const card = document.getElementById('card-'+id);
+  if(!card) return;
+  card.classList.toggle('open');
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  const first = document.querySelector('.ep-card');
+  if(first) first.classList.add('open');
+  // auto-populate node fields
+  (async()=>{
+    try{
+      const r = await fetch('/api/nodes');
+      const d = await r.json();
+      const keys = Object.keys(d);
+      if(keys.length>0){
+        ['p-singlenode-id','p-history-node'].forEach(id=>{
+          const el=document.getElementById(id);
+          if(el&&!el.value) el.value=keys[0];
+        });
+      }
+    }catch{}
+  })();
+});
+
+// ── SWITCH TAB ────────────────────────────────────────────────────────────────
+function tab(cardId, tabName){
+  const card = document.getElementById('card-'+cardId);
+  if(!card) return;
+  card.querySelectorAll('.ep-tab').forEach(t=>t.classList.remove('active'));
+  card.querySelectorAll('.ep-panel').forEach(p=>p.classList.remove('active'));
+  const names=['about','code','try'];
+  const tabs=card.querySelectorAll('.ep-tab');
+  const idx=names.indexOf(tabName);
+  if(idx>=0&&tabs[idx]) tabs[idx].classList.add('active');
+  const panel=card.querySelector('#'+cardId+'-'+tabName);
+  if(panel) panel.classList.add('active');
+}
+
+// ── FIRE REQUEST ──────────────────────────────────────────────────────────────
+async function run(id,basePath,paramMap){
+  const btn=event.target.closest('.run-btn');
+  const respDiv=document.getElementById('resp-'+id);
+  const card=btn.closest('.ep-card');
+  let url=basePath;
+  const params=new URLSearchParams();
+  for(const[key,inputId] of Object.entries(paramMap)){
+    const el=document.getElementById(inputId);
+    if(el&&el.value!=='') params.set(key,el.value);
+  }
+  const qs=params.toString();
+  if(qs&&!url.includes('?')) url+='?'+qs;
+  else if(qs) url+='&'+qs;
+  await fireRequest(id,url,btn,respDiv,card);
+}
+
+async function runPath(id,basePath,inputId){
+  const btn=event.target.closest('.run-btn');
+  const respDiv=document.getElementById('resp-'+id);
+  const card=btn.closest('.ep-card');
+  const val=document.getElementById(inputId)?.value?.trim();
+  if(!val){respDiv.innerHTML='<div class="resp-placeholder" style="color:var(--err)">Please enter a node ID first</div>';return;}
+  await fireRequest(id,basePath+encodeURIComponent(val),btn,respDiv,card);
+}
+
+async function runHistoryDemo(){
+  const btn=event.target.closest('.run-btn');
+  const respDiv=document.getElementById('resp-history');
+  const card=btn.closest('.ep-card');
+  const nodeId=document.getElementById('p-history-node')?.value?.trim();
+  if(!nodeId){respDiv.innerHTML='<div class="resp-placeholder" style="color:var(--err)">Please enter a node ID first</div>';return;}
+  const table=document.getElementById('p-history-table')?.value||'positions';
+  const limit=document.getElementById('p-history-limit')?.value||10;
+  const url=`/api/nodes/${encodeURIComponent(nodeId)}/history/${table}?limit=${limit}`;
+  await fireRequest('history',url,btn,respDiv,card);
+}
+
+async function fireRequest(id,url,btn,respDiv,card){
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin">⟳</span> Running…';
+  card.classList.remove('ok','err');
+  card.classList.add('running');
+  const t0=Date.now();
+  try{
+    const res=await fetch(url,{credentials:'include'});
+    const ms=Date.now()-t0;
+    let data;
+    try{data=await res.json();}catch{data=await res.text();}
+    const ok=res.status>=200&&res.status<300;
+    card.classList.remove('running');
+    card.classList.add(ok?'ok':'err');
+    respDiv.innerHTML=`
+      <div class="resp-meta">
+        <span class="resp-status ${ok?'s-ok':'s-err'}">${res.status} ${res.statusText}</span>
+        <span class="resp-time">${ms}ms · ${url}</span>
+      </div>
+      <div class="resp-out">${highlight(typeof data==='object'?JSON.stringify(data,null,2):String(data))}</div>`;
+  }catch(err){
+    card.classList.remove('running');
+    card.classList.add('err');
+    respDiv.innerHTML=`
+      <div class="resp-meta"><span class="resp-status s-err">NETWORK ERROR</span><span class="resp-time">${Date.now()-t0}ms</span></div>
+      <div class="resp-out" style="color:var(--err)">${err.message}</div>`;
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML='▶ Run Request';
+    setTimeout(()=>card.classList.remove('ok','err'),4000);
+  }
+}
+
+// ── WATCHDOG CHECK ────────────────────────────────────────────────────────────
+async function checkWatchdog(){
+  const btn=event.target.closest('.run-btn');
+  const respDiv=document.getElementById('resp-watchdog');
+  const card=btn.closest('.ep-card');
+  await fireRequest('watchdog','/api/plugins/hello_mesh/info',btn,respDiv,card);
+  // update badge
+  try{
+    const r=await fetch('/api/plugins/hello_mesh/info');
+    const d=await r.json();
+    const badge=document.getElementById('wd-badge-el');
+    if(!badge)return;
+    const alive=d.watchdog_enabled;
+    const ping=d.last_watchdog_ping;
+    const age=ping?Math.round(Date.now()/1000-ping):null;
+    badge.className=alive&&age!==null&&age<120?'wd-badge':'wd-badge dead';
+    badge.textContent=alive
+      ?(age!==null?`🐕 Watchdog OK — last ping ${age}s ago`:'🐕 Watchdog enabled, no ping yet')
+      :'⚠️  Watchdog not enabled for this plugin';
+  }catch{}
+}
+
+// ── LOG DEMO ──────────────────────────────────────────────────────────────────
+async function runLogDemo(){
+  const btn=event.target.closest('.run-btn');
+  const respDivId=btn.closest('.ep-card').id==='card-pluglogs'?'resp-pluglogs':'resp-logging';
+  const respDiv=document.getElementById(respDivId);
+  const card=btn.closest('.ep-card');
+  btn.disabled=true;
+  btn.innerHTML='<span class="spin">⟳</span> Emitting…';
+  card.classList.add('running');
+  try{
+    await fetch('/api/plugins/hello_mesh/log_test');
+    await new Promise(r=>setTimeout(r,220));
+    const r=await fetch('/api/system/plugins/hello_mesh/logs');
+    const data=await r.json();
+    card.classList.remove('running');
+    card.classList.add('ok');
+    const lines=(data.logs||[]).map(l=>{
+      const ts=new Date(l.t*1000).toLocaleTimeString();
+      const lvlColor={INFO:'var(--ok)',DEBUG:'var(--acc)',WARNING:'var(--warn)',ERROR:'var(--err)'}[l.lvl]||'var(--txt2)';
+      return `[${ts}] <span style="color:${lvlColor}">${l.lvl.padEnd(8)}</span> ${l.msg}`;
+    }).join('\n');
+    respDiv.innerHTML=`
+      <div class="resp-meta"><span class="resp-status s-ok">200 OK</span><span class="resp-time">${data.count||0} lines · ring buffer max ${data.max||250}</span></div>
+      <div class="resp-out">${lines||'(no logs yet)'}</div>`;
+  }catch(e){
+    card.classList.remove('running');
+    card.classList.add('err');
+    respDiv.innerHTML=`<div class="resp-out" style="color:var(--err)">${e.message}</div>`;
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML='▶ Emit Logs &amp; Fetch Buffer';
+    setTimeout(()=>card.classList.remove('ok','err'),4000);
+  }
+}
+
+// ── SSE LIVE ──────────────────────────────────────────────────────────────────
+let _es=null,_sseLines=[];
+function toggleSSE(){
+  const btn=document.getElementById('sse-connect-btn');
+  const out=document.getElementById('sse-live');
+  if(_es){
+    _es.close();_es=null;
+    btn.textContent='▶ Connect to SSE';
+    out.textContent='Disconnected.';
+    return;
+  }
+  out.textContent='⏳ Connecting…';
+  _es=new EventSource('/sse');
+  btn.textContent='■ Disconnect';
+  const push=(label,data)=>{
+    _sseLines.push(`[${new Date().toLocaleTimeString()}] ${label}: ${
+      typeof data==='string'?data.slice(0,120):JSON.stringify(data).slice(0,120)
+    }`);
+    if(_sseLines.length>40) _sseLines.shift();
+    out.textContent=_sseLines.join('\n');
+    out.scrollTop=out.scrollHeight;
+  };
+  ['connection_status','nodes','packet','node_update','activity','stats'].forEach(evt=>{
+    _es.addEventListener(evt,(e)=>{
+      try{push(evt,JSON.parse(e.data));}catch{push(evt,e.data);}
+    });
+  });
+  _es.onerror=()=>push('error','SSE disconnected / reconnecting…');
+}
+
+// ── JSON HIGHLIGHT ────────────────────────────────────────────────────────────
+function highlight(str){
+  return str
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,m=>{
+      let c='jn';
+      if(/^"/.test(m)) c=/:$/.test(m)?'jk':'js';
+      else if(/true|false/.test(m)) c='jb';
+      else if(/null/.test(m)) c='jnu';
+      return `<span class="${c}">${m}</span>`;
+    });
+}
+
+// ── COPY CODE ─────────────────────────────────────────────────────────────────
+function copyPre(preId){
+  const pre=document.getElementById(preId);
+  if(!pre) return;
+  navigator.clipboard.writeText(pre.innerText||pre.textContent).then(()=>{
+    const btn=event.target;
+    btn.textContent='Copied!';btn.style.color='var(--ok)';
+    setTimeout(()=>{btn.textContent='Copy';btn.style.color='';},1600);
+  });
+}
+
+// ── SIDEBAR NAV ───────────────────────────────────────────────────────────────
+const sectionToCard={
+  's-intro':null,'s-structure':'structure','s-manifest':'manifest',
+  's-config':'config','s-lifecycle':'lifecycle','s-watchdog':'watchdog',
+  's-logging':'logging','s-status':'status','s-nodes':'nodes',
+  's-packets':'packets','s-messages':'messages','s-mesh':'mesh',
+  's-network':'neighbors','s-local':'local','s-history':'history',
+  's-metrics':'metrics','s-system':'system','s-pluginlogs':'pluglogs',
+  's-monitor':'monitor','s-sse':'sse'
+};
+
+function jumpTo(id){
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    n.classList.remove('active');
+    const oc=n.getAttribute('onclick')||'';
+    if(oc.includes("'"+id+"'")) n.classList.add('active');
+  });
+  const cardId=sectionToCard[id];
+  if(cardId){
+    const card=document.getElementById('card-'+cardId);
+    if(card){
+      card.classList.add('open');
+      setTimeout(()=>card.scrollIntoView({behavior:'smooth',block:'start'}),50);
+      return;
+    }
+  }
+  const el=document.getElementById(id);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── STATUS BAR ────────────────────────────────────────────────────────────────
+async function updateStatusBar(){
+  try{
+    const r=await fetch('/api/status');
+    const d=await r.json();
+    const ready=d.is_system_ready;
+    document.getElementById('status-dot').style.background=ready?'var(--ok)':'var(--warn)';
+    document.getElementById('status-dot').classList.toggle('pulse',!ready);
+    document.getElementById('status-text').textContent=`Radio: ${d.connection_status||'unknown'}`;
+  }catch{
+    document.getElementById('status-text').textContent='Radio: unreachable';
+    document.getElementById('status-dot').style.background='var(--err)';
+  }
+}
+
+updateStatusBar();
+setInterval(updateStatusBar,10000);
+</script>
+</body>
+</html>

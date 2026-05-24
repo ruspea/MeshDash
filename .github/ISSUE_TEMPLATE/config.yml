@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://meshdash.co.uk/docs/
+    about: Check the docs before opening an issue
+  - name: Plugin Store
+    url: https://meshdash.co.uk/?p=plugins
+    about: Browse community plugins

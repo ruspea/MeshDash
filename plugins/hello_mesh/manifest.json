@@ -1,0 +1,20 @@
+{
+  "id": "hello_mesh",
+  "name": "Hello Mesh",
+  "version": "2.0.2",
+  "author": "MeshDash",
+  "description": "Interactive API explorer & plugin tutorial. Learn how to build MeshDash plugins by running live examples.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/hello_mesh",
+  "static_prefix": "/static/plugins/hello_mesh",
+  "bridge": null,
+  "permissions": [],
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Hello Mesh",
+      "icon": "fa-graduation-cap",
+      "href": "/plugin/hello_mesh/index.html"
+    }
+  ]
+}

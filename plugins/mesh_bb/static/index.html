@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mesh BB v1.0</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg,var(--bg));color:var(--txt,var(--txt));font-family:var(--mono,monospace);font-size:12px}
+.shell{height:100%;display:flex;flex-direction:column;overflow:hidden}
+.hdr{flex-shrink:0;padding:12px 18px;background:var(--bg2);border-bottom:1px solid var(--acc);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-ico{font-size:22px;color:var(--acc);text-shadow:0 0 10px rgba(0,200,245,.5)}
+.hdr-title{font-size:14px;font-weight:900;letter-spacing:3px}
+.hdr-sub{font-size:11px;color:var(--acc);letter-spacing:2px;opacity:.8}
+.hdr-right{display:flex;gap:14px;align-items:center}
+.kpi{text-align:center}
+.kpi-val{font-size:18px;font-weight:900;color:var(--acc);line-height:1}
+.kpi-lbl{font-size:10px;color:var(--txt3,var(--txt3));letter-spacing:1px;text-transform:uppercase}
+.nav-btn{background:rgba(0,200,245,.1);border:1px solid rgba(0,200,245,.35);color:var(--acc);padding:5px 11px;border-radius:4px;font-family:var(--mono);font-size:9px;font-weight:bold;cursor:pointer;letter-spacing:.5px;transition:all .15s}
+.nav-btn:hover,.nav-btn.active{background:var(--acc);color:#000}
+.main{flex:1;display:flex;overflow:hidden}
+/* Sidebar */
+.sidebar{width:240px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--bd2);display:flex;flex-direction:column;overflow:hidden}
+.sb-head{padding:8px 12px;border-bottom:1px solid var(--bd2);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.sb-title{font-size:11px;letter-spacing:2px;color:var(--txt3);text-transform:uppercase}
+.sb-list{flex:1;overflow-y:auto}
+.room-item{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:background .12s;display:flex;align-items:center;gap:9px}
+.room-item:hover{background:rgba(0,200,245,.07)}
+.room-item.active{background:rgba(0,200,245,.12);border-left:3px solid var(--acc)}
+.room-item.locked{opacity:.5}
+.room-ico{width:26px;height:26px;border-radius:5px;background:rgba(0,200,245,.12);border:1px solid rgba(0,200,245,.25);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--acc);flex-shrink:0}
+.room-info{flex:1;min-width:0}
+.room-name{font-size:10px;font-weight:bold;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.room-meta{font-size:10px;color:var(--txt3);margin-top:2px}
+.room-badge{background:rgba(0,200,245,.2);color:var(--acc);padding:1px 5px;border-radius:8px;font-size:10px;font-weight:bold}
+.sb-footer{padding:8px 12px;border-top:1px solid var(--bd2);font-size:10px;color:var(--txt3);line-height:1.9;flex-shrink:0}
+/* Content */
+.content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+/* Global tabs (top-level pages) */
+.gtab-bar{display:flex;border-bottom:1px solid var(--bd2);background:var(--bg2);flex-shrink:0}
+.gtab{padding:9px 14px;font-size:9px;letter-spacing:.5px;cursor:pointer;color:var(--txt3);border-bottom:2px solid transparent;transition:all .12s;white-space:nowrap}
+.gtab:hover{color:var(--acc)}
+.gtab.active{color:var(--acc);border-bottom-color:var(--acc)}
+/* Panels */
+.gpage{flex:1;overflow-y:auto;padding:14px;display:none}
+.gpage.active{display:block}
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--bd2);border-radius:6px;margin-bottom:12px;overflow:hidden}
+.card-head{padding:9px 13px;border-bottom:1px solid var(--bd2);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.02)}
+.card-title{font-size:9px;letter-spacing:1px;font-weight:bold;text-transform:uppercase}
+.card-body{padding:13px}
+/* Room detail */
+.room-hdr{padding:12px;background:var(--bg2);border-bottom:1px solid var(--bd2);flex-shrink:0}
+.room-hdr-name{font-size:14px;font-weight:900;letter-spacing:1px}
+.room-hdr-desc{font-size:9px;color:var(--txt3);margin-top:2px;font-family:var(--sans)}
+.room-hdr-meta{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+.meta-chip{font-size:11px;color:var(--txt3);background:var(--bg);padding:2px 7px;border-radius:3px;border:1px solid var(--bd2)}
+/* Inner tabs */
+.tab-bar{display:flex;border-bottom:1px solid var(--bd2);background:var(--bg2);flex-shrink:0;overflow-x:auto}
+.tab{padding:8px 13px;font-size:9px;letter-spacing:.5px;cursor:pointer;color:var(--txt3);border-bottom:2px solid transparent;white-space:nowrap;flex-shrink:0}
+.tab:hover{color:var(--txt)}
+.tab.active{color:var(--acc);border-bottom-color:var(--acc)}
+.panel{flex:1;overflow-y:auto;padding:13px;display:none}
+.panel.active{display:block}
+/* Posts */
+.post-item{padding:10px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:10px}
+.post-seq{width:32px;height:32px;border-radius:5px;background:rgba(0,200,245,.1);border:1px solid rgba(0,200,245,.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:var(--acc);flex-shrink:0}
+.post-seq.pinned{background:rgba(255,200,0,.1);border-color:rgba(255,200,0,.4);color:var(--warn)}
+.post-body-wrap{flex:1;min-width:0}
+.post-author{font-size:9px;color:var(--acc);font-weight:bold}
+.post-node{font-size:10px;color:var(--txt3);margin-left:5px}
+.post-ts{font-size:10px;color:var(--txt3);float:right}
+.post-body{font-size:11px;color:var(--txt2);margin-top:3px;line-height:1.5;white-space:pre-wrap;word-break:break-word;font-family:var(--sans)}
+.post-reads{font-size:10px;color:var(--txt3);margin-top:3px}
+.post-actions{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+/* Conversations */
+.conv-item{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);display:grid;grid-template-columns:65px 30px 90px 1fr auto;gap:7px;align-items:start;font-size:9px}
+.conv-ts{color:var(--txt3);font-size:11px}
+.conv-dir-in{color:var(--ok);font-weight:bold}
+.conv-dir-out{color:var(--acc)}
+.conv-node{color:var(--acc,var(--acc));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv-text{color:var(--txt2);word-break:break-all;font-family:var(--sans)}
+.conv-badge{font-size:10px;padding:1px 5px;border-radius:8px;font-weight:bold;white-space:nowrap}
+.cb-dm{background:rgba(0,200,245,.1);color:var(--acc);border:1px solid rgba(0,200,245,.3)}
+.cb-ch{background:rgba(255,168,38,.1);color:var(--warn);border:1px solid rgba(255,168,38,.3)}
+.cb-block{background:rgba(255,48,80,.1);color:var(--err);border:1px solid rgba(255,48,80,.3)}
+/* Channel config */
+.ch-row{display:grid;grid-template-columns:60px 1fr 1fr 1fr 80px;gap:10px;align-items:center;padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);font-size:9px}
+.ch-idx{font-family:var(--mono);font-weight:bold;color:var(--acc)}
+/* Blocks */
+.block-item{padding:8px 12px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:10px;font-size:9px}
+/* Schedules */
+.sched-item{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:flex-start;gap:10px}
+.sched-info{flex:1;min-width:0}
+.sched-label{font-size:10px;font-weight:bold;color:var(--txt)}
+.sched-meta{font-size:11px;color:var(--txt3);margin-top:2px;font-family:var(--sans)}
+.sched-next{font-size:11px;color:var(--acc);margin-top:2px}
+/* Help */
+.help-box{background:rgba(0,200,245,.05);border:1px solid rgba(0,200,245,.2);border-left:3px solid var(--acc);border-radius:4px;padding:9px 12px;margin-bottom:12px;font-size:9px;color:var(--txt2);line-height:1.7;font-family:var(--sans)}
+.help-box strong{color:var(--acc);font-family:var(--mono)}
+.help-tip{background:rgba(0,200,245,.05);border:1px solid rgba(0,200,245,.15);border-radius:4px;padding:7px 11px;font-size:11px;color:var(--txt3);font-family:var(--sans);line-height:1.6;margin-bottom:9px;display:flex;gap:7px}
+.help-tip i{color:var(--acc);flex-shrink:0;margin-top:1px}
+/* Forms */
+.form-row{display:flex;gap:9px;margin-bottom:9px;flex-wrap:wrap}
+.form-group{display:flex;flex-direction:column;gap:3px;flex:1;min-width:120px}
+.form-label{font-size:11px;color:var(--txt3);letter-spacing:1px;text-transform:uppercase}
+.form-hint{font-size:10px;color:var(--txt3);font-family:var(--sans);line-height:1.4;margin-top:1px}
+.form-input,.form-select,.form-textarea{background:var(--bg);border:1px solid var(--bd2);color:var(--txt);padding:7px 9px;border-radius:4px;font-family:var(--mono);font-size:10px;width:100%}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--acc)}
+.form-textarea{resize:vertical;min-height:70px;font-family:var(--sans)}
+.form-check{display:flex;align-items:center;gap:7px;font-size:9px;color:var(--txt2);cursor:pointer}
+.form-check input{accent-color:var(--acc)}
+/* Buttons */
+.btn{padding:6px 12px;border-radius:4px;font-family:var(--mono);font-size:9px;font-weight:bold;cursor:pointer;transition:all .15s;border:1px solid;white-space:nowrap}
+.btn-primary{background:rgba(0,200,245,.15);border-color:var(--acc);color:var(--acc)}
+.btn-primary:hover{background:var(--acc);color:#000}
+.btn-danger{background:transparent;border-color:var(--err);color:var(--err)}
+.btn-danger:hover{background:rgba(255,48,80,.15)}
+.btn-ghost{background:transparent;border-color:var(--bd2);color:var(--txt3)}
+.btn-ghost:hover{border-color:var(--txt3);color:var(--txt)}
+.btn-success{background:rgba(0,232,122,.1);border-color:var(--ok);color:var(--ok)}
+.btn-success:hover{background:var(--ok);color:#000}
+.btn-sm{padding:3px 9px;font-size:11px}
+/* Badges */
+.badge{padding:2px 6px;border-radius:8px;font-size:10px;font-weight:bold}
+.b-live{background:rgba(0,232,122,.1);color:var(--ok);border:1px solid rgba(0,232,122,.3)}
+.b-locked{background:rgba(255,48,80,.1);color:var(--err);border:1px solid rgba(255,48,80,.3)}
+/* Share */
+.share-url{background:var(--bg);border:1px solid var(--bd2);padding:8px 12px;border-radius:4px;font-family:var(--mono);font-size:9px;color:var(--acc);word-break:break-all;margin-top:8px}
+/* Toggle */
+.tog{position:relative;width:34px;height:18px;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0;position:absolute}
+.tog-sl{position:absolute;inset:0;background:var(--bd2);border-radius:9px;cursor:pointer;transition:background .2s}
+.tog-sl::after{content:'';position:absolute;width:12px;height:12px;left:3px;top:3px;background:var(--txt3);border-radius:50%;transition:all .2s}
+.tog input:checked+.tog-sl{background:var(--acc)}
+.tog input:checked+.tog-sl::after{transform:translateX(16px);background:#000}
+/* Toast */
+#dr-toast{position:fixed;bottom:18px;right:18px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast-item{padding:9px 14px;border-radius:5px;font-size:10px;font-weight:bold;animation:toast-in .18s ease;pointer-events:none}
+.toast-ok{background:var(--ok);color:#000}.toast-err{background:var(--err);color:var(--txt)}.toast-info{background:var(--acc);color:#000}
+@keyframes toast-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.empty{text-align:center;padding:30px 16px;color:var(--txt3);font-size:9px}
+.empty i{font-size:24px;margin-bottom:8px;display:block;color:var(--acc);opacity:.4}
+.scrollable{overflow-y:auto;flex:1}
+@media(max-width:680px){.main{flex-direction:column}.sidebar{width:100%;height:180px;border-right:none;border-bottom:1px solid var(--bd2)}}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="hdr">
+  <div class="hdr-left">
+    <i class="fas fa-broadcast-tower hdr-ico"></i>
+    <div>
+      <div class="hdr-title">MESH BB</div>
+      <div class="hdr-sub">MESH BB · v1.0</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="kpi"><div class="kpi-val" id="kpi-rooms">0</div><div class="kpi-lbl">Rooms</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-posts">0</div><div class="kpi-lbl">Posts</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-subs">0</div><div class="kpi-lbl">Subs</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-nodes">0</div><div class="kpi-lbl">Nodes</div></div>
+    <div class="kpi"><div class="kpi-val" id="kpi-cmds">0</div><div class="kpi-lbl">Cmds/24h</div></div>
+    <button class="nav-btn" id="gnav-bb" onclick="showGPage('bb')"><i class="fas fa-bullhorn"></i> Boards</button>
+    <button class="nav-btn" id="gnav-convs" onclick="showGPage('convs')"><i class="fas fa-comments"></i> Conversations</button>
+    <button class="nav-btn" id="gnav-channels" onclick="showGPage('channels')"><i class="fas fa-broadcast-tower"></i> Channels</button>
+    <button class="nav-btn" id="gnav-blocks" onclick="showGPage('blocks')"><i class="fas fa-ban"></i> Blocks</button>
+    <button class="nav-btn" id="gnav-schedules" onclick="showGPage('schedules')"><i class="fas fa-clock"></i> Schedules</button>
+    <button class="nav-btn" id="gnav-share" onclick="showGPage('share')"><i class="fas fa-share-alt"></i> Share</button>
+  </div>
+</div>
+<div class="main">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sb-head">
+      <span class="sb-title">Bulletin Boards</span>
+      <button class="btn btn-primary btn-sm" onclick="showCreateRoom()"><i class="fas fa-plus"></i> New</button>
+    </div>
+    <div class="sb-list" id="room-list">
+      <div class="empty"><i class="fas fa-inbox"></i>No rooms yet</div>
+    </div>
+    <div class="sb-footer">
+      <div style="color:var(--acc);letter-spacing:1px;margin-bottom:3px;">NODE COMMANDS</div>
+      <div><span style="color:var(--acc);">bb help</span> — all cmds</div>
+      <div><span style="color:var(--acc);">bb list</span> — rooms</div>
+      <div><span style="color:var(--acc);">bb popular</span> — top rooms</div>
+      <div><span style="color:var(--acc);">bb.ROOM sub</span> — subscribe</div>
+      <div><span style="color:var(--acc);">bb.ROOM list 2</span> — page 2</div>
+    </div>
+  </div>
+  <!-- Content area — global pages -->
+  <div class="content">
+    <!-- BB page -->
+    <div class="gpage active" id="gpage-bb" style="padding:0;display:flex;flex-direction:column;">
+      <div id="content-area" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:20px;">
+          <i class="fas fa-broadcast-tower" style="font-size:36px;color:var(--acc);opacity:.18;"></i>
+          <div style="font-size:10px;letter-spacing:2px;color:var(--txt3);">SELECT A BULLETIN BOARD</div>
+          <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:6px;padding:14px;max-width:320px;width:100%;margin-top:8px;">
+            <div style="font-size:11px;color:var(--acc);letter-spacing:1px;margin-bottom:8px;"><i class="fas fa-satellite-dish"></i> DM COMMAND REFERENCE</div>
+            <div style="font-size:9px;color:var(--txt2);line-height:2.1;font-family:var(--mono);">
+              <div><span style="color:var(--acc);">bb help</span> <span style="color:var(--txt3);font-size:11px;">— all commands</span></div>
+              <div><span style="color:var(--acc);">bb list</span> <span style="color:var(--txt3);font-size:11px;">— all rooms</span></div>
+              <div><span style="color:var(--acc);">bb popular</span> <span style="color:var(--txt3);font-size:11px;">— top rooms</span></div>
+              <div><span style="color:var(--acc);">bb.ROOM list</span> <span style="color:var(--txt3);font-size:11px;">— posts (pg 1)</span></div>
+              <div><span style="color:var(--acc);">bb.ROOM list 2</span> <span style="color:var(--txt3);font-size:11px;">— page 2</span></div>
+              <div><span style="color:var(--acc);">bb.ROOM read #</span> <span style="color:var(--txt3);font-size:11px;">— read post</span></div>
+              <div><span style="color:var(--acc);">bb.ROOM post MSG</span> <span style="color:var(--txt3);font-size:11px;">— new post</span></div>
+              <div><span style="color:var(--acc);">bb.ROOM sub</span> <span style="color:var(--txt3);font-size:11px;">— subscribe</span></div>
+              <div><span style="color:var(--acc);">bb.ROOM popular</span> <span style="color:var(--txt3);font-size:11px;">— top posts</span></div>
+              <div><span style="color:var(--acc);">bb status</span> <span style="color:var(--txt3);font-size:11px;">— my subs</span></div>
+            </div>
+            <div style="margin-top:8px;padding-top:7px;border-top:1px solid var(--bd2);font-size:10px;color:var(--txt3);font-family:var(--sans);line-height:1.5;">
+              Send as DMs to your local node. Replies go back to you as DMs (or in-channel if configured). Long responses split automatically.<br><br><a href="https://meshdash.co.uk" target="_blank" style="color:var(--txt3);font-size:11px;text-decoration:none;" onmouseover="this.style.color='var(--acc)'" onmouseout="this.style.color='var(--txt3)'">⊙ Powered by MeshDash</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conversations page -->
+    <div class="gpage" id="gpage-convs">
+      <div class="help-box">
+        <strong>Conversation Trace</strong> — full inbound/outbound log for every BB interaction. Filter by node, room, DM vs channel. Green = inbound command, Orange = outbound reply. Click a node to filter. Conversations are grouped by a shared ID showing the full request-response flow.
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title"><i class="fas fa-comments"></i> All Conversations</span>
+          <div style="display:flex;gap:7px;">
+            <input class="form-input" id="conv-filter-node" placeholder="Filter by node..." style="width:140px;font-size:9px;padding:4px 8px;" oninput="loadConversations()">
+            <select class="form-select" id="conv-filter-dm" style="width:110px;font-size:9px;padding:4px;" onchange="loadConversations()">
+              <option value="">All types</option>
+              <option value="1">DM only</option>
+              <option value="0">Channel only</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="loadConversations()"><i class="fas fa-refresh"></i></button>
+          </div>
+        </div>
+        <div id="conv-list" style="max-height:60vh;overflow-y:auto;"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title"><i class="fas fa-users"></i> Active Nodes</span></div>
+        <div id="conv-nodes" style="max-height:30vh;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <!-- Channels page -->
+    <div class="gpage" id="gpage-channels">
+      <div class="help-box">
+        <strong>Channel Permissions</strong> — configure how the BB responds on each of your radio's 8 channels.
+        <strong>Active</strong>: BB processes commands sent on this channel.
+        <strong>Reply in Channel</strong>: replies are sent publicly to the channel with @NodeName prefix; if off, replies go as DMs.
+        <strong>Announce New Posts</strong>: new posts are broadcast to this channel when a room has this channel configured.
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title"><i class="fas fa-broadcast-tower"></i> Channel Configuration</span></div>
+        <div style="padding:8px 12px;border-bottom:1px solid var(--bd2);display:grid;grid-template-columns:60px 1fr 1fr 1fr 80px;gap:10px;font-size:10px;color:var(--txt3);letter-spacing:1px;text-transform:uppercase;">
+          <div>Channel</div><div>Active</div><div>Reply in Channel</div><div>Announce Posts</div><div>Label</div>
+        </div>
+        <div id="channel-list"></div>
+      </div>
+    </div>
+
+    <!-- Blocks page -->
+    <div class="gpage" id="gpage-blocks">
+      <div class="help-box">
+        <strong>Node Blocks</strong> — block specific nodes from using the BB.
+        <strong>DM block</strong>: node cannot interact via Direct Message.
+        <strong>Channel block</strong>: node's channel commands are silently ignored.
+        <strong>All block</strong>: node cannot interact via any means. Blocked commands are logged but receive no response.
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title"><i class="fas fa-ban"></i> Blocked Nodes (<span id="block-count">0</span>)</span>
+          <button class="btn btn-danger btn-sm" onclick="showAddBlock()"><i class="fas fa-plus"></i> Add Block</button>
+        </div>
+        <div id="block-list"><div class="empty"><i class="fas fa-check-circle"></i>No nodes blocked</div></div>
+      </div>
+    </div>
+
+    <!-- Schedules page -->
+    <div class="gpage" id="gpage-schedules">
+      <div class="help-box">
+        <strong>Auto-Announce Schedules</strong> — broadcast messages to any channel on a schedule. Useful for net reminders, status digests, and daily updates.
+        Schedule types: <strong>daily HH:MM</strong>, <strong>weekly DOW HH:MM</strong> (mon/tue/wed/thu/fri/sat/sun), <strong>interval N</strong> (every N minutes).
+        Templates: <strong>{room}</strong> room ID, <strong>{room_name}</strong> full name, <strong>{post_count}</strong> live posts, <strong>{date}</strong>, <strong>{time}</strong>, <strong>{day}</strong>.
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-primary" onclick="showCreateSchedule()"><i class="fas fa-plus"></i> New Schedule</button>
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title"><i class="fas fa-clock"></i> Schedules (<span id="sched-count">0</span>)</span></div>
+        <div id="sched-list"><div class="empty"><i class="fas fa-clock"></i>No schedules yet</div></div>
+      </div>
+    </div>
+
+    <!-- Share page -->
+    <div class="gpage" id="gpage-share">
+      <div class="help-box">
+        <strong>Public Share</strong> — generate a read-only URL anyone can open in a browser to view your bulletin boards. No login required. Shows all unlocked rooms and their posts. Auto-refreshes every 30s. Use for public information boards during incidents.
+      </div>
+      <div class="card">
+        <div class="card-head"><span class="card-title"><i class="fas fa-share-alt"></i> Public Bulletin Board Viewer</span></div>
+        <div class="card-body">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+            <label class="tog"><input type="checkbox" id="share-enabled" onchange="toggleShare()"><span class="tog-sl"></span></label>
+            <div>
+              <div style="font-size:10px;font-weight:bold;" id="share-status-txt">Public sharing disabled</div>
+              <div style="font-size:11px;color:var(--txt3);margin-top:2px;">When enabled, anyone with the link can view all unlocked bulletin boards in a browser.</div>
+            </div>
+          </div>
+          <div id="share-url-block" style="display:none;">
+            <div style="font-size:11px;color:var(--txt3);margin-bottom:4px;">SHARE LINK (read-only, no login required):</div>
+            <div class="share-url" id="share-url-display"></div>
+            <div style="display:flex;gap:8px;margin-top:10px;">
+              <button class="btn btn-ghost btn-sm" onclick="copyShareUrl()"><i class="fas fa-copy"></i> Copy Link</button>
+              <button class="btn btn-ghost btn-sm" onclick="openShareUrl()"><i class="fas fa-external-link-alt"></i> Open</button>
+              <button class="btn btn-danger btn-sm" onclick="regenerateToken()" title="Invalidates the old link"><i class="fas fa-sync-alt"></i> Regenerate Link</button>
+            </div>
+            <div style="margin-top:12px;font-size:11px;color:var(--txt3);font-family:var(--sans);line-height:1.6;">
+              Regenerating the link invalidates the old URL immediately. Anyone with the old link will see a 403 error.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<div id="dr-toast"></div>
+<div id="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:600;align-items:center;justify-content:center;" onclick="if(event.target===this)closeModal()">
+  <div style="background:var(--bg2);border:1px solid var(--acc);border-radius:7px;padding:18px;width:480px;max-width:95vw;box-shadow:0 0 40px rgba(0,200,245,.2);max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-size:11px;font-weight:bold;letter-spacing:2px;color:var(--acc);" id="modal-title"></div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal()"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const API='/api/plugins/mesh_bb';
+let _rooms=[],_currentRoom=null,_currentTab='posts',_currentGPage='bb';
+let _shareToken='', _shareEnabled=false;
+
+function toast(msg,type='info'){const el=document.createElement('div');el.className=`toast-item toast-${type}`;el.textContent=msg;document.getElementById('dr-toast').appendChild(el);setTimeout(()=>el.remove(),3500);}
+function openModal(){document.getElementById('modal-overlay').style.display='flex';}
+function closeModal(){document.getElementById('modal-overlay').style.display='none';}
+function escHtml(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmtTime(ts){return new Date(ts*1000).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+function fmtTimeAgo(ts){const s=Math.floor(Date.now()/1000-ts);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+function fmtNextFire(ts){if(!ts||ts===0)return 'not set';const d=new Date(ts*1000);return d.toLocaleString([],{weekday:'short',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+
+// ── Global page nav ────────────────────────────────────────
+function showGPage(id){
+  _currentGPage=id;
+  document.querySelectorAll('.gpage').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('gpage-'+id)?.classList.add('active');
+  document.getElementById('gnav-'+id)?.classList.add('active');
+  if(id==='convs')loadConversations();
+  if(id==='channels')loadChannels();
+  if(id==='blocks')loadBlocks();
+  if(id==='schedules')loadSchedules();
+  if(id==='share')loadShare();
+}
+
+// ── Stats ──────────────────────────────────────────────────
+async function loadStats(){
+  try{const r=await fetch(API+'/stats');if(!r.ok)return;const d=await r.json();
+    document.getElementById('kpi-rooms').textContent=d.total_rooms;
+    document.getElementById('kpi-posts').textContent=d.total_posts;
+    document.getElementById('kpi-subs').textContent=d.total_subscriptions;
+    document.getElementById('kpi-nodes').textContent=d.active_nodes;
+    document.getElementById('kpi-cmds').textContent=d.commands_24h;
+  }catch(e){}
+}
+
+// ── Rooms sidebar ──────────────────────────────────────────
+async function loadRooms(){
+  try{const r=await fetch(API+'/rooms');if(!r.ok)return;const d=await r.json();_rooms=d.rooms||[];renderRoomList();}catch(e){}
+}
+function renderRoomList(){
+  const el=document.getElementById('room-list');
+  if(!_rooms.length){el.innerHTML='<div class="empty"><i class="fas fa-inbox"></i>No rooms<div style="font-size:11px;margin-top:3px;">Click + New</div></div>';return;}
+  el.innerHTML=_rooms.map(r=>`<div class="room-item${r.locked?' locked':''}${_currentRoom&&_currentRoom.id===r.id?' active':''}" onclick="selectRoom('${escHtml(r.id)}');showGPage('bb')">
+    <div class="room-ico"><i class="fas fa-${r.locked?'lock':'bullhorn'}"></i></div>
+    <div class="room-info">
+      <div class="room-name">${escHtml(r.name)}</div>
+      <div class="room-meta"><span class="room-badge">${r.post_count||0}</span> ch${r.channel_index} · ${r.access_count||0} acc${r.locked?' 🔒':''}${r.broadcast_new?' 📡':''}</div>
+    </div>
+  </div>`).join('');
+}
+async function selectRoom(id){
+  _currentRoom=_rooms.find(r=>r.id===id);if(!_currentRoom)return;
+  _currentTab='posts';renderRoomList();renderRoomContent();await loadRoomPosts();
+}
+
+function renderRoomContent(){
+  const r=_currentRoom;
+  const ca=document.getElementById('content-area');
+  ca.innerHTML=`
+    <div class="room-hdr">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <div class="room-hdr-name">${escHtml(r.name)}</div>
+        ${r.locked?'<span class="badge b-locked">LOCKED</span>':'<span class="badge b-live">LIVE</span>'}
+        ${r.broadcast_new?`<span class="badge" style="background:rgba(0,200,245,.1);color:var(--acc);border:1px solid rgba(0,200,245,.3);">📡 ch${r.channel_index}</span>`:''}
+      </div>
+      ${r.description?`<div class="room-hdr-desc">${escHtml(r.description)}</div>`:''}
+      <div class="room-hdr-meta">
+        <span class="meta-chip" title="Field nodes use this DM prefix"><i class="fas fa-hashtag"></i> bb.${r.id}</span>
+        <span class="meta-chip"><i class="fas fa-file-alt"></i> ${r.post_count||0} posts</span>
+        <span class="meta-chip"><i class="fas fa-eye"></i> ${r.access_count||0} accesses</span>
+        <span class="meta-chip"><i class="fas fa-broadcast-tower"></i> ch${r.channel_index}</span>
+        ${r.ttl_hours>0?`<span class="meta-chip"><i class="fas fa-clock"></i> ${r.ttl_hours}h TTL</span>`:''}
+        ${r.max_posts>0?`<span class="meta-chip"><i class="fas fa-layer-group"></i> max ${r.max_posts}</span>`:''}
+      </div>
+    </div>
+    <div class="tab-bar">
+      <div class="tab active" id="tab-posts" onclick="switchTab('posts')"><i class="fas fa-file-alt"></i> Posts</div>
+      <div class="tab" id="tab-compose" onclick="switchTab('compose')"><i class="fas fa-pen"></i> Compose</div>
+      <div class="tab" id="tab-subs" onclick="switchTab('subs')"><i class="fas fa-users"></i> Subscribers</div>
+      <div class="tab" id="tab-convlog" onclick="switchTab('convlog')"><i class="fas fa-comments"></i> Room Convs</div>
+      <div class="tab" id="tab-settings" onclick="switchTab('settings')"><i class="fas fa-cog"></i> Settings</div>
+    </div>
+    <div id="panel-posts" class="panel active scrollable"></div>
+    <div id="panel-compose" class="panel scrollable">
+      <div class="help-box">
+        <strong>Admin Compose</strong> — post directly from the dashboard. Subscribers receive a DM automatically.
+        ${r.broadcast_new?`Also broadcasts to <strong>channel ${r.channel_index}</strong>.`:'Broadcasting disabled — enable in Settings.'}
+        <strong>Pin</strong> a post to keep it first in field node list results and prevent auto-deletion.
+      </div>
+      <div class="card"><div class="card-head"><span class="card-title"><i class="fas fa-pen"></i> New Post → [${r.id}]</span></div><div class="card-body">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Name / Callsign</label><input class="form-input" id="compose-name" value="Admin"><div class="form-hint">Shown as post author on field nodes.</div></div>
+          <div class="form-group" style="max-width:160px;"><label class="form-label">Node ID</label><input class="form-input" id="compose-node" value="admin"><div class="form-hint">Leave as 'admin' for dashboard posts.</div></div>
+        </div>
+        <div class="form-group" style="margin-bottom:9px;"><label class="form-label">Message</label>
+          <textarea class="form-textarea" id="compose-body" rows="4" placeholder="Type bulletin here...&#10;Long messages auto-split into numbered chunks."></textarea>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <label class="form-check"><input type="checkbox" id="compose-pin"> 📌 Pin (always first, never auto-deleted)</label>
+          <button class="btn btn-primary" onclick="submitPost()"><i class="fas fa-paper-plane"></i> Publish</button>
+        </div>
+      </div></div>
+    </div>
+    <div id="panel-subs" class="panel scrollable"></div>
+    <div id="panel-convlog" class="panel scrollable">
+      <div class="help-box"><strong>Room Conversations</strong> — all inbound commands and outbound replies for this room. Shows DM vs channel, chunk details, and ACK status.</div>
+      <div id="room-conv-list"></div>
+    </div>
+    <div id="panel-settings" class="panel scrollable">
+      <div class="help-box">
+        <strong>Settings</strong> take effect immediately. <strong>Lock</strong> instantly rejects field commands.
+        <strong>Channel Index</strong>: which radio channel (0-7) new posts broadcast to.
+        <strong>TTL</strong>: hours until auto-deletion (0=never). <strong>Max Posts</strong>: oldest non-pinned pruned when full.
+      </div>
+      <div class="card"><div class="card-head"><span class="card-title">Configuration — [${r.id}]</span></div><div class="card-body">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Room Name</label><input class="form-input" id="set-name" value="${escHtml(r.name)}"></div>
+          <div class="form-group" style="max-width:120px;"><label class="form-label">Channel Index (0-7)</label><input class="form-input" id="set-channel" type="number" min="0" max="7" value="${r.channel_index}"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:9px;"><label class="form-label">Description</label><input class="form-input" id="set-desc" value="${r.description||''}"></div>
+        <div class="form-row">
+          <div class="form-group" style="max-width:120px;"><label class="form-label">TTL Hours</label><input class="form-input" id="set-ttl" type="number" min="0" value="${r.ttl_hours}"><div class="form-hint">0=never expire</div></div>
+          <div class="form-group" style="max-width:120px;"><label class="form-label">Max Posts</label><input class="form-input" id="set-maxposts" type="number" min="0" value="${r.max_posts}"><div class="form-hint">0=unlimited</div></div>
+        </div>
+        <div style="display:flex;gap:14px;margin-bottom:12px;flex-wrap:wrap;">
+          <label class="form-check"><input type="checkbox" id="set-broadcast" ${r.broadcast_new?'checked':''}> 📡 Broadcast new posts to channel</label>
+          <label class="form-check"><input type="checkbox" id="set-locked" ${r.locked?'checked':''}> 🔒 Lock room</label>
+        </div>
+        <div class="help-tip" style="margin-bottom:12px;"><i class="fas fa-info-circle"></i><span>Room ID <strong style="color:var(--acc);">[${r.id}]</strong> is permanent.</span></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" onclick="saveSettings('${r.id}')"><i class="fas fa-save"></i> Save</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteRoom('${r.id}')"><i class="fas fa-trash"></i> Delete Room</button>
+        </div>
+      </div></div>
+    </div>
+  `;
+  _currentTab='posts';
+}
+
+function switchTab(tab){
+  _currentTab=tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+tab)?.classList.add('active');
+  document.getElementById('panel-'+tab)?.classList.add('active');
+  if(tab==='subs')loadRoomSubs();
+  if(tab==='convlog')loadRoomConvLog();
+}
+
+// ── Posts ──────────────────────────────────────────────────
+async function loadRoomPosts(){
+  if(!_currentRoom)return;
+  try{const r=await fetch(API+'/rooms/'+_currentRoom.id+'/posts?limit=50');if(!r.ok)return;const d=await r.json();renderPosts(d.posts||[]);}catch(e){}
+}
+function renderPosts(posts){
+  const el=document.getElementById('panel-posts');if(!el)return;
+  if(!posts.length){
+    el.innerHTML=`<div class="help-box"><strong>No posts yet.</strong> Field nodes post via: <code style="color:var(--acc);">bb.${_currentRoom.id} post MSG</code><br>Or use the Compose tab.</div><div class="empty"><i class="fas fa-inbox"></i>No posts</div>`;return;
+  }
+  const sorted=[...posts].sort((a,b)=>{if(a.pinned&&!b.pinned)return-1;if(!a.pinned&&b.pinned)return 1;return b.seq-a.seq;});
+  el.innerHTML='<div class="card">'+sorted.map(p=>{
+    if(p.deleted)return`<div class="post-item"><div class="post-seq">#${p.seq}</div><div class="post-body-wrap" style="opacity:.4;font-style:italic;">[deleted]</div></div>`;
+    return`<div class="post-item">
+      <div class="post-seq ${p.pinned?'pinned':''}" title="${p.pinned?'Pinned':'#'+p.seq}">${p.pinned?'📌':'#'}${p.seq}</div>
+      <div class="post-body-wrap">
+        <div><span class="post-author">${escHtml(p.author_name)}</span><span class="post-node">${p.author_id}</span><span class="post-ts">${fmtTime(p.created_at)}</span></div>
+        <div class="post-body">${escHtml(p.body)}</div>
+        <div class="post-reads"><i class="fas fa-eye" style="font-size:10px;"></i> ${p.read_count||0} reads</div>
+        <div class="post-actions">
+          <button class="btn btn-ghost btn-sm" onclick="broadcastPost(${p.seq})" title="Broadcast to ch${_currentRoom.channel_index} now"><i class="fas fa-broadcast-tower"></i> Broadcast</button>
+          <button class="btn btn-ghost btn-sm" onclick="togglePin(${p.seq},${p.pinned?0:1})"><i class="fas fa-thumbtack"></i> ${p.pinned?'Unpin':'Pin'}</button>
+          <button class="btn btn-danger btn-sm" onclick="deletePost(${p.seq})"><i class="fas fa-times"></i></button>
+        </div>
+      </div>
+    </div>`;
+  }).join('')+'</div>';
+}
+
+async function submitPost(){
+  if(!_currentRoom)return;
+  const body=document.getElementById('compose-body')?.value?.trim();
+  if(!body){toast('Message empty','err');return;}
+  const r=await fetch(API+'/rooms/'+_currentRoom.id+'/posts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({body,author_name:document.getElementById('compose-name')?.value||'Admin',author_id:document.getElementById('compose-node')?.value||'admin',pinned:document.getElementById('compose-pin')?.checked})});
+  if(!r.ok){toast('Failed','err');return;}
+  document.getElementById('compose-body').value='';document.getElementById('compose-pin').checked=false;
+  toast('Published','ok');switchTab('posts');loadRoomPosts();loadStats();loadRooms();
+}
+async function deletePost(seq){if(!confirm(`Delete #${seq}?`))return;await fetch(API+'/rooms/'+_currentRoom.id+'/posts/'+seq,{method:'DELETE'});toast('Deleted','info');loadRoomPosts();}
+async function togglePin(seq,pinned){await fetch(API+'/rooms/'+_currentRoom.id+'/posts/'+seq+'/pin?pinned='+pinned,{method:'PATCH'});toast(pinned?'📌 Pinned':'Unpinned','info');loadRoomPosts();}
+async function broadcastPost(seq){await fetch(API+'/rooms/'+_currentRoom.id+'/broadcast',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({room_id:_currentRoom.id,post_seq:seq})});toast('📡 Broadcasting...','ok');}
+
+// ── Subscribers ────────────────────────────────────────────
+async function loadRoomSubs(){
+  const el=document.getElementById('panel-subs');if(!el||!_currentRoom)return;
+  const r=await fetch(API+'/rooms/'+_currentRoom.id+'/subscribers');const d=await r.json();const subs=d.subscribers||[];
+  el.innerHTML=`<div class="help-box"><strong>Subscribers</strong> receive a DM for every new post. Subscribe via: <code style="color:var(--acc);">bb.${_currentRoom.id} sub</code></div>`
+    +(!subs.length?'<div class="empty"><i class="fas fa-users"></i>No subscribers</div>'
+    :`<div class="card"><div class="card-head"><span class="card-title"><i class="fas fa-users"></i> ${subs.length} subscriber(s)</span></div>`
+    +subs.map(s=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.04);">
+      <div style="flex:1;font-size:9px;color:var(--acc);">${s.node_id}<span style="color:var(--txt3);margin-left:6px;font-size:11px;">${s.name!==s.node_id?s.name:''}</span></div>
+      <button class="btn btn-danger btn-sm" onclick="removeRoomSub('${s.node_id}')"><i class="fas fa-user-minus"></i></button>
+    </div>`).join('')+'</div>');
+}
+async function removeRoomSub(nid){if(!confirm('Remove '+nid+'?'))return;await fetch(API+'/rooms/'+_currentRoom.id+'/subscribers/'+encodeURIComponent(nid),{method:'DELETE'});loadRoomSubs();toast('Removed','info');}
+
+// ── Room Conv Log ──────────────────────────────────────────
+async function loadRoomConvLog(){
+  const el=document.getElementById('room-conv-list');if(!el||!_currentRoom)return;
+  const r=await fetch(API+'/conversations?room_id='+_currentRoom.id+'&limit=100');const d=await r.json();
+  renderConvRows(d.conversations||[],el);
+}
+
+// ── Global Conversations ───────────────────────────────────
+async function loadConversations(){
+  const nodeFilter=document.getElementById('conv-filter-node')?.value?.trim()||'';
+  const dmFilter=document.getElementById('conv-filter-dm')?.value||'';
+  let url=API+'/conversations?limit=200';
+  if(nodeFilter)url+='&node_id='+encodeURIComponent(nodeFilter);
+  if(dmFilter!=='')url+='&is_dm='+dmFilter;
+  const r=await fetch(url);const d=await r.json();
+  renderConvRows(d.conversations||[],document.getElementById('conv-list'));
+  // Load node summary
+  const nr=await fetch(API+'/conversations/nodes');const nd=await nr.json();
+  const nodesEl=document.getElementById('conv-nodes');
+  const nodes=nd.nodes||[];
+  if(!nodes.length){nodesEl.innerHTML='<div class="empty"><i class="fas fa-satellite-dish"></i>No node activity yet</div>';return;}
+  nodesEl.innerHTML=nodes.map(n=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid rgba(255,255,255,.04);">
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:9px;color:var(--acc);font-weight:bold;">${escHtml(n.node_id)}</div>
+      <div style="font-size:11px;color:var(--txt3);">${n.node_name!==n.node_id?escHtml(n.node_name):''} · ${n.cmd_count} cmds · ${n.dm_count} DM · ${n.channel_count} ch</div>
+    </div>
+    <div style="font-size:11px;color:var(--txt3);">${fmtTimeAgo(n.last_seen)}</div>
+    <button class="btn btn-ghost btn-sm" onclick="document.getElementById('conv-filter-node').value='${escHtml(n.node_id)}';loadConversations()"><i class="fas fa-filter"></i></button>
+  </div>`).join('');
+}
+
+function renderConvRows(convs,el){
+  if(!el)return;
+  if(!convs.length){el.innerHTML='<div class="empty"><i class="fas fa-comments"></i>No conversations yet</div>';return;}
+  el.innerHTML=convs.map(c=>`<div class="conv-item ${c.success?'':'conv-fail'}">
+    <div class="conv-ts">${fmtTimeAgo(c.ts)}</div>
+    <div class="${c.direction==='in'?'conv-dir-in':'conv-dir-out'}">${c.direction==='in'?'←':'→'}</div>
+    <div class="conv-node" title="${escHtml(c.node_id)}">${escHtml(c.node_name||c.node_id)}</div>
+    <div class="conv-text">${escHtml(c.raw_text.substring(0,140))}${c.raw_text.length>140?'…':''}</div>
+    <div style="display:flex;gap:3px;flex-direction:column;align-items:flex-end;">
+      <span class="conv-badge ${c.is_dm?'cb-dm':'cb-ch'}">${c.is_dm?'DM':'CH'+c.channel_index}</span>
+      ${c.total_chunks>1?`<span class="conv-badge" style="background:rgba(180,0,255,.1);color:var(--pur);border:1px solid rgba(180,0,255,.3);">${c.chunk_num}/${c.total_chunks}</span>`:''}
+      ${c.ack_received===0?'<span class="conv-badge cb-block">NO ACK</span>':''}
+    </div>
+  </div>`).join('');
+}
+
+// ── Channel config ─────────────────────────────────────────
+async function loadChannels(){
+  const r=await fetch(API+'/channels');const d=await r.json();
+  const el=document.getElementById('channel-list');
+  const chs=d.channels||[];
+  el.innerHTML=chs.map(ch=>`<div class="ch-row">
+    <div class="ch-idx">CH ${ch.channel_index}</div>
+    <div><label class="tog" title="BB responds to commands on this channel"><input type="checkbox" ${ch.active?'checked':''} onchange="updateChannel(${ch.channel_index},'active',this.checked)"><span class="tog-sl"></span></label></div>
+    <div><label class="tog" title="Reply in channel with @mention instead of DM"><input type="checkbox" ${ch.reply_in_channel?'checked':''} onchange="updateChannel(${ch.channel_index},'reply_in_channel',this.checked)"><span class="tog-sl"></span></label></div>
+    <div><label class="tog" title="Broadcast new posts to this channel"><input type="checkbox" ${ch.announce_new_posts?'checked':''} onchange="updateChannel(${ch.channel_index},'announce_new_posts',this.checked)"><span class="tog-sl"></span></label></div>
+    <div><input class="form-input" style="font-size:11px;padding:3px 6px;" value="${escHtml(ch.label||'')}" placeholder="Label..." onblur="updateChannel(${ch.channel_index},'label',this.value)"></div>
+  </div>`).join('');
+}
+async function updateChannel(idx,field,value){
+  const body={};body[field]=value;
+  await fetch(API+'/channels/'+idx,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  toast(`CH${idx} ${field} updated`,'info');
+}
+
+// ── Blocks ─────────────────────────────────────────────────
+async function loadBlocks(){
+  const r=await fetch(API+'/blocks');const d=await r.json();const blocks=d.blocks||[];
+  document.getElementById('block-count').textContent=blocks.length;
+  const el=document.getElementById('block-list');
+  if(!blocks.length){el.innerHTML='<div class="empty"><i class="fas fa-check-circle"></i>No nodes blocked</div>';return;}
+  el.innerHTML=blocks.map(b=>`<div class="block-item">
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:10px;color:var(--err);font-weight:bold;">${escHtml(b.node_id)}</div>
+      <div style="font-size:11px;color:var(--txt3);">${escHtml(b.block_type.toUpperCase())} block${b.reason?' · '+escHtml(b.reason):''} · Added ${fmtTimeAgo(b.created_at)}</div>
+    </div>
+    <span class="badge" style="background:rgba(255,48,80,.1);color:var(--err);border:1px solid rgba(255,48,80,.3);">${escHtml(b.block_type)}</span>
+    <button class="btn btn-ghost btn-sm" onclick="removeBlock('${escHtml(b.node_id)}')"><i class="fas fa-unlock"></i> Unblock</button>
+  </div>`).join('');
+}
+function showAddBlock(){
+  document.getElementById('modal-title').textContent='BLOCK NODE';
+  document.getElementById('modal-body').innerHTML=`
+    <div class="help-box"><strong>DM block</strong>: ignores DM commands. <strong>Channel block</strong>: ignores channel commands. <strong>All</strong>: ignores all commands from this node. Blocked nodes receive no reply.</div>
+    <div class="form-group" style="margin-bottom:9px;"><label class="form-label">Node ID *</label><input class="form-input" id="blk-node" placeholder="!a035265c"><div class="form-hint">Exact node ID (with ! prefix)</div></div>
+    <div class="form-group" style="margin-bottom:9px;"><label class="form-label">Block Type</label>
+      <select class="form-select" id="blk-type"><option value="all">All (DM + Channel)</option><option value="dm">DM only</option><option value="channel">Channel only</option></select>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;"><label class="form-label">Reason (optional)</label><input class="form-input" id="blk-reason" placeholder="Reason for block"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="addBlock()"><i class="fas fa-ban"></i> Block Node</button>
+    </div>`;
+  openModal();
+}
+async function addBlock(){
+  const node=document.getElementById('blk-node')?.value?.trim();
+  if(!node){toast('Node ID required','err');return;}
+  await fetch(API+'/blocks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({node_id:node,block_type:document.getElementById('blk-type')?.value||'all',reason:document.getElementById('blk-reason')?.value||''})});
+  closeModal();toast('Node blocked','info');loadBlocks();
+}
+async function removeBlock(nid){if(!confirm('Unblock '+nid+'?'))return;await fetch(API+'/blocks/'+encodeURIComponent(nid),{method:'DELETE'});loadBlocks();toast('Unblocked','ok');}
+
+// ── Schedules ──────────────────────────────────────────────
+async function loadSchedules(){
+  const r=await fetch(API+'/schedules');const d=await r.json();const scheds=d.schedules||[];
+  document.getElementById('sched-count').textContent=scheds.length;
+  const el=document.getElementById('sched-list');
+  if(!scheds.length){el.innerHTML='<div class="empty"><i class="fas fa-clock"></i>No schedules yet</div>';return;}
+  el.innerHTML=scheds.map(s=>`<div class="sched-item">
+    <div class="sched-info">
+      <div class="sched-label">${escHtml(s.label)} <span class="badge ${s.enabled?'b-live':'b-locked'}" style="margin-left:4px;">${s.enabled?'ON':'OFF'}</span></div>
+      <div class="sched-meta">Room: ${escHtml(s.room_id)} · CH${s.channel_index} · ${escHtml(s.schedule_type)} ${escHtml(s.schedule_value)} · ${s.fire_count} fires</div>
+      <div class="sched-meta" style="margin-top:2px;font-style:italic;color:var(--txt3);">"${escHtml(s.message_tmpl.substring(0,60))}${s.message_tmpl.length>60?'…':''}"</div>
+      <div class="sched-next"><i class="fas fa-clock"></i> Next: ${fmtNextFire(s.next_fire)}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:5px;">
+      <button class="btn btn-ghost btn-sm" onclick="fireScheduleNow('${s.id}')"><i class="fas fa-play"></i> Fire</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleSchedule('${s.id}',${s.enabled?0:1})">${s.enabled?'Disable':'Enable'}</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteSchedule('${s.id}')"><i class="fas fa-trash"></i></button>
+    </div>
+  </div>`).join('');
+}
+function showCreateSchedule(){
+  const roomOpts=_rooms.map(r=>`<option value="${escHtml(r.id)}">${escHtml(r.name)} [${escHtml(r.id)}]</option>`).join('');
+  document.getElementById('modal-title').textContent='NEW AUTO-ANNOUNCE SCHEDULE';
+  document.getElementById('modal-body').innerHTML=`
+    <div class="help-box">
+      <strong>Schedule Types:</strong><br>
+      <strong>daily HH:MM</strong> — every day at set time<br>
+      <strong>weekly DOW HH:MM</strong> — e.g. "wed 12:00" = every Wednesday noon<br>
+      <strong>interval N</strong> — every N minutes<br>
+      <strong>Templates:</strong> {room} {room_name} {post_count} {date} {time} {day}
+    </div>
+    <div class="form-group" style="margin-bottom:9px;"><label class="form-label">Label *</label><input class="form-input" id="sc-label" placeholder="Daily Net Reminder"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Room *</label><select class="form-select" id="sc-room">${roomOpts||'<option value="">No rooms</option>'}</select></div>
+      <div class="form-group" style="max-width:100px;"><label class="form-label">Channel</label><input class="form-input" id="sc-ch" type="number" min="0" max="7" value="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Type</label>
+        <select class="form-select" id="sc-type" onchange="updateSchedHelp()">
+          <option value="daily">daily</option>
+          <option value="weekly">weekly</option>
+          <option value="interval">interval</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label" id="sc-val-label">Value (HH:MM)</label><input class="form-input" id="sc-val" placeholder="12:00" value="12:00"><div class="form-hint" id="sc-val-hint">Daily at this time</div></div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px;"><label class="form-label">Message Template *</label>
+      <textarea class="form-textarea" id="sc-tmpl" rows="3" placeholder="[{room_name}] Daily net check-in is now open. {post_count} posts available. Reply: bb.{room} list"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createSchedule()"><i class="fas fa-plus"></i> Create</button>
+    </div>`;
+  openModal();
+}
+function updateSchedHelp(){
+  const t=document.getElementById('sc-type')?.value;
+  const lb=document.getElementById('sc-val-label');const hint=document.getElementById('sc-val-hint');const inp=document.getElementById('sc-val');
+  if(t==='daily'){lb.textContent='Value (HH:MM)';hint.textContent='e.g. 12:00 = every day at noon';inp.placeholder='12:00';}
+  else if(t==='weekly'){lb.textContent='Value (DOW HH:MM)';hint.textContent='e.g. wed 12:00 = every Wednesday noon';inp.placeholder='wed 12:00';}
+  else{lb.textContent='Interval (minutes)';hint.textContent='e.g. 60 = every hour';inp.placeholder='60';}
+}
+async function createSchedule(){
+  const label=document.getElementById('sc-label')?.value?.trim();const tmpl=document.getElementById('sc-tmpl')?.value?.trim();
+  const room_id=document.getElementById('sc-room')?.value;
+  if(!label||!tmpl||!room_id){toast('Fill required fields','err');return;}
+  const r=await fetch(API+'/schedules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label,room_id,channel_index:parseInt(document.getElementById('sc-ch')?.value)||0,message_tmpl:tmpl,schedule_type:document.getElementById('sc-type')?.value||'daily',schedule_value:document.getElementById('sc-val')?.value||'12:00',enabled:true})});
+  if(!r.ok){toast('Failed','err');return;}
+  closeModal();toast('Schedule created','ok');loadSchedules();
+}
+async function toggleSchedule(sid,enabled){await fetch(API+'/schedules/'+sid,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:!!enabled})});loadSchedules();}
+async function deleteSchedule(sid){if(!confirm('Delete schedule?'))return;await fetch(API+'/schedules/'+sid,{method:'DELETE'});loadSchedules();toast('Deleted','info');}
+async function fireScheduleNow(sid){const r=await fetch(API+'/schedules/'+sid+'/fire',{method:'POST'});const d=await r.json();toast('Fired: '+d.message?.substring(0,40),'ok');}
+
+// ── Share ──────────────────────────────────────────────────
+async function loadShare(){
+  const r=await fetch(API+'/share/config');const d=await r.json();
+  _shareEnabled=d.enabled;_shareToken=d.token||'';
+  const cb=document.getElementById('share-enabled');if(cb)cb.checked=d.enabled;
+  document.getElementById('share-status-txt').textContent=d.enabled?'Public sharing ENABLED':'Public sharing disabled';
+  const block=document.getElementById('share-url-block');
+  if(d.enabled&&d.viewer_url){
+    block.style.display='';
+    document.getElementById('share-url-display').textContent=window.location.origin+d.viewer_url;
+  }else{block.style.display='none';}
+}
+async function toggleShare(){
+  const enabled=document.getElementById('share-enabled')?.checked;
+  const r=await fetch(API+'/share/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})});
+  const d=await r.json();
+  toast(enabled?'Public sharing enabled':'Sharing disabled',enabled?'ok':'info');
+  loadShare();
+}
+function copyShareUrl(){const url=document.getElementById('share-url-display')?.textContent;if(url){navigator.clipboard.writeText(url);toast('Link copied','ok');}}
+function openShareUrl(){const url=document.getElementById('share-url-display')?.textContent;if(url)window.open(url,'_blank');}
+async function regenerateToken(){if(!confirm('Regenerate link? The old link will stop working immediately.'))return;const r=await fetch(API+'/share/regenerate',{method:'POST'});toast('New link generated','ok');loadShare();}
+
+// ── Create room ────────────────────────────────────────────
+function showCreateRoom(){
+  document.getElementById('modal-title').textContent='CREATE BULLETIN BOARD';
+  document.getElementById('modal-body').innerHTML=`
+    <div class="help-box"><strong>Room ID</strong> is permanent and becomes the DM command prefix. Keep it short (≤8 chars), lowercase, no spaces.<br>Field nodes send: <strong>bb.[id] post YOUR MESSAGE</strong></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Room ID *</label><input class="form-input" id="cr-id" placeholder="e.g. general" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,'');document.getElementById('cr-preview').textContent=this.value||'...'"><div class="form-hint">bb.<span id="cr-preview" style="color:var(--acc);">...</span> post ...</div></div>
+      <div class="form-group" style="max-width:110px;"><label class="form-label">Channel (0-7)</label><input class="form-input" id="cr-channel" type="number" min="0" max="7" value="0"></div>
+    </div>
+    <div class="form-group" style="margin-bottom:9px;"><label class="form-label">Room Name *</label><input class="form-input" id="cr-name" placeholder="Room name"></div>
+    <div class="form-group" style="margin-bottom:9px;"><label class="form-label">Description</label><input class="form-input" id="cr-desc" placeholder="Optional description"></div>
+    <div class="form-row">
+      <div class="form-group" style="max-width:120px;"><label class="form-label">TTL Hours</label><input class="form-input" id="cr-ttl" type="number" min="0" value="0"><div class="form-hint">0=never expire</div></div>
+      <div class="form-group" style="max-width:120px;"><label class="form-label">Max Posts</label><input class="form-input" id="cr-max" type="number" min="1" value="100"></div>
+    </div>
+    <label class="form-check" style="margin-bottom:14px;"><input type="checkbox" id="cr-broadcast" checked> 📡 Broadcast new posts to channel</label>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createRoom()"><i class="fas fa-plus"></i> Create</button>
+    </div>`;
+  openModal();
+}
+async function createRoom(){
+  const id=document.getElementById('cr-id')?.value?.trim();const name=document.getElementById('cr-name')?.value?.trim();
+  if(!id){toast('Room ID required','err');return;}if(!name){toast('Room name required','err');return;}
+  const r=await fetch(API+'/rooms',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,name,description:document.getElementById('cr-desc')?.value||'',channel_index:parseInt(document.getElementById('cr-channel')?.value)||0,ttl_hours:parseInt(document.getElementById('cr-ttl')?.value)||0,max_posts:parseInt(document.getElementById('cr-max')?.value)||100,broadcast_new:document.getElementById('cr-broadcast')?.checked})});
+  const d=await r.json();if(!r.ok){toast(d.detail||'Failed','err');return;}
+  closeModal();toast('Room ['+id+'] created','ok');await loadRooms();await loadStats();selectRoom(id);
+}
+async function saveSettings(roomId){
+  const body={name:document.getElementById('set-name')?.value?.trim(),description:document.getElementById('set-desc')?.value?.trim(),channel_index:parseInt(document.getElementById('set-channel')?.value)||0,ttl_hours:parseInt(document.getElementById('set-ttl')?.value)||0,max_posts:parseInt(document.getElementById('set-maxposts')?.value)||100,broadcast_new:document.getElementById('set-broadcast')?.checked,locked:document.getElementById('set-locked')?.checked};
+  const r=await fetch(API+'/rooms/'+roomId,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!r.ok){toast('Failed','err');return;}
+  toast('Saved','ok');await loadRooms();_currentRoom=_rooms.find(r=>r.id===roomId);renderRoomContent();switchTab('settings');
+}
+async function deleteRoom(roomId){
+  if(!confirm('DELETE ['+roomId+'] and ALL posts? Permanent.'))return;
+  await fetch(API+'/rooms/'+roomId,{method:'DELETE'});toast('Deleted','info');_currentRoom=null;
+  document.getElementById('content-area').innerHTML='<div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--txt3);font-size:10px;letter-spacing:2px;">SELECT A BULLETIN BOARD</div>';
+  await loadRooms();await loadStats();
+}
+
+// ── Init ───────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',async()=>{
+  showGPage('bb');
+  document.getElementById('gnav-bb').classList.add('active');
+  await loadStats();await loadRooms();
+  setInterval(async()=>{
+    await loadStats();await loadRooms();
+    if(_currentRoom&&_currentTab==='posts')await loadRoomPosts();
+    if(_currentGPage==='convs')await loadConversations();
+  },15000);
+});
+</script>
+</body>
+</html>

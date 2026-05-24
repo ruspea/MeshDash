@@ -1,0 +1,61 @@
+<div class="vs" style="height: calc(100vh - 90px); height: calc(100dvh - 90px); display: flex; flex-direction: column;">
+    <div style="display: grid; grid-template-columns: 280px 1fr; gap: 16px; flex: 1; overflow: hidden;">
+
+        <!-- Channel List -->
+        <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
+            <div class="ch">
+                <span class="ct">⬡ RF CHANNELS</span>
+                <span id="channels-total-unread-badge" class="nbadge" style="margin-left:auto; display:none; background:var(--warn); color:#000; font-weight:bold;"></span>
+            </div>
+            <div id="channels-list" style="flex: 1; overflow-y: auto; background: var(--bg);">
+                <div style="padding:40px; text-align:center; color:var(--txt3); font-family:var(--mono); font-size:10px;"><i class="fas fa-circle-notch fa-spin"></i> READING MESH CONFIG...</div>
+            </div>
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="card" style="display: flex; flex-direction: column; overflow: hidden; border-color: var(--bd2);">
+
+            <div class="ch" id="channels-header">
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                    <span class="ct" id="channels-target-name">NO CHANNEL SELECTED</span>
+                    <span id="channels-target-meta" class="mono" style="font-size:9px; color:var(--txt3); display:flex; gap:12px;"></span>
+                </div>
+            </div>
+
+            <div id="channels-log" class="msg-feed" style="flex: 1; border: none; border-radius: 0; background: #03070c; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; height: auto;">
+                <div style="color:var(--txt3); font-family:var(--mono); text-align:center; margin-top:100px;">
+                    [ SELECT A CHANNEL TO MONITOR BROADCASTS ]
+                </div>
+            </div>
+
+            <div class="cb" style="background: var(--bg2); border-top: 1px solid var(--bd2); padding: 12px;">
+                
+                <div id="channels-input-area" style="display: flex; gap: 10px; align-items: center;">
+                    <div style="flex: 1; position: relative; background: var(--bg); border: 1px solid var(--bd); border-radius: 4px; display: flex; align-items: center; padding: 0 10px;">
+                        <span style="color: var(--warn); font-family: var(--mono); margin-right: 8px;">></span>
+                        <input type="text" id="channels-input" class="inp mono" placeholder="Broadcast message..." style="border: none; background: transparent; padding: 10px 0; font-size:12px;" maxlength="230" disabled>
+                        <span id="channels-char-count" style="font-size: 9px; color: var(--txt3); margin-left: 8px; font-family: var(--mono); white-space:nowrap;">0/230</span>
+                    </div>
+                    <button id="btn-channels-send" class="btn btn-warn" style="height: 38px; padding: 0 20px;" disabled>BROADCAST</button>
+                </div>
+
+                <div id="channels-key-area" style="display: none; gap: 10px; align-items: center;">
+                    <div style="flex: 1; position: relative; background: rgba(255, 48, 80, 0.1); border: 1px solid var(--err); border-radius: 4px; display: flex; align-items: center; padding: 0 10px;">
+                        <span style="color: var(--err); font-family: var(--mono); margin-right: 8px;"><i class="fas fa-key"></i></span>
+                        <input type="password" id="channels-key-input" class="inp mono" placeholder="Enter Base64 PSK to decrypt this channel..." style="border: none; background: transparent; padding: 10px 0; font-size:12px; color: var(--err);">
+                    </div>
+                    <button id="btn-channels-save-key" class="btn btn-err" style="height: 38px; padding: 0 20px;">SAVE KEY</button>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; margin-top: 8px; font-size: 9px; font-family: var(--mono); color: var(--txt3);">
+                    <span id="channels-encryption-hint"><i class="fas fa-lock-open"></i> PENDING LINK</span>
+                    <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                        <input type="checkbox" id="channels-auto-scroll" checked> AUTO_SCROLL
+                    </label>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+</div>

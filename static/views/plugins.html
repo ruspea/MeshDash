@@ -1,0 +1,687 @@
+<style>
+    /* ═══════════════════════════════════════════════════════
+       PLUGIN REGISTRY  — Consistent with MeshDash style.css
+       ═══════════════════════════════════════════════════════ */
+    
+    /* ── Summary bar ──────────────────────────────────────── */
+    .pl-sum-box {
+        flex: 1;
+        min-width: 60px;
+        background: var(--bg);
+        border: 1px solid var(--bd);
+        border-radius: var(--r);
+        padding: 10px 8px;
+        text-align: center;
+        cursor: pointer;
+        transition: border-color .18s, background .18s;
+        font-family: var(--mono);
+        position: relative;
+    }
+    .pl-sum-box::after {
+        content: '';
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        height: 2px;
+        background: currentColor;
+        opacity: 0;
+        transition: opacity .18s;
+        border-radius: 0 0 var(--r) var(--r);
+    }
+    .pl-sum-box:hover { border-color: var(--bd2); background: var(--bg2); }
+    .pl-sum-box.active { border-color: var(--acc); background: rgba(0,200,245,.06); }
+    .pl-sum-box.active::after { opacity: 1; }
+    .pl-sum-val { font-size: 18px; font-weight: bold; color: var(--txt); margin-bottom: 2px; line-height: 1; font-variant-numeric: tabular-nums; }
+    .pl-sum-lbl { font-size: 8px; color: var(--txt3); letter-spacing: .8px; line-height: 1.2; }
+    
+    /* ── Section dividers ─────────────────────────────────── */
+    .pl-section-hd {
+        grid-column: 1 / -1;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 0 10px;
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 2px;
+        margin-top: 4px;
+    }
+    .pl-sec-line { flex: 1; height: 1px; background: var(--bd2); }
+    .pl-sec-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 3px;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 1px;
+        border: 1px solid transparent;
+        white-space: nowrap;
+    }
+    .pl-section-hd.verified  .pl-sec-badge { background: rgba(0,232,122,.08);  border-color: rgba(0,232,122,.25);  color: var(--ok);   }
+    .pl-section-hd.community .pl-sec-badge { background: rgba(0,200,245,.07);  border-color: rgba(0,200,245,.2);   color: var(--acc);  }
+    .pl-section-hd.remote    .pl-sec-badge { background: rgba(255,255,255,.03); border-color: var(--bd2);           color: var(--txt3); }
+    .pl-sec-count { font-size: 8px; opacity: .6; white-space: nowrap; }
+    
+    /* ── Plugin card ──────────────────────────────────────── */
+    /* NO overflow:hidden — that's what was clipping content   */
+    .pl-card {
+        background: var(--bg2);
+        border: 1px solid var(--bd2);
+        border-radius: var(--r);
+        border-left: 3px solid var(--bd2); /* status stripe via border, not absolute */
+        display: flex;
+        flex-direction: column;
+        transition: border-color .18s, box-shadow .18s, transform .15s;
+        cursor: pointer;
+        position: relative;
+    }
+    .pl-card:hover {
+        border-color: var(--acc);
+        border-left-color: var(--acc);
+        box-shadow: 0 4px 20px rgba(0,200,245,.09);
+        transform: translateY(-1px);
+    }
+    .pl-card.pl-crashed { border-left-color: var(--err); }
+    .pl-card.pl-crashed:hover { border-color: var(--err); box-shadow: 0 4px 20px rgba(255,48,80,.09); }
+    .pl-card.pl-hung    { border-left-color: var(--err); }
+    .pl-card.pl-stopped { border-left-color: var(--warn); }
+    .pl-card.pl-running { border-left-color: var(--ok); }
+    .pl-card.pl-remote  { border-left-color: var(--acc); }
+    .pl-card.pl-pending { border-left-color: var(--pur, #b060ff); }
+    
+    /* Card head — wraps naturally, no overflow clipping */
+    .pl-head {
+        display: flex;
+        gap: 10px;
+        padding: 12px 12px 0 13px;
+        align-items: flex-start;
+    }
+    .pl-icon {
+        width: 36px;
+        height: 36px;
+        min-width: 36px; /* prevent shrink */
+        background: var(--bg);
+        border: 1px solid var(--bd);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        color: var(--acc);
+    }
+    .pl-head-meta {
+        flex: 1;
+        min-width: 0; /* allow text to shrink */
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    /* Title row — wraps badges onto new line instead of clipping */
+    .pl-title-row {
+        display: flex;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 4px;
+        line-height: 1.3;
+    }
+    .pl-name {
+        font-weight: bold;
+        font-size: 12px;
+        color: var(--txt);
+        font-family: var(--mono);
+        word-break: break-word;
+    }
+    .pl-plugin-id {
+        font-size: 9px;
+        color: var(--txt3);
+        font-family: var(--mono);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Status chip */
+    .pl-status-chip {
+        font-family: var(--mono);
+        font-size: 8px;
+        font-weight: 900;
+        padding: 2px 7px;
+        border-radius: 2px;
+        letter-spacing: .7px;
+        white-space: nowrap;
+        align-self: flex-start;
+        margin-top: 1px;
+        flex-shrink: 0;
+    }
+    
+    /* Trust / update inline badges */
+    .pl-trust {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-family: var(--mono);
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: .4px;
+        padding: 1px 5px;
+        border-radius: 2px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    .pl-trust.verified  { background: rgba(0,232,122,.1);   color: var(--ok);          border: 1px solid rgba(0,232,122,.22);   }
+    .pl-trust.community { background: rgba(0,200,245,.07);  color: var(--acc);         border: 1px solid rgba(0,200,245,.18);   }
+    .pl-update-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-family: var(--mono);
+        font-size: 8px;
+        font-weight: 900;
+        padding: 1px 5px;
+        border-radius: 2px;
+        white-space: nowrap;
+        flex-shrink: 0;
+        background: rgba(176,96,255,.12);
+        color: var(--pur, #b060ff);
+        border: 1px solid rgba(176,96,255,.25);
+    }
+    
+    /* Description — 3-line clamp on large screens, full on small */
+    .pl-desc {
+        font-size: 11px;
+        color: var(--txt2);
+        line-height: 1.55;
+        padding: 8px 12px 0 13px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    
+    /* Quick meta row */
+    .pl-quick-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        padding: 8px 12px 0 13px;
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--txt3);
+    }
+    .pl-qmi {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .pl-qmi i { font-size: 9px; opacity: .7; flex-shrink: 0; }
+    .pl-qmv { color: var(--txt2); }
+    
+    /* Error strip */
+    .pl-alert-strip {
+        background: rgba(255,48,80,.07);
+        border-left: 2px solid var(--err);
+        color: var(--err);
+        padding: 6px 10px;
+        margin: 8px 12px 0 13px;
+        font-family: var(--mono);
+        font-size: 9px;
+        border-radius: 0 3px 3px 0;
+        line-height: 1.5;
+        word-break: break-word;
+    }
+    
+    /* Card footer */
+    .pl-foot {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        border-top: 1px solid var(--bd);
+        padding: 10px 12px 12px 13px;
+        margin-top: 12px;
+        align-items: center;
+    }
+    .pl-foot .spacer { flex: 1; min-width: 4px; }
+    .pl-expand-hint {
+        font-family: var(--mono);
+        font-size: 8px;
+        color: var(--txt3);
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        opacity: 0;
+        transition: opacity .2s;
+        margin-left: auto;
+        white-space: nowrap;
+    }
+    .pl-card:hover .pl-expand-hint { opacity: 1; }
+    
+    /* Status colour helpers used in JS */
+    .sc-run  { color: var(--ok);   }
+    .sc-stop { color: var(--warn); }
+    .sc-err  { color: var(--err);  }
+    .sc-acc  { color: var(--acc);  }
+    .sc-pur  { color: var(--pur, #b060ff); }
+    .bg-run  { background: rgba(0,232,122,.14);   }
+    .bg-stop { background: rgba(255,168,38,.14);  }
+    .bg-err  { background: rgba(255,48,80,.14);   }
+    .bg-acc  { background: rgba(0,200,245,.12);   }
+    .bg-pur  { background: rgba(176,96,255,.14);  }
+    
+    @keyframes pl-pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+    .pl-anim-pulse { animation: pl-pulse 1.6s ease-in-out infinite; }
+    
+    /* ═══════════════════════════════════════════════════════
+       DETAIL MODAL
+       ═══════════════════════════════════════════════════════ */
+    #pl-modal-detail {
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+    .pl-detail-inner {
+        width: 95%;
+        max-width: 660px;
+        max-height: 88vh;
+        background: var(--bg2);
+        border: 1px solid var(--bd2);
+        box-shadow: 0 24px 80px rgba(0,0,0,.85);
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden; /* only the modal clips, not the cards */
+        animation: modal-in .22s cubic-bezier(.34,1.4,.64,1);
+    }
+    @keyframes modal-in {
+        from { opacity:0; transform: scale(.95) translateY(8px); }
+        to   { opacity:1; transform: scale(1)   translateY(0);   }
+    }
+    
+    /* Modal header — coloured top border acts as stripe */
+    .pl-dm-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 13px;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--bd2);
+        flex-shrink: 0;
+        border-top: 3px solid var(--bd2); /* overridden by JS */
+        background: linear-gradient(180deg, rgba(255,255,255,.015) 0%, transparent 100%);
+        border-radius: 8px 8px 0 0;
+    }
+    .pl-dm-big-icon {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        background: var(--bg);
+        border: 1px solid var(--bd2);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        color: var(--acc);
+    }
+    .pl-dm-title-wrap { flex: 1; min-width: 0; }
+    .pl-dm-title-text {
+        font-family: var(--mono);
+        font-size: 14px;
+        font-weight: 900;
+        color: var(--txt);
+        display: flex;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 6px;
+        word-break: break-word;
+        line-height: 1.35;
+    }
+    .pl-dm-sub {
+        font-family: var(--mono);
+        font-size: 9px;
+        color: var(--txt3);
+        margin-top: 4px;
+        line-height: 1.4;
+    }
+    
+    /* Scrollable body */
+    .pl-dm-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        background: var(--bg2);
+    }
+    .pl-dm-scroll::-webkit-scrollbar { width: 4px; }
+    .pl-dm-scroll::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 2px; }
+    
+    /* Info sections */
+    .pl-dm-sec {
+        background: var(--bg);
+        border: 1px solid var(--bd);
+        border-radius: 5px;
+        overflow: hidden;
+    }
+    .pl-dm-sec-title {
+        font-family: var(--mono);
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 1.5px;
+        color: var(--txt3);
+        padding: 7px 12px;
+        border-bottom: 1px solid var(--bd);
+        background: rgba(255,255,255,.015);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .pl-dm-sec-title i { color: var(--acc); }
+    
+    /* KV grid — 2-col, collapses to 1-col on mobile */
+    .pl-dm-kv-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+    @media (max-width: 500px) {
+        .pl-dm-kv-grid { grid-template-columns: 1fr; }
+        .pl-dm-kv { border-right: none !important; }
+    }
+    .pl-dm-kv {
+        padding: 9px 12px;
+        border-bottom: 1px solid var(--bd);
+        border-right: 1px solid var(--bd);
+    }
+    .pl-dm-kv:nth-child(even) { border-right: none; }
+    .pl-dm-kv:last-child { border-bottom: none; }
+    .pl-dm-kv:nth-last-child(2):nth-child(odd) { border-bottom: none; }
+    .pl-dm-kv-label { font-family: var(--mono); font-size: 8px; color: var(--txt3); letter-spacing: .7px; margin-bottom: 3px; }
+    .pl-dm-kv-val   { font-family: var(--mono); font-size: 11px; color: var(--txt); word-break: break-all; line-height: 1.4; }
+    
+    .pl-dm-desc-text { padding: 12px; font-size: 12px; color: var(--txt2); line-height: 1.65; word-break: break-word; }
+    .pl-dm-perms-wrap { padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 6px; }
+    .pl-dm-perm {
+        font-family: var(--mono); font-size: 9px; padding: 3px 7px;
+        background: rgba(0,200,245,.06); border: 1px solid rgba(0,200,245,.14);
+        border-radius: 3px; color: var(--acc); white-space: nowrap;
+    }
+    
+    /* Nav items */
+    .pl-dm-nav-items { padding: 8px 12px; display: flex; flex-direction: column; gap: 5px; }
+    .pl-dm-nav-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        background: var(--bg2);
+        border: 1px solid var(--bd2);
+        border-radius: 3px;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--txt2);
+        flex-wrap: wrap;
+    }
+    .pl-dm-nav-row i { color: var(--acc); width: 14px; text-align: center; flex-shrink: 0; }
+    .pl-dm-nav-label { flex: 1; word-break: break-word; }
+    .pl-dm-nav-row a { color: var(--acc); text-decoration: none; font-size: 9px; white-space: nowrap; }
+    .pl-dm-nav-row a:hover { text-decoration: underline; }
+    
+    /* Status row */
+    .pl-dm-status-row { padding: 11px 12px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+    .pl-dm-status-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .pl-dm-status-label { font-family: var(--mono); font-size: 11px; font-weight: bold; }
+    .pl-dm-status-hint  { font-family: var(--mono); font-size: 9px; color: var(--txt3); margin-left: auto; }
+    
+    .pl-dm-err-text {
+        padding: 10px 12px;
+        font-family: var(--mono);
+        font-size: 10px;
+        color: var(--err);
+        line-height: 1.5;
+        word-break: break-word;
+        border-top: 1px solid rgba(255,48,80,.15);
+    }
+    
+    /* Trust notice */
+    .pl-dm-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        padding: 10px 12px;
+        border-radius: 5px;
+        font-family: var(--mono);
+        font-size: 10px;
+        line-height: 1.5;
+        border: 1px solid transparent;
+    }
+    .pl-dm-notice.ok   { background: rgba(0,232,122,.04);   border-color: rgba(0,232,122,.15);  color: var(--ok);   }
+    .pl-dm-notice.warn { background: rgba(255,168,38,.04);  border-color: rgba(255,168,38,.15); color: var(--warn); }
+    .pl-dm-notice i { margin-top: 1px; flex-shrink: 0; }
+    
+    /* Modal footer */
+    .pl-dm-foot {
+        border-top: 1px solid var(--bd2);
+        padding: 12px 20px;
+        display: flex;
+        gap: 8px;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+        align-items: center;
+        background: rgba(255,255,255,.01);
+    }
+    
+    /* ═══════════════════════════════════════════════════════
+       INSTALL / LOG MODALS  (minimal delta from style.css)
+       ═══════════════════════════════════════════════════════ */
+    .pl-tab {
+        flex: 1; padding: 11px; background: var(--bg);
+        border: none; border-bottom: 2px solid var(--bd);
+        color: var(--txt3); font-family: var(--mono); font-size: 10px;
+        cursor: pointer; transition: .15s;
+    }
+    .pl-tab.active { color: var(--acc); border-bottom-color: var(--acc); background: var(--bg2); }
+    .pl-tab-body { display: none; padding: 18px; }
+    .pl-tab-body.active { display: block; }
+    .pl-drop {
+        border: 2px dashed var(--bd); border-radius: var(--r);
+        padding: 32px 20px; text-align: center; cursor: pointer;
+        background: var(--bg); transition: .18s;
+    }
+    .pl-drop:hover { border-color: var(--acc); background: rgba(0,200,245,.04); }
+    
+    .log-line { font-family: var(--mono); font-size: 10px; line-height: 1.5; word-break: break-all; }
+    .l-DEBUG { color: #4a6a88; }
+    .l-INFO  { color: var(--acc); }
+    .l-WARN  { color: var(--warn); }
+    .l-ERROR { color: var(--err); font-weight: bold; }
+    
+    /* ═══════════════════════════════════════════════════════
+       RESPONSIVE — mobile overrides
+       ═══════════════════════════════════════════════════════ */
+    @media (max-width: 600px) {
+        /* Summary boxes — 2 per row */
+        #pl-summary-bar { flex-wrap: wrap; }
+        .pl-sum-box { min-width: calc(50% - 5px); flex: none; }
+    
+        /* Stack search bar controls */
+        #pl-filter-bar { flex-wrap: wrap; }
+        #pl-search { width: 100% !important; }
+    
+        /* 1-col grid */
+        #pl-grid { grid-template-columns: 1fr !important; }
+    
+        /* Cards — no lift on touch */
+        .pl-card:hover { transform: none; }
+    
+        /* Description — don't clamp on mobile */
+        .pl-desc { -webkit-line-clamp: unset; overflow: visible; }
+    
+        /* Detail modal — full-screen on mobile */
+        .pl-detail-inner {
+            width: 100%;
+            max-width: 100%;
+            max-height: 100vh;
+            border-radius: 0;
+            margin: 0;
+        }
+    
+        /* Foot buttons — stack */
+        .pl-dm-foot { padding: 10px 14px; }
+        .pl-foot .btn { font-size: 9px; padding: 5px 8px; }
+    }
+    
+    @media (max-width: 860px) {
+        /* Tighter grid on tablet */
+        #pl-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important; }
+        .pl-expand-hint { display: none; }
+    }
+    </style>
+    
+    <!-- ═══════════════════════════════════════════════
+         MAIN LAYOUT
+         ═══════════════════════════════════════════════ -->
+    <div class="vs" style="height: calc(100vh - 90px); height: calc(100dvh - 90px); display: flex; flex-direction: column; gap: 12px;">
+    
+        <!-- Top action bar -->
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <div id="pl-summary-bar" style="flex: 1; display: flex; gap: 8px; flex-wrap: wrap; min-width: 0;"></div>
+            <div style="display: flex; gap: 8px; flex-shrink: 0;">
+                <button class="btn btn-acc" onclick="window.C2PluginsApp.openInstallModal()">
+                    <i class="fas fa-upload"></i> <span class="hide-mob">INSTALL PLUGIN</span><span style="display:none" class="show-mob">INSTALL</span>
+                </button>
+                <button id="pl-btn-restart" class="btn" style="display:none; background:var(--pur,#b060ff); color:#000; border:none;" onclick="window.C2PluginsApp.restartCore()">
+                    <i class="fas fa-power-off"></i> <span class="hide-mob">APPLY &amp; RESTART</span>
+                </button>
+            </div>
+        </div>
+    
+        <!-- Filter / search bar -->
+        <div class="card">
+            <div class="cb" id="pl-filter-bar" style="display: flex; gap: 10px; padding: 10px 14px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="pl-search" class="inp mono"
+                       placeholder="Search name, ID, author…"
+                       style="width: 220px; font-size: 11px;"
+                       oninput="window.C2PluginsApp.renderGrid()">
+    
+                <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                    <span style="font-family: var(--mono); font-size: 9px; color: var(--txt3);">SORT:</span>
+                    <select id="pl-sort" class="inp mono" style="width: 130px; font-size: 11px;" onchange="window.C2PluginsApp.renderGrid()">
+                        <option value="name">Name A–Z</option>
+                        <option value="status">Status</option>
+                        <option value="author">Author</option>
+                    </select>
+                </div>
+    
+                <label style="display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; color: var(--txt3); cursor: pointer; white-space: nowrap; flex-shrink: 0;">
+                    <input type="checkbox" id="pl-show-remote" onchange="window.C2PluginsApp.renderGrid()" style="accent-color: var(--acc); width:14px; height:14px;">
+                    SHOW AVAILABLE
+                </label>
+    
+                <div style="margin-left: auto; font-family: var(--mono); font-size: 9px; color: var(--txt3); white-space: nowrap; flex-shrink: 0;" id="pl-last-sync">SYNCING…</div>
+            </div>
+        </div>
+    
+        <!-- Plugin grid -->
+        <div id="pl-grid"
+             style="display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+                    gap: 12px;
+                    flex: 1;
+                    overflow-y: auto;
+                    padding-right: 2px;
+                    padding-bottom: 32px;
+                    align-content: flex-start;">
+            <div style="grid-column: 1/-1; text-align: center; color: var(--txt3); padding: 48px; font-family: var(--mono);">
+                <i class="fas fa-circle-notch fa-spin"></i> QUERYING REGISTRY…
+            </div>
+        </div>
+    </div>
+    
+    
+    <!-- ═══════════════════════════════════════════════
+         DETAIL MODAL
+         ═══════════════════════════════════════════════ -->
+    <div id="pl-modal-detail" class="ov" style="display: none; align-items: center; justify-content: center; z-index: 9999;">
+        <div class="pl-detail-inner">
+    
+            <div class="pl-dm-head" id="pldm-head">
+                <div class="pl-dm-big-icon"><i id="pldm-icon" class="fas fa-puzzle-piece"></i></div>
+                <div class="pl-dm-title-wrap">
+                    <div class="pl-dm-title-text" id="pldm-title">—</div>
+                    <div class="pl-dm-sub" id="pldm-sub">—</div>
+                </div>
+                <button class="btn btn-sm" onclick="window.C2PluginsApp.closeDetail()"
+                        style="min-width: auto; flex-shrink: 0; margin-top: 2px;">✕</button>
+            </div>
+    
+            <div class="pl-dm-scroll" id="pldm-body"></div>
+    
+            <div class="pl-dm-foot" id="pldm-foot"></div>
+        </div>
+    </div>
+    
+    
+    <!-- ═══════════════════════════════════════════════
+         INSTALL MODAL
+         ═══════════════════════════════════════════════ -->
+    <div id="pl-modal-install" class="ov" style="display: none; align-items: center; justify-content: center; z-index: 9999;">
+        <div class="modal-inner" style="width: 95%; max-width: 500px; padding: 0;">
+            <div class="modal-head">
+                <h3 class="rmd-mt">INSTALL PLUGIN</h3>
+                <button class="btn btn-sm" onclick="window.C2PluginsApp.closeInstallModal()" style="min-width: auto;">✕</button>
+            </div>
+            <div style="display: flex;">
+                <button class="pl-tab active" onclick="window.C2PluginsApp.switchTab('zip', this)">
+                    <i class="fas fa-file-archive"></i> UPLOAD .ZIP
+                </button>
+                <button class="pl-tab" onclick="window.C2PluginsApp.switchTab('url', this)">
+                    <i class="fas fa-link"></i> FROM URL
+                </button>
+            </div>
+            <div class="pl-tab-body active" id="pl-tab-zip">
+                <div class="pl-drop" id="pl-drop-zone" onclick="document.getElementById('pl-file').click()">
+                    <i class="fas fa-cloud-upload-alt fa-3x" style="color: var(--acc); margin-bottom: 12px; display: block;"></i>
+                    <div style="font-family: var(--mono); font-size: 11px; color: var(--txt); margin-bottom: 6px;">CLICK OR DRAG .ZIP ARCHIVE HERE</div>
+                    <div style="font-family: var(--mono); font-size: 9px; color: var(--txt3);">Requires valid manifest.json with watchdog field</div>
+                    <input type="file" id="pl-file" accept=".zip" style="display: none;" onchange="window.C2PluginsApp.handleFile(this.files[0])">
+                </div>
+                <div id="pl-log-zip" style="display: none; background: var(--bg); border: 1px solid var(--bd); border-radius: 4px; padding: 12px; margin-top: 12px; max-height: 100px; overflow-y: auto;"></div>
+            </div>
+            <div class="pl-tab-body" id="pl-tab-url">
+                <div style="font-family: var(--mono); font-size: 10px; color: var(--txt3); margin-bottom: 12px; line-height: 1.6;">
+                    Provide a direct URL to a .zip plugin package. MeshDash will fetch and install it server-side.
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <input type="url" id="pl-url-input" class="inp mono" placeholder="https://example.com/plugin.zip" style="flex: 1; font-size: 11px;">
+                    <button class="btn btn-acc" onclick="window.C2PluginsApp.installRemote()" style="flex-shrink: 0;">
+                        <i class="fas fa-download"></i> INSTALL
+                    </button>
+                </div>
+                <div id="pl-log-url" style="display: none; background: var(--bg); border: 1px solid var(--bd); border-radius: 4px; padding: 12px; margin-top: 12px; max-height: 100px; overflow-y: auto;"></div>
+            </div>
+        </div>
+    </div>
+    
+    
+    <!-- ═══════════════════════════════════════════════
+         LOGS MODAL
+         ═══════════════════════════════════════════════ -->
+    <div id="pl-modal-logs" class="ov" style="display: none; align-items: center; justify-content: center; z-index: 9999;">
+        <div class="modal-inner" style="width: 95%; max-width: 800px; height: 70vh; padding: 0; display: flex; flex-direction: column;">
+            <div class="modal-head">
+                <h3 class="rmd-mt">LOGS: <span id="pl-log-title" style="color: var(--acc);"></span></h3>
+                <button class="btn btn-sm" onclick="window.C2PluginsApp.closeLogs()" style="min-width: auto;">✕</button>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 7px 20px; background: var(--bg); border-bottom: 1px solid var(--bd); font-family: var(--mono); font-size: 9px; color: var(--txt3); align-items: center; flex-shrink: 0; flex-wrap: wrap; gap: 8px;">
+                <div id="pl-log-meta">Watchdog: Unknown</div>
+                <div style="display: flex; gap: 6px;">
+                    <button class="btn btn-sm" onclick="window.C2PluginsApp.refreshLogs()">↻ REFRESH</button>
+                    <button class="btn btn-sm btn-err" onclick="window.C2PluginsApp.clearLogs()"><i class="fas fa-trash"></i> CLEAR</button>
+                </div>
+            </div>
+            <div id="pl-log-stream" style="flex: 1; overflow-y: auto; padding: 14px 20px; background: #03070c;"></div>
+        </div>
+    </div>

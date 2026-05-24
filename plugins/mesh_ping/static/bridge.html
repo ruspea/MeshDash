@@ -1,0 +1,286 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><script>
+  'use strict';
+  var PLUGIN_ID = 'mesh_ping';
+  var API       = '/api/plugins/mesh_ping';
+  var _tabReg   = false;
+  var _menuPatched = false;
+  
+  function _waitBridge(cb) {
+    if (window.parent && typeof window.parent.PluginBridge === 'object') {
+      cb(window.parent.PluginBridge);
+    } else {
+      setTimeout(function () { _waitBridge(cb); }, 150);
+    }
+  }
+  
+  // ── Get the node card under the cursor at right-click time ─────────────────
+  function _getHoveredNodeId() {
+    var doc = window.parent.document;
+    // Use elementsFromPoint on the last known mouse position
+    var pos = window.parent._ctxMousePos;
+    if (!pos) return null;
+    var els = doc.elementsFromPoint(pos.x, pos.y);
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      // Walk up to find .ov-nc with data-node-id
+      var cur = el;
+      while (cur && cur !== doc.body) {
+        if (cur.classList && cur.classList.contains('ov-nc') && cur.dataset.nodeId) {
+          return cur.dataset.nodeId;
+        }
+        cur = cur.parentElement;
+      }
+    }
+    return null;
+  }
+  
+  // ── Patch parent window to track mouse position and inject ping item ────────
+  function _patchContextMenu(PB) {
+    if (_menuPatched) return;
+    var pw = window.parent;
+    if (!pw || !pw.showGlobalContextMenu) return;
+    _menuPatched = true;
+  
+    // Track mouse position so we know what was right-clicked
+    pw.document.addEventListener('mousemove', function (e) {
+      pw._ctxMousePos = { x: e.clientX, y: e.clientY };
+    }, { passive: true });
+  
+    // Also track inside iframes
+    try {
+      var contentIframe = pw.document.querySelector('#content iframe');
+      if (contentIframe && contentIframe.contentDocument) {
+        contentIframe.contentDocument.addEventListener('mousemove', function (e) {
+          var rect = contentIframe.getBoundingClientRect();
+          pw._ctxMousePos = { x: e.clientX + rect.left, y: e.clientY + rect.top };
+        }, { passive: true });
+      }
+    } catch(e) {}
+  
+    // Patch showGlobalContextMenu to inject ping item when over a node card
+    var _origShow = pw.showGlobalContextMenu;
+    pw.showGlobalContextMenu = function (x, y) {
+      // Remove any previously injected ping items
+      var doc = pw.document;
+      doc.querySelectorAll('.ctx-item.mp-inject').forEach(function (el) { el.remove(); });
+  
+      // Try to inject if over a node card
+      var nodeId = _getHoveredNodeId();
+      if (nodeId) {
+        var container = doc.getElementById('custom-ctx-container');
+        var menu = container && container.firstChild;
+        if (menu) {
+          // Build the ping item
+          var item = doc.createElement('div');
+          item.className = 'ctx-item mp-inject';
+          item.style.cssText = 'border-top:1px solid rgba(0,200,245,.15);';
+          item.innerHTML = '<i class="fas fa-satellite-dish ctx-icon" style="color:var(--acc);"></i>'
+            + '<span class="ctx-label">Ping Test</span>'
+            + '<span style="font-family:var(--mono);font-size:8px;color:var(--txt3);margin-left:auto;">'
+            + nodeId.slice(-8) + '</span>';
+          item.onclick = function (e) {
+            e.stopPropagation();
+            pw.hideGlobalContextMenu();
+            _launchPing(nodeId, PB);
+          };
+          // Insert as second-to-last (before separator if any, or at end)
+          menu.appendChild(item);
+        }
+      }
+  
+      _origShow.call(pw, x, y);
+    };
+  }
+  
+  // ── Launch ping from context menu (shows a small toast-style modal) ─────────
+  function _launchPing(nodeId, PB) {
+    var pw    = window.parent;
+    var slot  = PB.getActiveSlot() || 'node_0';
+    var node  = PB.getNode(nodeId);
+    var esc   = pw.escapeHtml || function(s){return String(s||'');};
+    var name  = (node && (node.long_name || (node.user && node.user.longName))) || nodeId;
+  
+    // Show a small floating launcher — doesn't open a full modal
+    var doc   = pw.document;
+    var existing = doc.getElementById('mp-quick-launcher');
+    if (existing) existing.remove();
+  
+    var el = doc.createElement('div');
+    el.id  = 'mp-quick-launcher';
+    el.style.cssText = [
+      'position:fixed', 'bottom:80px', 'right:24px', 'z-index:99998',
+      'background:var(--bg2)', 'border:1px solid rgba(0,200,245,.4)',
+      'border-radius:8px', 'padding:14px 16px', 'width:260px',
+      'box-shadow:0 8px 32px rgba(0,0,0,.7)', 'font-family:var(--mono)',
+      'animation:fadeIn .15s ease',
+    ].join(';');
+  
+    el.innerHTML = ''
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+      +   '<div style="display:flex;align-items:center;gap:7px;">'
+      +     '<i class="fas fa-satellite-dish" style="color:var(--acc);font-size:12px;"></i>'
+      +     '<span style="font-size:11px;font-weight:900;color:var(--acc);letter-spacing:.5px;">PING TEST</span>'
+      +   '</div>'
+      +   '<button id="mp-ql-close" style="background:none;border:none;color:var(--txt3);cursor:pointer;font-size:14px;padding:0 2px;">✕</button>'
+      + '</div>'
+      + '<div style="font-size:10px;font-weight:bold;color:var(--txt);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+      +   esc(name)
+      + '</div>'
+      + '<div style="font-size:8px;color:var(--txt3);margin-bottom:10px;">' + esc(nodeId) + '</div>'
+      // Count + interval row
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">'
+      +   '<div>'
+      +     '<div style="font-size:7px;color:var(--txt3);letter-spacing:.5px;margin-bottom:4px;">COUNT</div>'
+      +     '<div style="display:flex;align-items:center;gap:4px;">'
+      +       '<button id="mp-ql-dec" style="width:22px;height:22px;border-radius:3px;border:1px solid var(--bd2);background:var(--bg);color:var(--txt);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>'
+      +       '<div id="mp-ql-count" style="flex:1;text-align:center;font-size:14px;font-weight:900;color:var(--acc);">5</div>'
+      +       '<button id="mp-ql-inc" style="width:22px;height:22px;border-radius:3px;border:1px solid var(--bd2);background:var(--bg);color:var(--txt);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>'
+      +     '</div>'
+      +   '</div>'
+      +   '<div>'
+      +     '<div style="font-size:7px;color:var(--txt3);letter-spacing:.5px;margin-bottom:4px;">INTERVAL</div>'
+      +     '<select id="mp-ql-iv" style="width:100%;font-family:var(--mono);font-size:9px;padding:4px;background:var(--bg);border:1px solid var(--bd2);border-radius:3px;color:var(--txt);">'
+      +       '<option value="1">1s</option><option value="2" selected>2s</option>'
+      +       '<option value="3">3s</option><option value="5">5s</option>'
+      +       '<option value="10">10s</option>'
+      +     '</select>'
+      +   '</div>'
+      + '</div>'
+      + '<button id="mp-ql-launch" style="width:100%;padding:8px;background:linear-gradient(135deg,rgba(0,200,245,.15),rgba(176,96,255,.1));border:1px solid rgba(0,200,245,.4);border-radius:4px;color:var(--acc);font-family:var(--mono);font-size:10px;font-weight:900;cursor:pointer;letter-spacing:.5px;">'
+      +   '<i class="fas fa-paper-plane" style="margin-right:5px;"></i>LAUNCH'
+      + '</button>'
+      + '<div id="mp-ql-status" style="margin-top:8px;font-size:9px;min-height:14px;"></div>';
+  
+    doc.body.appendChild(el);
+  
+    // Wire close
+    doc.getElementById('mp-ql-close').onclick = function () { el.remove(); };
+  
+    // Wire count stepper
+    var _count = 5;
+    doc.getElementById('mp-ql-dec').onclick = function () {
+      _count = Math.max(1, _count - 1);
+      doc.getElementById('mp-ql-count').textContent = _count;
+    };
+    doc.getElementById('mp-ql-inc').onclick = function () {
+      _count = Math.min(20, _count + 1);
+      doc.getElementById('mp-ql-count').textContent = _count;
+    };
+  
+    // Wire launch
+    doc.getElementById('mp-ql-launch').onclick = function () {
+      var interval = parseFloat(doc.getElementById('mp-ql-iv').value);
+      var btn = doc.getElementById('mp-ql-launch');
+      var status = doc.getElementById('mp-ql-status');
+      btn.disabled = true;
+      btn.textContent = 'Starting…';
+  
+      fetch(API + '/start', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ target_id: nodeId, slot_id: slot, count: _count, interval: interval }),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          status.style.color = 'var(--ok)';
+          status.innerHTML = '<i class="fas fa-check" style="margin-right:4px;"></i>Session ' + d.session_id + ' started';
+          setTimeout(function () { el.remove(); }, 2500);
+        })
+        .catch(function (e) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-paper-plane" style="margin-right:5px;"></i>LAUNCH';
+          status.style.color = 'var(--err)';
+          status.textContent = 'Failed: ' + e.message;
+        });
+    };
+  
+    // Auto-close after 15s
+    setTimeout(function () { if (el.parentNode) el.remove(); }, 15000);
+  
+    // Click outside to close
+    setTimeout(function () {
+      doc.addEventListener('click', function _close(ev) {
+        if (!el.contains(ev.target)) { el.remove(); doc.removeEventListener('click', _close); }
+      });
+    }, 100);
+  }
+  
+  // ── Modal tab ─────────────────────────────────────────────────────────────────
+  function _registerTab(PB) {
+    if (_tabReg) return;
+    _tabReg = true;
+    PB.addModalTab({
+      id:       'mesh_ping-launch',
+      label:    '⊕ PING TEST',
+      pluginId: PLUGIN_ID,
+      render: function (nodeId) {
+        var slot = PB.getActiveSlot() || 'node_0';
+        var node = PB.getNode(nodeId);
+        var esc  = (window.parent.escapeHtml) || function(s){return String(s||'');};
+        var name = (node && (node.long_name || (node.user && node.user.longName))) || nodeId;
+  
+        return '<div style="padding:4px 0;">'
+          + '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:4px;padding:12px 14px;margin-bottom:14px;">'
+          +   '<div style="font-family:var(--mono);font-size:8px;color:var(--txt3);letter-spacing:.5px;margin-bottom:3px;">TARGET</div>'
+          +   '<div style="font-family:var(--mono);font-size:13px;font-weight:900;color:var(--txt);">' + esc(name) + '</div>'
+          +   '<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);">' + esc(nodeId) + '</div>'
+          + '</div>'
+          + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">'
+          +   '<div>'
+          +     '<div style="font-family:var(--mono);font-size:8px;color:var(--txt3);letter-spacing:.5px;margin-bottom:5px;">PING COUNT</div>'
+          +     '<div style="display:flex;align-items:center;gap:5px;">'
+          +       '<button onclick="this.nextElementSibling.textContent=Math.max(1,parseInt(this.nextElementSibling.textContent)-1)" style="width:26px;height:26px;border-radius:3px;border:1px solid var(--bd2);background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:14px;cursor:pointer;">−</button>'
+          +       '<div id="mp-count" style="flex:1;text-align:center;font-family:var(--mono);font-size:16px;font-weight:900;color:var(--acc);">5</div>'
+          +       '<button onclick="this.previousElementSibling.textContent=Math.min(20,parseInt(this.previousElementSibling.textContent)+1)" style="width:26px;height:26px;border-radius:3px;border:1px solid var(--bd2);background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:14px;cursor:pointer;">+</button>'
+          +     '</div>'
+          +   '</div>'
+          +   '<div>'
+          +     '<div style="font-family:var(--mono);font-size:8px;color:var(--txt3);letter-spacing:.5px;margin-bottom:5px;">INTERVAL (s)</div>'
+          +     '<input type="range" min="1" max="10" step="0.5" value="2" id="mp-interval" style="width:100%;accent-color:var(--acc);" oninput="document.getElementById(\'mp-iv-val\').textContent=parseFloat(this.value).toFixed(1)+\'s\'">'
+          +     '<div id="mp-iv-val" style="font-family:var(--mono);font-size:10px;color:var(--acc);text-align:right;">2.0s</div>'
+          +   '</div>'
+          + '</div>'
+          + '<button onclick="_mpLaunch(\'' + nodeId + '\',\'' + slot + '\')" style="width:100%;padding:11px;background:linear-gradient(135deg,rgba(0,200,245,.15),rgba(176,96,255,.1));border:1px solid rgba(0,200,245,.4);border-radius:5px;color:var(--acc);font-family:var(--mono);font-size:11px;font-weight:900;letter-spacing:1px;cursor:pointer;">'
+          +   '<i class="fas fa-paper-plane" style="margin-right:6px;"></i>LAUNCH PING SESSION'
+          + '</button>'
+          + '<div id="mp-result" style="margin-top:10px;"></div>'
+          + '<div style="text-align:center;margin-top:12px;">'
+          +   '<a href="/static/plugins/mesh_ping/index.html?node=' + encodeURIComponent(nodeId) + '&slot=' + slot + '" target="_blank" style="font-family:var(--mono);font-size:9px;color:var(--acc);text-decoration:none;border:1px solid rgba(0,200,245,.3);padding:5px 14px;border-radius:3px;display:inline-block;">'
+          +     '<i class="fas fa-external-link-alt" style="margin-right:5px;"></i>OPEN FULL PING UI'
+          +   '</a>'
+          + '</div>'
+        + '</div>';
+      },
+    });
+  }
+  
+  window._mpLaunch = function (nodeId, slot) {
+    var countEl    = document.getElementById('mp-count');
+    var intervalEl = document.getElementById('mp-interval');
+    var resultEl   = document.getElementById('mp-result');
+    var count      = parseInt(countEl ? countEl.textContent : '5');
+    var interval   = parseFloat(intervalEl ? intervalEl.value : '2');
+    if (resultEl) resultEl.innerHTML = '<div style="font-family:var(--mono);font-size:10px;color:var(--acc);"><i class="fas fa-circle-notch fa-spin" style="margin-right:5px;"></i>Starting…</div>';
+    fetch(API + '/start', {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ target_id: nodeId, slot_id: slot, count: count, interval: interval }),
+    }).then(function(r){return r.json();}).then(function(d){
+      if(resultEl) resultEl.innerHTML='<div style="background:rgba(0,232,122,.08);border:1px solid rgba(0,232,122,.3);border-radius:4px;padding:9px;font-family:var(--mono);font-size:10px;color:var(--ok);"><i class="fas fa-check" style="margin-right:5px;"></i>Session '+d.session_id+' started — '+count+' pings queued.</div>';
+    }).catch(function(e){
+      if(resultEl) resultEl.innerHTML='<div style="color:var(--err);font-family:var(--mono);font-size:10px;"><i class="fas fa-times" style="margin-right:5px;"></i>'+e.message+'</div>';
+    });
+  };
+  
+  // ── Boot ──────────────────────────────────────────────────────────────────────
+  _waitBridge(function (PB) {
+    _registerTab(PB);
+    // Patch context menu after a short delay to ensure UI has loaded
+    setTimeout(function () { _patchContextMenu(PB); }, 1000);
+    // Also retry patching on view changes (overview may load after us)
+    setInterval(function () {
+      if (!_menuPatched) _patchContextMenu(PB);
+    }, 2000);
+  });
+  </script></body></html>

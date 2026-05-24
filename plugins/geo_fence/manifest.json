@@ -1,0 +1,22 @@
+{
+  "id": "geo_fence",
+  "name": "Geo Fence",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Advanced geofencing with unlimited zones (circle, polygon, corridor, node-relative). Triggers on enter, exit, dwell, absence, node-to-node proximity, speed threshold, and heading change. Actions include SSE alerts, mesh DMs, channel broadcasts, and webhooks. Full interactive Leaflet map with live node positions and event log.",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/geo_fence",
+  "static_prefix": "/static/plugins/geo_fence",
+  "bridge": "bridge.html",
+  "permissions": [
+    "modal_tabs"
+  ],
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Geo Fence",
+      "icon": "fa-draw-polygon",
+      "href": "/plugin/geo_fence/index.html"
+    }
+  ]
+}

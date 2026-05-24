@@ -1,0 +1,51 @@
+<div class="vs" id="node-config-view-root">
+
+    <div class="ch" style="border:none; padding:0; margin-bottom: 16px;">
+        <div>
+            <span style="font-size:16px;font-weight:800;color:var(--txt);letter-spacing:1px;">NODE CONFIGURATION</span>
+            <div style="font-size:10px;color:var(--txt3);margin-top:4px;">Live protobuf config — reads directly from radio hardware.</div>
+        </div>
+        <div style="margin-left:auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <span id="nc-changes-pill" class="pill p-warn" style="display:none;font-size:10px;padding:4px 8px;">0 PENDING</span>
+            <label style="display:flex;align-items:center;gap:6px;font-size:10px;font-family:var(--mono);color:var(--txt3);cursor:pointer;padding:6px 10px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--bg2);">
+                <input type="checkbox" id="nc-reboot-check" checked> REBOOT AFTER SAVE
+            </label>
+            <button class="btn" id="nc-btn-reset" onclick="window.NodeConfigApp.reset()" disabled>↺ RESET</button>
+            <button class="btn btn-acc" id="nc-btn-save" onclick="window.NodeConfigApp.save()" disabled>💾 SAVE CHANGES</button>
+        </div>
+    </div>
+
+    <div style="background:rgba(52, 152, 219, 0.08); border:1px solid rgba(52, 152, 219, 0.3); border-radius:var(--r); padding:12px; margin-bottom:16px; display:flex; gap:12px; align-items:flex-start;">
+        <span style="font-size:16px; opacity:0.8;">ℹ️</span>
+        <div>
+            <div style="font-weight:700; color:var(--txt); font-size:11px; margin-bottom:4px; letter-spacing:0.5px;">DIRECT HARDWARE MODIFICATION</div>
+            <div style="font-size:10px; color:var(--txt3); line-height:1.5;">Changes made here are written directly to the connected radio node's flash memory. Saving changes will trigger an automatic node reboot to apply the new configuration. Do not disconnect the radio while saving.</div>
+        </div>
+    </div>
+
+    <div id="nc-poll-banner" style="display:none; align-items:center; gap:12px; padding:10px 16px; background:rgba(255,168,38,.07); border:1px solid rgba(255,168,38,.25); border-radius:var(--r); margin-bottom:16px;">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--warn);">⏳ NODE REBOOTING — AWAITING RECONNECT</span>
+        <div style="flex:1;height:2px;background:var(--bg3);border-radius:1px;overflow:hidden;">
+            <div style="height:100%;width:30%;background:var(--warn);animation:nc-sweep 2s linear infinite;"></div>
+        </div>
+        <span id="nc-poll-count" style="font-family:var(--mono);font-size:10px;color:var(--txt3);">0s</span>
+        <button class="btn btn-sm" onclick="window.NodeConfigApp.stopPolling()">STOP</button>
+    </div>
+
+    <div id="nc-topnav" style="display:flex; flex-wrap:wrap; gap:16px; padding-bottom:12px; border-bottom:1px solid var(--bd2); margin-bottom:20px;">
+        <div style="padding:10px;text-align:center;color:var(--txt3);font-size:10px;width:100%;">LOADING TABS...</div>
+    </div>
+
+    <div class="card">
+        <div class="ch">
+            <span class="ct" id="nc-section-title">INITIALIZING</span>
+            <span id="nc-section-sub" style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-left:12px;"></span>
+        </div>
+        <div class="cb" id="nc-fields" style="display:flex;flex-direction:column;gap:16px;">
+            <div style="padding:40px;text-align:center;color:var(--txt3);font-family:var(--mono);font-size:10px;">
+                [ READING NODE CONFIGURATION... ]
+            </div>
+        </div>
+    </div>
+
+</div>

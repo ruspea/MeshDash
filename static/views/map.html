@@ -1,0 +1,495 @@
+<style>
+  /* select.inp styling handled by global style.css */
+  #map-loading {
+    position: absolute; inset: 0;
+    background: rgba(6,11,18,.93);
+    z-index: 9999;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    color: var(--acc); font-family: var(--mono);
+    transition: opacity .4s ease;
+  }
+  #map-loading.fading { opacity: 0; pointer-events: none; }
+  #map-load-icon   { font-size: 2.6rem; margin-bottom: 14px; }
+  #map-load-title  { letter-spacing: 2px; font-weight: 800; font-size: 12px; margin-bottom: 6px; }
+  #map-load-sub    { font-size: 10px; color: var(--txt3); margin-bottom: 16px; letter-spacing: 1px; min-height: 14px; }
+  #map-load-bar-wrap { width: 260px; height: 4px; background: rgba(0,200,245,.15); border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+  #map-load-bar { height: 100%; width: 0%; background: var(--acc); border-radius: 2px; transition: width .35s ease; box-shadow: 0 0 8px var(--acc); }
+  #map-load-count { font-size: 9px; color: var(--txt3); letter-spacing: 1px; }
+  #map-toolbar {
+    display: flex; align-items: center; flex-wrap: wrap;
+    padding: 0 2px;
+    font-family: var(--mono, monospace);
+    min-height: 38px;
+  }
+  .map-tb-group {
+    display: flex; align-items: center; gap: 5px;
+    padding: 0 9px; border-right: 1px solid var(--bd2, #1e3048);
+    height: 38px; flex-shrink: 0;
+  }
+  .map-tb-group:last-child { border-right: none; }
+  .map-tb-lbl {
+    font-size: 8px; color: var(--txt3, #4a6a88);
+    letter-spacing: .8px; white-space: nowrap;
+  }
+  #map-filter-drawer {
+    background: var(--bg1, #0b1320);
+    border-bottom: 1px solid var(--bd2, #1e3048);
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height .22s cubic-bezier(.4,0,.2,1);
+    font-family: var(--mono, monospace);
+    flex-shrink: 0;
+  }
+  #map-filter-drawer.open { max-height: 160px; }
+  .mfd-inner {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 10px 14px; align-items: flex-end;
+  }
+  .mfd-group {
+    display: flex; flex-direction: column; gap: 3px;
+    min-width: 100px;
+  }
+  .mfd-label { font-size: 8px; color: var(--txt3, #4a6a88); letter-spacing: .7px; white-space: nowrap; }
+  .mfd-inp {
+    background: var(--bg, #080f1a); border: 1px solid var(--bd, #162338);
+    color: var(--txt, #c8d8e8); padding: 4px 7px;
+    font-family: inherit; font-size: 10px; border-radius: 3px;
+    width: 100%; box-sizing: border-box;
+  }
+  .mfd-inp:focus { border-color: var(--acc); outline: none; }
+  .mfd-sel { appearance: none; -webkit-appearance: none; }
+  .mfd-checks {
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .mfd-check-row {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 9px; color: var(--txt3, #4a6a88); cursor: pointer;
+    white-space: nowrap;
+  }
+  .mfd-clear {
+    background: none; border: 1px solid var(--bd2, #1e3048);
+    color: var(--txt3, #4a6a88); padding: 4px 10px;
+    font-family: inherit; font-size: 9px; border-radius: 3px; cursor: pointer;
+    white-space: nowrap; letter-spacing: .5px;
+  }
+  .mfd-clear:hover { border-color: var(--acc); color: var(--acc); }
+  #map-filter-badge {
+    display: none; background: var(--acc); color: #000;
+    font-size: 8px; font-weight: 800; padding: 1px 5px;
+    border-radius: 3px; letter-spacing: .5px;
+  }
+  #map-stats-bar {
+    position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+    z-index: 1500; pointer-events: none;
+    background: rgba(8,15,26,.85); border: 1px solid var(--bd2, #1e3048);
+    border-radius: 4px; padding: 4px 12px;
+    font-family: var(--mono, monospace); font-size: 9px;
+    color: var(--txt3, #4a6a88); display: flex; gap: 14px;
+    backdrop-filter: blur(4px);
+    transition: opacity .2s;
+  }
+  .msb-item { display: flex; align-items: center; gap: 4px; }
+  .msb-val { color: var(--acc, #00c8f5); font-weight: 800; }
+  #map-embed-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,.72);
+    z-index: 50000; display: none; align-items: center; justify-content: center;
+    font-family: var(--mono, monospace);
+  }
+  #map-embed-modal.open { display: flex; }
+  .mem-box {
+    background: var(--bg1, #0b1320); border: 1px solid var(--acc, #00c8f5);
+    border-radius: 6px; width: 580px; max-width: 96vw;
+    box-shadow: 0 20px 60px rgba(0,0,0,.9);
+  }
+  .mem-head {
+    padding: 12px 16px; border-bottom: 1px solid var(--bd2, #1e3048);
+    font-size: 11px; color: var(--acc); letter-spacing: 1.5px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .mem-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .mem-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .mem-field { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 110px; }
+  .mem-lbl { font-size: 8px; color: var(--txt3, #4a6a88); letter-spacing: .8px; }
+  .mem-inp {
+    background: var(--bg, #080f1a); border: 1px solid var(--bd, #162338);
+    color: var(--txt); padding: 5px 8px; font-family: inherit;
+    font-size: 10px; border-radius: 3px; width: 100%; box-sizing: border-box;
+  }
+  .mem-inp:focus { border-color: var(--acc); outline: none; }
+  .mem-code {
+    background: var(--bg, #080f1a); border: 1px solid var(--bd2, #1e3048);
+    color: var(--ok, #00e87a); padding: 10px 12px; border-radius: 3px;
+    font-size: 9px; word-break: break-all; line-height: 1.6;
+    max-height: 80px; overflow-y: auto; cursor: pointer; user-select: all;
+    font-family: var(--mono, monospace);
+  }
+  .mem-code:hover { border-color: var(--acc); }
+  .mem-foot {
+    padding: 10px 16px; border-top: 1px solid var(--bd2, #1e3048);
+    display: flex; gap: 8px; justify-content: flex-end; align-items: center;
+  }
+  .mem-note { font-size: 8px; color: var(--txt3); flex: 1; line-height: 1.6; }
+</style>
+<div style="margin:-16px; height:calc(100vh - var(--header-h) - var(--term-h) - 32px); height:calc(100dvh - var(--header-h) - var(--term-h) - 32px); display:flex; flex-direction:column; min-height:0;">
+  <div class="card" style="flex:1; display:flex; flex-direction:column; overflow:hidden; border-color:var(--acc); min-height:0; border-radius:0;">
+    <div class="ch" style="padding: 0; flex-shrink: 0; min-height: 38px;">
+      <div id="map-toolbar">
+        <div class="map-tb-group" style="padding-left:12px; gap:8px;">
+          <span style="color:var(--acc); font-size:13px; line-height:1;">◫</span>
+          <span class="ct" style="font-size:11px; white-space:nowrap; letter-spacing:.5px;">Network Map</span>
+        </div>
+        <div class="map-tb-group">
+          <span class="map-tb-lbl">STYLE</span>
+          <select class="inp mono" id="map-style" style="max-width:115px;width:100%;font-size:10px;padding:3px 6px;"
+            onchange="window.c2ChangeMapStyle(this.value)">
+            <option value="dark" selected>◼ C2 Dark</option>
+            <option value="satellite">🛰 Satellite</option>
+            <option value="osm">◻ Standard</option>
+            <option value="offline" title="Ensure offline_map.mbtiles is placed in your static directory">🗄 Offline Archive</option>
+          </select>
+          <span id="offline-map-indicator" style="display:none; font-size:8px; padding:2px 6px; background:rgba(0,200,100,.15); color:#00e87a; border-radius:3px; border:1px solid rgba(0,200,100,.3); white-space:nowrap; cursor:help;" title="Offline tiles active"></span>
+        </div>
+        <div class="map-tb-group">
+          <span class="map-tb-lbl">NODES</span>
+          <label class="tog"><input type="checkbox" id="map-show-all" checked
+            onchange="window.c2UpdateMapVisibility()"><span class="tog-sl"></span></label>
+        </div>
+        <div class="map-tb-group">
+          <span class="map-tb-lbl">TRAILS</span>
+          <label class="tog"><input type="checkbox" id="map-show-traj" checked
+            onchange="window.c2UpdateMapVisibility()"><span class="tog-sl"></span></label>
+        </div>
+        <div class="map-tb-group">
+          <span class="map-tb-lbl">LINKS</span>
+          <label class="tog"><input type="checkbox" id="map-show-links"
+            onchange="window.c2UpdateMapVisibility()"><span class="tog-sl"></span></label>
+        </div>
+        <div class="map-tb-group" title="Draw traceroutes as animated paths on the map">
+          <span class="map-tb-lbl">ROUTES</span>
+          <label class="tog"><input type="checkbox" id="map-show-routes"
+            onchange="window.c2ToggleTracerouteOverlay(this.checked)"><span class="tog-sl"></span></label>
+        </div>
+        <div class="map-tb-group" title="Range rings from your local node">
+          <span class="map-tb-lbl">RINGS</span>
+          <label class="tog"><input type="checkbox" id="map-show-rings"
+            onchange="window.c2ToggleRangeRings(this.checked)"><span class="tog-sl"></span></label>
+        </div>
+        <div class="map-tb-group">
+          <button class="btn btn-sm" id="map-filter-btn"
+            onclick="window.c2ToggleFilterDrawer()"
+            style="font-size:9px; padding:3px 10px; display:flex; align-items:center; gap:4px;">
+            <i class="fas fa-sliders-h"></i>
+            FILTER
+            <span id="map-filter-badge">0</span>
+          </button>
+        </div>
+        <div class="map-tb-group">
+          <button class="btn btn-sm" id="map-overlays-btn"
+            onclick="window.c2ToggleOverlayDrawer()"
+            style="font-size:9px; padding:3px 10px; display:flex; align-items:center; gap:4px;">
+            <i class="fas fa-layer-group"></i>
+            OVERLAYS
+            <span id="map-overlay-badge" style="display:none; background:var(--acc); color:#000; font-size:8px; font-weight:800; padding:1px 5px; border-radius:3px;">0</span>
+          </button>
+        </div>
+        <div class="map-tb-group">
+          <span class="map-tb-lbl">AUTO</span>
+          <label class="tog"><input type="checkbox" id="map-auto-ref" checked
+            onchange="window.c2ToggleAutoRefresh(this)"><span class="tog-sl"></span></label>
+        </div>
+        <div class="map-tb-group" style="margin-left:auto; gap:6px;">
+          <button class="btn btn-sm" onclick="window.c2ManualRefresh()" title="Refresh">↻ REFRESH</button>
+          <button class="btn btn-sm" onclick="window.c2FitMapBounds()" title="Fit all">⛶ FIT</button>
+          <button class="btn btn-sm" onclick="window.c2OpenEmbedModal()" title="Generate embeddable public iframe">
+            <i class="fas fa-code"></i> EMBED
+          </button>
+          <button class="btn btn-sm btn-acc" onclick="window.c2OpenHelpModal()" title="Offline Maps Manager & Help">
+            <i class="fas fa-map"></i> MAPS
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="map-filter-drawer">
+      <div class="mfd-inner">
+        <div class="mfd-group" style="min-width:0;flex:2;">
+          <span class="mfd-label">SEARCH — NAME / NODE ID</span>
+          <input class="mfd-inp" id="mfd-search" type="text"
+            placeholder="e.g. router  or  !aabb1234"
+            oninput="window.c2ApplyMapFilters()">
+        </div>
+        <div class="mfd-group">
+          <span class="mfd-label">ROLE</span>
+          <select class="mfd-inp mfd-sel" id="mfd-role" onchange="window.c2ApplyMapFilters()">
+            <option value="">ALL ROLES</option>
+            <option value="ROUTER">ROUTER</option>
+            <option value="CLIENT">CLIENT</option>
+            <option value="CLIENT_MUTE">CLIENT MUTE</option>
+            <option value="REPEATER">REPEATER</option>
+            <option value="TRACKER">TRACKER</option>
+            <option value="TAK">TAK</option>
+            <option value="CLIENT_HIDDEN">HIDDEN</option>
+          </select>
+        </div>
+        <div class="mfd-group">
+          <span class="mfd-label">LAST HEARD</span>
+          <select class="mfd-inp mfd-sel" id="mfd-age" onchange="window.c2ApplyMapFilters()">
+            <option value="0">ANY TIME</option>
+            <option value="1">LAST HOUR</option>
+            <option value="8">LAST 8H</option>
+            <option value="24">LAST 24H</option>
+            <option value="168">LAST WEEK</option>
+            <option value="720">LAST MONTH</option>
+          </select>
+        </div>
+        <div class="mfd-group" style="min-width:90px;">
+          <span class="mfd-label">MIN SNR (dB)</span>
+          <input class="mfd-inp" id="mfd-snr" type="number" min="-30" max="15" step="1"
+            placeholder="any" oninput="window.c2ApplyMapFilters()">
+        </div>
+        <div class="mfd-group" style="min-width:80px;">
+          <span class="mfd-label">MAX HOPS</span>
+          <input class="mfd-inp" id="mfd-hops" type="number" min="0" max="7" step="1"
+            placeholder="any" oninput="window.c2ApplyMapFilters()">
+        </div>
+        <div class="mfd-group" style="min-width:90px;">
+          <span class="mfd-label">MIN BATTERY %</span>
+          <input class="mfd-inp" id="mfd-bat" type="number" min="0" max="100" step="5"
+            placeholder="any" oninput="window.c2ApplyMapFilters()">
+        </div>
+        <div class="mfd-group" style="min-width:0;">
+          <span class="mfd-label">HARDWARE MODEL</span>
+          <select class="mfd-inp mfd-sel" id="mfd-hw" onchange="window.c2ApplyMapFilters()">
+            <option value="">ALL HARDWARE</option>
+          </select>
+        </div>
+        <div class="mfd-group" style="min-width:0;">
+          <span class="mfd-label">FLAGS</span>
+          <div class="mfd-checks">
+            <label class="mfd-check-row">
+              <input type="checkbox" id="mfd-online"> ONLINE ONLY
+            </label>
+            <label class="mfd-check-row">
+              <input type="checkbox" id="mfd-gps"> GPS ONLY
+            </label>
+          </div>
+        </div>
+        <script>
+          (function(){
+            ['mfd-online','mfd-gps'].forEach(id=>{
+              const el=document.getElementById(id);
+              if(el) el.addEventListener('change', ()=>window.c2ApplyMapFilters?.());
+            });
+          })();
+        </script>
+        <div class="mfd-group" style="min-width:auto; justify-content:flex-end;">
+          <span class="mfd-label">&nbsp;</span>
+          <button class="mfd-clear" onclick="window.c2ClearMapFilters()">✕ CLEAR ALL</button>
+        </div>
+      </div>
+    </div>
+    <div id="map-overlay-drawer" style="background: var(--bg1, #0b1320); border-bottom: 1px solid var(--bd2, #1e3048); overflow: hidden; max-height: 0; transition: max-height .22s cubic-bezier(.4,0,.2,1); font-family: var(--mono, monospace); flex-shrink: 0;">
+      <div class="mfd-inner" style="flex-direction: column; align-items: flex-start; padding: 12px 16px;">
+        <div style="font-size: 10px; color: var(--acc); margin-bottom: 8px; letter-spacing: 1px; font-weight: 800;">TACTICAL OVERLAYS (Drag & Drop KML/GeoJSON)</div>
+        <div id="overlay-items" style="display:flex; flex-direction:column; gap:6px; width:100%; max-height: 120px; overflow-y: auto;">
+          <div style="font-size: 9px; color: var(--txt3);">No offline vector files loaded. Drop a file onto the map.</div>
+        </div>
+      </div>
+    </div>
+    <div class="cb p0" style="flex: 1; position: relative; overflow: hidden;">
+      <div id="map-loading" style="display:flex;">
+        <i id="map-load-icon" class="fas fa-satellite-dish fa-spin"></i>
+        <div id="map-load-title">ACQUIRING TELEMETRY...</div>
+        <div id="map-load-sub">CONNECTING TO NETWORK</div>
+        <div id="map-load-bar-wrap"><div id="map-load-bar"></div></div>
+        <div id="map-load-count"></div>
+      </div>
+      <div id="map-stats-bar">
+        <div class="msb-item">
+          <span>NODES</span>
+          <span class="msb-val" id="msb-total">—</span>
+        </div>
+        <div class="msb-item">
+          <span>VISIBLE</span>
+          <span class="msb-val" id="msb-visible">—</span>
+        </div>
+        <div class="msb-item">
+          <span>ONLINE</span>
+          <span class="msb-val" id="msb-online">—</span>
+        </div>
+        <div class="msb-item">
+          <span>GPS</span>
+          <span class="msb-val" id="msb-gps">—</span>
+        </div>
+      </div>
+      <div id="main-c2-map" style="width:100%; height:100%; background:var(--bg2);"></div>
+    </div>
+  </div>
+</div>
+<div id="map-help-modal" style="position: fixed; inset: 0; background: rgba(0,0,0,.72); z-index: 50000; display: none; align-items: center; justify-content: center; font-family: var(--mono, monospace);">
+  <div class="mem-box" style="max-width: 620px; width: 95vw;">
+    <div class="mem-head">
+      <i class="fas fa-map"></i> TACTICAL MAPPING ENGINE
+      <button onclick="window.c2CloseHelpModal()" style="margin-left:auto; background:none; border:none; color:var(--txt3); cursor:pointer; font-size:16px; line-height:1;">✕</button>
+    </div>
+    <div class="mem-body" style="font-size: 11px; line-height: 1.6; color: var(--txt); max-height: 70vh; overflow-y: auto;">
+
+      <!-- Tab bar -->
+      <div style="display:flex; gap:0; margin-bottom:14px; border-bottom:1px solid var(--bd2);">
+        <button class="btn btn-sm" id="maptab-offline" onclick="window._mapTabSwitch('offline')" style="border-radius:4px 4px 0 0; border-bottom:2px solid var(--acc); font-size:10px; padding:6px 14px;">
+          <i class="fas fa-database"></i> OFFLINE MAPS
+        </button>
+        <button class="btn btn-sm" id="maptab-overlays" onclick="window._mapTabSwitch('overlays')" style="border-radius:4px 4px 0 0; border-bottom:2px solid transparent; font-size:10px; padding:6px 14px;">
+          <i class="fas fa-layer-group"></i> OVERLAYS HELP
+        </button>
+      </div>
+
+      <!-- Tab: Offline Maps -->
+      <div id="maptab-offline-panel">
+        <!-- Download section -->
+        <h3 style="color: var(--acc); margin: 0 0 8px 0; font-size: 11px; letter-spacing: 1px;">
+          <i class="fas fa-download"></i> DOWNLOAD MBTILES ARCHIVE
+        </h3>
+        <p style="margin:0 0 8px; color:var(--txt3); font-size:9px;">Paste a direct download link to an .mbtiles file from MapTiler, Protomaps, or your own tile server.</p>
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <input type="text" id="mbtiles-download-url" class="inp mono" placeholder="https://example.com/region.mbtiles" style="font-size: 10px; padding: 5px 8px; flex: 1;">
+          <button class="btn btn-sm btn-acc" id="mbtiles-download-btn" onclick="window.c2StartMapDownload()">
+            <i class="fas fa-cloud-download-alt"></i> DOWNLOAD
+          </button>
+        </div>
+
+        <!-- Download progress -->
+        <div id="map-download-progress" style="display:none; background:var(--bg); border:1px solid var(--bd); border-radius:4px; padding:10px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span id="mdp-filename" style="font-size:10px; color:var(--acc); font-weight:800;"></span>
+            <button class="btn btn-sm" id="mdp-cancel-btn" onclick="window.c2CancelMapDownload()" style="font-size:8px; padding:2px 8px;">✕ CANCEL</button>
+          </div>
+          <div style="background:var(--bd); border-radius:3px; height:8px; overflow:hidden; margin-bottom:6px;">
+            <div id="mdp-bar" style="height:100%; background:var(--acc); border-radius:3px; width:0%; transition:width 0.3s;"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:9px; color:var(--txt3);">
+            <span id="mdp-percent">0%</span>
+            <span id="mdp-size">0 MB / 0 MB</span>
+            <span id="mdp-speed">0 KB/s</span>
+            <span id="mdp-eta">ETA: --</span>
+          </div>
+          <div id="mdp-status-msg" style="font-size:9px; margin-top:6px; display:none;"></div>
+        </div>
+
+        <!-- File manager -->
+        <h3 style="color: var(--acc); margin: 12px 0 8px 0; font-size: 11px; letter-spacing: 1px;">
+          <i class="fas fa-folder-open"></i> MAP ARCHIVES
+        </h3>
+        <div id="map-files-list" style="margin-bottom:12px;">
+          <div style="font-size:9px; color:var(--txt3); padding:10px; text-align:center;">Loading...</div>
+        </div>
+
+        <!-- Upload fallback -->
+        <details style="margin-top:8px; border:1px solid var(--bd); border-radius:4px; padding:0;">
+          <summary style="cursor:pointer; padding:8px 12px; font-size:10px; color:var(--txt3); user-select:none;">
+            <i class="fas fa-upload"></i> MANUAL UPLOAD (for local files)
+          </summary>
+          <div style="padding:8px 12px 12px;">
+            <div style="display: flex; gap: 8px;">
+              <input type="file" id="mbtiles-upload" accept=".mbtiles" class="inp mono" style="font-size: 10px; padding: 4px; flex: 1;">
+              <button class="btn btn-sm btn-acc" onclick="window.c2UploadMBTiles()">UPLOAD</button>
+            </div>
+            <div id="upload-status" style="color: var(--ok); font-size: 9px; margin-top: 6px; display: none; font-weight: 800;"></div>
+          </div>
+        </details>
+      </div>
+
+      <!-- Tab: Overlays help -->
+      <div id="maptab-overlays-panel" style="display:none;">
+        <h3 style="color: var(--acc); margin: 0 0 5px 0; font-size: 12px; letter-spacing: 1px;">TACTICAL OVERLAYS</h3>
+        <p style="margin-top: 0; color: var(--txt2);">Drag and drop <b>.KML</b>, <b>.KMZ</b>, or <b>.GeoJSON</b> files directly onto the map canvas to render operational boundaries, routes, and waypoints.</p>
+        <ul style="margin: 0; padding-left: 15px; color: var(--txt2);">
+          <li>Files are parsed locally on your device (no internet required).</li>
+          <li>Manage visibility using the <b>OVERLAYS</b> drawer in the toolbar.</li>
+          <li>Overlays persist even when switching between map styles.</li>
+        </ul>
+      </div>
+
+    </div>
+    <div class="mem-foot">
+      <button class="btn btn-sm" onclick="window.c2CloseHelpModal()">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<div id="map-embed-modal">
+  <div class="mem-box">
+    <div class="mem-head">
+      <i class="fas fa-code"></i>
+      EMBED MAP — PUBLIC READ-ONLY LIVE VIEW
+      <button onclick="window.c2CloseEmbedModal()"
+        style="margin-left:auto; background:none; border:none; color:var(--txt3); cursor:pointer; font-size:16px; line-height:1;">✕</button>
+    </div>
+    <div class="mem-body">
+      <div class="mem-row">
+        <div class="mem-field" style="flex:2;">
+          <span class="mem-lbl">LABEL (shown in embed header)</span>
+          <input class="mem-inp" id="mem-title" type="text"
+            placeholder="My Mesh Network" oninput="window.c2RebuildEmbedCode()">
+        </div>
+        <div class="mem-field">
+          <span class="mem-lbl">MAP STYLE</span>
+          <select class="mem-inp" id="mem-style" onchange="window.c2RebuildEmbedCode()">
+            <option value="dark">C2 Dark</option>
+            <option value="satellite">Satellite</option>
+            <option value="osm">Standard</option>
+            <option value="offline">Offline Archive</option>
+          </select>
+        </div>
+        <div class="mem-field" style="max-width:72px;">
+          <span class="mem-lbl">ZOOM</span>
+          <input class="mem-inp" id="mem-zoom" type="number" min="2" max="18" value="7"
+            oninput="window.c2RebuildEmbedCode()">
+        </div>
+      </div>
+      <div class="mem-row">
+        <div class="mem-field" style="flex:2;">
+          <span class="mem-lbl">NODE FILTER — name / ID prefix (blank = show all)</span>
+          <input class="mem-inp" id="mem-filter" type="text"
+            placeholder="e.g. UK or !aabb" oninput="window.c2RebuildEmbedCode()">
+        </div>
+        <div class="mem-field" style="max-width:100%;">
+          <span class="mem-lbl">MAX AGE (hours, 0 = any)</span>
+          <input class="mem-inp" id="mem-age" type="number" min="0" max="8760" value="168"
+            oninput="window.c2RebuildEmbedCode()">
+        </div>
+      </div>
+      <div class="mem-row" style="gap:16px; align-items:center; flex-wrap:wrap;">
+        <label style="display:flex; align-items:center; gap:5px; font-size:9px; color:var(--txt3); cursor:pointer; white-space:nowrap;">
+          <input type="checkbox" id="mem-trails" onchange="window.c2RebuildEmbedCode()"> Show trails
+        </label>
+        <label style="display:flex; align-items:center; gap:5px; font-size:9px; color:var(--txt3); cursor:pointer; white-space:nowrap;">
+          <input type="checkbox" id="mem-links" onchange="window.c2RebuildEmbedCode()"> Show RF links
+        </label>
+        <label style="display:flex; align-items:center; gap:5px; font-size:9px; color:var(--txt3); cursor:pointer; white-space:nowrap;">
+          <input type="checkbox" id="mem-gps-only" checked onchange="window.c2RebuildEmbedCode()"> GPS nodes only
+        </label>
+        <label style="display:flex; align-items:center; gap:5px; font-size:9px; color:var(--txt3); cursor:pointer; white-space:nowrap;">
+          <input type="checkbox" id="mem-online-only" onchange="window.c2RebuildEmbedCode()"> Online only (&lt;1h)
+        </label>
+      </div>
+      <div>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px;">
+          <span style="font-size:8px; color:var(--txt3); letter-spacing:.8px;">GENERATED IFRAME CODE — CLICK TO SELECT ALL</span>
+          <span id="mem-copied" style="font-size:8px; color:var(--ok); display:none; letter-spacing:.5px;">✓ COPIED</span>
+        </div>
+        <div class="mem-code" id="mem-code" onclick="window.c2CopyEmbedCode()">—</div>
+      </div>
+    </div>
+    <div class="mem-foot">
+      <span class="mem-note">
+        <i class="fas fa-globe" style="color:var(--acc);"></i>
+        Served at <code style="color:var(--acc);">/map/embed</code> — no authentication required for viewers.<br>
+        Read-only: node positions only. DM, control and admin functions are never exposed.
+      </span>
+      <button class="btn btn-sm" onclick="window.c2CloseEmbedModal()">CLOSE</button>
+      <button class="btn btn-sm btn-acc" onclick="window.c2CopyEmbedCode()">
+        <i class="fas fa-copy"></i> COPY CODE
+      </button>
+    </div>
+  </div>
+</div>

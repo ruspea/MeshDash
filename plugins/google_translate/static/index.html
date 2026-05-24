@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Google Translate</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:12px;}
+.shell{height:100%;display:flex;flex-direction:column;overflow:hidden;}
+.top{flex-shrink:0;padding:12px 16px;border-bottom:1px solid var(--bd2);background:var(--bg2);display:flex;align-items:center;gap:10px;}
+.scroll{flex:1;overflow-y:auto;padding:14px 16px 24px;}
+.ph-ico{font-size:20px;color:var(--acc);}
+.ph-title{font-size:14px;font-family:var(--mono);font-weight:900;letter-spacing:2px;}
+.ph-sub{font-size:9px;color:var(--txt3);font-family:var(--mono);}
+.c{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);padding:14px;margin-bottom:12px;}
+.c-hd{font-family:var(--mono);font-size:11px;font-weight:bold;color:var(--txt);letter-spacing:1px;margin-bottom:12px;}
+.c-hd i{margin-right:6px;color:var(--acc);}
+.row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.lbl{font-family:var(--mono);font-size:11px;font-weight:bold;color:var(--txt);}
+.sub{font-size:9px;color:var(--txt3);font-family:var(--mono);margin-top:2px;line-height:1.4;}
+.tog{position:relative;width:36px;height:18px;flex-shrink:0;}
+.tog input{opacity:0;width:0;height:0;position:absolute;}
+.tog-sl{position:absolute;inset:0;background:var(--bd2);border-radius:9px;cursor:pointer;transition:background .2s;}
+.tog-sl::after{content:'';position:absolute;width:12px;height:12px;left:3px;top:3px;background:var(--txt3);border-radius:50%;transition:all .2s;}
+.tog input:checked+.tog-sl{background:var(--acc);}
+.tog input:checked+.tog-sl::after{transform:translateX(18px);background:#000;}
+.seg{display:flex;border:1px solid var(--bd2);border-radius:4px;overflow:hidden;}
+.seg-btn{flex:1;padding:5px 10px;font-family:var(--mono);font-size:9px;color:var(--txt3);background:var(--bg3);border:none;cursor:pointer;transition:.12s;text-align:center;white-space:nowrap;}
+.seg-btn:hover{color:var(--txt);}
+.seg-btn.active{background:var(--acc);color:#000;font-weight:bold;}
+.info-box{background:rgba(0,200,245,.06);border-left:3px solid var(--acc);padding:10px;font-size:11px;margin-bottom:12px;border-radius:0 4px 4px 0;line-height:1.5;}
+.lang-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin-top:8px;}
+.lang-btn{background:var(--bg3);border:1px solid var(--bd2);color:var(--txt2);padding:5px 8px;border-radius:3px;font-family:var(--mono);font-size:10px;cursor:pointer;transition:.12s;text-align:left;}
+.lang-btn:hover{border-color:var(--acc);color:var(--acc);}
+.lang-btn.active{border-color:var(--acc);background:var(--acc-dim);color:var(--acc);font-weight:bold;}
+.spin{animation:gt-spin .7s linear infinite;display:inline-block;}
+@keyframes gt-spin{to{transform:rotate(360deg);}}
+.hr{border:none;border-top:1px solid rgba(255,255,255,.06);margin:12px 0;}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="top">
+  <i class="fas fa-language ph-ico"></i>
+  <div>
+    <div class="ph-title">GOOGLE TRANSLATE</div>
+    <div class="ph-sub">SITE-WIDE TRANSLATION · ALL LANGUAGES</div>
+  </div>
+  <span id="status-pill" style="margin-left:auto;font-family:var(--mono);font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid var(--bd2);color:var(--txt3);">LOADING…</span>
+</div>
+<div class="scroll">
+
+  <div class="info-box">
+    The 🌐 button appears at the chosen position on every MeshDash page. Click it to open the language selector. Translation applies to all text on the page including node names, messages, menus and status text.
+    <br><br>
+    <strong>Note:</strong> Requires internet access to reach translate.google.com. Works in any browser that supports Google Translate widget.
+  </div>
+
+  <!-- Master enable -->
+  <div class="c">
+    <div class="c-hd"><i class="fas fa-toggle-on"></i>OVERLAY CONTROL</div>
+    <div class="row">
+      <div><div class="lbl">ENABLE TRANSLATE BUTTON</div><div class="sub">Show the 🌐 floating button on all MeshDash pages.</div></div>
+      <label class="tog"><input type="checkbox" id="cfg-enabled" onchange="save()"><span class="tog-sl"></span></label>
+    </div>
+  </div>
+
+  <!-- Position -->
+  <div class="c">
+    <div class="c-hd"><i class="fas fa-arrows-alt"></i>BUTTON POSITION</div>
+    <div class="seg" id="pos-seg">
+      <button class="seg-btn" data-val="top-left">↖ TOP LEFT</button>
+      <button class="seg-btn" data-val="top-right">TOP RIGHT ↗</button>
+      <button class="seg-btn active" data-val="bottom-left">↙ BTM LEFT</button>
+      <button class="seg-btn" data-val="bottom-right">BTM RIGHT ↘</button>
+    </div>
+  </div>
+
+  <!-- Default language -->
+  <div class="c">
+    <div class="c-hd"><i class="fas fa-globe"></i>DEFAULT LANGUAGE</div>
+    <div class="sub" style="margin-bottom:10px;">Auto-switch to this language when the page loads. Leave blank for English (no auto-translate).</div>
+    <div class="lang-grid" id="lang-grid"></div>
+    <div class="hr"></div>
+    <div style="display:flex;gap:8px;margin-top:2px;">
+      <button class="btn btn-sm" onclick="setLang('')" style="font-size:10px;">✕ CLEAR (English)</button>
+    </div>
+  </div>
+
+  <!-- Save -->
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button class="btn btn-acc" id="save-btn" onclick="save()"><i class="fas fa-save"></i> SAVE</button>
+    <span id="save-msg" style="font-family:var(--mono);font-size:9px;color:var(--txt3);"></span>
+  </div>
+
+</div>
+</div>
+<script>
+'use strict';
+var API = '/api/plugins/google_translate/config';
+var _cfg = { enabled: true, position: 'bottom-left', default_language: '', show_original: true, compact: false };
+
+var LANGS = [
+  ['af','Afrikaans'],['sq','Albanian'],['am','Amharic'],['ar','Arabic'],
+  ['hy','Armenian'],['az','Azerbaijani'],['eu','Basque'],['be','Belarusian'],
+  ['bn','Bengali'],['bs','Bosnian'],['bg','Bulgarian'],['ca','Catalan'],
+  ['ceb','Cebuano'],['ny','Chichewa'],['zh-CN','Chinese (Simplified)'],
+  ['zh-TW','Chinese (Traditional)'],['co','Corsican'],['hr','Croatian'],
+  ['cs','Czech'],['da','Danish'],['nl','Dutch'],['en','English'],
+  ['eo','Esperanto'],['et','Estonian'],['tl','Filipino'],['fi','Finnish'],
+  ['fr','French'],['fy','Frisian'],['gl','Galician'],['ka','Georgian'],
+  ['de','German'],['el','Greek'],['gu','Gujarati'],['ht','Haitian Creole'],
+  ['ha','Hausa'],['haw','Hawaiian'],['iw','Hebrew'],['hi','Hindi'],
+  ['hmn','Hmong'],['hu','Hungarian'],['is','Icelandic'],['ig','Igbo'],
+  ['id','Indonesian'],['ga','Irish'],['it','Italian'],['ja','Japanese'],
+  ['jw','Javanese'],['kn','Kannada'],['kk','Kazakh'],['km','Khmer'],
+  ['ko','Korean'],['ku','Kurdish'],['ky','Kyrgyz'],['lo','Lao'],
+  ['la','Latin'],['lv','Latvian'],['lt','Lithuanian'],['lb','Luxembourgish'],
+  ['mk','Macedonian'],['mg','Malagasy'],['ms','Malay'],['ml','Malayalam'],
+  ['mt','Maltese'],['mi','Maori'],['mr','Marathi'],['mn','Mongolian'],
+  ['my','Myanmar (Burmese)'],['ne','Nepali'],['no','Norwegian'],
+  ['ps','Pashto'],['fa','Persian'],['pl','Polish'],['pt','Portuguese'],
+  ['pa','Punjabi'],['ro','Romanian'],['ru','Russian'],['sm','Samoan'],
+  ['gd','Scots Gaelic'],['sr','Serbian'],['st','Sesotho'],['sn','Shona'],
+  ['sd','Sindhi'],['si','Sinhala'],['sk','Slovak'],['sl','Slovenian'],
+  ['so','Somali'],['es','Spanish'],['su','Sundanese'],['sw','Swahili'],
+  ['sv','Swedish'],['tg','Tajik'],['ta','Tamil'],['te','Telugu'],
+  ['th','Thai'],['tr','Turkish'],['uk','Ukrainian'],['ur','Urdu'],
+  ['uz','Uzbek'],['vi','Vietnamese'],['cy','Welsh'],['xh','Xhosa'],
+  ['yi','Yiddish'],['yo','Yoruba'],['zu','Zulu'],
+];
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function toast(m,t){try{window.parent.triggerToast(m,t||'ok');}catch(e){}}
+
+async function loadConfig(){
+  try{
+    var r=await fetch(API,{credentials:'include'});
+    if(r.ok){_cfg=await r.json();applyToUI();}
+  }catch(e){}
+}
+
+function applyToUI(){
+  document.getElementById('cfg-enabled').checked=!!_cfg.enabled;
+  document.querySelectorAll('#pos-seg .seg-btn').forEach(function(b){
+    b.classList.toggle('active',b.dataset.val===_cfg.position);
+  });
+  renderLangs();
+  updatePill();
+}
+
+function updatePill(){
+  var p=document.getElementById('status-pill');
+  p.textContent=_cfg.enabled?'ACTIVE':'DISABLED';
+  p.style.borderColor=_cfg.enabled?'var(--ok)':'var(--bd2)';
+  p.style.color=_cfg.enabled?'var(--ok)':'var(--txt3)';
+}
+
+function renderLangs(){
+  var g=document.getElementById('lang-grid');
+  g.innerHTML=LANGS.map(function(l){
+    var active=_cfg.default_language===l[0];
+    return'<button class="lang-btn'+(active?' active':'')+'" onclick="setLang(\''+esc(l[0])+'\')">'+esc(l[1])+'</button>';
+  }).join('');
+}
+
+function setLang(code){
+  _cfg.default_language=code;
+  renderLangs();
+  // Apply to parent immediately if running
+  try{
+    if(code){
+      var sel=window.parent.document.querySelector('.goog-te-combo');
+      if(sel){sel.value=code;sel.dispatchEvent(new Event('change'));}
+    }
+  }catch(e){}
+  save();
+}
+
+document.getElementById('pos-seg').addEventListener('click',function(e){
+  var b=e.target.closest('.seg-btn');
+  if(!b)return;
+  _cfg.position=b.dataset.val;
+  document.querySelectorAll('#pos-seg .seg-btn').forEach(function(x){x.classList.toggle('active',x===b);});
+  save();
+});
+
+document.getElementById('cfg-enabled').addEventListener('change',function(){
+  _cfg.enabled=this.checked;
+  updatePill();
+});
+
+async function save(){
+  _cfg.enabled=document.getElementById('cfg-enabled').checked;
+  var msg=document.getElementById('save-msg');
+  try{
+    var r=await fetch(API,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(_cfg)});
+    if(r.ok){msg.textContent='✓ Saved';msg.style.color='var(--ok)';toast('Translate settings saved.','ok');setTimeout(function(){msg.textContent='';},3000);}
+  }catch(e){msg.textContent='✗ Save failed';msg.style.color='var(--err)';}
+}
+
+document.addEventListener('DOMContentLoaded',loadConfig);
+</script>
+</body>
+</html>

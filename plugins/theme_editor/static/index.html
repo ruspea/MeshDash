@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Theme Editor</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:12px;}
+.shell{height:100%;display:flex;flex-direction:column;overflow:hidden;}
+.top{flex-shrink:0;padding:12px 16px;border-bottom:1px solid var(--bd2);background:var(--bg2);display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.scroll{flex:1;overflow-y:auto;padding:14px 16px 24px;}
+.scroll::-webkit-scrollbar{width:4px;}.scroll::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px;}
+.ph-ico{font-size:18px;color:var(--acc);}
+.ph-title{font-size:14px;font-family:var(--mono);font-weight:900;letter-spacing:2px;}
+.ph-sub{font-size:10px;color:var(--txt2);font-family:var(--mono);}
+
+/* Layout: two-column */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:780px){.cols{grid-template-columns:1fr;}}
+.c{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);padding:14px;margin-bottom:12px;}
+.c-hd{font-family:var(--mono);font-size:10px;font-weight:bold;color:var(--txt);letter-spacing:1.5px;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.c-hd i{color:var(--acc);}
+.section-lbl{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--acc);padding:3px 0 3px 6px;border-left:2px solid var(--acc);background:rgba(0,200,245,.04);margin-bottom:10px;}
+
+/* Colour swatch row */
+.swatch-row{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.swatch-lbl{font-family:var(--mono);font-size:10px;color:var(--txt2);min-width:90px;letter-spacing:.3px;}
+.swatch-pick{position:relative;width:32px;height:24px;border-radius:4px;border:2px solid rgba(255,255,255,.12);cursor:pointer;flex-shrink:0;transition:border-color .15s;}
+.swatch-pick:hover{border-color:rgba(255,255,255,.4);}
+.swatch-pick input[type=color]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;border:none;padding:0;}
+.swatch-hex{width:82px;font-family:var(--mono);font-size:11px;background:var(--bg);border:1px solid var(--bd2);color:var(--txt);padding:4px 7px;border-radius:4px;transition:border-color .15s;}
+.swatch-hex:focus{outline:none;border-color:var(--acc);}
+.swatch-reset{background:none;border:1px solid var(--bd2);color:var(--txt2);width:20px;height:20px;border-radius:3px;cursor:pointer;font-size:10px;display:flex;align-items:center;justify-content:center;transition:.12s;flex-shrink:0;}
+.swatch-reset:hover{border-color:var(--warn);color:var(--warn);}
+.swatch-preview{width:24px;height:24px;border-radius:4px;border:1px solid rgba(255,255,255,.1);flex-shrink:0;}
+
+/* Preset theme cards */
+.preset-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:12px;}
+.preset{border:2px solid var(--bd2);border-radius:6px;padding:10px 8px;cursor:pointer;transition:.15s;text-align:center;background:var(--bg3);}
+.preset:hover{border-color:var(--acc);transform:translateY(-1px);}
+.preset.active{border-color:var(--acc);background:var(--acc-dim);}
+.preset-dots{display:flex;justify-content:center;gap:4px;margin-bottom:7px;}
+.preset-dot{width:12px;height:12px;border-radius:50%;border:1px solid rgba(255,255,255,.15);}
+.preset-name{font-family:var(--mono);font-size:10px;font-weight:bold;color:var(--txt);letter-spacing:.5px;}
+
+/* Live preview pane */
+.preview-pane{background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);padding:12px;margin-bottom:12px;min-height:120px;}
+.preview-topbar{display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;margin-bottom:8px;}
+.preview-brand{font-size:11px;font-weight:900;color:var(--acc);font-family:var(--mono);}
+.preview-brand em{color:var(--err);font-style:normal;}
+.preview-pills{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px;}
+.preview-pill{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:3px;border:1px solid;}
+.preview-sidebar{display:flex;gap:8px;}
+.preview-si-item{padding:4px 8px;border-left:2px solid;font-family:var(--mono);font-size:10px;border-radius:2px;}
+.preview-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.preview-btn{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:3px;border:1px solid;cursor:default;}
+
+/* Action bar */
+.action-bar{display:flex;gap:8px;align-items:center;padding-top:4px;flex-wrap:wrap;}
+.save-msg{font-family:var(--mono);font-size:10px;color:var(--txt2);}
+.spin{animation:th-spin .7s linear infinite;display:inline-block;}
+@keyframes th-spin{to{transform:rotate(360deg);}}
+.hr{border:none;border-top:1px solid rgba(255,255,255,.06);margin:12px 0;}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="top">
+  <i class="fas fa-palette ph-ico"></i>
+  <div>
+    <div class="ph-title">THEME EDITOR</div>
+    <div class="ph-sub">LIVE CSS VARIABLE CUSTOMISATION</div>
+  </div>
+</div>
+<div class="scroll">
+
+<!-- Preset themes -->
+<div class="c">
+  <div class="c-hd"><i class="fas fa-swatchbook"></i>PRESET THEMES</div>
+  <div class="preset-grid" id="preset-grid"></div>
+</div>
+
+<div class="cols">
+
+  <!-- Left: Accent + Status colours -->
+  <div>
+    <div class="c">
+      <div class="c-hd"><i class="fas fa-paint-brush"></i>ACCENT &amp; STATUS COLOURS</div>
+      <div class="section-lbl">INTERACTIVE &amp; HIGHLIGHT</div>
+      <div id="swatches-accent"></div>
+      <div class="hr"></div>
+      <div class="section-lbl">BACKGROUNDS</div>
+      <div id="swatches-bg"></div>
+      <div class="hr"></div>
+      <div class="section-lbl">TEXT &amp; BORDERS</div>
+      <div id="swatches-txt"></div>
+    </div>
+  </div>
+
+  <!-- Right: Live preview + save -->
+  <div>
+    <div class="c">
+      <div class="c-hd"><i class="fas fa-eye"></i>LIVE PREVIEW</div>
+      <div class="preview-pane" id="live-preview">
+        <!-- rendered by JS -->
+      </div>
+      <div class="section-lbl" style="margin-top:4px;">Changes apply instantly to the entire dashboard.</div>
+    </div>
+    <div class="c">
+      <div class="c-hd"><i class="fas fa-save"></i>APPLY &amp; SAVE</div>
+      <p style="font-size:10px;color:var(--txt3);font-family:var(--mono);line-height:1.6;margin-bottom:12px;">
+        Saving persists the theme to the backend so it reloads automatically on every page load via the bridge.
+        The live preview above updates instantly as you pick colours.
+      </p>
+      <div class="action-bar">
+        <button class="btn btn-acc" id="save-btn"><i class="fas fa-save"></i> SAVE THEME</button>
+        <button class="btn" id="reset-btn"><i class="fas fa-undo"></i> RESET TO DEFAULT</button>
+        <span class="save-msg" id="save-msg"></span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+</div>
+
+<script>
+'use strict';
+var API = '/api/plugins/theme_editor/theme';
+
+/* ── Variable definitions ── */
+var ACCENT_VARS = [
+    { key:'--acc',   label:'Accent',    desc:'Borders, highlights, active elements' },
+    { key:'--ok',    label:'Online',    desc:'Connected, success states' },
+    { key:'--warn',  label:'Warning',   desc:'Alerts, partial states' },
+    { key:'--err',   label:'Error/C2',  desc:'Errors, C2 brand red' },
+    { key:'--pur',   label:'Purple',    desc:'MQTT indicator, special states' },
+];
+var BG_VARS = [
+    { key:'--bg',    label:'Background',  desc:'Page base' },
+    { key:'--bg2',   label:'Surface',     desc:'Cards, topbar, sidebar' },
+    { key:'--bg3',   label:'Raised',      desc:'Inputs, hover surfaces' },
+];
+var TXT_VARS = [
+    { key:'--txt',   label:'Text',        desc:'Primary text' },
+    { key:'--txt2',  label:'Text dim',    desc:'Secondary labels' },
+    { key:'--txt3',  label:'Text muted',  desc:'Placeholders, meta' },
+    { key:'--bd',    label:'Border',      desc:'Subtle dividers' },
+    { key:'--bd2',   label:'Border mid',  desc:'Cards, inputs' },
+];
+
+/* ── Default values (mirrors style.css :root) ── */
+var DEFAULTS = {
+    '--acc':'#00c8f5','--ok':'#00e87a','--warn':'#ffa826','--err':'#ff3050','--pur':'#b060ff',
+    '--bg':'#0a1018','--bg2':'#111a28','--bg3':'#162030',
+    '--txt':'#9bb5cf','--txt2':'#b8c8d8','--txt3':'#88a0b8',
+    '--bd':'#1e3048','--bd2':'#284058',
+};
+
+/* ── Preset themes ── */
+var PRESETS = [
+    {
+        name:'MeshDash C2', id:'default',
+        vars: {},  // empty = all defaults
+    },
+    {
+        name:'Operator Green', id:'green',
+        vars:{ '--acc':'#00ff88','--ok':'#00ff88','--bg':'#020d06','--bg2':'#041a0e','--bg3':'#071f12',
+               '--bd':'#0b3018','--bd2':'#0e3d1e','--txt':'#b8e8c8','--txt2':'#5aaa7a','--txt3':'#2d6644',
+               '--err':'#ff4040','--warn':'#ffbb00','--pur':'#bb66ff' },
+    },
+    {
+        name:'Amber Alert', id:'amber',
+        vars:{ '--acc':'var(--warn)','--ok':'var(--ok)','--bg':'#0d0900','--bg2':'#1a1100','--bg3':'#221800',
+               '--bd':'#3a2200','--bd2':'#442a00','--txt':'#ffe8b0','--txt2':'#c09040','--txt3':'#7a5820',
+               '--err':'var(--err)','--warn':'var(--warn)','--pur':'var(--pur)' },
+    },
+    {
+        name:'Crimson Ops', id:'crimson',
+        vars:{ '--acc':'var(--err)','--ok':'var(--ok)','--bg':'#0d0105','--bg2':'#1a0208','--bg3':'#22030c',
+               '--bd':'#3a0510','--bd2':'#480614','--txt':'#f0c8d0','--txt2':'#b06070','--txt3':'#703040',
+               '--err':'var(--err)','--warn':'var(--warn)','--pur':'#d060ff' },
+    },
+    {
+        name:'Solar Flare', id:'solar',
+        vars:{ '--acc':'#ffcc00','--ok':'var(--ok)','--bg':'#0a0800','--bg2':'#141000','--bg3':'#1c1600',
+               '--bd':'#302400','--bd2':'#3c2e00','--txt':'#fff0b0','--txt2':'#b09040','--txt3':'#6a5820',
+               '--err':'#ff5030','--warn':'#ff9900','--pur':'#cc66ff' },
+    },
+    {
+        name:'Stealth Grey', id:'stealth',
+        vars:{ '--acc':'#8ab0c8','--ok':'#60c880','--bg':'#0a0c0e','--bg2':'#131618','--bg3':'#1a1e22',
+               '--bd':'#252a30','--bd2':'#2e343c','--txt':'#b8c8d8','--txt2':'#6a7a88','--txt3':'#404c58',
+               '--err':'#d04060','--warn':'#c08030','--pur':'#8866cc' },
+    },
+    {
+        name:'Purple Haze', id:'purple',
+        vars:{ '--acc':'var(--pur)','--ok':'#60ffb0','--bg':'#080613','--bg2':'#100d1e','--bg3':'#161228',
+               '--bd':'#241a3c','--bd2':'#2e2050','--txt':'#d0b8f0','--txt2':'#8060b0','--txt3':'#503880',
+               '--err':'#ff4060','--warn':'#ffaa30','--pur':'var(--pur)' },
+    },
+    {
+        name:'Ice Blue', id:'ice',
+        vars:{ '--acc':'#60e8ff','--ok':'#40ffaa','--bg':'#030a10','--bg2':'#081420','--bg3':'#0d1c2c',
+               '--bd':'#102840','--bd2':'#14324e','--txt':'#b0e0f8','--txt2':'#507090','--txt3':'#304858',
+               '--err':'#ff4466','--warn':'#ffaa44','--pur':'#8866ff' },
+    },
+];
+
+/* Active overrides (starts as copy of defaults, user modifies) */
+var _overrides = Object.assign({}, DEFAULTS);
+var _savedOverrides = {};  /* last saved state */
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function toast(m,t){try{window.parent.triggerToast(m,t||'ok');}catch(e){}}
+function hex(v){return v||'#000000';}
+
+/* ── Hex → rgba ── */
+function hexToRgba(h,a){
+    h=h.replace('#','');
+    if(h.length===3)h=h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    var r=parseInt(h.substring(0,2),16),g=parseInt(h.substring(2,4),16),b=parseInt(h.substring(4,6),16);
+    return 'rgba('+r+','+g+','+b+','+a+')';
+}
+
+function _lighten(hex, amount) {
+    hex = hex.replace('#', '');
+    if (hex.length === 3) hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+    var r = Math.min(255, parseInt(hex.substring(0,2),16) + amount);
+    var g = Math.min(255, parseInt(hex.substring(2,4),16) + amount);
+    var b = Math.min(255, parseInt(hex.substring(4,6),16) + amount);
+    return '#' + [r,g,b].map(function(v){ return v.toString(16).padStart(2,'0'); }).join('');
+}
+
+/* ── Build :root CSS string from overrides ── */
+function buildCSS(overrides) {
+    // Build a flat dict: start with explicit overrides, then derive missing vars.
+    var vars = Object.assign({}, overrides);
+
+    // ── Background gradient ──
+    // bg → bg1 (+5) → bg2 (+14 from bg) → bg3 (+5 from bg2) → bg4 (+12 from bg2)
+    if (vars['--bg']) {
+        if (!vars['--bg1']) vars['--bg1'] = _lighten(vars['--bg'], 5);
+        if (!vars['--bg2']) vars['--bg2'] = _lighten(vars['--bg'], 14);
+    }
+    if (vars['--bg2']) {
+        if (!vars['--bg3']) vars['--bg3'] = _lighten(vars['--bg2'], 5);
+        if (!vars['--bg4']) vars['--bg4'] = _lighten(vars['--bg2'], 12);
+    }
+    if (vars['--bd']) {
+        if (!vars['--bd3']) vars['--bd3'] = _lighten(vars['--bd'], 10);
+    }
+
+    // ── Glow/alpha derived vars ──
+    if (vars['--acc']) {
+        vars['--acc-glow'] = hexToRgba(vars['--acc'], .18);
+        vars['--acc-dim']  = hexToRgba(vars['--acc'], .06);
+        vars['--acc-mid']  = hexToRgba(vars['--acc'], .12);
+    }
+    if (vars['--ok'])    vars['--ok-glow']   = hexToRgba(vars['--ok'],   .18);
+    if (vars['--warn'])  vars['--warn-glow'] = hexToRgba(vars['--warn'], .18);
+    if (vars['--err'])   vars['--err-glow']  = hexToRgba(vars['--err'],  .18);
+    if (vars['--pur'])   vars['--pur-glow']  = hexToRgba(vars['--pur'],  .18);
+
+    var lines = Object.entries(vars).map(function(e){ return '  '+e[0]+': '+e[1]+';'; });
+    return ':root {\n' + lines.join('\n') + '\n}';
+}
+
+/* ── Apply to parent page instantly ── */
+function applyLive(overrides) {
+    try {
+        // Try the bridge's exposed function first (avoids duplicate style tags)
+        var bridges = window.parent.document.querySelectorAll('iframe[data-plugin-id="theme_editor"]');
+        if (bridges.length) {
+            var bw = bridges[0].contentWindow;
+            if (bw && typeof bw._themeApply === 'function') {
+                // Only pass the delta (keys that differ from default)
+                var delta = {};
+                Object.entries(overrides).forEach(function(e){ if(e[1]!==DEFAULTS[e[0]])delta[e[0]]=e[1]; });
+                bw._themeApply(delta);
+                return;
+            }
+        }
+    } catch(e) {}
+    // Fallback: inject directly from this page's parent access
+    try {
+        var pd = window.parent.document;
+        var existing = pd.getElementById('md-theme-override');
+        if (existing) existing.parentNode.removeChild(existing);
+        var delta2 = {};
+        Object.entries(overrides).forEach(function(e){ if(e[1]!==DEFAULTS[e[0]])delta2[e[0]]=e[1]; });
+        if (!Object.keys(delta2).length) return;
+        var s = pd.createElement('style');
+        s.id = 'md-theme-override';
+        s.textContent = buildCSS(delta2);
+        pd.head.appendChild(s);
+    } catch(e) {}
+}
+
+/* ── Render a swatch row ── */
+function renderSwatches(containerId, varList) {
+    var container = document.getElementById(containerId);
+    container.innerHTML = '';
+    varList.forEach(function(v) {
+        var curVal = _overrides[v.key] || DEFAULTS[v.key] || '#000000';
+        var row = document.createElement('div');
+        row.className = 'swatch-row';
+        row.title = v.desc;
+
+        var lbl = document.createElement('span');
+        lbl.className = 'swatch-lbl';
+        lbl.textContent = v.label;
+
+        var pick = document.createElement('label');
+        pick.className = 'swatch-pick';
+        pick.style.background = curVal;
+        var inp = document.createElement('input');
+        inp.type = 'color';
+        inp.value = curVal;
+        inp.dataset.key = v.key;
+        pick.appendChild(inp);
+
+        var hexInp = document.createElement('input');
+        hexInp.type = 'text';
+        hexInp.className = 'swatch-hex';
+        hexInp.value = curVal;
+        hexInp.maxLength = 7;
+        hexInp.dataset.key = v.key;
+
+        var preview = document.createElement('div');
+        preview.className = 'swatch-preview';
+        preview.style.background = curVal;
+
+        var resetBtn = document.createElement('button');
+        resetBtn.className = 'swatch-reset';
+        resetBtn.title = 'Reset to default';
+        resetBtn.innerHTML = '↺';
+        resetBtn.dataset.key = v.key;
+
+        // Sync colour picker → hex input + preview + live
+        inp.addEventListener('input', function() {
+            var val = inp.value;
+            hexInp.value = val;
+            pick.style.background = val;
+            preview.style.background = val;
+            _overrides[v.key] = val;
+            applyLive(_overrides);
+            updatePreview();
+        });
+
+        // Sync hex input → picker + preview + live (on valid hex)
+        hexInp.addEventListener('input', function() {
+            var val = hexInp.value;
+            if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+                inp.value = val;
+                pick.style.background = val;
+                preview.style.background = val;
+                _overrides[v.key] = val;
+                applyLive(_overrides);
+                updatePreview();
+            }
+        });
+
+        resetBtn.addEventListener('click', function() {
+            var def = DEFAULTS[v.key] || '#000000';
+            _overrides[v.key] = def;
+            inp.value = def;
+            hexInp.value = def;
+            pick.style.background = def;
+            preview.style.background = def;
+            applyLive(_overrides);
+            updatePreview();
+        });
+
+        row.appendChild(lbl);
+        row.appendChild(pick);
+        row.appendChild(hexInp);
+        row.appendChild(preview);
+        row.appendChild(resetBtn);
+        container.appendChild(row);
+    });
+}
+
+/* ── Live preview panel ── */
+function updatePreview() {
+    var o = _overrides;
+    var acc = o['--acc']||DEFAULTS['--acc'];
+    var ok  = o['--ok']||DEFAULTS['--ok'];
+    var warn= o['--warn']||DEFAULTS['--warn'];
+    var err = o['--err']||DEFAULTS['--err'];
+    var pur = o['--pur']||DEFAULTS['--pur'];
+    var bg  = o['--bg']||DEFAULTS['--bg'];
+    var bg2 = o['--bg2']||DEFAULTS['--bg2'];
+    var bg3 = o['--bg3']||DEFAULTS['--bg3'];
+    var txt = o['--txt']||DEFAULTS['--txt'];
+    var txt2= o['--txt2']||DEFAULTS['--txt2'];
+    var txt3= o['--txt3']||DEFAULTS['--txt3'];
+    var bd2 = o['--bd2']||DEFAULTS['--bd2'];
+
+    document.getElementById('live-preview').innerHTML =
+        /* Mini topbar */
+        '<div class="preview-topbar" style="background:'+bg2+';border-color:'+bd2+';margin-bottom:8px;">'
+        +'<span class="preview-brand" style="color:'+acc+';">⬡ MeshDash <em style="color:'+err+';">C2</em></span>'
+        +'<span style="margin-left:auto;font-family:var(--mono);font-size:10px;color:'+txt3+';">SYSTEM</span>'
+        +'</div>'
+        /* Nav items */
+        +'<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">'
+        +'<div style="padding:4px 9px;border-left:2px solid '+acc+';background:'+hexToRgba(acc,.06)+';font-family:var(--mono);font-size:10px;color:'+acc+';">Overview</div>'
+        +'<div style="padding:4px 9px;border-left:2px solid transparent;font-family:var(--mono);font-size:10px;color:'+txt2+';">Map</div>'
+        +'<div style="padding:4px 9px;border-left:2px solid transparent;font-family:var(--mono);font-size:10px;color:'+txt2+';">Messages</div>'
+        +'</div>'
+        /* Status pills */
+        +'<div class="preview-pills">'
+        +'<span class="preview-pill" style="color:'+ok+';border-color:'+hexToRgba(ok,.3)+';background:'+hexToRgba(ok,.08)+';">● CONNECTED</span>'
+        +'<span class="preview-pill" style="color:'+warn+';border-color:'+hexToRgba(warn,.3)+';background:'+hexToRgba(warn,.08)+';">⚠ ALERT</span>'
+        +'<span class="preview-pill" style="color:'+err+';border-color:'+hexToRgba(err,.3)+';background:'+hexToRgba(err,.08)+';">✕ ERROR</span>'
+        +'<span class="preview-pill" style="color:'+pur+';border-color:'+hexToRgba(pur,.3)+';background:'+hexToRgba(pur,.08)+';">⬡ MQTT</span>'
+        +'</div>'
+        /* Buttons */
+        +'<div class="preview-btns">'
+        +'<span class="preview-btn" style="color:'+acc+';border-color:'+hexToRgba(acc,.35)+';background:'+hexToRgba(acc,.08)+';">ACTION</span>'
+        +'<span class="preview-btn" style="color:'+ok+';border-color:'+hexToRgba(ok,.35)+';background:'+hexToRgba(ok,.08)+';">CONFIRM</span>'
+        +'<span class="preview-btn" style="color:'+err+';border-color:'+hexToRgba(err,.35)+';background:'+hexToRgba(err,.08)+';">DELETE</span>'
+        +'</div>'
+        /* Node card mini */
+        +'<div style="margin-top:8px;padding:8px 10px;background:'+bg3+';border:1px solid '+bd2+';border-left:3px solid '+ok+';border-radius:4px;display:flex;justify-content:space-between;align-items:center;">'
+        +'<span style="font-family:var(--mono);font-size:10px;color:'+acc+';font-weight:bold;">!deadbeef</span>'
+        +'<span style="font-family:var(--mono);font-size:10px;color:'+txt3+';">3m ago · -94dBm</span>'
+        +'</div>';
+}
+
+/* ── Preset grid ── */
+function renderPresets() {
+    var grid = document.getElementById('preset-grid');
+    grid.innerHTML = '';
+    PRESETS.forEach(function(p) {
+        var card = document.createElement('div');
+        card.className = 'preset';
+        card.dataset.id = p.id;
+
+        var merged = Object.assign({}, DEFAULTS, p.vars);
+        var dotsHtml = ['--acc','--ok','--warn','--err','--pur','--bg2'].map(function(k){
+            return '<div class="preset-dot" style="background:'+merged[k]+'"></div>';
+        }).join('');
+
+        card.innerHTML = '<div class="preset-dots">'+dotsHtml+'</div><div class="preset-name">'+esc(p.name)+'</div>';
+
+        card.addEventListener('click', function() {
+            applyPreset(p);
+            document.querySelectorAll('.preset').forEach(function(c){ c.classList.remove('active'); });
+            card.classList.add('active');
+        });
+
+        grid.appendChild(card);
+    });
+}
+
+function applyPreset(p) {
+    // Merge preset vars over defaults
+    _overrides = Object.assign({}, DEFAULTS, p.vars);
+    // Re-render all swatch inputs to reflect new values
+    renderSwatches('swatches-accent', ACCENT_VARS);
+    renderSwatches('swatches-bg', BG_VARS);
+    renderSwatches('swatches-txt', TXT_VARS);
+    applyLive(_overrides);
+    updatePreview();
+}
+
+/* ── Save ── */
+async function saveTheme() {
+    var btn = document.getElementById('save-btn');
+    var msg = document.getElementById('save-msg');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch spin"></i> SAVING…';
+
+    // Compute delta: only keys that differ from defaults
+    var delta = {};
+    Object.entries(_overrides).forEach(function(e){
+        if (e[1] !== DEFAULTS[e[0]]) delta[e[0]] = e[1];
+    });
+
+    try {
+        var r = await fetch(API, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ overrides: delta }),
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        _savedOverrides = delta;
+        msg.textContent = '✓ Saved — ' + Object.keys(delta).length + ' override(s) active';
+        msg.style.color = 'var(--ok)';
+        toast('Theme saved.', 'ok');
+        setTimeout(function(){ msg.textContent = ''; }, 4000);
+    } catch(e) {
+        msg.textContent = '✗ Save failed: ' + e.message;
+        msg.style.color = 'var(--err)';
+        toast('Theme save failed', 'err');
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save"></i> SAVE THEME';
+}
+
+/* ── Reset ── */
+async function resetTheme() {
+    try {
+        var r = await fetch(API, { method: 'DELETE', credentials: 'include' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        _overrides = Object.assign({}, DEFAULTS);
+        _savedOverrides = {};
+        renderSwatches('swatches-accent', ACCENT_VARS);
+        renderSwatches('swatches-bg', BG_VARS);
+        renderSwatches('swatches-txt', TXT_VARS);
+        applyLive(_overrides);
+        updatePreview();
+        document.querySelectorAll('.preset').forEach(function(c){ c.classList.remove('active'); });
+        document.querySelector('.preset[data-id="default"]')?.classList.add('active');
+        var msg = document.getElementById('save-msg');
+        msg.textContent = '✓ Reset to MeshDash C2 defaults';
+        msg.style.color = 'var(--ok)';
+        toast('Theme reset to defaults.', 'warn');
+        setTimeout(function(){ msg.textContent = ''; }, 3000);
+    } catch(e) {
+        toast('Reset failed: ' + e.message, 'err');
+    }
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', async function() {
+    // Load saved theme
+    try {
+        var r = await fetch(API, { credentials: 'include', cache: 'no-store' });
+        if (r.ok) {
+            var d = await r.json();
+            _savedOverrides = d.overrides || {};
+            // Merge saved overrides into working state
+            _overrides = Object.assign({}, DEFAULTS, _savedOverrides);
+        }
+    } catch(e) {}
+
+    // Render everything
+    renderPresets();
+    renderSwatches('swatches-accent', ACCENT_VARS);
+    renderSwatches('swatches-bg', BG_VARS);
+    renderSwatches('swatches-txt', TXT_VARS);
+    updatePreview();
+
+    // Mark active preset
+    if (!Object.keys(_savedOverrides).length) {
+        document.querySelector('.preset[data-id="default"]')?.classList.add('active');
+    }
+
+    document.getElementById('save-btn').addEventListener('click', saveTheme);
+    document.getElementById('reset-btn').addEventListener('click', resetTheme);
+});
+</script>
+</body>
+</html>

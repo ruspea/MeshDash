@@ -1,0 +1,18 @@
+{
+  "id": "auto_reply",
+  "name": "Auto-Reply",
+  "version": "2.0.1",
+  "author": "MeshDash",
+  "description": "Hierarchical auto-reply with slot/channel/DM filtering, smart reply routing, and per-rule scope overrides.",
+  "watchdog": true,
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/auto_reply",
+  "static_prefix": "/static/plugins/auto_reply",
+  "nav_menu": [
+    {
+      "label": "Auto-Reply",
+      "href": "/plugin/auto_reply/index.html",
+      "icon": "fa-robot"
+    }
+  ]
+}

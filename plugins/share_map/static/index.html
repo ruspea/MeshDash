@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Share Map — Widget Studio</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+
+
+
+/* ── Dashboard classes — reproduced here since this page loads standalone ── */
+body { background: var(--bg); color: var(--txt); font-family: var(--sans); font-size: 12px; }
+
+.card { background: var(--bg2); border: 1px solid var(--bd2); border-radius: 8px; }
+.ch   { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--bd); flex-wrap: wrap; }
+.ct   { font-size: 11px; font-weight: 700; color: var(--txt); text-transform: uppercase; letter-spacing: 1px; white-space: nowrap; font-family: var(--mono); }
+
+.btn {
+  background: var(--bg3); color: var(--txt); border: 1px solid var(--bd2);
+  padding: 8px 16px; border-radius: var(--r); cursor: pointer; font-size: 10px;
+  font-weight: 700; transition: all .15s; text-transform: uppercase;
+  letter-spacing: 0.5px; font-family: var(--sans); white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.btn:hover   { background: var(--bd2); color: var(--txt); border-color: var(--txt3); }
+.btn:active  { transform: scale(0.97); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+.btn-sm  { padding: 4px 10px; font-size: 9px; }
+.btn-acc { background: var(--acc-dim); color: var(--acc); border-color: rgba(0,200,245,.35); }
+.btn-acc:hover { background: var(--acc); color: #000; border-color: var(--acc); box-shadow: var(--glow-sm) var(--acc-glow); }
+
+input[type="text"], input[type="number"], select {
+  background: rgba(6,11,18,0.7); border: 1px solid var(--bd2); color: var(--txt);
+  padding: 7px 10px; border-radius: var(--r); font-family: inherit; font-size: 11px;
+  width: 100%; box-sizing: border-box; -webkit-appearance: none; appearance: none;
+  transition: border-color 0.2s;
+}
+input[type="text"]:focus, input[type="number"]:focus, select:focus {
+  outline: none; border-color: var(--acc);
+  box-shadow: 0 0 0 2px rgba(0,200,245,0.12);
+}
+input:hover:not(:focus), select:hover:not(:focus) { border-color: var(--bd3); }
+input[type="number"] { -moz-appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234a6a88'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; cursor: pointer;
+}
+select option { background: var(--bg2); color: var(--txt); }
+
+input[type="checkbox"] {
+  -webkit-appearance: none; appearance: none;
+  width: 15px; height: 15px; background: var(--bg3); border: 1px solid var(--bd2);
+  border-radius: 3px; cursor: pointer; position: relative; flex-shrink: 0;
+  transition: all 0.15s; padding: 0; vertical-align: middle;
+}
+input[type="checkbox"]:hover  { border-color: var(--acc); }
+input[type="checkbox"]:checked {
+  background: var(--acc); border-color: var(--acc);
+  box-shadow: var(--glow-sm) rgba(0,200,245,0.4);
+}
+input[type="checkbox"]:checked::after {
+  content: ''; position: absolute; left: 4px; top: 1px;
+  width: 4px; height: 8px; border: 2px solid #000;
+  border-top: none; border-left: none; transform: rotate(45deg);
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,200,245,0.35); }
+
+/* ── Layout — fills the plugin view frame ── */
+html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+
+.studio-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  gap: 0;
+}
+
+/* Card header row — uses dashboard .card + .ch natively, no overrides needed */
+
+.studio-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Left sidebar ── */
+.sb {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--bd2);
+  background: var(--bg2);
+}
+
+.sb-scroll {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ── Section header — matches dashboard pattern ── */
+.sb-hd {
+  font-family: var(--mono);
+  font-size:11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--txt3);
+  padding: 10px 14px 4px;
+  border-top: 1px solid var(--bd);
+}
+.sb-hd:first-child { border-top: none; }
+
+.sb-pad { padding: 8px 14px; }
+
+/* ── Widget type picker — 3 across ── */
+.wt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  padding: 8px 14px;
+}
+
+.wt-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 4px 8px;
+  background: var(--bg3);
+  border: 1px solid var(--bd2);
+  border-radius: var(--r);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size:11px;
+  font-weight: 800;
+  letter-spacing: .5px;
+  color: var(--txt3);
+  text-transform: uppercase;
+  transition: all .15s;
+  user-select: none;
+}
+.wt-btn i { font-size: 16px; }
+.wt-btn:hover {
+  border-color: var(--acc);
+  color: var(--acc);
+  background: var(--acc-dim);
+}
+.wt-btn.active {
+  border-color: var(--acc);
+  color: var(--acc);
+  background: var(--acc-dim);
+  box-shadow: 0 0 0 1px rgba(0,200,245,0.1);
+}
+
+/* ── Form rows — mirror dashboard .rmd-k / .rmd-v pattern ── */
+.fr {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.fr:last-child { margin-bottom: 0; }
+.fr-lbl {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--txt3);
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+.fr-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.fr-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--txt2);
+  cursor: pointer;
+  padding: 2px 0;
+}
+.fr-check:hover { color: var(--txt); }
+
+/* ── Widget cards in "My Widgets" list ── */
+.wc-list {
+  padding: 6px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.wc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--bd2);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: all .15s;
+}
+.wc:hover { border-color: var(--acc); background: var(--bg4); }
+.wc.active {
+  border-color: var(--acc);
+  background: var(--acc-dim);
+  border-left: 3px solid var(--acc);
+}
+.wc-ico { color: var(--acc); font-size: 15px; width: 18px; text-align: center; flex-shrink: 0; }
+.wc-info { flex: 1; min-width: 0; }
+.wc-name { font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--txt); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-meta { font-family: var(--mono); font-size:11px; color: var(--txt3); margin-top: 1px; }
+.wc-del {
+  background: none; border: none; color: var(--txt3); cursor: pointer;
+  font-size: 13px; padding: 2px 4px; flex-shrink: 0; line-height: 1;
+  border-radius: 3px; transition: all .1s;
+}
+.wc-del:hover { color: var(--err); background: rgba(255,48,80,.08); }
+
+/* ── CREATE button row — pinned to bottom of sidebar ── */
+.sb-create {
+  padding: 10px 14px;
+  border-top: 1px solid var(--bd2);
+  background: var(--bg2);
+  flex-shrink: 0;
+}
+
+/* ── Right preview pane ── */
+.pv-wrap {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.pv-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--bd2);
+  flex-shrink: 0;
+}
+.pv-bar-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--acc);
+  letter-spacing: 1px;
+}
+.pv-type-badge {
+  font-family: var(--mono);
+  font-size:11px;
+  padding: 2px 7px;
+  border-radius: 2px;
+  background: var(--acc-dim);
+  border: 1px solid rgba(0,200,245,.3);
+  color: var(--acc);
+  letter-spacing: .5px;
+}
+.pv-hint {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--txt3);
+}
+.pv-live {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size:11px;
+  color: var(--ok);
+  letter-spacing: .5px;
+}
+.pv-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ok);
+  animation: pv-blink 2s infinite;
+}
+@keyframes pv-blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+/* ── Embed code strip ── */
+.pv-embed {
+  padding: 7px 14px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--bd);
+  flex-shrink: 0;
+  display: none;
+}
+.pv-embed-lbl {
+  font-family: var(--mono);
+  font-size:11px;
+  color: var(--txt3);
+  letter-spacing: .8px;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pv-embed-code {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--ok);
+  background: var(--bg);
+  border: 1px solid var(--bd2);
+  border-radius: 4px;
+  padding: 8px 10px;
+  word-break: break-all;
+  line-height: 1.6;
+  cursor: pointer;
+  user-select: all;
+  transition: border-color .15s;
+}
+.pv-embed-code:hover { border-color: var(--acc); }
+
+/* ── URL bar below preview ── */
+.pv-url-bar {
+  padding: 5px 14px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--bd);
+  font-family: var(--mono);
+  font-size:11px;
+  color: var(--txt3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.pv-url-bar i { color: var(--acc); flex-shrink: 0; }
+.pv-url-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
+/* ── Preview iframe ── */
+.pv-frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: none;
+  display: block;
+  background: var(--bg);
+}
+
+/* ── Empty state ── */
+.empty-hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--txt3);
+  text-align: center;
+  padding: 16px;
+  line-height: 1.7;
+}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="studio-page">
+
+  <!-- ── TOP CARD HEADER ── -->
+  <div class="card" style="border-radius:0;border-left:none;border-right:none;border-top:none;flex-shrink:0;">
+    <div class="ch" style="padding:9px 16px;">
+      <span class="ct">
+        <span style="color:var(--acc);margin-right:6px;"><i class="fas fa-share-nodes"></i></span>
+        Share Map — Widget Studio
+      </span>
+      <span id="slot-label" style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-left:4px;"></span>
+    </div>
+  </div>
+
+  <!-- ── STUDIO BODY ── -->
+  <div class="studio-body">
+
+    <!-- ════════════════════ SIDEBAR ════════════════════ -->
+    <div class="sb">
+      <div class="sb-scroll">
+
+        <!-- Widget type -->
+        <div class="sb-hd">Widget Type</div>
+        <div class="wt-grid">
+          <button class="wt-btn active" data-type="map"      onclick="P.setType('map',this)">      <i class="fas fa-map"></i>      LIVE MAP    </button>
+          <button class="wt-btn"        data-type="stats"    onclick="P.setType('stats',this)">    <i class="fas fa-chart-pie"></i> NET STATS   </button>
+          <button class="wt-btn"        data-type="nodelist" onclick="P.setType('nodelist',this)"><i class="fas fa-list"></i>      NODE LIST   </button>
+          <button class="wt-btn"        data-type="signal"   onclick="P.setType('signal',this)">  <i class="fas fa-signal"></i>    SIGNAL      </button>
+          <button class="wt-btn"        data-type="activity" onclick="P.setType('activity',this)"><i class="fas fa-bolt"></i>      ACTIVITY    </button>
+          <button class="wt-btn"        data-type="nodecard" onclick="P.setType('nodecard',this)"><i class="fas fa-id-card"></i>   NODE CARD   </button>
+        </div>
+
+        <!-- Configure -->
+        <div class="sb-hd">Configure</div>
+        <div class="sb-pad">
+
+          <div class="fr">
+            <span class="fr-lbl">Widget Title</span>
+            <input type="text" id="cfg-title" placeholder="My Mesh Network" oninput="P.debounce()">
+          </div>
+
+          <div class="fr-2">
+            <div class="fr">
+              <span class="fr-lbl">Theme</span>
+              <select id="cfg-theme" onchange="P.debounce()">
+                <option value="dark">◼ Dark</option>
+                <option value="light">◻ Light</option>
+              </select>
+            </div>
+            <div class="fr">
+              <span class="fr-lbl">Refresh (s)</span>
+              <input type="number" id="cfg-refresh" min="5" max="300" value="30" oninput="P.debounce()">
+            </div>
+          </div>
+
+          <!-- Map-only options -->
+          <div id="cfg-map-opts">
+            <div class="fr">
+              <span class="fr-lbl">Map Style</span>
+              <select id="cfg-map-style" onchange="P.debounce()">
+                <option value="dark">◼ C2 Dark</option>
+                <option value="satellite">🛰 Satellite</option>
+                <option value="osm">◻ OpenStreetMap</option>
+              </select>
+            </div>
+            <div class="fr-2" style="margin-bottom:8px;">
+              <label class="fr-check"><input type="checkbox" id="cfg-trails" onchange="P.debounce()"> Trails</label>
+              <label class="fr-check"><input type="checkbox" id="cfg-links"  onchange="P.debounce()"> RF Links</label>
+            </div>
+          </div>
+
+          <!-- NodeCard: pick a single node -->
+          <div id="cfg-nodecard-opts" style="display:none;">
+            <div class="fr">
+              <span class="fr-lbl">Target Node</span>
+              <select id="cfg-node-id" onchange="P.debounce()">
+                <option value="">— loading nodes —</option>
+              </select>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Filters -->
+        <div class="sb-hd">Filters</div>
+        <div class="sb-pad">
+
+          <div class="fr">
+            <span class="fr-lbl">Search name / node ID</span>
+            <input type="text" id="cfg-fname" placeholder="e.g. router or !aabb1234" oninput="P.debounce()">
+          </div>
+
+          <div class="fr-2">
+            <div class="fr">
+              <span class="fr-lbl">Role</span>
+              <select id="cfg-frole" onchange="P.debounce()">
+                <option value="">All roles</option>
+                <option value="ROUTER">Router</option>
+                <option value="CLIENT">Client</option>
+                <option value="REPEATER">Repeater</option>
+                <option value="TRACKER">Tracker</option>
+              </select>
+            </div>
+            <div class="fr">
+              <span class="fr-lbl">Max age (hours)</span>
+              <input type="number" id="cfg-fage" min="0" max="8760" placeholder="any" oninput="P.debounce()">
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">
+            <label class="fr-check"><input type="checkbox" id="cfg-fgps"    onchange="P.debounce()"> GPS nodes only</label>
+            <label class="fr-check"><input type="checkbox" id="cfg-fonline" onchange="P.debounce()"> Online only (&lt;1h)</label>
+          </div>
+
+          <div class="fr">
+            <span class="fr-lbl">Max nodes shown</span>
+            <input type="number" id="cfg-fmax" min="1" max="500" value="100" oninput="P.debounce()">
+          </div>
+
+        </div>
+
+        <!-- My Widgets -->
+        <div class="sb-hd">My Widgets <span id="wl-count" style="color:var(--txt3);font-weight:400;margin-left:4px;"></span></div>
+        <div class="wc-list" id="wc-list">
+          <div class="empty-hint">No widgets yet.<br>Configure above and click<br><b style="color:var(--acc);">+ CREATE WIDGET</b> below.</div>
+        </div>
+
+      </div><!-- /sb-scroll -->
+
+      <!-- CREATE pinned to bottom -->
+      <div class="sb-create">
+        <button class="btn btn-acc" style="width:100%;padding:9px 16px;font-size:10px;" id="create-btn" onclick="P.create()">
+          <i class="fas fa-plus"></i>&nbsp; CREATE WIDGET
+        </button>
+      </div>
+
+    </div><!-- /sb -->
+
+
+    <!-- ════════════════════ PREVIEW PANE ════════════════════ -->
+    <div class="pv-wrap">
+
+      <!-- Top bar -->
+      <div class="pv-bar">
+        <span class="pv-bar-label"><i class="fas fa-eye" style="margin-right:5px;"></i>LIVE PREVIEW</span>
+        <span class="pv-type-badge" id="pv-type-badge">LIVE MAP</span>
+        <span class="pv-hint">Updates as you configure →</span>
+        <div class="pv-live" style="margin-left:auto;">
+          <div class="pv-dot"></div>LIVE DATA
+        </div>
+        <button class="btn btn-sm" onclick="P.openTab()" title="Open in new tab" style="margin-left:8px;">
+          <i class="fas fa-external-link-alt"></i> OPEN
+        </button>
+        <button class="btn btn-sm btn-acc" onclick="P.copyIframe()" id="copy-btn">
+          <i class="fas fa-code"></i> COPY IFRAME
+        </button>
+      </div>
+
+      <!-- Embed code (shown only when a widget is saved) -->
+      <div class="pv-embed" id="pv-embed">
+        <div class="pv-embed-lbl">
+          <i class="fas fa-code" style="color:var(--acc);"></i>
+          IFRAME CODE — click to copy
+          <span id="copy-flash" style="color:var(--ok);display:none;margin-left:auto;">✓ COPIED</span>
+        </div>
+        <div class="pv-embed-code" id="pv-code" onclick="P.copyIframe()">—</div>
+      </div>
+
+      <!-- URL bar -->
+      <div class="pv-url-bar">
+        <i class="fas fa-globe"></i>
+        <span class="pv-url-text" id="pv-url">Public URL will appear here after you create a widget</span>
+        <span style="color:var(--txt3);flex-shrink:0;">No login required for viewers</span>
+      </div>
+
+      <!-- The preview iframe -->
+      <iframe class="pv-frame" id="pv-frame" src="about:blank"
+        sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+
+    </div><!-- /pv-wrap -->
+
+  </div><!-- /studio-body -->
+</div><!-- /studio-page -->
+
+
+<script>
+'use strict';
+const API = '/api/plugins/share_map';
+const $   = id => document.getElementById(id);
+
+const TYPE_LABELS = {
+  map:'LIVE MAP', stats:'NET STATS', nodelist:'NODE LIST',
+  signal:'SIGNAL', activity:'ACTIVITY', nodecard:'NODE CARD'
+};
+const TYPE_ICONS = {
+  map:'fa-map', stats:'fa-chart-pie', nodelist:'fa-list',
+  signal:'fa-signal', activity:'fa-bolt', nodecard:'fa-id-card'
+};
+
+const P = {
+  _slot:    'node_0',
+  _type:    'map',
+  _widgets: [],
+  _active:  null,   // currently selected widget token
+  _timer:   null,
+  _previewUrl: null,
+
+  // ── Boot ─────────────────────────────────────────────────────────
+  init() {
+    this._slot = (window.parent?._activeSlotId) || 'node_0';
+    const lbl = $('slot-label');
+    if (lbl) lbl.textContent = '· ' + this._slot;
+    this.loadWidgets();
+    this.loadNodes();
+    this.preview();
+  },
+
+  // ── Type selector ─────────────────────────────────────────────────
+  setType(type, btn) {
+    this._type = type;
+    document.querySelectorAll('.wt-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+    $('cfg-map-opts').style.display      = type === 'map'      ? '' : 'none';
+    $('cfg-nodecard-opts').style.display = type === 'nodecard' ? '' : 'none';
+    const badge = $('pv-type-badge');
+    if (badge) badge.textContent = TYPE_LABELS[type] || type.toUpperCase();
+    this.debounce();
+  },
+
+  // ── Read config ───────────────────────────────────────────────────
+  cfg() {
+    return {
+      theme:              $('cfg-theme')?.value     || 'dark',
+      refresh_s:          parseInt($('cfg-refresh')?.value || '30'),
+      map_style:          $('cfg-map-style')?.value || 'dark',
+      show_trails:        $('cfg-trails')?.checked  || false,
+      show_links:         $('cfg-links')?.checked   || false,
+      node_id:            $('cfg-node-id')?.value   || '',
+      filter_name:        $('cfg-fname')?.value     || '',
+      filter_role:        $('cfg-frole')?.value     || '',
+      filter_age_h:       parseFloat($('cfg-fage')?.value || '0') || 0,
+      filter_gps_only:    $('cfg-fgps')?.checked    || false,
+      filter_online_only: $('cfg-fonline')?.checked || false,
+      max_nodes:          parseInt($('cfg-fmax')?.value || '100'),
+    };
+  },
+
+  // ── Preview ───────────────────────────────────────────────────────
+  debounce() {
+    clearTimeout(this._timer);
+    this._timer = setTimeout(() => this.preview(), 380);
+  },
+
+  preview() {
+    let url;
+    if (this._active) {
+      url = `${API}/w/${this._active}`;
+    } else {
+      const params = new URLSearchParams({ type: this._type, config: JSON.stringify(this.cfg()) });
+      url = `${API}/preview-html/${this._slot}?${params}`;
+    }
+    this._previewUrl = url;
+    const f = $('pv-frame');
+    if (f) f.src = url;
+    const u = $('pv-url');
+    if (u && !this._active) u.textContent = 'Preview only — create widget for a permanent public URL';
+  },
+
+  openTab() {
+    if (this._previewUrl) window.open(this._previewUrl, '_blank');
+  },
+
+  // ── Create widget ──────────────────────────────────────────────────
+  async create() {
+    const cfg   = this.cfg();
+    const title = $('cfg-title')?.value?.trim()
+                  || (this._type.charAt(0).toUpperCase() + this._type.slice(1) + ' Widget');
+    const btn   = $('create-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>&nbsp; CREATING…'; }
+    try {
+      const res = await fetch(`${API}/widgets`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ slot_id: this._slot, type: this._type, title, config: cfg }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const data = await res.json();
+      await this.loadWidgets();
+      this.select(data.token);
+      window.triggerToast?.('Widget created — share the iframe code!', 'ok');
+    } catch(e) {
+      window.triggerToast?.('Error: ' + e.message, 'err');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-plus"></i>&nbsp; CREATE WIDGET'; }
+    }
+  },
+
+  // ── Load widgets ───────────────────────────────────────────────────
+  async loadWidgets() {
+    try {
+      const res  = await fetch(`${API}/widgets?slot_id=${encodeURIComponent(this._slot)}`);
+      const data = await res.json();
+      this._widgets = data.widgets || [];
+      this._renderList();
+    } catch(e) { console.warn('[ShareMap] loadWidgets:', e); }
+  },
+
+  _renderList() {
+    const list = $('wc-list');
+    const cnt  = $('wl-count');
+    if (cnt) cnt.textContent = this._widgets.length ? `(${this._widgets.length})` : '';
+    if (!list) return;
+    if (!this._widgets.length) {
+      list.innerHTML = '<div class="empty-hint">No widgets yet.<br>Configure above and click<br><b style="color:var(--acc);">+ CREATE WIDGET</b> below.</div>';
+      return;
+    }
+    list.innerHTML = this._widgets.map(w => `
+      <div class="wc ${w.token === this._active ? 'active' : ''}"
+           onclick="P.select('${w.token}')" data-token="${w.token}">
+        <div class="wc-ico"><i class="fas ${TYPE_ICONS[w.type] || 'fa-share'}"></i></div>
+        <div class="wc-info">
+          <div class="wc-name">${_esc(w.title)}</div>
+          <div class="wc-meta">${w.type.toUpperCase()} · ${w.view_count} view${w.view_count!==1?'s':''}</div>
+        </div>
+        <button class="wc-del" onclick="event.stopPropagation();P.del('${w.token}')" title="Delete widget">✕</button>
+      </div>
+    `).join('');
+  },
+
+  // ── Select a saved widget ──────────────────────────────────────────
+  select(token) {
+    this._active = token;
+    const w = this._widgets.find(w => w.token === token);
+    if (!w) return;
+
+    // Populate form
+    const c = w.config || {};
+    const sv = (id, v) => { const el=$(id); if(el) el.value = v ?? ''; };
+    const sc = (id, v) => { const el=$(id); if(el) el.checked = !!v; };
+    sv('cfg-title',   w.title);
+    sv('cfg-theme',   c.theme       || 'dark');
+    sv('cfg-refresh', c.refresh_s   || 30);
+    sv('cfg-map-style', c.map_style || 'dark');
+    sc('cfg-trails',  c.show_trails);
+    sc('cfg-links',   c.show_links);
+    sv('cfg-node-id', c.node_id     || '');
+    sv('cfg-fname',   c.filter_name || '');
+    sv('cfg-frole',   c.filter_role || '');
+    sv('cfg-fage',    c.filter_age_h || '');
+    sc('cfg-fgps',    c.filter_gps_only);
+    sc('cfg-fonline', c.filter_online_only);
+    sv('cfg-fmax',    c.max_nodes   || 100);
+
+    // Type button
+    P.setType(w.type, document.querySelector(`.wt-btn[data-type="${w.type}"]`));
+
+    // Highlight list
+    document.querySelectorAll('.wc').forEach(el =>
+      el.classList.toggle('active', el.dataset.token === token));
+
+    // Show embed code
+    const base = `${location.protocol}//${location.host}${API}/w/${token}`;
+    const iframe = `<iframe src="${base}" width="800" height="500" frameborder="0" style="border:1px solid var(--bd2);border-radius:6px;" allowfullscreen></iframe>`;
+    const strip = $('pv-embed'), code = $('pv-code'), urlEl = $('pv-url');
+    if (strip) strip.style.display = '';
+    if (code)  code.textContent    = iframe;
+    if (urlEl) urlEl.textContent   = base;
+
+    // Show live widget
+    this._previewUrl = `${API}/w/${token}`;
+    const f = $('pv-frame');
+    if (f) f.src = this._previewUrl;
+  },
+
+  // ── Delete widget ──────────────────────────────────────────────────
+  async del(token) {
+    if (!confirm('Delete this widget? Its public URL will stop working immediately.')) return;
+    await fetch(`${API}/widgets/${token}`, { method: 'DELETE' });
+    if (this._active === token) {
+      this._active = null;
+      const strip = $('pv-embed'), f = $('pv-frame'), u = $('pv-url');
+      if (strip) strip.style.display = 'none';
+      if (f)     f.src = 'about:blank';
+      if (u)     u.textContent = 'Public URL will appear here after you create a widget';
+    }
+    await this.loadWidgets();
+    window.triggerToast?.('Widget deleted', 'warn');
+  },
+
+  // ── Copy iframe code ───────────────────────────────────────────────
+  copyIframe() {
+    const code = $('pv-code')?.textContent;
+    if (!code || code === '—') { window.triggerToast?.('Save a widget first', 'warn'); return; }
+    navigator.clipboard.writeText(code).then(() => {
+      const fl = $('copy-flash');
+      if (fl) { fl.style.display = 'inline'; setTimeout(() => fl.style.display = 'none', 2000); }
+      window.triggerToast?.('Iframe code copied!', 'ok');
+    }).catch(() => {
+      const el = $('pv-code');
+      if (el) { const r = document.createRange(); r.selectNode(el); window.getSelection().removeAllRanges(); window.getSelection().addRange(r); }
+    });
+  },
+
+  // ── Populate nodecard picker ───────────────────────────────────────
+  async loadNodes() {
+    try {
+      const res  = await fetch(`${API}/nodes/${encodeURIComponent(this._slot)}`);
+      const data = await res.json();
+      const sel  = $('cfg-node-id');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">— select a node —</option>';
+      (data.nodes || []).forEach(n => {
+        const o = document.createElement('option');
+        o.value = n.node_id;
+        o.textContent = `${n.long_name}  (${n.node_id})`;
+        sel.appendChild(o);
+      });
+    } catch(e) { console.warn('[ShareMap] loadNodes:', e); }
+  },
+};
+
+function _esc(s) {
+  return String(s||'').replace(/[&<>"']/g,
+    c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Boot
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => P.init());
+} else {
+  P.init();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,116 @@
+<style>
+    .task-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+    .task-table th { text-align: left; color: var(--txt3); padding: 8px 12px; border-bottom: 1px solid var(--bd2); font-weight: normal; white-space: nowrap; }
+    .task-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.02); color: var(--txt); vertical-align: middle; }
+    .task-table tr:hover { background: rgba(255,255,255,0.02); }
+    
+    .c2-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 16px; }
+    .c2-node-card { background: var(--bg2); border: 1px solid var(--bd); border-radius: var(--r); padding: 12px; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 12px; }
+    .c2-node-card:hover { border-color: var(--acc); background: rgba(0, 200, 245, 0.05); }
+    .c2-avatar { width: 32px; height: 32px; border-radius: 4px; background: var(--bg); border: 1px solid var(--bd); display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 12px; font-weight: bold; color: var(--txt); box-shadow: inset 0 0 10px rgba(0,0,0,0.5); }
+    .c2-name { font-weight: bold; font-size: 12px; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .c2-id { font-family: var(--mono); font-size: 9px; color: var(--txt3); margin-top: 2px; }
+</style>
+
+<div class="vs" style="height: calc(100vh - 90px); height: calc(100dvh - 90px); display: flex; flex-direction: column;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; flex: 1; overflow: hidden;">
+        
+        <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
+            <div class="ch">
+                <span class="ct">◈ DEPLOYED TASKS</span>
+                <button class="btn btn-sm" onclick="window.C2TasksApp.fetchTasks()" style="margin-left:auto;">↻ REFRESH</button>
+            </div>
+            <div class="cb p0" style="flex: 1; overflow-y: auto; background: var(--bg);">
+                <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                <table class="task-table">
+                    <thead>
+                        <tr>
+                            <th>NODE</th>
+                            <th>TYPE</th>
+                            <th>CRONTAB</th>
+                            <th>PAYLOAD</th>
+                            <th style="text-align:right">ACTIONS</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tasks-table-body">
+                        <tr><td colspan="5" style="text-align:center; padding:40px; color:var(--txt3);">[ LOADING TASKS... ]</td></tr>
+                    </tbody>
+                </table>
+                </div>
+        </div>
+
+        <div class="card" style="display: flex; flex-direction: column; overflow: hidden; border-color: var(--acc);">
+            <div class="ch">
+                <span class="ct">⬡ SELECT TARGET NODE</span>
+                <input type="text" id="tasks-node-search" class="inp mono" placeholder="Filter..." style="max-width:150px;width:100%;padding:4px 8px;font-size:10px;margin-left:auto;">
+            </div>
+            <div id="tasks-node-grid" class="c2-grid" style="flex: 1; overflow-y: auto; background: var(--bg); align-content: flex-start;">
+                <div style="grid-column: 1/-1; text-align:center; color:var(--txt3); padding:40px; font-family:var(--mono);">SCANNING MESH...</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div id="c2-task-modal" class="ov" style="display:none; align-items:center; justify-content:center; z-index:9999;">
+    <div class="modal-inner" style="width: 95%; max-width: 600px; background: var(--bg2); border: 1px solid var(--acc); box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+        
+        <div class="modal-head" style="display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid var(--bd2);">
+            <h3 id="c2-task-title" style="margin:0; font-size:14px; font-family:var(--mono); color:var(--acc); letter-spacing:1px;">CONFIGURE TASK</h3>
+            <button class="btn btn-sm" onclick="document.getElementById('c2-task-modal').style.display='none'" style="min-width:auto;">✕</button>
+        </div>
+
+        <div class="cb" style="padding: 24px;">
+            <form id="c2-task-form">
+                <input type="hidden" id="c2-task-id">
+                <input type="hidden" id="c2-task-node">
+
+                <div class="g2" style="margin-bottom:16px;">
+                    <div>
+                        <label style="font-family:var(--mono); font-size:9px; color:var(--txt3); display:block; margin-bottom:6px;">TASK TYPE</label>
+                        <select id="c2-task-type" class="inp mono" style="width:100%; padding:8px;" onchange="window.C2TasksApp.toggleTaskType()">
+                            <option value="message">Standard Message</option>
+                            <option value="website_monitor">Web Sensor Ingress</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-family:var(--mono); font-size:9px; color:var(--txt3); display:block; margin-bottom:6px;">SCHEDULE</label>
+                        <select id="c2-task-schedule" class="inp mono" style="width:100%; padding:8px;" onchange="window.C2TasksApp.toggleScheduleType()">
+                            <option value="once">Run Once</option>
+                            <option value="daily">Daily</option>
+                            <option value="hourly">Every Hour</option>
+                            <option value="custom">Custom Crontab</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="c2-task-wrap-msg" style="margin-bottom:16px;">
+                    <label style="font-family:var(--mono); font-size:9px; color:var(--txt3); display:block; margin-bottom:6px;">PAYLOAD MESSAGE</label>
+                    <textarea id="c2-task-msg" class="inp mono" style="width:100%; height:80px; padding:10px; resize:none;" placeholder="Enter message to transmit..."></textarea>
+                </div>
+
+                <div id="c2-task-wrap-sensor" style="display:none; margin-bottom:16px;">
+                    <label style="font-family:var(--mono); font-size:9px; color:var(--txt3); display:block; margin-bottom:6px;">SENSOR CONFIG (JSON)</label>
+                    <textarea id="c2-task-json" class="inp mono" style="width:100%; height:120px; padding:10px; resize:none;" placeholder='{"url":"https://...","block_id":0,"prefix":"Label", "channel": 0}'></textarea>
+                </div>
+
+                <div class="g2" style="margin-bottom:24px; padding-top:16px; border-top:1px dashed var(--bd);">
+                    <div id="c2-task-wrap-time">
+                        <label style="font-family:var(--mono); font-size:9px; color:var(--txt3); display:block; margin-bottom:6px;">EXECUTION TIME</label>
+                        <input type="datetime-local" id="c2-task-time" class="inp mono" style="width:100%; padding:8px;">
+                    </div>
+                    <div>
+                        <label style="font-family:var(--mono); font-size:9px; color:var(--txt3); display:block; margin-bottom:6px;">CRONTAB PREVIEW</label>
+                        <div id="c2-task-cron-preview" style="background:var(--bg); border:1px solid var(--bd); padding:8px; border-radius:4px; font-family:var(--mono); font-size:12px; color:var(--warn); font-weight:bold;">* * * * *</div>
+                        <input type="text" id="c2-task-custom-cron" class="inp mono" style="display:none; width:100%; padding:8px; margin-top:4px;" placeholder="* * * * *">
+                    </div>
+                </div>
+
+                <div style="display:flex; justify-content:flex-end;">
+                    <button type="submit" id="c2-btn-save-task" class="btn btn-acc"><i class="fas fa-save"></i> DEPLOY TASK</button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>

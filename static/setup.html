@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Setup - MeshDash</title>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<link href="/static/css/theme.css" rel="stylesheet">
+<style>
+/* ─── RESET ─── */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    height: 100vh;
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--txt);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow-y: auto;
+    position: relative;
+}
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(0, 200, 245, 0.04) 0%, transparent 70%),
+                radial-gradient(ellipse at 80% 80%, rgba(0, 240, 144, 0.02) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+/* ─── WIZARD CONTAINER ─── */
+.wizard-container {
+    width: 100%;
+    max-width: 580px;
+    padding: 24px;
+    position: relative;
+    z-index: 1;
+}
+.wizard-card {
+    background: var(--bg1);
+    border: 1px solid var(--bd2);
+    border-radius: 10px;
+    padding: 32px;
+    box-shadow: 0 0 40px rgba(0, 200, 245, 0.03);
+}
+
+/* ─── LOGO / HEADER ─── */
+.wizard-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+.wizard-header h1 {
+    font-family: var(--sans);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--acc);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+.wizard-header p {
+    font-size: 12px;
+    color: var(--txt2);
+}
+
+/* ─── STEPPER ─── */
+.stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 28px;
+}
+.step-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg2);
+    border: 2px solid var(--bd2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--txt2);
+    transition: all 0.3s;
+    position: relative;
+    z-index: 1;
+}
+.step-dot.active {
+    background: var(--bg2);
+    border-color: var(--acc);
+    color: var(--acc);
+    box-shadow: 0 0 12px var(--acc-glow);
+}
+.step-dot.done {
+    background: var(--ok);
+    border-color: var(--ok);
+    color: var(--bg);
+    box-shadow: 0 0 12px var(--ok-glow);
+}
+.step-line {
+    width: 40px;
+    height: 2px;
+    background: var(--bd2);
+    transition: background 0.3s;
+}
+.step-line.done { background: var(--ok); }
+
+/* ─── STEP CONTENT ─── */
+.step-content { display: none; }
+.step-content.active { display: block; }
+.step-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--txt);
+    margin-bottom: 6px;
+}
+.step-desc {
+    font-size: 12px;
+    color: var(--txt2);
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+/* ─── FORM ELEMENTS ─── */
+.form-group {
+    margin-bottom: 16px;
+}
+.form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--txt2);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.form-group label .hint {
+    text-transform: none;
+    font-weight: 400;
+    color: var(--txt3);
+    font-size: 10px;
+    margin-left: 6px;
+}
+.inp {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg2);
+    border: 1px solid var(--bd2);
+    border-radius: var(--r);
+    color: var(--txt);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+.inp:focus {
+    border-color: var(--acc);
+    box-shadow: 0 0 8px var(--acc-glow);
+}
+.inp::placeholder { color: var(--txt3); }
+.inp-mono { font-family: var(--mono); }
+select.inp {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%235a80a8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+    cursor: pointer;
+}
+select.inp option { background: var(--bg2); color: var(--txt); }
+
+/* ─── RADIO CARDS ─── */
+.radio-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.radio-card {
+    position: relative;
+    cursor: pointer;
+}
+.radio-card input { display: none; }
+.radio-card .card-inner {
+    padding: 14px 10px;
+    background: var(--bg2);
+    border: 1px solid var(--bd2);
+    border-radius: var(--r);
+    text-align: center;
+    transition: all 0.2s;
+}
+.radio-card .card-inner i {
+    font-size: 20px;
+    color: var(--txt2);
+    margin-bottom: 6px;
+    display: block;
+    transition: color 0.2s;
+}
+.radio-card .card-inner .card-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--txt);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.radio-card .card-inner .card-sub {
+    font-size: 10px;
+    color: var(--txt3);
+    margin-top: 3px;
+}
+.radio-card input:checked + .card-inner {
+    border-color: var(--acc);
+    background: var(--acc-dim);
+    box-shadow: 0 0 12px var(--acc-glow);
+}
+.radio-card input:checked + .card-inner i { color: var(--acc); }
+
+/* ─── TOGGLE SWITCH ─── */
+.toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg2);
+    border: 1px solid var(--bd);
+    border-radius: var(--r);
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+}
+.toggle-row:hover { border-color: var(--bd2); }
+.toggle-row .toggle-label {
+    font-size: 12px;
+    color: var(--txt);
+}
+.toggle-row .toggle-sub {
+    font-size: 10px;
+    color: var(--txt3);
+    margin-top: 2px;
+}
+.toggle-switch {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+}
+.toggle-switch input { display: none; }
+.toggle-switch .slider {
+    position: absolute;
+    inset: 0;
+    background: var(--bd2);
+    border-radius: 11px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.toggle-switch .slider::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: var(--txt2);
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.2s, background 0.2s;
+}
+.toggle-switch input:checked + .slider {
+    background: var(--acc);
+}
+.toggle-switch input:checked + .slider::after {
+    transform: translateX(18px);
+    background: #fff;
+}
+
+/* ─── PRESET CARD ─── */
+.preset-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.preset-card {
+    padding: 14px;
+    background: var(--bg2);
+    border: 1px solid var(--bd2);
+    border-radius: var(--r);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+.preset-card:hover { border-color: var(--bd3); }
+.preset-card.selected {
+    border-color: var(--acc);
+    background: var(--acc-dim);
+    box-shadow: 0 0 12px var(--acc-glow);
+}
+.preset-card .preset-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--txt);
+    margin-bottom: 4px;
+}
+.preset-card .preset-detail {
+    font-size: 10px;
+    color: var(--txt3);
+    line-height: 1.4;
+}
+.preset-card .preset-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--ok-dim);
+    color: var(--ok);
+    border: 1px solid rgba(0, 240, 144, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ─── CONNECTION TEST ─── */
+.test-result {
+    margin-top: 12px;
+    padding: 14px;
+    border-radius: var(--r);
+    font-size: 13px;
+    display: none;
+}
+.test-result.testing {
+    display: block;
+    background: var(--acc-dim);
+    border: 1px solid rgba(0, 200, 245, 0.2);
+    color: var(--acc);
+}
+.test-result.success {
+    display: block;
+    background: var(--ok-dim);
+    border: 1px solid rgba(0, 240, 144, 0.2);
+    color: var(--ok);
+}
+.test-result.error {
+    display: block;
+    background: var(--err-dim);
+    border: 1px solid rgba(255, 48, 80, 0.2);
+    color: var(--err);
+}
+
+/* ─── BUTTONS ─── */
+.btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    margin-top: 24px;
+}
+.btn {
+    padding: 10px 20px;
+    border: 1px solid var(--bd2);
+    border-radius: var(--r);
+    background: var(--bg2);
+    color: var(--txt);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+}
+.btn:hover { border-color: var(--bd3); background: var(--bg3); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary {
+    background: var(--acc);
+    color: var(--bg);
+    border-color: var(--acc);
+}
+.btn-primary:hover { background: #00b0de; border-color: #00b0de; }
+.btn-primary:disabled { background: var(--bd2); color: var(--txt3); border-color: var(--bd2); }
+.btn-ok {
+    background: var(--ok);
+    color: var(--bg);
+    border-color: var(--ok);
+}
+.btn-ok:hover { background: #00d880; }
+.btn-danger {
+    background: var(--err-dim);
+    color: var(--err);
+    border-color: rgba(255, 48, 80, 0.3);
+}
+.btn-danger:hover { background: rgba(255, 48, 80, 0.2); }
+
+/* ─── ADDED RADIO LIST ─── */
+.radio-list {
+    margin-top: 12px;
+}
+.radio-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg2);
+    border: 1px solid var(--bd);
+    border-radius: var(--r);
+    margin-bottom: 8px;
+}
+.radio-item .ri-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.radio-item .ri-icon {
+    font-size: 16px;
+    color: var(--ok);
+}
+.radio-item .ri-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--txt);
+}
+.radio-item .ri-detail {
+    font-size: 10px;
+    color: var(--txt3);
+}
+.radio-item .ri-status {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.ri-status.connected {
+    background: var(--ok-dim);
+    color: var(--ok);
+    border: 1px solid rgba(0, 240, 144, 0.2);
+}
+.ri-status.pending {
+    background: var(--warn-dim);
+    color: var(--warn);
+    border: 1px solid rgba(255, 168, 38, 0.2);
+}
+
+/* ─── SPINNER ─── */
+.spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--acc-dim);
+    border-top-color: var(--acc);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── CONDITIONAL FIELDS ─── */
+.conditional-fields { display: none; }
+.conditional-fields.visible { display: block; }
+
+/* ─── REVIEW TABLE ─── */
+.review-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+}
+.review-table td {
+    padding: 7px 10px;
+    font-size: 12px;
+    border-bottom: 1px solid var(--bd);
+}
+.review-table td:first-child {
+    color: var(--txt2);
+    font-size: 11px;
+    width: 40%;
+}
+.review-table td:last-child {
+    color: var(--txt);
+    font-family: var(--mono);
+    font-size: 12px;
+}
+
+/* ─── SUCCESS SCREEN ─── */
+.success-icon {
+    text-align: center;
+    font-size: 48px;
+    color: var(--ok);
+    margin-bottom: 16px;
+    animation: pop 0.4s ease;
+}
+@keyframes pop {
+    0% { transform: scale(0); opacity: 0; }
+    70% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 600px) {
+    .wizard-container { padding: 12px; }
+    .wizard-card { padding: 20px; }
+    .radio-cards { grid-template-columns: 1fr 1fr; }
+    .preset-cards { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="wizard-container">
+<div class="wizard-card">
+
+<!-- Header -->
+<div class="wizard-header">
+    <h1><i class="fas fa-satellite-dish" style="margin-right:6px"></i> MeshDash Setup</h1>
+    <p id="step-subtitle">Welcome — let's get your mesh network dashboard running</p>
+</div>
+
+<!-- Stepper -->
+<div class="stepper">
+    <div class="step-dot active" id="dot-1">1</div>
+    <div class="step-line" id="line-1"></div>
+    <div class="step-dot" id="dot-2">2</div>
+    <div class="step-line" id="line-2"></div>
+    <div class="step-dot" id="dot-3">3</div>
+    <div class="step-line" id="line-3"></div>
+    <div class="step-dot" id="dot-4">4</div>
+    <div class="step-line" id="line-4"></div>
+    <div class="step-dot" id="dot-5">5</div>
+</div>
+
+<!-- ============ STEP 1: Admin Account ============ -->
+<div class="step-content active" id="step-1">
+    <div class="step-title">Create Admin Account</div>
+    <div class="step-desc">This will be your login for the dashboard. You can add more users later.</div>
+
+    <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="admin-user" class="inp" placeholder="admin" minlength="3" autocomplete="username">
+    </div>
+    <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="admin-pass" class="inp" placeholder="Min 6 characters" minlength="6" autocomplete="new-password">
+    </div>
+    <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="admin-pass2" class="inp" placeholder="Re-enter password" autocomplete="new-password">
+    </div>
+
+    <div class="btn-row">
+        <div></div>
+        <button class="btn btn-primary" onclick="goStep(2)">Next <i class="fas fa-arrow-right" style="margin-left:4px"></i></button>
+    </div>
+</div>
+
+<!-- ============ STEP 2: Connection Type ============ -->
+<div class="step-content" id="step-2">
+    <div class="step-title">Connect Your Radio</div>
+    <div class="step-desc">How is your Meshtastic node connected to this server?</div>
+
+    <div class="radio-cards">
+        <label class="radio-card">
+            <input type="radio" name="conn-type" value="TCP" checked onchange="onConnTypeChange()">
+            <div class="card-inner">
+                <i class="fas fa-network-wired"></i>
+                <div class="card-label">TCP/IP</div>
+                <div class="card-sub">WiFi or Ethernet</div>
+            </div>
+        </label>
+        <label class="radio-card">
+            <input type="radio" name="conn-type" value="SERIAL" onchange="onConnTypeChange()">
+            <div class="card-inner">
+                <i class="fas fa-usb"></i>
+                <div class="card-label">Serial</div>
+                <div class="card-sub">USB cable</div>
+            </div>
+        </label>
+        <label class="radio-card">
+            <input type="radio" name="conn-type" value="BLE" onchange="onConnTypeChange()">
+            <div class="card-inner">
+                <i class="fas fa-bluetooth-b"></i>
+                <div class="card-label">BLE</div>
+                <div class="card-sub">Bluetooth</div>
+            </div>
+        </label>
+        <label class="radio-card">
+            <input type="radio" name="conn-type" value="MQTT" onchange="onConnTypeChange()">
+            <div class="card-inner">
+                <i class="fas fa-cloud"></i>
+                <div class="card-label">MQTT</div>
+                <div class="card-sub">MQTT broker</div>
+            </div>
+        </label>
+    </div>
+
+    <!-- TCP fields -->
+    <div class="conditional-fields visible" id="fields-TCP">
+        <div class="form-group">
+            <label>Node IP Address <span class="hint">e.g. 192.168.1.50</span></label>
+            <input type="text" id="tcp-host" class="inp inp-mono" placeholder="192.168.0.50" value="">
+        </div>
+        <div class="form-group">
+            <label>Port <span class="hint">default 4403</span></label>
+            <input type="number" id="tcp-port" class="inp inp-mono" placeholder="4403" value="4403">
+        </div>
+    </div>
+
+    <!-- Serial fields -->
+    <div class="conditional-fields" id="fields-SERIAL">
+        <div class="form-group">
+            <label>Serial Port <span class="hint">e.g. /dev/ttyUSB0 or COM3</span></label>
+            <input type="text" id="serial-port" class="inp inp-mono" placeholder="/dev/ttyUSB0">
+        </div>
+    </div>
+
+    <!-- BLE fields -->
+    <div class="conditional-fields" id="fields-BLE">
+        <div class="form-group">
+            <label>BLE MAC Address <span class="hint">e.g. AA:BB:CC:DD:EE:FF</span></label>
+            <input type="text" id="ble-mac" class="inp inp-mono" placeholder="AA:BB:CC:DD:EE:FF">
+        </div>
+    </div>
+
+    <!-- MQTT fields -->
+    <div class="conditional-fields" id="fields-MQTT">
+        <div class="step-desc" style="margin-bottom:12px;margin-top:0">Choose a preset or configure a custom MQTT broker.</div>
+        <div class="preset-cards">
+            <div class="preset-card selected" id="preset-public" onclick="selectPreset('meshtastic_public')">
+                <div class="preset-name">Meshtastic Public</div>
+                <div class="preset-detail">mqtt.meshtastic.org:1883<br>Plain TCP, no TLS</div>
+                <div class="preset-badge">Popular</div>
+            </div>
+            <div class="preset-card" id="preset-public-tls" onclick="selectPreset('meshtastic_public_tls')">
+                <div class="preset-name">Meshtastic TLS</div>
+                <div class="preset-detail">mqtt.meshtastic.org:8883<br>Encrypted TLS</div>
+            </div>
+            <div class="preset-card" id="preset-custom" onclick="selectPreset('custom')">
+                <div class="preset-name">Custom Broker</div>
+                <div class="preset-detail">Your own MQTT server</div>
+            </div>
+        </div>
+
+        <div id="mqtt-custom-fields" style="display:none">
+            <div class="form-group">
+                <label>Broker Hostname</label>
+                <input type="text" id="mqtt-broker" class="inp inp-mono" placeholder="mqtt.example.com">
+            </div>
+            <div class="form-group">
+                <label>Port</label>
+                <input type="number" id="mqtt-port" class="inp inp-mono" placeholder="1883" value="1883">
+            </div>
+            <div class="form-group">
+                <label>Username <span class="hint">leave blank for anonymous</span></label>
+                <input type="text" id="mqtt-user" class="inp inp-mono" placeholder="meshdev">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="mqtt-pass" class="inp inp-mono" placeholder="••••••••">
+            </div>
+        </div>
+
+        <div class="form-group" style="margin-top:12px">
+            <label>Region <span class="hint">your LoRa region</span></label>
+            <select id="mqtt-region" class="inp">
+                <option value="EU_868">EU 868 MHz</option>
+                <option value="US_915">US 915 MHz</option>
+                <option value="AU_915">AU 915 MHz</option>
+                <option value="CN_470">CN 470 MHz</option>
+                <option value="IN_866">IN 866 MHz</option>
+                <option value="NZ_865">NZ 865 MHz</option>
+                <option value="RU_864">RU 864 MHz</option>
+                <option value="KR_920">KR 920 MHz</option>
+                <option value="JP_920">JP 920 MHz</option>
+                <option value="UA_868">UA 868 MHz</option>
+                <option value="TH_920">TH 920 MHz</option>
+                <option value="#">All Regions (#)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Channel <span class="hint">LongFast, MediumFast, etc. or # for all</span></label>
+            <select id="mqtt-channel" class="inp">
+                <option value="LongFast">LongFast (default)</option>
+                <option value="MediumFast">MediumFast</option>
+                <option value="ShortFast">ShortFast</option>
+                <option value="ShortTurbo">ShortTurbo</option>
+                <option value="#">All Channels (#)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Your Node ID <span class="hint">optional — leave blank for observer mode</span></label>
+            <input type="text" id="mqtt-node-id" class="inp inp-mono" placeholder="!aabbccdd">
+        </div>
+    </div>
+
+    <div class="btn-row">
+        <button class="btn" onclick="goStep(1)"><i class="fas fa-arrow-left" style="margin-right:4px"></i> Back</button>
+        <button class="btn btn-primary" onclick="testAndContinue()">Test Connection <i class="fas fa-plug" style="margin-left:4px"></i></button>
+    </div>
+    <div class="test-result" id="test-result"></div>
+</div>
+
+<!-- ============ STEP 3: Privacy & Settings ============ -->
+<div class="step-content" id="step-3">
+    <div class="step-title">Privacy & Settings</div>
+    <div class="step-desc">Configure how your dashboard handles location and community data.</div>
+
+    <div class="toggle-row">
+        <div>
+            <div class="toggle-label">Share Your Node's Location</div>
+            <div class="toggle-sub">Send your local node's GPS to the mesh</div>
+        </div>
+        <label class="toggle-switch">
+            <input type="checkbox" id="share-local" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="toggle-row">
+        <div>
+            <div class="toggle-label">Forward Other Nodes' Positions</div>
+            <div class="toggle-sub">Relay position data to MQTT</div>
+        </div>
+        <label class="toggle-switch">
+            <input type="checkbox" id="share-other" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="toggle-row">
+        <div>
+            <div class="toggle-label">Location Offset</div>
+            <div class="toggle-sub">Add random offset to reported positions for privacy</div>
+        </div>
+        <label class="toggle-switch">
+            <input type="checkbox" id="location-offset" onchange="toggleOffsetMeters()">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="form-group" id="offset-meters-group" style="display:none; margin-top:8px;">
+        <label>Offset Distance (meters)</label>
+        <input type="number" id="offset-meters" class="inp inp-mono" placeholder="50" value="50" min="1" max="1000">
+    </div>
+
+    <div class="toggle-row">
+        <div>
+            <div class="toggle-label">Community API</div>
+            <div class="toggle-sub">Share anonymised data with the MeshDash community map</div>
+        </div>
+        <label class="toggle-switch">
+            <input type="checkbox" id="community-api">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="toggle-row">
+        <div>
+            <div class="toggle-label">Public Mode</div>
+            <div class="toggle-sub">Allow unauthenticated access — no login required</div>
+        </div>
+        <label class="toggle-switch">
+            <input type="checkbox" id="public-mode">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="btn-row">
+        <button class="btn" onclick="goStep(2)"><i class="fas fa-arrow-left" style="margin-right:4px"></i> Back</button>
+        <button class="btn btn-primary" onclick="goStep(4)">Next <i class="fas fa-arrow-right" style="margin-left:4px"></i></button>
+    </div>
+</div>
+
+<!-- ============ STEP 4: Add More Radios ============ -->
+<div class="step-content" id="step-4">
+    <div class="step-title">Add More Radios?</div>
+    <div class="step-desc">You can add additional radios (MQTT feeds, serial nodes, etc.) now or later from the dashboard.</div>
+
+    <div id="added-radios" class="radio-list">
+        <!-- Populated by JS -->
+    </div>
+
+    <div id="add-another-section">
+        <div class="radio-cards" style="margin-top:8px">
+            <label class="radio-card">
+                <input type="radio" name="add-type" value="TCP" checked onchange="onAddTypeChange()">
+                <div class="card-inner">
+                    <i class="fas fa-network-wired"></i>
+                    <div class="card-label">TCP</div>
+                </div>
+            </label>
+            <label class="radio-card">
+                <input type="radio" name="add-type" value="SERIAL" onchange="onAddTypeChange()">
+                <div class="card-inner">
+                    <i class="fas fa-usb"></i>
+                    <div class="card-label">Serial</div>
+                </div>
+            </label>
+            <label class="radio-card">
+                <input type="radio" name="add-type" value="BLE" onchange="onAddTypeChange()">
+                <div class="card-inner">
+                    <i class="fas fa-bluetooth-b"></i>
+                    <div class="card-label">BLE</div>
+                </div>
+            </label>
+            <label class="radio-card">
+                <input type="radio" name="add-type" value="MQTT" onchange="onAddTypeChange()">
+                <div class="card-inner">
+                    <i class="fas fa-cloud"></i>
+                    <div class="card-label">MQTT</div>
+                </div>
+            </label>
+        </div>
+
+        <div id="add-fields-TCP" class="conditional-fields visible">
+            <div class="form-group"><label>Label</label><input type="text" id="add-tcp-label" class="inp" placeholder="Living Room Node" value=""></div>
+            <div class="form-group"><label>IP Address</label><input type="text" id="add-tcp-host" class="inp inp-mono" placeholder="192.168.1.51"></div>
+            <div class="form-group"><label>Port</label><input type="number" id="add-tcp-port" class="inp inp-mono" placeholder="4403" value="4403"></div>
+        </div>
+        <div id="add-fields-SERIAL" class="conditional-fields">
+            <div class="form-group"><label>Label</label><input type="text" id="add-serial-label" class="inp" placeholder="USB Node"></div>
+            <div class="form-group"><label>Serial Port</label><input type="text" id="add-serial-port" class="inp inp-mono" placeholder="/dev/ttyUSB1"></div>
+        </div>
+        <div id="add-fields-BLE" class="conditional-fields">
+            <div class="form-group"><label>Label</label><input type="text" id="add-ble-label" class="inp" placeholder="BLE Node"></div>
+            <div class="form-group"><label>BLE MAC</label><input type="text" id="add-ble-mac" class="inp inp-mono" placeholder="AA:BB:CC:DD:EE:FF"></div>
+        </div>
+        <div id="add-fields-MQTT" class="conditional-fields">
+            <div class="preset-cards">
+                <div class="preset-card selected" id="add-preset-public" onclick="selectAddPreset('meshtastic_public')">
+                    <div class="preset-name">Meshtastic Public</div>
+                    <div class="preset-detail">mqtt.meshtastic.org:1883</div>
+                </div>
+                <div class="preset-card" id="add-preset-tls" onclick="selectAddPreset('meshtastic_public_tls')">
+                    <div class="preset-name">Meshtastic TLS</div>
+                    <div class="preset-detail">mqtt.meshtastic.org:8883</div>
+                </div>
+                <div class="preset-card" id="add-preset-custom" onclick="selectAddPreset('custom')">
+                    <div class="preset-name">Custom</div>
+                    <div class="preset-detail">Your own broker</div>
+                </div>
+            </div>
+            <div id="add-mqtt-custom-fields" style="display:none">
+                <div class="form-group"><label>Broker</label><input type="text" id="add-mqtt-broker" class="inp inp-mono" placeholder="mqtt.example.com"></div>
+                <div class="form-group"><label>Port</label><input type="number" id="add-mqtt-port" class="inp inp-mono" placeholder="1883" value="1883"></div>
+                <div class="form-group"><label>Username</label><input type="text" id="add-mqtt-user" class="inp inp-mono" placeholder="meshdev"></div>
+                <div class="form-group"><label>Password</label><input type="password" id="add-mqtt-pass" class="inp inp-mono" placeholder="••••••••"></div>
+            </div>
+            <div class="form-group"><label>Region</label>
+                <select id="add-mqtt-region" class="inp">
+                    <option value="EU_868">EU 868 MHz</option>
+                    <option value="US_915">US 915 MHz</option>
+                    <option value="AU_915">AU 915 MHz</option>
+                    <option value="CN_470">CN 470 MHz</option>
+                    <option value="IN_866">IN 866 MHz</option>
+                    <option value="NZ_865">NZ 865 MHz</option>
+                    <option value="RU_864">RU 864 MHz</option>
+                    <option value="#">All Regions</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Channel</label>
+                <select id="add-mqtt-channel" class="inp">
+                    <option value="LongFast">LongFast</option>
+                    <option value="MediumFast">MediumFast</option>
+                    <option value="#">All Channels</option>
+                </select>
+            </div>
+        </div>
+
+        <div style="margin-top:12px">
+            <button class="btn btn-ok" onclick="addRadio()"><i class="fas fa-plus" style="margin-right:4px"></i> Add Radio</button>
+        </div>
+    </div>
+
+    <div class="btn-row" style="margin-top:20px">
+        <button class="btn" onclick="goStep(3)"><i class="fas fa-arrow-left" style="margin-right:4px"></i> Back</button>
+        <button class="btn btn-primary" onclick="goStep(5)">Review & Finish <i class="fas fa-arrow-right" style="margin-left:4px"></i></button>
+    </div>
+</div>
+
+<!-- ============ STEP 5: Review & Finish ============ -->
+<div class="step-content" id="step-5">
+    <div class="step-title">Review Configuration</div>
+    <div class="step-desc">Confirm everything looks right. The dashboard will restart after saving.</div>
+
+    <table class="review-table" id="review-table">
+        <!-- Populated by JS -->
+    </table>
+
+    <div class="btn-row">
+        <button class="btn" onclick="goStep(4)"><i class="fas fa-arrow-left" style="margin-right:4px"></i> Back</button>
+        <button class="btn btn-primary" id="finish-btn" onclick="finishSetup()"><i class="fas fa-rocket" style="margin-right:4px"></i> Save & Launch</button>
+    </div>
+    <div class="test-result" id="finish-result"></div>
+</div>
+
+<!-- ============ SUCCESS ============ -->
+<div class="step-content" id="step-success" style="text-align:center; padding-top:20px;">
+    <div class="success-icon"><i class="fas fa-check-circle"></i></div>
+    <div class="step-title" style="font-size:20px">All Done!</div>
+    <div class="step-desc" style="margin-bottom:20px">MeshDash is configured and restarting. You'll be redirected to the dashboard in a few seconds.</div>
+    <button class="btn btn-ok" onclick="window.location.href='/'" style="margin-top:12px">Open Dashboard <i class="fas fa-arrow-right" style="margin-left:4px"></i></button>
+</div>
+
+</div>
+</div>
+
+<script>
+// ─── State ───
+let currentStep = 1;
+const totalSteps = 5;
+let primarySlot = null;
+let extraSlots = [];
+let mqttPreset = 'meshtastic_public';
+let addMqttPreset = 'meshtastic_public';
+
+const CONN_ICONS = { TCP: 'fa-network-wired', SERIAL: 'fa-usb', BLE: 'fa-bluetooth-b', MQTT: 'fa-cloud' };
+
+// ─── Stepper ───
+function updateStepper() {
+    for (let i = 1; i <= totalSteps; i++) {
+        const dot = document.getElementById('dot-' + i);
+        const line = document.getElementById('line-' + (i - 1));
+        dot.classList.remove('active', 'done');
+        if (i < currentStep) dot.classList.add('done');
+        else if (i === currentStep) dot.classList.add('active');
+        if (line) {
+            line.classList.remove('done');
+            if (i <= currentStep) line.classList.add('done');
+        }
+    }
+}
+
+function goStep(n) {
+    // Validation per step
+    if (n > currentStep) {
+        if (currentStep === 1) {
+            const u = document.getElementById('admin-user').value.trim();
+            const p = document.getElementById('admin-pass').value;
+            const p2 = document.getElementById('admin-pass2').value;
+            if (u.length < 3) { alert('Username must be at least 3 characters.'); return; }
+            if (p.length < 6) { alert('Password must be at least 6 characters.'); return; }
+            if (p !== p2) { alert('Passwords do not match.'); return; }
+        }
+    }
+
+    document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+    const stepEl = document.getElementById('step-' + n);
+    if (stepEl) stepEl.classList.add('active');
+    currentStep = n;
+    updateStepper();
+
+    const subtitles = {
+        1: 'Create your admin account',
+        2: 'Connect your first Meshtastic node',
+        3: 'Configure privacy and sharing settings',
+        4: 'Add more radios or continue',
+        5: 'Review your configuration'
+    };
+    document.getElementById('step-subtitle').textContent = subtitles[n] || '';
+
+    if (n === 4) renderAddedRadios();
+    if (n === 5) renderReview();
+}
+
+// ─── Connection Type Toggle ───
+function onConnTypeChange() {
+    const type = document.querySelector('input[name="conn-type"]:checked').value;
+    ['TCP', 'SERIAL', 'BLE', 'MQTT'].forEach(t => {
+        const el = document.getElementById('fields-' + t);
+        el.classList.toggle('visible', t === type);
+    });
+}
+
+// ─── MQTT Preset ───
+function selectPreset(preset) {
+    mqttPreset = preset;
+    document.querySelectorAll('#step-2 .preset-card').forEach(c => c.classList.remove('selected'));
+    if (preset === 'meshtastic_public') document.getElementById('preset-public').classList.add('selected');
+    else if (preset === 'meshtastic_public_tls') document.getElementById('preset-public-tls').classList.add('selected');
+    else document.getElementById('preset-custom').classList.add('selected');
+    document.getElementById('mqtt-custom-fields').style.display = (preset === 'custom') ? 'block' : 'none';
+}
+
+// ─── Test Connection ───
+// During setup, we can't create slots yet (no auth).
+// We just validate the inputs and store them for later.
+async function testAndContinue() {
+    const type = document.querySelector('input[name="conn-type"]:checked').value;
+    const resultEl = document.getElementById('test-result');
+    const payload = buildSlotPayload(type, 'primary');
+    if (!payload) return;
+
+    // Validate required fields are filled
+    resultEl.className = 'test-result success';
+    resultEl.innerHTML = '<i class="fas fa-check-circle"></i> Configuration saved for "' + payload.label + '". Radios will be connected after setup completes.';
+    primarySlot = { ...payload, type };
+
+    setTimeout(() => goStep(3), 1500);
+}
+
+function buildSlotPayload(type, labelPrefix) {
+    const payload = { connection_type: type };
+
+    if (type === 'TCP') {
+        const host = document.getElementById('tcp-host').value.trim();
+        const port = parseInt(document.getElementById('tcp-port').value) || 4403;
+        if (!host) { alert('Please enter the node IP address.'); return null; }
+        payload.host = host;
+        payload.port = port;
+        payload.label = labelPrefix === 'primary' ? 'Primary Node' : (document.getElementById('add-tcp-label').value.trim() || 'TCP Node');
+    } else if (type === 'SERIAL') {
+        const port = document.getElementById('serial-port').value.trim();
+        if (!port) { alert('Please enter the serial port path.'); return null; }
+        payload.serial_port = port;
+        payload.label = labelPrefix === 'primary' ? 'Serial Node' : (document.getElementById('add-serial-label').value.trim() || 'Serial Node');
+    } else if (type === 'BLE') {
+        const mac = document.getElementById('ble-mac').value.trim();
+        if (!mac) { alert('Please enter the BLE MAC address.'); return null; }
+        payload.ble_mac = mac;
+        payload.label = labelPrefix === 'primary' ? 'BLE Node' : (document.getElementById('add-ble-label').value.trim() || 'BLE Node');
+    } else if (type === 'MQTT') {
+        payload.mqtt_preset = mqttPreset;
+        if (mqttPreset === 'custom') {
+            payload.mqtt_broker = document.getElementById('mqtt-broker').value.trim();
+            payload.mqtt_port = parseInt(document.getElementById('mqtt-port').value) || 1883;
+            payload.mqtt_username = document.getElementById('mqtt-user').value.trim();
+            payload.mqtt_password = document.getElementById('mqtt-pass').value;
+            payload.mqtt_tls = payload.mqtt_port === 8883;
+        }
+        payload.mqtt_region = document.getElementById('mqtt-region').value;
+        payload.mqtt_channel = document.getElementById('mqtt-channel').value;
+        payload.mqtt_node_id = document.getElementById('mqtt-node-id').value.trim();
+        payload.label = 'MQTT Feed';
+    }
+    return payload;
+}
+
+// ─── Add More Radios ───
+function onAddTypeChange() {
+    const type = document.querySelector('input[name="add-type"]:checked').value;
+    ['TCP', 'SERIAL', 'BLE', 'MQTT'].forEach(t => {
+        const el = document.getElementById('add-fields-' + t);
+        if (el) el.classList.toggle('visible', t === type);
+    });
+}
+
+function selectAddPreset(preset) {
+    addMqttPreset = preset;
+    document.querySelectorAll('#step-4 .preset-card').forEach(c => c.classList.remove('selected'));
+    if (preset === 'meshtastic_public') document.getElementById('add-preset-public').classList.add('selected');
+    else if (preset === 'meshtastic_public_tls') document.getElementById('add-preset-tls').classList.add('selected');
+    else document.getElementById('add-preset-custom').classList.add('selected');
+    document.getElementById('add-mqtt-custom-fields').style.display = (preset === 'custom') ? 'block' : 'none';
+}
+
+// During setup, just store the slot config — it'll be created after auth
+function addRadio() {
+    const type = document.querySelector('input[name="add-type"]:checked').value;
+    const payload = buildAddSlotPayload(type);
+    if (!payload) return;
+    extraSlots.push({ ...payload, type });
+    renderAddedRadios();
+}
+
+function buildAddSlotPayload(type) {
+    const payload = { connection_type: type };
+    if (type === 'TCP') {
+        const host = document.getElementById('add-tcp-host').value.trim();
+        const port = parseInt(document.getElementById('add-tcp-port').value) || 4403;
+        if (!host) { alert('Please enter the IP address.'); return null; }
+        payload.host = host;
+        payload.port = port;
+        payload.label = document.getElementById('add-tcp-label').value.trim() || 'TCP Node';
+    } else if (type === 'SERIAL') {
+        const port = document.getElementById('add-serial-port').value.trim();
+        if (!port) { alert('Please enter the serial port.'); return null; }
+        payload.serial_port = port;
+        payload.label = document.getElementById('add-serial-label').value.trim() || 'Serial Node';
+    } else if (type === 'BLE') {
+        const mac = document.getElementById('add-ble-mac').value.trim();
+        if (!mac) { alert('Please enter the BLE MAC address.'); return null; }
+        payload.ble_mac = mac;
+        payload.label = document.getElementById('add-ble-label').value.trim() || 'BLE Node';
+    } else if (type === 'MQTT') {
+        payload.mqtt_preset = addMqttPreset;
+        if (addMqttPreset === 'custom') {
+            payload.mqtt_broker = document.getElementById('add-mqtt-broker').value.trim();
+            payload.mqtt_port = parseInt(document.getElementById('add-mqtt-port').value) || 1883;
+            payload.mqtt_username = document.getElementById('add-mqtt-user').value.trim();
+            payload.mqtt_password = document.getElementById('add-mqtt-pass').value;
+            payload.mqtt_tls = payload.mqtt_port === 8883;
+        }
+        payload.mqtt_region = document.getElementById('add-mqtt-region').value;
+        payload.mqtt_channel = document.getElementById('add-mqtt-channel').value;
+        payload.label = 'MQTT ' + (addMqttPreset === 'custom' ? 'Custom' : 'Public');
+    }
+    return payload;
+}
+
+function renderAddedRadios() {
+    const container = document.getElementById('added-radios');
+    let html = '';
+    if (primarySlot) {
+        html += `<div class="radio-item">
+            <div class="ri-info">
+                <i class="fas ${CONN_ICONS[primarySlot.type] || 'fa-radio'} ri-icon"></i>
+                <div>
+                    <div class="ri-label">${primarySlot.label || 'Primary Node'}</div>
+                    <div class="ri-detail">${primarySlot.type} ${primarySlot.host || primarySlot.serial_port || primarySlot.ble_mac || primarySlot.mqtt_broker || ''}</div>
+                </div>
+            </div>
+            <span class="ri-status connected">connected</span>
+        </div>`;
+    }
+    extraSlots.forEach((s, i) => {
+        html += `<div class="radio-item">
+            <div class="ri-info">
+                <i class="fas ${CONN_ICONS[s.type] || 'fa-radio'} ri-icon"></i>
+                <div>
+                    <div class="ri-label">${s.label}</div>
+                    <div class="ri-detail">${s.type}</div>
+                </div>
+            </div>
+            <span class="ri-status pending">added</span>
+        </div>`;
+    });
+    container.innerHTML = html || '<p style="color:var(--txt3);font-size:12px;text-align:center;padding:12px;">No additional radios added yet.</p>';
+}
+
+// ─── Privacy toggles ───
+function toggleOffsetMeters() {
+    document.getElementById('offset-meters-group').style.display =
+        document.getElementById('location-offset').checked ? 'block' : 'none';
+}
+
+// ─── Review ───
+function renderReview() {
+    const rows = [];
+    rows.push(['Admin User', document.getElementById('admin-user').value.trim()]);
+    rows.push(['Password', '••••••••']);
+
+    if (primarySlot) {
+        rows.push(['', '']);
+        rows.push(['<strong>Primary Radio</strong>', '']);
+        rows.push(['Type', primarySlot.type]);
+        if (primarySlot.host) rows.push(['Host', primarySlot.host + (primarySlot.port ? ':' + primarySlot.port : '')]);
+        if (primarySlot.serial_port) rows.push(['Serial Port', primarySlot.serial_port]);
+        if (primarySlot.ble_mac) rows.push(['BLE MAC', primarySlot.ble_mac]);
+        if (primarySlot.type === 'MQTT') rows.push(['MQTT', primarySlot.mqtt_preset || 'custom']);
+    }
+
+    extraSlots.forEach((s, i) => {
+        rows.push(['', '']);
+        rows.push([`<strong>Radio ${i + 2}</strong>`, '']);
+        rows.push(['Type', s.type]);
+        if (s.host) rows.push(['Host', s.host]);
+        if (s.serial_port) rows.push(['Serial Port', s.serial_port]);
+        if (s.ble_mac) rows.push(['BLE MAC', s.ble_mac]);
+    });
+
+    rows.push(['', '']);
+    rows.push(['<strong>Settings</strong>', '']);
+    rows.push(['Share Local Location', document.getElementById('share-local').checked ? 'Yes' : 'No']);
+    rows.push(['Forward Positions', document.getElementById('share-other').checked ? 'Yes' : 'No']);
+    rows.push(['Location Offset', document.getElementById('location-offset').checked ? document.getElementById('offset-meters').value + 'm' : 'Off']);
+    rows.push(['Community API', document.getElementById('community-api').checked ? 'Enabled' : 'Disabled']);
+    rows.push(['Public Mode', document.getElementById('public-mode').checked ? 'Enabled' : 'Disabled']);
+
+    const table = document.getElementById('review-table');
+    table.innerHTML = rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+}
+
+// ─── Submit ───
+async function finishSetup() {
+    const btn = document.getElementById('finish-btn');
+    const resultEl = document.getElementById('finish-result');
+    btn.disabled = true;
+    resultEl.className = 'test-result testing';
+    resultEl.innerHTML = '<span class="spinner"></span> Saving configuration...';
+
+    const payload = {
+        adminUser: {
+            username: document.getElementById('admin-user').value.trim(),
+            password: document.getElementById('admin-pass').value
+        },
+        configValues: {
+            SEND_LOCAL_NODE_LOCATION: document.getElementById('share-local').checked ? 'true' : 'false',
+            SEND_OTHER_NODES_LOCATION: document.getElementById('share-other').checked ? 'true' : 'false',
+            LOCATION_OFFSET_ENABLED: document.getElementById('location-offset').checked ? 'true' : 'false',
+            LOCATION_OFFSET_METERS: document.getElementById('offset-meters').value || '0',
+            COMMUNITY_API: document.getElementById('community-api').checked ? 'true' : 'false',
+            PUBLIC_MODE: document.getElementById('public-mode').checked ? 'true' : 'false'
+        },
+        rawSelections: {
+            operatingMode: document.getElementById('public-mode').checked ? 'public' : 'private',
+            joinCommunity: document.getElementById('community-api').checked ? 'true' : 'false',
+            shareLocation: document.getElementById('share-local').checked ? 'true' : 'false',
+            shareDetectedNodes: document.getElementById('share-other').checked ? 'true' : 'false'
+        }
+    };
+
+    // Include primary radio connection config
+    if (primarySlot) {
+        payload.configValues.MESHTASTIC_CONNECTION_TYPE = primarySlot.type;
+        if (primarySlot.type === 'TCP') {
+            payload.configValues.MESHTASTIC_HOST = primarySlot.host || '192.168.0.0';
+            payload.configValues.MESHTASTIC_PORT = String(primarySlot.port || 4403);
+        } else if (primarySlot.type === 'SERIAL') {
+            payload.configValues.MESHTASTIC_SERIAL_PORT = primarySlot.serial_port || '';
+        } else if (primarySlot.type === 'BLE') {
+            payload.configValues.MESHTASTIC_BLE_MAC = primarySlot.ble_mac || '';
+        } else if (primarySlot.type === 'MQTT') {
+            payload.configValues.MQTT_BROKER = primarySlot.mqtt_broker || 'mqtt.meshtastic.org';
+            payload.configValues.MQTT_PORT = String(primarySlot.mqtt_port || 1883);
+            payload.configValues.MQTT_USERNAME = primarySlot.mqtt_username || 'meshdev';
+            payload.configValues.MQTT_PASSWORD = primarySlot.mqtt_password || 'large4cats';
+            payload.configValues.MQTT_TLS = primarySlot.mqtt_tls ? 'true' : 'false';
+            payload.configValues.MQTT_REGION = primarySlot.mqtt_region || 'EU_868';
+            payload.configValues.MQTT_CHANNEL = primarySlot.mqtt_channel || '#';
+            payload.configValues.MQTT_NODE_ID = primarySlot.mqtt_node_id || '';
+        }
+    }
+
+    try {
+        // Step 1: Create admin user & write config via initial-setup endpoint
+        const res = await fetch('/api/system/config/initial-setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        let authToken = null;
+
+        if (res.ok) {
+            const data = await res.json();
+            // Try to extract token from response cookie or body
+            if (data.access_token) authToken = data.access_token;
+            // Also check for set-cookie header
+            const setCookie = res.headers.get('set-cookie');
+            if (setCookie) {
+                const match = setCookie.match(/access_token=Bearer%20([^;]+)/);
+                if (match) authToken = decodeURIComponent(match[1]);
+            }
+            resultEl.className = 'test-result success';
+            resultEl.innerHTML = '<i class="fas fa-check-circle"></i> Admin account created. Configuring radios...';
+        } else {
+            let errMsg = 'Setup failed';
+            try { const err = await res.json(); errMsg = Array.isArray(err.detail) ? err.detail.map(e => e.msg || JSON.stringify(e)).join('; ') : (err.detail || errMsg); } catch(e) {}
+            resultEl.className = 'test-result error';
+            resultEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + errMsg;
+            btn.disabled = false;
+            return;
+        }
+
+        // Step 2: If we have a token and additional slots, create them
+        if (authToken && extraSlots.length > 0) {
+            for (const slot of extraSlots) {
+                try {
+                    const slotRes = await fetch('/api/slots', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + authToken
+                        },
+                        body: JSON.stringify(slot)
+                    });
+                    if (!slotRes.ok) {
+                        console.warn('Failed to create slot:', slot.label, await slotRes.text());
+                    }
+                } catch(e) {
+                    console.warn('Error creating slot:', e);
+                }
+            }
+        }
+
+        // Show success
+        setTimeout(() => {
+            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+            document.getElementById('step-success').classList.add('active');
+            document.querySelector('.stepper').style.display = 'none';
+            document.getElementById('step-subtitle').textContent = 'Setup complete!';
+            setTimeout(() => { window.location.href = '/'; }, 8000);
+        }, 1500);
+
+    } catch (err) {
+        // Server probably restarted (which is expected)
+        resultEl.className = 'test-result success';
+        resultEl.innerHTML = '<i class="fas fa-check-circle"></i> Configuration saved! Server is restarting...';
+        setTimeout(() => {
+            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+            document.getElementById('step-success').classList.add('active');
+            document.querySelector('.stepper').style.display = 'none';
+            document.getElementById('step-subtitle').textContent = 'Setup complete!';
+            setTimeout(() => { window.location.href = '/'; }, 8000);
+        }, 2000);
+    }
+}
+
+// ─── Init ───
+onConnTypeChange();
+onAddTypeChange();
+</script>
+
+</body>
+</html>

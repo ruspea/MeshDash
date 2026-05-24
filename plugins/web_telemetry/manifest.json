@@ -1,0 +1,18 @@
+{
+  "id": "web_telemetry",
+  "name": "Web Telemetry",
+  "version": "1.0.1",
+  "author": "MeshDash",
+  "description": "Extract data from websites and broadcast over mesh network. Supports one-time transmissions and scheduled cron tasks.",
+  "watchdog": true,
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/web_telemetry",
+  "static_prefix": "/static/plugins/web_telemetry",
+  "nav_menu": [
+    {
+      "label": "Web Telemetry",
+      "href": "/plugin/web_telemetry/index.html",
+      "icon": "fa-globe"
+    }
+  ]
+}

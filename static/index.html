@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <meta name="csrf-token" content="">
+    <title>MeshDash C2 — Operational Command Panel</title>
+
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+
+    <link rel="icon" type="image/x-icon" href="/static/icons/favicon.ico">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/icons/favicon-16x16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="48x48" href="/static/icons/favicon-48x48.png">
+    <link rel="icon" type="image/png" sizes="96x96" href="/static/icons/favicon-96x96.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/static/icons/android-chrome-512x512.png">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="57x57" href="/static/icons/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="/static/icons/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="/static/icons/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="/static/icons/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="/static/icons/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="/static/icons/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="/static/icons/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="/static/icons/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon-180x180.png">
+    <meta name="msapplication-square70x70logo" content="/static/icons/mstile-70x70.png">
+    <meta name="msapplication-square150x150logo" content="/static/icons/mstile-150x150.png">
+    <meta name="msapplication-wide310x150logo" content="/static/icons/mstile-310x150.png">
+    <meta name="msapplication-square310x310logo" content="/static/icons/mstile-310x310.png">
+    <meta property="og:image" content="/static/icons/og-image.png">
+    <link rel="stylesheet" href="/static/css/theme.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+
+    <script nonce="meshdash-csp">
+    window._csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    </script>
+
+    <style>
+        #toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 99999;
+            min-width: 260px;
+            max-width: 440px;
+            padding: 11px 18px;
+            border-radius: 6px;
+            border: 1px solid var(--acc);
+            background: var(--bg2, #0d1a27);
+            color: var(--txt, #c8d8e8);
+            font-family: var(--mono, monospace);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 24px rgba(0,0,0,.7);
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(14px);
+            transition: opacity 0.22s ease, transform 0.22s ease;
+        }
+        #toast.toast-show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+        
+        #custom-ctx-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 100000;
+        }
+        .ctx-menu {
+            display: none;
+            position: absolute;
+            background: var(--bg2, #0d1a27);
+            border: 1px solid var(--bd2, #1e3a5f);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.7);
+            min-width: 200px;
+            border-radius: 4px;
+            font-family: var(--mono, monospace);
+            font-size: 12px;
+            color: var(--txt, #c8d8e8);
+            padding: 4px 0;
+        }
+        .ctx-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            transition: background 0.1s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+        }
+        .ctx-item:hover {
+            background: rgba(0, 232, 122, 0.15);
+            color: var(--acc, #00e87a);
+        }
+        .ctx-icon {
+            margin-right: 10px;
+            width: 14px;
+            text-align: center;
+        }
+        .ctx-label {
+            flex: 1;
+        }
+        .ctx-submenu {
+            display: none;
+            top: -5px;
+            left: 100%;
+        }
+        .has-submenu:hover > .ctx-submenu {
+            display: block;
+        }
+
+        #global-search-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(6px);
+            z-index: 100001;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 12vh;
+        }
+        .search-container {
+            background: var(--bg2);
+            border: 1px solid var(--bd2);
+            border-radius: 10px;
+            width: 90%;
+            max-width: 640px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05) inset;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            animation: searchFadeIn 0.15s cubic-bezier(0.2, 0.9, 0.3, 1);
+        }
+        @keyframes searchFadeIn {
+            from { opacity: 0; transform: translateY(-15px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .search-input-wrapper {
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            background: var(--bg2);
+            position: relative;
+            z-index: 2;
+        }
+        .search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--txt);
+            padding: 24px 16px;
+            font-size: 18px;
+            outline: none;
+            font-family: var(--mono);
+        }
+        .search-input::placeholder {
+            color: var(--txt3);
+        }
+        .search-results {
+            max-height: 45vh;
+            overflow-y: auto;
+            display: none;
+            background: var(--bg);
+            border-top: 1px solid var(--bd2);
+            padding: 12px 0;
+        }
+        .search-result-item {
+            padding: 14px 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: background 0.1s, padding-left 0.15s;
+            border-left: 3px solid transparent;
+        }
+        .search-result-item:hover {
+            background: rgba(0, 232, 122, 0.08);
+            border-left-color: var(--acc);
+            padding-left: 28px;
+        }
+        .search-result-title {
+            color: var(--txt);
+            font-weight: 600;
+            font-size: 14px;
+            font-family: var(--mono);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .search-result-icon {
+            color: var(--acc);
+            width: 18px;
+            text-align: center;
+            font-size: 15px;
+        }
+        .search-result-type {
+            color: var(--txt3);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-family: var(--mono);
+            background: var(--bg2);
+            padding: 4px 10px;
+            border-radius: 5px;
+            border: 1px solid var(--bd2);
+        }
+    </style>
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="description" content="Meshtastic Mesh Network Dashboard — Monitor and manage your Meshtastic mesh network">
+</head>
+
+<style>
+#skip-link:focus { top: 0; }
+</style>
+<body>
+
+<a href="#content" id="skip-link" style="position:absolute;top:-100px;left:8px;background:var(--acc);color:#000;padding:8px 16px;z-index:9999;font-family:var(--mono);font-size:13px;border-radius:0 0 4px 4px;transition:top 0.2s;">Skip to content</a>
+
+<div id="app-container">
+    <header id="topbar" role="banner">
+        <button type="button" class="hamburger" onclick="window.toggleSidebar()">☰</button>
+        <div class="brand">⬡ MeshDash <em>C2</em> <sup>SYSTEM</sup></div>
+
+        <div class="spacer" style="flex:1;"></div>
+
+        <div id="ws-topbar-group" style="display:inline-flex; align-items:center; gap:6px; margin-right:8px;">
+            <button id="ws-connect-btn" class="btn btn-acc" title="Web Serial: Connect browser directly to radio via USB&#10;Right-click for details" style="display:none; align-items:center; gap:6px; font-size:10px; padding:4px 10px; letter-spacing:0.5px; border-radius:4px;">
+                <i class="fas fa-usb" style="font-size:11px;"></i>
+                <span>WEB SERIAL</span>
+            </button>
+            <span id="ws-stats-pill" title="Web Serial stats — click for details" style="display:none; align-items:center; background:rgba(0,232,122,0.12); border:1px solid var(--ok); color:var(--ok); border-radius:20px; padding:3px 10px; font-family:var(--mono); font-size:9px; cursor:pointer; white-space:nowrap;"></span>
+            <span id="ws-not-supported" title="Web Serial requires Chrome or Edge" style="display:none; color:var(--warn); font-size:9px; font-family:var(--mono);">USB N/A</span>
+        </div>
+
+        <div id="radio-switcher" style="display:none; align-items:center; gap:6px; margin-right:10px; position:relative;">
+            <div id="radio-switcher-btn" onclick="window._toggleRadioDropdown()" style="display:flex;align-items:center;gap:7px;background:var(--bg2);border:1px solid var(--bd2);border-radius:5px;padding:4px 10px;cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--txt);transition:border-color .15s;" title="Switch active radio">
+                <span id="rsw-dot" style="width:7px;height:7px;border-radius:50%;background:var(--ok);flex-shrink:0;box-shadow:0 0 5px var(--ok);"></span>
+                <span id="rsw-label" style="font-weight:800;letter-spacing:.5px;">PRIMARY</span>
+                <i class="fas fa-chevron-down" style="font-size:8px;color:var(--txt3);margin-left:2px;" id="rsw-chevron"></i>
+            </div>
+            <div id="radio-dropdown" style="display:none;position:absolute;top:calc(100% + 6px);right:0;min-width:220px;background:var(--bg2);border:1px solid var(--bd2);border-radius:6px;box-shadow:0 10px 30px rgba(0,0,0,.7);z-index:9999;overflow:hidden;"></div>
+        </div>
+
+        <div class="rmd-unified hide-mob" id="rmd-trigger" title="Click for system diagnostics" onclick="window.C2Diagnostics.openModal()">
+            <div class="rmd-u-section">
+                <div class="rmd-u-node" id="rmd-u-node">
+                    <div class="rmd-u-node-id" id="rmd-u-nid">AWAITING LINK</div>
+                    <div class="rmd-u-node-meta" id="rmd-u-nmeta">Connecting…</div>
+                </div>
+            </div>
+            <div class="rmd-u-section rmd-u-stats" id="rmd-u-stats">
+                <div class="rmd-u-stat" title="Nodes"><i class="fas fa-sitemap"></i><span class="n" id="rs-nodes">0</span></div>
+                <div class="rmd-u-stat" title="Messages"><i class="fas fa-envelope"></i><span class="n" id="rs-msg">0</span></div>
+                <div class="rmd-u-stat" title="Positions"><i class="fas fa-location-dot"></i><span class="n" id="rs-pos">0</span></div>
+                <div class="rmd-u-stat" title="Telemetry"><i class="fas fa-chart-line"></i><span class="n" id="rs-tel">0</span></div>
+                <div class="rmd-u-stat" title="Channels"><i class="fas fa-broadcast-tower"></i><span class="n" id="rs-ch">0</span></div>
+            </div>
+            <div class="rmd-u-section rmd-u-conn">
+                <div class="rmd-u-conn-dots">
+                    <div class="rmd-u-conn-row">
+                        <span class="rmd-u-dot" id="dot-api"></span>
+                        <span class="rmd-u-lbl">CORE</span>
+                        <span class="rmd-u-val grey" id="v-api">INIT</span>
+                    </div>
+                    <div class="rmd-u-conn-row">
+                        <span class="rmd-u-dot lg" id="dot-nod"></span>
+                        <span class="rmd-u-lbl" id="lbl-nod">RF</span>
+                        <span class="rmd-u-val grey" id="v-nod">INIT</span>
+                    </div>
+                </div>
+            </div>
+            <div class="rmd-u-section rmd-u-graph">
+                <canvas id="rmd-mini" class="rmd-mini-canvas" width="48" height="28"></canvas>
+            </div>
+            <div class="rmd-u-io" id="rmd-io-trigger" title="Traffic Monitor" onclick="event.stopPropagation(); window.C2Diagnostics.openLogModal()">
+                <div class="rmd-u-io-row"><div class="rmd-io-dot" id="rmd-io-tx"></div><div class="rmd-u-io-lbl">TX</div></div>
+                <div class="rmd-u-io-row"><div class="rmd-io-dot" id="rmd-io-rx"></div><div class="rmd-u-io-lbl">RX</div></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ── Notification Banner (fetched from meshdash.co.uk/banner.json) ── -->
+    <div id="sys-banner" style="display:none;background:rgba(0,210,160,0.08);border-bottom:1px solid var(--acc);padding:10px 20px;align-items:center;justify-content:space-between;gap:12px;font-family:var(--mono);font-size:0.78rem;color:var(--txt);">
+        <span id="sys-banner-msg"></span>
+        <button id="sys-banner-dismiss" style="background:none;border:1px solid var(--bd2);color:var(--txt3);padding:4px 10px;border-radius:4px;cursor:pointer;font-family:var(--mono);font-size:0.68rem;white-space:nowrap;">DISMISS</button>
+    </div>
+
+    <div id="body-wrapper">
+        <nav id="sidebar" role="navigation" aria-label="Main navigation">
+            <div class="nsec">Core</div>
+            <div class="ni active" data-view="overview" onclick="loadView('overview')"><span class="ico">◈</span>Overview</div>
+            <div class="ni" data-view="map" onclick="loadView('map')"><span class="ico">◫</span>Map</div>
+
+            <div class="nsec">Comms</div>
+            <div class="ni" data-view="dmes" onclick="loadView('dmes')"><span class="ico">✉</span>Direct Message</div>
+            <div class="ni" data-view="channels" onclick="loadView('channels')"><span class="ico">⬡</span>Channels</div>
+
+            <div class="nsec">Tools</div>
+            <div class="ni" data-view="shark" onclick="loadView('shark')"><span class="ico">◎</span>Mesh Shark</div>
+            <div class="ni" data-view="tasks" onclick="loadView('tasks')"><span class="ico">▶</span>Automated Tasks</div>
+
+
+            <div class="nsec">System</div>
+            <div class="ni" data-view="node_config" onclick="loadView('node_config')"><span class="ico">⬡</span>Node Config</div>
+            <div class="ni" data-view="settings" onclick="loadView('settings')"><span class="ico">⎔</span>Settings</div>
+            <div class="ni" data-view="plugins" onclick="loadView('plugins')"><span class="ico">◩</span>Plugins</div>
+            <div class="ni" data-view="connection" onclick="loadView('connection')"><span class="ico">⚡</span>Connection</div>
+
+            <div class="spacer" style="flex:1;"></div>
+
+            <div class="ni" data-view="account" onclick="loadView('account')" style="border-top: 1px solid var(--bd2);">
+                <span class="ico">⛨</span>Account
+            </div>
+            <div class="ni" id="nav-logout" style="color: #ff3050;" onclick="window.location.href='/logout'">
+                <span class="ico">⏏</span>Logout
+            </div>
+        </nav>
+
+        <main id="content" role="main" aria-label="Dashboard content"></main>
+    </div>
+
+    <div id="c2-terminal-bar" onclick="window.C2Terminal.toggle()">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <i class="fas fa-terminal" style="color:var(--acc);"></i>
+            <span style="font-family:var(--mono); font-size:11px; font-weight:bold; letter-spacing:1px; color:var(--txt);">C2 COMMAND TERMINAL</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+            <span id="c2-term-ver-badge" class="term-badge current" title="Checking version...">
+                <i id="c2-term-ver-icon" class="fas fa-circle-notch fa-spin"></i>
+                <span id="c2-term-ver-text">Init...</span>
+            </span>
+            <i id="c2-term-chevron" class="fas fa-chevron-up" style="color:var(--txt3); font-size:10px; transition:transform 0.3s;"></i>
+        </div>
+    </div>
+
+</div>
+
+<div class="ov" id="ovBg" onclick="window.closeInspector()"></div>
+<div id="inspector">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--bd2)">
+        <div>
+            <div style="font-size:16px;font-weight:800;color:var(--acc);font-family:var(--mono)" id="inspId">!AWAITING</div>
+            <div style="font-size:11px;color:var(--txt3);margin-top:2px" id="inspName">Loading...</div>
+        </div>
+        <div style="display:flex;gap:8px">
+            <button type="button" class="btn btn-acc" onclick="triggerToast('Data fetch initiated', 'ok')">⚡ FETCH</button>
+            <button type="button" class="btn" onclick="window.closeInspector()">✕ CLOSE</button>
+        </div>
+    </div>
+    <div id="inspBody">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px">
+            <span class="pill p-ok">ONLINE</span>
+            <span class="pill p-node">ACCESS: FULL</span>
+        </div>
+        <div style="font-size:10px;color:var(--txt3);margin-bottom:8px;font-weight:800;letter-spacing:1px">UPTIME / STABILITY TREND</div>
+        <div class="cw" style="height:120px;margin-bottom:24px;border:1px solid var(--bd2);border-radius:var(--r);background:var(--bg3);padding:8px;">
+            <canvas id="chartInspector"></canvas>
+        </div>
+    </div>
+</div>
+
+<div id="modal">
+    <div class="modal-inner">
+        <div class="modal-head">
+            <h3 id="modalTitle">System Dialog</h3>
+            <button type="button" class="btn btn-sm" onclick="window.closeModal()">✕</button>
+        </div>
+        <div id="modal-content"></div>
+    </div>
+</div>
+
+<div id="rmd-modal">
+    <div class="rmd-mc">
+        <div class="rmd-mh">
+            <div>
+                <h3 class="rmd-mt"><i class="fas fa-satellite-dish"></i> SYSTEM DIAGNOSTICS</h3>
+                <p class="rmd-msub">Real-time local node status · RF config · hardware telemetry</p>
+            </div>
+            <button type="button" class="rmd-mx" onclick="window.C2Diagnostics.closeModal()">&times;</button>
+        </div>
+        <div class="rmd-mb">
+            <div class="rmd-uptime-row">
+                <div class="rmd-uptime-card uc-session"><span class="rmd-uc-badge">Dashboard</span><div class="rmd-uc-val" id="mi-up-session">-</div><div class="rmd-uc-lbl">Tab / SSE Session</div><div class="rmd-uc-sub" id="mi-up-session-sub">SSE stream open time</div></div>
+                <div class="rmd-uptime-card uc-script"><span class="rmd-uc-badge">Process</span><div class="rmd-uc-val" id="mi-up-script">-</div><div class="rmd-uc-lbl">Python Backend Runtime</div><div class="rmd-uc-sub" id="mi-up-script-sub">since process start</div></div>
+                <div class="rmd-uptime-card uc-node"><span class="rmd-uc-badge">Firmware</span><div class="rmd-uc-val" id="mi-up-node">-</div><div class="rmd-uc-lbl">Radio Node Uptime</div><div class="rmd-uc-sub" id="mi-up-node-sub">since last firmware boot</div></div>
+            </div>
+            <div class="rmd-grid-3">
+                <div class="rmd-card"><div class="rmd-card-hdr"><i class="fas fa-microchip"></i> IDENTITY</div><div class="rmd-kv-grid">
+                    <div class="rmd-kv"><span class="rmd-k">Node ID</span><span class="rmd-v grn" id="mi-id">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">Short Name</span><span class="rmd-v" id="mi-short">-</span></div>
+                    <div class="rmd-kv" style="grid-column:1/-1"><span class="rmd-k">Long Name</span><span class="rmd-v" id="mi-long">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">Hardware</span><span class="rmd-v" id="mi-hw">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">Firmware</span><span class="rmd-v blu" id="mi-fw">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">Role</span><span class="rmd-v pur" id="mi-role">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">Reboots</span><span class="rmd-v" id="mi-reboot">-</span></div>
+                </div></div>
+                <div class="rmd-card"><div class="rmd-card-hdr"><i class="fas fa-broadcast-tower"></i> RF / LORA</div><div class="rmd-kv-grid">
+                    <div class="rmd-kv"><span class="rmd-k">Region</span><span class="rmd-v grn" id="mi-region">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">LoRa Region</span><span class="rmd-v" id="mi-lregion">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">Hop Limit</span><span class="rmd-v" id="mi-hops">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">TX Power</span><span class="rmd-v" id="mi-txpwr">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">TX State</span><span class="rmd-v" id="mi-txstate">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">NodeDB</span><span class="rmd-v" id="mi-nodedb">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">Ch Util</span><span class="rmd-v" id="mi-chutil">-</span></div>
+                </div></div>
+                <div class="rmd-card"><div class="rmd-card-hdr"><i class="fas fa-battery-three-quarters"></i> POWER &amp; NETWORK</div><div class="rmd-kv-grid">
+                    <div class="rmd-kv"><span class="rmd-k">Battery</span><span class="rmd-v" id="mi-bat">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">Voltage</span><span class="rmd-v" id="mi-volt">-</span></div>
+                    <div class="rmd-kv" style="grid-column:1/-1"><span class="rmd-k">Battery Level</span><div class="rmd-bat-bar"><div class="rmd-bat-fill" id="mi-batbar" style="width:0%"></div></div></div>
+                    <div class="rmd-kv"><span class="rmd-k">Air Util TX</span><span class="rmd-v" id="mi-airutil">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">Bluetooth</span><span class="rmd-v" id="mi-bt">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">Position</span><span class="rmd-v" id="mi-pos-coords">-</span></div>
+                    <div class="rmd-kv"><span class="rmd-k">Altitude</span><span class="rmd-v" id="mi-alt">-</span></div>
+                </div></div>
+            </div>
+            <div class="rmd-card">
+                <div class="rmd-card-hdr"><i class="fas fa-wave-square"></i> CONNECTION HEALTH (24H)
+                    <span style="margin-left:auto;color:var(--txt3);font-size:.62rem;" id="mi-hist-meta"></span>
+                </div>
+                <div class="rmd-conn-rail" id="mi-rail-api"><div class="rmd-rail-dot grey" id="mi-rdot-api"></div><div class="rmd-rail-layer">API Stream</div><div class="rmd-rail-val grey" id="mi-rval-api">Connecting…</div><div class="rmd-rail-sub" id="mi-rsub-api"></div></div>
+                <div class="rmd-conn-rail" id="mi-rail-radio"><div class="rmd-rail-dot grey" id="mi-rdot-radio"></div><div class="rmd-rail-layer" id="mi-rlayer-radio">Radio Link</div><div class="rmd-rail-val grey" id="mi-rval-radio">Initializing</div><div class="rmd-rail-sub" id="mi-rsub-radio"></div></div>
+                <div style="margin-top:16px;">
+                    <div class="rmd-graph-lbl">Radio Link History (24h)<span id="mi-hist-count"></span></div>
+                    <div class="rmd-graph-box"><canvas id="rmd-full-canvas" class="rmd-full-canvas"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="rmd-log-modal">
+    <div class="rmd-log-box">
+        <div class="rmd-log-head">
+            <span><i class="fas fa-network-wired" style="color:var(--acc);"></i> LIVE TRAFFIC MONITOR</span>
+            <button type="button" class="rmd-log-close" onclick="window.C2Diagnostics.closeLogModal()">&times;</button>
+        </div>
+        <div class="rmd-log-body" id="rmd-log-body">
+            <div style="padding:20px;text-align:center;color:#444">[ AWAITING TRAFFIC ]</div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" aria-live="polite" aria-atomic="true">
+    <span id="toastIcon">ℹ️</span>
+    <span id="toastMsg">Notification</span>
+</div>
+
+<div id="c2-terminal-drawer">
+    <div id="c2-term-handle" class="c2-term-handle"></div>
+    <div class="c2-term-tabs">
+        <button type="button" class="c2-term-tab active" data-tab="c2-tab-vitals" onclick="window.C2Terminal.switchTab('c2-tab-vitals')"><i class="fas fa-microchip"></i> VITALS</button>
+        <button type="button" class="c2-term-tab" data-tab="c2-tab-console" onclick="window.C2Terminal.switchTab('c2-tab-console')"><i class="fas fa-terminal"></i> CONSOLE</button>
+        <button type="button" class="c2-term-tab" data-tab="c2-tab-stream" onclick="window.C2Terminal.switchTab('c2-tab-stream')"><i class="fas fa-rss"></i> STREAM</button>
+        <button type="button" class="c2-term-tab" data-tab="c2-tab-chat" onclick="window.C2Terminal.switchTab('c2-tab-chat')"><i class="fas fa-comments"></i> CHAT</button>
+        <button type="button" class="c2-term-tab" data-tab="c2-tab-sensors" onclick="window.C2Terminal.switchTab('c2-tab-sensors')"><i class="fas fa-gauge"></i> SENSORS</button>
+        <button type="button" class="c2-term-tab" data-tab="c2-tab-system" onclick="window.C2Terminal.switchTab('c2-tab-system')"><i class="fas fa-gears"></i> SYSTEM</button>
+        <button type="button" class="c2-term-tab" id="c2-tab-btn-update" data-tab="c2-tab-update" onclick="window.C2Terminal.switchTab('c2-tab-update')" style="display:none; color:var(--warn);"><i class="fas fa-cloud-download-alt"></i> UPDATE</button>
+        <div style="margin-left:auto; display:flex; gap:10px; align-items:center; padding-right:12px;">
+            <button type="button" class="btn btn-sm" onclick="window.C2Terminal.clearPersistence()" title="Clear Persistence"><i class="fas fa-eraser"></i></button>
+            <button type="button" class="btn btn-sm" onclick="window.C2Terminal.toggle()" title="Close"><i class="fas fa-chevron-down"></i></button>
+        </div>
+    </div>
+    <div id="c2-tab-vitals" class="c2-term-content active">
+        <div style="padding:8px;text-align:center;border-bottom:1px solid var(--bd2);margin-bottom:12px;">
+            <button type="button" class="btn btn-sm" onclick="window.C2Terminal.triggerForceUpdate()"><i class="fas fa-sync-alt"></i> FORCE REINSTALL MESHDASH</button>
+        </div>
+        <div id="c2-vitals-container" class="c2-vitals-grid">Initialising Vitals...</div>
+    </div>
+    <div id="c2-tab-console" class="c2-term-content">
+        <div id="c2-console-out"></div>
+        <div class="c2-console-in-row">
+            <span style="color:var(--acc); font-weight:bold;">meshtastic ></span>
+            <input type="text" id="c2-console-in" autocomplete="off" spellcheck="false" placeholder="Enter command...">
+        </div>
+    </div>
+    <div id="c2-tab-stream"  class="c2-term-content c2-scrollable"></div>
+    <div id="c2-tab-chat"    class="c2-term-content c2-scrollable"></div>
+    <div id="c2-tab-sensors" class="c2-term-content c2-scrollable"></div>
+    <div id="c2-tab-system"  class="c2-term-content c2-scrollable"></div>
+    <div id="c2-tab-update"  class="c2-term-content">
+        <div id="c2-update-log"></div>
+        <div class="c2-console-in-row" id="c2-update-input-row" style="display:none; border-top:1px dashed var(--err); margin-top:8px;">
+            <span style="color:var(--err); font-weight:bold;">CONFIRM UPDATE (Y/N) ></span>
+            <input type="text" id="c2-update-in" autocomplete="off" placeholder="Type Y to proceed...">
+        </div>
+    </div>
+</div>
+
+<div id="global-search-modal">
+    <div class="search-container">
+        <div class="search-input-wrapper">
+            <i class="fas fa-search" style="color:var(--acc)"></i>
+            <input type="text" id="global-search-input" class="search-input" placeholder="Search nodes, settings, tools..." autocomplete="off">
+            <button type="button" class="btn btn-sm" onclick="closeGlobalSearch()" style="margin-left:auto; background:transparent; border:none; color:var(--txt3)"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="global-search-results" class="search-results"></div>
+    </div>
+</div>
+
+<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script defer src="https://unpkg.com/leaflet-polylinedecorator@1.6.0/dist/leaflet.polylineDecorator.js"></script>
+<script nonce="meshdash-csp">
+// ═══════════════════════════════════════════════════════════════════════════
+// SHORTBREAD VECTOR TILE COMPATIBILITY LAYER
+// ═══════════════════════════════════════════════════════════════════════════
+// Problem: Shortbread/OpenMapTiles use protobuf "group" wire types (3 & 4)
+// which are deprecated in proto3. The pbf library bundled in VectorGrid 1.3.0
+// throws "Unimplemented type: 3/7" errors when encountering these.
+//
+// Solution: We load a standalone patched Pbf BEFORE VectorGrid loads.
+// VectorGrid checks for window.Pbf and uses it if available, otherwise
+// uses its bundled version. By providing a patched global Pbf, VectorGrid
+// will use our version instead.
+// ═══════════════════════════════════════════════════════════════════════════
+(function() {
+    'use strict';
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // INLINE PBF IMPLEMENTATION (based on mapbox/pbf v3.2.1, MIT license)
+    // with patches for wire types 3, 4, 7
+    // ─────────────────────────────────────────────────────────────────────────
+    function Pbf(buf) {
+        this.buf = ArrayBuffer.isView && ArrayBuffer.isView(buf) ? buf : new Uint8Array(buf || 0);
+        this.pos = 0;
+        this.type = 0;
+        this.length = this.buf.length;
+    }
+    
+    Pbf.Varint = 0;
+    Pbf.Fixed64 = 1;
+    Pbf.Bytes = 2;
+    Pbf.Fixed32 = 5;
+    
+    Pbf.prototype = {
+        destroy: function() { this.buf = null; },
+        
+        // === Reading ===
+        readFields: function(readField, result, end) {
+            end = end || this.length;
+            while (this.pos < end) {
+                var val = this.readVarint(),
+                    tag = val >> 3,
+                    startPos = this.pos;
+                this.type = val & 0x7;
+                readField(tag, result, this);
+                if (this.pos === startPos) this.skip(val);
+            }
+            return result;
+        },
+        
+        readMessage: function(readField, result) {
+            return this.readFields(readField, result, this.readVarint() + this.pos);
+        },
+        
+        readFixed32: function() {
+            var val = readUInt32(this.buf, this.pos);
+            this.pos += 4;
+            return val;
+        },
+        
+        readSFixed32: function() {
+            var val = readInt32(this.buf, this.pos);
+            this.pos += 4;
+            return val;
+        },
+        
+        readFixed64: function() {
+            var val = readUInt32(this.buf, this.pos) + readUInt32(this.buf, this.pos + 4) * 0x100000000;
+            this.pos += 8;
+            return val;
+        },
+        
+        readSFixed64: function() {
+            var val = readUInt32(this.buf, this.pos) + readInt32(this.buf, this.pos + 4) * 0x100000000;
+            this.pos += 8;
+            return val;
+        },
+        
+        readFloat: function() {
+            var val = ieee754read(this.buf, this.pos, true, 23, 4);
+            this.pos += 4;
+            return val;
+        },
+        
+        readDouble: function() {
+            var val = ieee754read(this.buf, this.pos, true, 52, 8);
+            this.pos += 8;
+            return val;
+        },
+        
+        readVarint: function(isSigned) {
+            var buf = this.buf, val, b;
+            b = buf[this.pos++]; val  =  b & 0x7f;        if (b < 0x80) return val;
+            b = buf[this.pos++]; val |= (b & 0x7f) << 7;  if (b < 0x80) return val;
+            b = buf[this.pos++]; val |= (b & 0x7f) << 14; if (b < 0x80) return val;
+            b = buf[this.pos++]; val |= (b & 0x7f) << 21; if (b < 0x80) return val;
+            b = buf[this.pos];   val |= (b & 0x0f) << 28;
+            return readVarintRemainder(val, isSigned, this);
+        },
+        
+        readVarint64: function() { return this.readVarint(true); },
+        
+        readSVarint: function() {
+            var num = this.readVarint();
+            return num % 2 === 1 ? (num + 1) / -2 : num / 2;
+        },
+        
+        readBoolean: function() { return Boolean(this.readVarint()); },
+        
+        readString: function() {
+            var end = this.readVarint() + this.pos,
+                pos = this.pos;
+            this.pos = end;
+            if (end - pos >= 12 && utf8TextDecoder) {
+                return utf8TextDecoder.decode(this.buf.subarray(pos, end));
+            }
+            return readUtf8(this.buf, pos, end);
+        },
+        
+        readBytes: function() {
+            var end = this.readVarint() + this.pos,
+                buffer = this.buf.subarray(this.pos, end);
+            this.pos = end;
+            return buffer;
+        },
+        
+        readPackedVarint: function(arr, isSigned) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readVarint(isSigned));
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readVarint(isSigned));
+            return arr;
+        },
+        
+        readPackedSVarint: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readSVarint());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readSVarint());
+            return arr;
+        },
+        
+        readPackedBoolean: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readBoolean());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readBoolean());
+            return arr;
+        },
+        
+        readPackedFloat: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readFloat());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readFloat());
+            return arr;
+        },
+        
+        readPackedDouble: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readDouble());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readDouble());
+            return arr;
+        },
+        
+        readPackedFixed32: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readFixed32());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readFixed32());
+            return arr;
+        },
+        
+        readPackedSFixed32: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readSFixed32());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readSFixed32());
+            return arr;
+        },
+        
+        readPackedFixed64: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readFixed64());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readFixed64());
+            return arr;
+        },
+        
+        readPackedSFixed64: function(arr) {
+            if (this.type !== Pbf.Bytes) return arr.push(this.readSFixed64());
+            var end = readPackedEnd(this);
+            arr = arr || [];
+            while (this.pos < end) arr.push(this.readSFixed64());
+            return arr;
+        },
+        
+        // *** PATCHED skip() - handles wire types 3, 4, 7 for Shortbread compatibility ***
+        skip: function(val) {
+            var type = val & 0x7;
+            switch (type) {
+                case Pbf.Varint: while (this.buf[this.pos++] > 0x7f) {} break;
+                case Pbf.Fixed64: this.pos += 8; break;
+                case Pbf.Bytes: this.pos += this.readVarint(); break;
+                case Pbf.Fixed32: this.pos += 4; break;
+                case 3: // Start group (deprecated) - skip until end group
+                    while (this.pos < this.length) {
+                        var innerTag = this.readVarint();
+                        if ((innerTag & 0x7) === 4) break; // End group
+                        this.skip(innerTag);
+                    }
+                    break;
+                case 4: // End group (deprecated) - nothing to skip
+                    break;
+                case 7: // Invalid wire type - skip 4 bytes as fallback
+                    this.pos += 4;
+                    break;
+                default: throw new Error('Unimplemented type: ' + type);
+            }
+        },
+        
+        // === Writing (stubs for compatibility, not used for reading tiles) ===
+        writeTag: function(tag, type) { this.writeVarint((tag << 3) | type); },
+        realloc: function(min) {
+            var length = this.length || 16;
+            while (length < this.pos + min) length *= 2;
+            if (length !== this.length) {
+                var buf = new Uint8Array(length);
+                buf.set(this.buf);
+                this.buf = buf;
+                this.length = length;
+            }
+        },
+        finish: function() { this.length = this.pos; this.pos = 0; return this.buf.subarray(0, this.length); },
+        writeFixed32: function(val) { this.realloc(4); writeInt32(this.buf, val, this.pos); this.pos += 4; },
+        writeSFixed32: function(val) { this.realloc(4); writeInt32(this.buf, val, this.pos); this.pos += 4; },
+        writeFixed64: function(val) { this.realloc(8); writeInt32(this.buf, val & -1, this.pos); writeInt32(this.buf, Math.floor(val * 0x00000001), this.pos + 4); this.pos += 8; },
+        writeSFixed64: function(val) { this.realloc(8); writeInt32(this.buf, val & -1, this.pos); writeInt32(this.buf, Math.floor(val * 0x00000001), this.pos + 4); this.pos += 8; },
+        writeVarint: function(val) {
+            val = +val || 0;
+            if (val > 0xfffffff || val < 0) { writeBigVarint(val, this); return; }
+            this.realloc(4);
+            this.buf[this.pos++] = val & 0x7f | (val > 0x7f ? 0x80 : 0); if (val <= 0x7f) return;
+            this.buf[this.pos++] = ((val >>>= 7) & 0x7f) | (val > 0x7f ? 0x80 : 0); if (val <= 0x7f) return;
+            this.buf[this.pos++] = ((val >>>= 7) & 0x7f) | (val > 0x7f ? 0x80 : 0); if (val <= 0x7f) return;
+            this.buf[this.pos++] = (val >>> 7) & 0x7f;
+        },
+        writeSVarint: function(val) { this.writeVarint(val < 0 ? -val * 2 - 1 : val * 2); },
+        writeBoolean: function(val) { this.writeVarint(Boolean(val)); },
+        writeString: function(str) { str = String(str); this.realloc(str.length * 4); this.pos++; var startPos = this.pos; this.pos = writeUtf8(this.buf, str, this.pos); var len = this.pos - startPos; if (len >= 0x80) makeRoomForExtraLength(startPos, len, this); this.pos = startPos - 1; this.writeVarint(len); this.pos += len; },
+        writeFloat: function(val) { this.realloc(4); ieee754write(this.buf, val, this.pos, true, 23, 4); this.pos += 4; },
+        writeDouble: function(val) { this.realloc(8); ieee754write(this.buf, val, this.pos, true, 52, 8); this.pos += 8; },
+        writeBytes: function(buffer) { var len = buffer.length; this.writeVarint(len); this.realloc(len); for (var i = 0; i < len; i++) this.buf[this.pos++] = buffer[i]; },
+        writeRawMessage: function(fn, obj) { this.pos++; var startPos = this.pos; fn(obj, this); var len = this.pos - startPos; if (len >= 0x80) makeRoomForExtraLength(startPos, len, this); this.pos = startPos - 1; this.writeVarint(len); this.pos += len; },
+        writeMessage: function(tag, fn, obj) { this.writeTag(tag, Pbf.Bytes); this.writeRawMessage(fn, obj); },
+        writePackedVarint: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedVarint, arr); },
+        writePackedSVarint: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedSVarint, arr); },
+        writePackedBoolean: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedBoolean, arr); },
+        writePackedFloat: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedFloat, arr); },
+        writePackedDouble: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedDouble, arr); },
+        writePackedFixed32: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedFixed32, arr); },
+        writePackedSFixed32: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedSFixed32, arr); },
+        writePackedFixed64: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedFixed64, arr); },
+        writePackedSFixed64: function(tag, arr) { if (arr.length) this.writeMessage(tag, writePackedSFixed64, arr); },
+        writeBytesField: function(tag, buffer) { this.writeTag(tag, Pbf.Bytes); this.writeBytes(buffer); },
+        writeFixed32Field: function(tag, val) { this.writeTag(tag, Pbf.Fixed32); this.writeFixed32(val); },
+        writeSFixed32Field: function(tag, val) { this.writeTag(tag, Pbf.Fixed32); this.writeSFixed32(val); },
+        writeFixed64Field: function(tag, val) { this.writeTag(tag, Pbf.Fixed64); this.writeFixed64(val); },
+        writeSFixed64Field: function(tag, val) { this.writeTag(tag, Pbf.Fixed64); this.writeSFixed64(val); },
+        writeVarintField: function(tag, val) { this.writeTag(tag, Pbf.Varint); this.writeVarint(val); },
+        writeSVarintField: function(tag, val) { this.writeTag(tag, Pbf.Varint); this.writeSVarint(val); },
+        writeStringField: function(tag, str) { this.writeTag(tag, Pbf.Bytes); this.writeString(str); },
+        writeFloatField: function(tag, val) { this.writeTag(tag, Pbf.Fixed32); this.writeFloat(val); },
+        writeDoubleField: function(tag, val) { this.writeTag(tag, Pbf.Fixed64); this.writeDouble(val); },
+        writeBooleanField: function(tag, val) { this.writeVarintField(tag, Boolean(val)); }
+    };
+    
+    // Helper functions
+    function readVarintRemainder(l, s, p) {
+        var buf = p.buf, h, b;
+        b = buf[p.pos++]; h  = (b & 0x70) >> 4;  if (b < 0x80) return toNum(l, h, s);
+        b = buf[p.pos++]; h |= (b & 0x7f) << 3;  if (b < 0x80) return toNum(l, h, s);
+        b = buf[p.pos++]; h |= (b & 0x7f) << 10; if (b < 0x80) return toNum(l, h, s);
+        b = buf[p.pos++]; h |= (b & 0x7f) << 17; if (b < 0x80) return toNum(l, h, s);
+        b = buf[p.pos++]; h |= (b & 0x7f) << 24; if (b < 0x80) return toNum(l, h, s);
+        b = buf[p.pos++]; h |= (b & 0x01) << 31; if (b < 0x80) return toNum(l, h, s);
+        throw new Error('Expected varint not more than 10 bytes');
+    }
+    function toNum(low, high, isSigned) {
+        if (isSigned) { return high * 0x100000000 + (low >>> 0); }
+        return ((high >>> 0) * 0x100000000) + (low >>> 0);
+    }
+    function readUInt32(buf, pos) { return ((buf[pos]) | (buf[pos + 1] << 8) | (buf[pos + 2] << 16)) + (buf[pos + 3] * 0x1000000); }
+    function readInt32(buf, pos) { return (buf[pos]) | (buf[pos + 1] << 8) | (buf[pos + 2] << 16) | (buf[pos + 3] << 24); }
+    function readUtf8(buf, pos, end) {
+        var str = '', i = pos, c, b1, b2, b3;
+        while (i < end) {
+            c = buf[i++];
+            if (c < 128) { str += String.fromCharCode(c); }
+            else if (c < 224) { b1 = buf[i++]; str += String.fromCharCode((c & 0x1f) << 6 | (b1 & 0x3f)); }
+            else if (c < 240) { b1 = buf[i++]; b2 = buf[i++]; str += String.fromCharCode((c & 0x0f) << 12 | (b1 & 0x3f) << 6 | (b2 & 0x3f)); }
+            else { b1 = buf[i++]; b2 = buf[i++]; b3 = buf[i++]; c = (c & 0x07) << 18 | (b1 & 0x3f) << 12 | (b2 & 0x3f) << 6 | (b3 & 0x3f); c -= 0x10000; str += String.fromCharCode(0xD800 + (c >> 10), 0xDC00 + (c & 0x3ff)); }
+        }
+        return str;
+    }
+    function readPackedEnd(pbf) { return pbf.type === Pbf.Bytes ? pbf.readVarint() + pbf.pos : pbf.pos + 1; }
+    function writeInt32(buf, val, pos) { buf[pos] = val; buf[pos + 1] = (val >>> 8); buf[pos + 2] = (val >>> 16); buf[pos + 3] = (val >>> 24); }
+    function writeBigVarint(val, pbf) {
+        var low, high;
+        if (val >= 0) { low = (val % 0x100000000) | 0; high = (val / 0x100000000) | 0; }
+        else { low = ~(-val % 0x100000000); high = ~(-val / 0x100000000); if (low ^ 0xffffffff) { low = (low + 1) | 0; } else { low = 0; high = (high + 1) | 0; } }
+        if (val >= 0x10000000000000000 || val < -0x10000000000000000) { throw new Error('Given varint doesn\'t fit into 10 bytes'); }
+        pbf.realloc(10);
+        writeBigVarintLow(low, high, pbf);
+        writeBigVarintHigh(high, pbf);
+    }
+    function writeBigVarintLow(low, high, pbf) {
+        pbf.buf[pbf.pos++] = low & 0x7f | 0x80; low >>>= 7;
+        pbf.buf[pbf.pos++] = low & 0x7f | 0x80; low >>>= 7;
+        pbf.buf[pbf.pos++] = low & 0x7f | 0x80; low >>>= 7;
+        pbf.buf[pbf.pos++] = low & 0x7f | 0x80; low >>>= 7;
+        pbf.buf[pbf.pos]   = low & 0x7f;
+    }
+    function writeBigVarintHigh(high, pbf) {
+        var lsb = (high & 0x07) << 4; pbf.buf[pbf.pos++] |= lsb | ((high >>>= 3) ? 0x80 : 0); if (!high) return;
+        pbf.buf[pbf.pos++] = high & 0x7f | ((high >>>= 7) ? 0x80 : 0); if (!high) return;
+        pbf.buf[pbf.pos++] = high & 0x7f | ((high >>>= 7) ? 0x80 : 0); if (!high) return;
+        pbf.buf[pbf.pos++] = high & 0x7f | ((high >>>= 7) ? 0x80 : 0); if (!high) return;
+        pbf.buf[pbf.pos++] = high & 0x7f | ((high >>>= 7) ? 0x80 : 0); if (!high) return;
+        pbf.buf[pbf.pos++] = high & 0x7f;
+    }
+    function makeRoomForExtraLength(startPos, len, pbf) {
+        var extraLen = len <= 0x3fff ? 1 : len <= 0x1fffff ? 2 : len <= 0xfffffff ? 3 : Math.floor(Math.log(len) / (Math.LN2 * 7));
+        pbf.realloc(extraLen);
+        for (var i = pbf.pos - 1; i >= startPos; i--) pbf.buf[i + extraLen] = pbf.buf[i];
+    }
+    function writeUtf8(buf, str, pos) {
+        for (var i = 0, c, lead; i < str.length; i++) {
+            c = str.charCodeAt(i);
+            if (c > 0xD7FF && c < 0xE000) { if (lead) { if (c < 0xDC00) { buf[pos++] = 0xEF; buf[pos++] = 0xBF; buf[pos++] = 0xBD; lead = c; continue; } else { c = lead - 0xD800 << 10 | c - 0xDC00 | 0x10000; lead = null; } } else { if (c > 0xDBFF || (i + 1 === str.length)) { buf[pos++] = 0xEF; buf[pos++] = 0xBF; buf[pos++] = 0xBD; } else { lead = c; } continue; } } else if (lead) { buf[pos++] = 0xEF; buf[pos++] = 0xBF; buf[pos++] = 0xBD; lead = null; }
+            if (c < 0x80) { buf[pos++] = c; }
+            else { if (c < 0x800) { buf[pos++] = c >> 0x6 | 0xC0; } else { if (c < 0x10000) { buf[pos++] = c >> 0xC | 0xE0; } else { buf[pos++] = c >> 0x12 | 0xF0; buf[pos++] = c >> 0xC & 0x3F | 0x80; } buf[pos++] = c >> 0x6 & 0x3F | 0x80; } buf[pos++] = c & 0x3F | 0x80; }
+        }
+        return pos;
+    }
+    // IEEE754 helpers (simplified)
+    function ieee754read(buf, off, le, mLen, nBytes) {
+        var e, m, eLen = nBytes * 8 - mLen - 1, eMax = (1 << eLen) - 1, eBias = eMax >> 1, nBits = -7, i = le ? (nBytes - 1) : 0, d = le ? -1 : 1, s = buf[off + i]; i += d; e = s & ((1 << (-nBits)) - 1); s >>= (-nBits); nBits += eLen; for (; nBits > 0; e = e * 256 + buf[off + i], i += d, nBits -= 8); m = e & ((1 << (-nBits)) - 1); e >>= (-nBits); nBits += mLen; for (; nBits > 0; m = m * 256 + buf[off + i], i += d, nBits -= 8); if (e === 0) { e = 1 - eBias; } else if (e === eMax) { return m ? NaN : ((s ? -1 : 1) * Infinity); } else { m = m + Math.pow(2, mLen); e = e - eBias; } return (s ? -1 : 1) * m * Math.pow(2, e - mLen);
+    }
+    function ieee754write(buf, val, off, le, mLen, nBytes) {
+        var e, m, c, eLen = nBytes * 8 - mLen - 1, eMax = (1 << eLen) - 1, eBias = eMax >> 1, rt = (mLen === 23 ? Math.pow(2, -24) - Math.pow(2, -77) : 0), i = le ? 0 : (nBytes - 1), d = le ? 1 : -1, s = val < 0 || (val === 0 && 1 / val < 0) ? 1 : 0; val = Math.abs(val); if (isNaN(val) || val === Infinity) { m = isNaN(val) ? 1 : 0; e = eMax; } else { e = Math.floor(Math.log(val) / Math.LN2); if (val * (c = Math.pow(2, -e)) < 1) { e--; c *= 2; } if (e + eBias >= 1) { val += rt / c; } else { val += rt * Math.pow(2, 1 - eBias); } if (val * c >= 2) { e++; c /= 2; } if (e + eBias >= eMax) { m = 0; e = eMax; } else if (e + eBias >= 1) { m = (val * c - 1) * Math.pow(2, mLen); e = e + eBias; } else { m = val * Math.pow(2, eBias - 1) * Math.pow(2, mLen); e = 0; } } for (; mLen >= 8; buf[off + i] = m & 0xff, i += d, m /= 256, mLen -= 8); e = (e << mLen) | m; eLen += mLen; for (; eLen > 0; buf[off + i] = e & 0xff, i += d, e /= 256, eLen -= 8); buf[off + i - d] |= s * 128;
+    }
+    function writePackedVarint(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeVarint(arr[i]); }
+    function writePackedSVarint(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeSVarint(arr[i]); }
+    function writePackedFloat(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeFloat(arr[i]); }
+    function writePackedDouble(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeDouble(arr[i]); }
+    function writePackedBoolean(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeBoolean(arr[i]); }
+    function writePackedFixed32(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeFixed32(arr[i]); }
+    function writePackedSFixed32(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeSFixed32(arr[i]); }
+    function writePackedFixed64(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeFixed64(arr[i]); }
+    function writePackedSFixed64(arr, pbf) { for (var i = 0; i < arr.length; i++) pbf.writeSFixed64(arr[i]); }
+    
+    var utf8TextDecoder = typeof TextDecoder === 'undefined' ? null : new TextDecoder('utf-8');
+    
+    // Expose globally BEFORE VectorGrid loads
+    window.Pbf = Pbf;
+
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // TILE DIAGNOSTICS
+    // ─────────────────────────────────────────────────────────────────────────
+    var _origFetch = window.fetch;
+    var _tileStats = { requested: 0, success: 0, empty: 0, error: 0 };
+    window._tileStats = _tileStats;
+    
+    window.fetch = function(url, opts) {
+        var urlStr = (typeof url === 'string') ? url : (url.url || '');
+        if (urlStr.indexOf('/api/map/tiles/') !== -1) {
+            _tileStats.requested++;
+            var m = urlStr.match(/\/api\/map\/tiles\/(\d+)\/(\d+)\/(\d+)/);
+            var coordStr = m ? 'z=' + m[1] + ' x=' + m[2] + ' y=' + m[3] : urlStr;
+            
+            return _origFetch.apply(this, arguments).then(function(response) {
+                return response.clone().arrayBuffer().then(function(buf) {
+                    var bytes = new Uint8Array(buf);
+                    var ct = response.headers.get('content-type') || '';
+                    if (bytes.length < 50) {
+                        _tileStats.empty++;
+                    } else {
+                        _tileStats.success++;
+                    }
+                    return response;
+                });
+            }).catch(function(err) {
+                _tileStats.error++;
+                console.error('[Tile] ❌ ERROR', coordStr, err.message);
+                throw err;
+            });
+        }
+        return _origFetch.apply(this, arguments);
+    };
+    
+    setInterval(function() {
+        if (_tileStats.requested > 0) {}
+    }, 10000);
+    
+    // Suppress any remaining errors as fallback
+    window.addEventListener('error', function(e) {
+        if (e.error && e.error.message && /Unimplemented type/.test(e.error.message)) {
+            e.preventDefault();
+            return true;
+        }
+    }, true);
+    window.addEventListener('unhandledrejection', function(e) {
+        if (e.reason && e.reason.message && /Unimplemented type/.test(e.reason.message)) {
+            e.preventDefault();
+        }
+    });
+    
+    // ─────────────────────────────────────────────────────────────────────────
+    // DYNAMIC VECTORGRID LOADER WITH PBF PATCHING
+    // Fetch the VectorGrid bundle, patch its internal pbf skip() function,
+    // then execute the modified code.
+    // ─────────────────────────────────────────────────────────────────────────
+    function loadAndPatchVectorGrid() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', 'https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js', true);
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                var code = xhr.responseText;
+                
+                // Find and patch the skip function in the bundled pbf
+                // The original code looks like:
+                // e.prototype.skip=function(t){var i=7&t;switch(i){case o:for(;this.buf[this.pos++]>127;);break;case s:this.pos+=8;break;case a:this.pos+=this.readVarint();break;case r:this.pos+=4;break;default:throw new Error("Unimplemented type: "+i)}}
+                
+                // We need to patch the skip function to handle types 3, 4, 7
+                // The pattern we're looking for is the switch statement with "Unimplemented type"
+                
+                var patchedCode = code.replace(
+                    /\.skip\s*=\s*function\s*\(\s*(\w+)\s*\)\s*\{\s*var\s+(\w+)\s*=\s*7\s*&\s*\1\s*;\s*switch\s*\(\s*\2\s*\)\s*\{([^}]+default:\s*throw\s+new\s+Error\s*\(\s*["']Unimplemented type:\s*["']\s*\+\s*\2\s*\))\s*\}\s*\}/g,
+                    function(match, arg, wireType, body) {
+                        // Build patched skip function
+                        return '.skip=function(' + arg + '){var ' + wireType + '=7&' + arg + ';switch(' + wireType + '){' +
+                            body.replace(/default:\s*throw\s+new\s+Error\s*\(\s*["']Unimplemented type:\s*["']\s*\+\s*\w+\s*\)/, 
+                                'case 3:for(;this.pos<this.length;){var _t=this.readVarint();if(4===(7&_t))break;this.skip(_t)}break;case 4:break;case 7:this.pos+=4;break;default:break') + '}}';
+                    }
+                );
+                
+                // If the regex didn't match, try a simpler replacement
+                if (patchedCode === code) {
+                    // Fallback: replace the error throw with a silent handler
+                    patchedCode = code.replace(
+                        /throw\s+new\s+Error\s*\(\s*["']Unimplemented type:\s*["']\s*\+\s*(\w+)\s*\)/g,
+                        function(match, wireTypeVar) {
+                            return 'console.debug("[Pbf] Skipping unknown wire type:",'+wireTypeVar+');if('+wireTypeVar+'===3){for(;this.pos<this.length;){var _t=this.readVarint();if(4===(7&_t))break;this.skip(_t)}}else if('+wireTypeVar+'===4){}else if('+wireTypeVar+'===7){this.pos+=4}';
+                        }
+                    );
+                }
+                
+                // Execute the patched code
+                var script = document.createElement('script');
+                try {
+                    script.textContent = patchedCode;
+                    document.head.appendChild(script);
+                    // Patched code loaded and executed
+                } catch (e) {
+                    console.error('[VectorGrid] Execution error:', e);
+                    // Fallback: load original
+                    var fallback = document.createElement('script');
+                    fallback.src = 'https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js';
+                    document.head.appendChild(fallback);
+                }
+            } else {
+                console.error('[VectorGrid] Failed to fetch:', xhr.status);
+            }
+        };
+        xhr.onerror = function() {
+            console.error('[VectorGrid] XHR error, loading original');
+            var fallback = document.createElement('script');
+            fallback.src = 'https://unpkg.com/leaflet.vectorgrid@1.3.0/dist/Leaflet.VectorGrid.bundled.js';
+            document.head.appendChild(fallback);
+        };
+        xhr.send();
+    }
+    
+    // Load VectorGrid after Leaflet is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(loadAndPatchVectorGrid, 100);
+        });
+    } else {
+        setTimeout(loadAndPatchVectorGrid, 100);
+    }
+})();
+</script>
+<!-- VectorGrid is now loaded dynamically with patching above -->
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/luxon@3/build/global/luxon.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1" crossorigin="anonymous"></script>
+
+<script src="/static/js/webserial.js"></script>
+<script src="/static/js/ui.js"></script>
+<script src="/static/js/app.js"></script>
+<script src="/static/js/views/overview.js"></script>
+
+<script nonce="meshdash-csp">
+(function () {
+    'use strict';
+    window._toastTimer = window._toastTimer || null;
+
+    window.triggerToast = function (msg, type) {
+        type = type || 'acc';
+        var borders = { acc: 'var(--acc)', ok: 'var(--ok)', warn: 'var(--warn)', err: 'var(--err)' };
+        var icons   = { acc: 'ℹ️',         ok: '✅',        warn: '⚠️',          err: '❌' };
+
+        var t    = document.getElementById('toast');
+        var tMsg = document.getElementById('toastMsg');
+        var tIco = document.getElementById('toastIcon');
+        if (!t || !tMsg || !tIco) return;
+
+        tMsg.textContent    = msg;
+        tIco.textContent    = icons[type] || 'ℹ️';
+        t.style.borderColor = borders[type] || 'var(--acc)';
+
+        if (window._toastTimer) {
+            clearTimeout(window._toastTimer);
+            window._toastTimer = null;
+        }
+
+        if (t.classList.contains('toast-show')) {
+            t.classList.remove('toast-show');
+            void t.offsetHeight; 
+        }
+
+        t.classList.add('toast-show');
+
+        window._toastTimer = setTimeout(function () {
+            t.classList.remove('toast-show');
+            window._toastTimer = null;
+        }, 3500);
+    };
+}());
+</script>
+
+<script nonce="meshdash-csp">
+(function () {
+    'use strict';
+
+    const VIEW_SCRIPTS = {
+        map:         { src: '/static/js/views/map.js' },
+        dmes:        { src: '/static/js/views/dmes.js' },
+        channels:    { src: '/static/js/views/channels.js' },
+        shark:       { src: '/static/js/views/shark.js' },
+        iot:         { src: '/static/js/views/iot.js' },
+        tasks:       { src: '/static/js/views/tasks.js' },
+        autoreply:   { src: '/static/js/views/autoreply.js' },
+        plugins:     { src: '/static/js/views/plugins.js' },
+        terminal:    { src: '/static/js/views/terminal.js' },
+        node_config: { src: '/static/js/views/node_config.js' },
+    };
+
+    const _loaded = {};
+
+    window._lazyLoadView = function (viewName, callback) {
+        const entry = VIEW_SCRIPTS[viewName];
+        if (!entry) { if (callback) callback(); return; }
+        if (_loaded[viewName] === 'done') { if (callback) callback(); return; }
+        if (_loaded[viewName] === 'loading') {
+            document.addEventListener('_viewLoaded:' + viewName, () => { if (callback) callback(); }, { once: true });
+            return;
+        }
+        _loaded[viewName] = 'loading';
+        const s = document.createElement('script');
+        s.src = entry.src;
+        s.onload = () => {
+            _loaded[viewName] = 'done';
+            document.dispatchEvent(new Event('_viewLoaded:' + viewName));
+            if (callback) callback();
+        };
+        s.onerror = () => {
+            _loaded[viewName] = 'error';
+            console.error('Failed to load view script:', entry.src);
+            if (callback) callback();
+        };
+        document.head.appendChild(s);
+    };
+}());
+</script>
+
+<script nonce="meshdash-csp">
+(function () {
+    'use strict';
+
+    function _drawMiniGraph(data) {
+        const canvas = document.getElementById('rmd-mini');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        if (!data || !data.length) return;
+        const plotData = [...data].reverse();
+        const bw = w / plotData.length;
+        plotData.forEach((d, i) => {
+            let val = parseFloat(d.value);
+            if (isNaN(val)) val = 0;
+            const pct = Math.max(0, Math.min(1, val));
+            const bh  = Math.max(1, pct * h);
+            ctx.fillStyle = pct > 0.75 ? '#00e87a' : pct > 0.3 ? '#ffa826' : '#ff3050';
+            ctx.fillRect(i * bw, h - bh, Math.max(1, bw - 0.5), bh);
+        });
+    }
+
+    async function _fetchAndDraw() {
+        try {
+            const res = await fetch('/api/system/connection_history?limit=150');
+            if (res.ok) _drawMiniGraph(await res.json());
+        } catch (e) {}
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => setTimeout(_fetchAndDraw, 600));
+    } else {
+        setTimeout(_fetchAndDraw, 600);
+    }
+    setInterval(() => { if (document.visibilityState !== 'hidden') _fetchAndDraw(); }, 60000);
+
+    let _patchAttempts = 0;
+    (function _tryPatchClose() {
+        if (typeof window.C2Diagnostics?.closeModal === 'function') {
+            const orig = window.C2Diagnostics.closeModal;
+            window.C2Diagnostics.closeModal = function () {
+                orig.call(window.C2Diagnostics);
+                setTimeout(_fetchAndDraw, 100);
+            };
+            return;
+        }
+        if (++_patchAttempts < 100) setTimeout(_tryPatchClose, 200);
+    })();
+}());
+</script>
+
+<script nonce="meshdash-csp">
+// Safe action dispatcher — replaces eval() and new Function()
+window.SafeActions = window.SafeActions || {};
+function safeExecAction(actionStr) {
+    if (!actionStr) return;
+    if (window.SafeActions[actionStr]) {
+        window.SafeActions[actionStr]();
+        return;
+    }
+    const match = actionStr.match(/^([a-zA-Z_][a-zA-Z0-9_.]*)\(('([^']*)')\)$/);
+    if (match) {
+        const fnName = match[1];
+        const arg = match[3];
+        if (fnName === 'loadView' && typeof window.loadView === 'function') {
+            window.loadView(arg);
+            return;
+        }
+        if (fnName === 'window.C2Diagnostics.openModal' && window.C2Diagnostics) {
+            window.C2Diagnostics.openModal();
+            return;
+        }
+    }
+    console.warn('Rejected unsafe action:', actionStr);
+}
+
+window.openGlobalSearch = function() {
+    const modal = document.getElementById('global-search-modal');
+    modal.style.display = 'flex';
+    document.getElementById('global-search-input').focus();
+    renderSearchResults("");
+};
+
+window.closeGlobalSearch = function() {
+    document.getElementById('global-search-modal').style.display = 'none';
+    document.getElementById('global-search-input').value = '';
+    document.getElementById('global-search-results').style.display = 'none';
+};
+
+const staticNavData = [
+    { title: "Node Config", type: "System", icon: "fas fa-cog", action: "loadView('node_config')" },
+    { title: "Direct Message", type: "Comms", icon: "fas fa-envelope", action: "loadView('dmes')" },
+    { title: "Channels", type: "Comms", icon: "fas fa-broadcast-tower", action: "loadView('channels')" },
+    { title: "Mesh Shark", type: "Tool", icon: "fas fa-water", action: "loadView('shark')" },
+    { title: "Automated Tasks", type: "Tool", icon: "fas fa-tasks", action: "loadView('tasks')" },
+    { title: "Settings", type: "System", icon: "fas fa-sliders-h", action: "loadView('settings')" },
+    { title: "Account Security", type: "System", icon: "fas fa-user-shield", action: "loadView('account')" },
+    { title: "Plugins", type: "System", icon: "fas fa-puzzle-piece", action: "loadView('plugins')" },
+    { title: "Global Map", type: "Core", icon: "fas fa-map", action: "loadView('map')" },
+    { title: "System Diagnostics", type: "System", icon: "fas fa-satellite-dish", action: "window.C2Diagnostics.openModal()" }
+];
+
+let _searchTimeout = null;
+
+async function performGlobalSearch(query) {
+    const resultsContainer = document.getElementById('global-search-results');
+    
+    if (!query || query.trim().length < 2) {
+        resultsContainer.innerHTML = '';
+        resultsContainer.style.display = 'none';
+        return;
+    }
+
+    const q = query.trim().toLowerCase();
+    let combinedResults = [];
+
+    const navMatches = staticNavData.filter(d => 
+        d.title.toLowerCase().includes(q) || d.type.toLowerCase().includes(q)
+    );
+    combinedResults.push(...navMatches);
+
+    try {
+        const activeSlot = window._activeSlotId || 'node_0';
+        const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&slot_id=${encodeURIComponent(activeSlot)}`);
+        if (res.ok) {
+            const dbMatches = await res.json();
+            combinedResults.push(...dbMatches);
+        }
+    } catch(e) {
+        console.error("Search API error:", e);
+    }
+
+    resultsContainer.innerHTML = '';
+    
+    if (combinedResults.length > 0) {
+        resultsContainer.style.display = 'block';
+        combinedResults.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'search-result-item';
+            
+            let snippetHtml = '';
+            if (item.snippet) {
+                snippetHtml = `<div style="font-size:11px; color:var(--txt3); margin-top:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:90%;">${window.escapeHtml(item.snippet)}</div>`;
+            }
+
+            div.innerHTML = `
+                <div style="display:flex; flex-direction:column; max-width:85%; overflow:hidden;">
+                    <span class="search-result-title"><i class="${item.icon} search-result-icon"></i>${window.escapeHtml(item.title || 'Unknown')}</span>
+                    ${snippetHtml}
+                </div>
+                <span class="search-result-type">${window.escapeHtml(item.type)}</span>
+            `;
+            div.onclick = () => {
+                if (item.action) safeExecAction(item.action);
+                closeGlobalSearch();
+            };
+            resultsContainer.appendChild(div);
+        });
+    } else {
+        resultsContainer.style.display = 'block';
+        resultsContainer.innerHTML = '<div style="padding:32px 24px; text-align:center; color:var(--txt3); font-family:var(--mono); font-size:13px;">No results found for "' + window.escapeHtml(query) + '"</div>';
+    }
+}
+
+document.getElementById('global-search-input').addEventListener('input', (e) => {
+    clearTimeout(_searchTimeout);
+    const query = e.target.value;
+    if (!query.trim()) {
+        document.getElementById('global-search-results').style.display = 'none';
+        return;
+    }
+    _searchTimeout = setTimeout(() => performGlobalSearch(query), 300);
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeGlobalSearch();
+});
+</script>
+
+<div id="plugin-bridge-container" aria-hidden="true" tabindex="-1" style="display:none;width:0;height:0;overflow:hidden;position:absolute;pointer-events:none;"></div>
+
+</body>
+</html>

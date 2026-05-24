@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Auto-Reply v2 | MeshDash</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+/* ============================================================================
+   Auto-Reply Plugin Styles — Scoped to avoid conflicts with MeshDash
+   Uses MeshDash CSS variables for theme compatibility
+   ============================================================================ */
+
+/* Force full height on html/body when standalone or framed */
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg, var(--bg));
+}
+
+/* Scoped reset for plugin content */
+.ar-plugin * { box-sizing: border-box; margin: 0; padding: 0; }
+
+.ar-plugin {
+    font-family: var(--mono, 'Share Tech Mono', monospace);
+    color: var(--txt, var(--txt));
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg, var(--bg));
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+/* Topbar */
+.ar-topbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--bg2, var(--bg2));
+    border-bottom: 1px solid var(--bd2, var(--bd2));
+    flex-shrink: 0;
+    min-height: 46px;
+    flex-wrap: wrap;
+}
+
+.ar-logo {
+    font-family: var(--sans, 'Exo 2', sans-serif);
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--acc, var(--acc));
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ar-version {
+    font-size: 9px;
+    color: var(--txt3, var(--txt3));
+    font-weight: 400;
+}
+
+.ar-topbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* Buttons */
+.ar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    background: var(--bg3, var(--bg3));
+    color: var(--txt, var(--txt));
+    border: 1px solid var(--bd2, var(--bd2));
+    border-radius: var(--r, 6px);
+    padding: 8px 14px;
+    font-family: var(--mono, monospace);
+    font-size: 12px;
+    cursor: pointer;
+    min-height: 40px; /* Touch-friendly */
+    transition: all 0.12s;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+}
+
+@media (min-width: 768px) {
+    .ar-btn {
+        padding: 6px 12px;
+        min-height: 32px;
+        font-size: 11px;
+    }
+}
+
+.ar-btn:hover { border-color: var(--acc, var(--acc)); color: var(--acc, var(--acc)); }
+.ar-btn:active { transform: scale(0.97); }
+.ar-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.ar-btn-acc { background: rgba(0, 200, 245, 0.1); border-color: rgba(0, 200, 245, 0.3); color: var(--acc, var(--acc)); }
+.ar-btn-ok { background: rgba(0, 232, 122, 0.1); border-color: rgba(0, 232, 122, 0.3); color: var(--ok, var(--ok)); }
+.ar-btn-err { background: rgba(255, 48, 80, 0.1); border-color: rgba(255, 48, 80, 0.3); color: var(--err, var(--err)); }
+.ar-btn-warn { background: rgba(255, 168, 38, 0.1); border-color: rgba(255, 168, 38, 0.3); color: var(--warn, var(--warn)); }
+.ar-btn-sm { padding: 6px 10px; min-height: 36px; font-size: 11px; }
+
+@media (min-width: 768px) {
+    .ar-btn-sm { padding: 4px 8px; min-height: 28px; font-size: 10px; }
+}
+
+/* Status chip */
+.ar-status-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 10px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.ar-status-chip.on {
+    border: 1px solid rgba(0, 232, 122, 0.3);
+    background: rgba(0, 232, 122, 0.06);
+    color: var(--ok, var(--ok));
+}
+
+.ar-status-chip.off {
+    border: 1px solid rgba(255, 48, 80, 0.3);
+    background: rgba(255, 48, 80, 0.06);
+    color: var(--err, var(--err));
+}
+
+.ar-chip-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    animation: ar-pulse 1.5s infinite;
+}
+
+.ar-status-chip.on .ar-chip-dot { background: var(--ok, var(--ok)); }
+.ar-status-chip.off .ar-chip-dot { background: var(--err, var(--err)); }
+
+@keyframes ar-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* Main layout */
+.ar-main-wrap {
+    flex: 1;
+    display: flex;
+    min-height: 0; /* Critical for flex children to scroll properly */
+    overflow: hidden;
+}
+
+/* Sidebar */
+.ar-sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: var(--bg2, var(--bg2));
+    border-right: 1px solid var(--bd2, var(--bd2));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+/* Mobile sidebar - slide over */
+@media (max-width: 768px) {
+    .ar-sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        width: 85%;
+        max-width: 320px;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform 0.25s ease;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+    }
+    .ar-sidebar.open {
+        transform: translateX(0);
+    }
+    .ar-sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.6);
+        z-index: 999;
+    }
+    .ar-sidebar-overlay.open {
+        display: block;
+    }
+    .ar-mobile-toggle {
+        display: inline-flex !important;
+    }
+}
+
+.ar-mobile-toggle {
+    display: none;
+}
+
+.ar-sidebar-hdr {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--bd, var(--bd));
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--acc, var(--acc));
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.ar-sidebar-close {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .ar-sidebar-close {
+        display: inline-flex;
+    }
+}
+
+.ar-tree-wrap {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Tree nodes */
+.ar-tree-node {
+    margin-left: 14px;
+    border-left: 1px dashed var(--bd2, var(--bd2));
+    padding-left: 10px;
+    margin-bottom: 3px;
+}
+
+.ar-tree-node.root {
+    margin-left: 0;
+    border-left: none;
+    padding-left: 0;
+}
+
+.ar-tree-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    background: var(--bg3, var(--bg3));
+    border: 1px solid var(--bd2, var(--bd2));
+    border-radius: var(--r, 6px);
+    cursor: pointer;
+    transition: all 0.12s;
+    margin-bottom: 3px;
+    font-size: 11px;
+    min-height: 40px; /* Touch-friendly */
+}
+
+.ar-tree-item:hover { border-color: var(--acc, var(--acc)); }
+.ar-tree-item.selected { background: rgba(0, 200, 245, 0.1); border-color: var(--acc, var(--acc)); }
+.ar-tree-item.folder { border-left: 3px solid var(--pur, var(--pur)); }
+.ar-tree-item.action { border-left: 3px solid var(--ok, var(--ok)); }
+.ar-tree-item.disabled { opacity: 0.5; }
+
+.ar-tree-icon { width: 16px; text-align: center; font-size: 11px; }
+.ar-tree-icon.folder { color: var(--pur, var(--pur)); }
+.ar-tree-icon.action { color: var(--ok, var(--ok)); }
+
+.ar-tree-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ar-tree-trigger {
+    color: var(--txt2, var(--txt2));
+    font-size: 9px;
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Content area */
+.ar-content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-width: 0; /* Allow flex shrinking */
+}
+
+/* Tabs */
+.ar-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--bd2, var(--bd2));
+    background: var(--bg2, var(--bg2));
+    flex-shrink: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.ar-tab {
+    padding: 12px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--txt2, var(--txt2));
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+    .ar-tab {
+        padding: 12px 10px;
+        font-size: 10px;
+    }
+}
+
+.ar-tab:hover { color: var(--txt, var(--txt)); }
+.ar-tab.active { color: var(--acc, var(--acc)); border-bottom-color: var(--acc, var(--acc)); }
+
+.ar-tab-content {
+    display: none;
+    flex: 1;
+    overflow: hidden;
+}
+
+.ar-tab-content.active {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Panels */
+.ar-main-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 480px) {
+    .ar-main-panel {
+        padding: 12px;
+    }
+}
+
+.ar-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 200px;
+    color: var(--txt3, var(--txt3));
+    gap: 12px;
+    text-align: center;
+    padding: 20px;
+}
+
+.ar-empty-state i { font-size: 32px; }
+
+/* Cards */
+.ar-card {
+    background: var(--bg2, var(--bg2));
+    border: 1px solid var(--bd2, var(--bd2));
+    border-radius: var(--r, 6px);
+    margin-bottom: 16px;
+}
+
+.ar-card-hdr {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--bd, var(--bd));
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--acc, var(--acc));
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ar-card-body { padding: 14px; }
+
+@media (max-width: 480px) {
+    .ar-card-body { padding: 12px; }
+}
+
+/* Forms */
+.ar-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 600px) {
+    .ar-form-grid { grid-template-columns: 1fr; }
+}
+
+.ar-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ar-form-group.full { grid-column: 1 / -1; }
+
+.ar-form-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--txt2, var(--txt2));
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ar-inp {
+    background: var(--bg, var(--bg));
+    border: 1px solid var(--bd2, var(--bd2));
+    border-radius: var(--r, 6px);
+    padding: 10px 12px;
+    color: var(--txt, var(--txt));
+    font-family: var(--mono, monospace);
+    font-size: 14px; /* Larger for mobile readability */
+    transition: border-color 0.15s;
+    min-height: 44px; /* Touch-friendly */
+    width: 100%;
+}
+
+@media (min-width: 768px) {
+    .ar-inp {
+        font-size: 12px;
+        padding: 8px 10px;
+        min-height: 36px;
+    }
+}
+
+.ar-inp:focus {
+    outline: none;
+    border-color: var(--acc, var(--acc));
+}
+
+.ar-inp::placeholder { color: var(--txt3, var(--txt3)); }
+
+textarea.ar-inp {
+    min-height: 100px;
+    resize: vertical;
+}
+
+select.ar-inp { cursor: pointer; }
+
+/* Type picker */
+.ar-type-picker { display: flex; gap: 8px; }
+
+.ar-type-opt {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--bg, var(--bg));
+    border: 1px solid var(--bd2, var(--bd2));
+    border-radius: var(--r, 6px);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ar-type-opt:hover { border-color: var(--acc, var(--acc)); }
+.ar-type-opt.selected { background: rgba(0, 200, 245, 0.08); border-color: var(--acc, var(--acc)); }
+.ar-type-opt.selected.action-type { background: rgba(0, 232, 122, 0.08); border-color: var(--ok, var(--ok)); }
+.ar-type-opt i { font-size: 14px; }
+.ar-type-opt span { font-size: 11px; }
+
+/* Macro tray */
+.ar-macro-tray {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.ar-macro-btn {
+    background: var(--bg3, var(--bg3));
+    border: 1px solid var(--bd, var(--bd));
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 10px;
+    color: var(--txt2, var(--txt2));
+    cursor: pointer;
+    transition: all 0.12s;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.ar-macro-btn:hover, .ar-macro-btn:active {
+    border-color: var(--acc, var(--acc));
+    color: var(--acc, var(--acc));
+}
+
+/* Form actions */
+.ar-form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--bd, var(--bd));
+    flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+    .ar-form-actions {
+        flex-direction: column-reverse;
+    }
+    .ar-form-actions .ar-btn {
+        width: 100%;
+    }
+    .ar-form-actions #btn-add-child {
+        margin-right: 0;
+        order: 3;
+    }
+}
+    padding-top: 16px;
+    border-top: 1px solid var(--bd, var(--bd));
+}
+
+/* Config section */
+.ar-config-section { margin-bottom: 20px; }
+.ar-config-section h3 { font-size: 11px; color: var(--acc, var(--acc)); margin-bottom: 10px; font-weight: 700; }
+
+.ar-config-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.ar-config-row label {
+    flex: 1;
+    font-size: 11px;
+    color: var(--txt2, var(--txt2));
+}
+
+.ar-config-row .ar-inp { width: 200px; }
+
+/* Toggle */
+.ar-toggle {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    background: var(--bg, var(--bg));
+    border: 1px solid var(--bd2, var(--bd2));
+    border-radius: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.ar-toggle.on {
+    background: rgba(0, 232, 122, 0.2);
+    border-color: var(--ok, var(--ok));
+}
+
+.ar-toggle::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    background: var(--txt2, var(--txt2));
+    border-radius: 50%;
+    top: 2px;
+    left: 2px;
+    transition: all 0.2s;
+}
+
+.ar-toggle.on::after {
+    left: 20px;
+    background: var(--ok, var(--ok));
+}
+
+/* Debug events */
+.ar-debug-event {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--bd, var(--bd));
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 10px;
+}
+
+.ar-debug-event:hover { background: var(--bg3, var(--bg3)); }
+
+.ar-debug-ts {
+    color: var(--txt3, var(--txt3));
+    font-size: 9px;
+    white-space: nowrap;
+    min-width: 70px;
+}
+
+.ar-debug-type {
+    font-weight: 700;
+    min-width: 70px;
+}
+
+.ar-debug-type.incoming { color: var(--acc, var(--acc)); }
+.ar-debug-type.outgoing { color: var(--ok, var(--ok)); }
+.ar-debug-type.match { color: var(--ok, var(--ok)); }
+.ar-debug-type.skip { color: var(--txt3, var(--txt3)); }
+.ar-debug-type.no_match { color: var(--warn, var(--warn)); }
+.ar-debug-type.cooldown { color: var(--warn, var(--warn)); }
+.ar-debug-type.filtering { color: var(--pur, var(--pur)); }
+.ar-debug-type.matching { color: var(--pur, var(--pur)); }
+
+.ar-debug-details {
+    flex: 1;
+    word-break: break-all;
+    color: var(--txt2, var(--txt2));
+}
+
+.ar-debug-details code { color: var(--acc, var(--acc)); }
+
+/* Test result */
+.ar-test-result {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--bg, var(--bg));
+    border: 1px solid var(--bd2, var(--bd2));
+    border-radius: var(--r, 6px);
+}
+
+.ar-test-result.success { border-color: var(--ok, var(--ok)); }
+.ar-test-result.fail { border-color: var(--warn, var(--warn)); }
+.ar-test-result pre { font-size: 10px; white-space: pre-wrap; overflow-x: auto; }
+
+/* Scope editor */
+.ar-scope-editor {
+    background: var(--bg, var(--bg));
+    border: 1px solid var(--bd2, var(--bd2));
+    border-radius: var(--r, 6px);
+    padding: 12px;
+    margin-top: 8px;
+}
+
+.ar-scope-editor h4 {
+    font-size: 10px;
+    color: var(--txt2, var(--txt2));
+    margin-bottom: 8px;
+}
+
+/* Toast */
+.ar-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 10px 16px;
+    background: var(--bg2, var(--bg2));
+    border: 1px solid var(--bd2, var(--bd2));
+    border-radius: var(--r, 6px);
+    font-size: 11px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.2s;
+    z-index: 9999;
+}
+
+.ar-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.ar-toast.ok { border-color: var(--ok, var(--ok)); color: var(--ok, var(--ok)); }
+.ar-toast.warn { border-color: var(--warn, var(--warn)); color: var(--warn, var(--warn)); }
+.ar-toast.err { border-color: var(--err, var(--err)); color: var(--err, var(--err)); }
+
+/* Mobile utilities */
+@media (max-width: 768px) {
+    .ar-hide-mobile { display: none !important; }
+}
+
+@media (min-width: 769px) {
+    .ar-mobile-toggle { display: none !important; }
+}
+
+/* Config row mobile */
+@media (max-width: 600px) {
+    .ar-config-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    .ar-config-row .ar-inp {
+        width: 100%;
+    }
+    .ar-config-row .ar-toggle {
+        align-self: flex-start;
+    }
+}
+
+/* Debug panel mobile */
+@media (max-width: 480px) {
+    .ar-debug-event {
+        flex-direction: column;
+        gap: 4px;
+    }
+    .ar-debug-ts {
+        min-width: auto;
+    }
+    .ar-debug-type {
+        min-width: auto;
+    }
+}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="ar-plugin">
+    <div class="ar-topbar">
+        <button id="btn-mobile-menu" class="ar-btn ar-btn-sm ar-mobile-toggle" title="Open menu">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div class="ar-logo">
+            <i class="fas fa-reply-all"></i>
+            AUTO-REPLY
+            <span class="ar-version">v2.0</span>
+        </div>
+        <div id="engine-status" class="ar-status-chip off">
+            <span class="ar-chip-dot"></span>
+            <span id="engine-status-text">DISABLED</span>
+        </div>
+        <div class="ar-topbar-right">
+            <button id="btn-toggle-engine" class="ar-btn ar-btn-sm ar-btn-acc">
+                <i class="fas fa-power-off"></i><span class="ar-hide-mobile"> Toggle</span>
+            </button>
+            <button id="btn-deploy-demo" class="ar-btn ar-btn-sm ar-btn-warn">
+                <i class="fas fa-magic"></i><span class="ar-hide-mobile"> Demo</span>
+            </button>
+            <button id="btn-clear-all" class="ar-btn ar-btn-sm ar-btn-err" title="Delete all rules">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+            <button id="btn-refresh" class="ar-btn ar-btn-sm">
+                <i class="fas fa-sync-alt"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="ar-main-wrap">
+        <div id="sidebar-overlay" class="ar-sidebar-overlay"></div>
+        <div id="sidebar" class="ar-sidebar">
+            <div class="ar-sidebar-hdr">
+                <span>RULE TREE</span>
+                <div style="display:flex;gap:6px;">
+                    <button id="btn-new-root" class="ar-btn ar-btn-sm ar-btn-ok" title="New root rule">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button id="btn-close-sidebar" class="ar-btn ar-btn-sm ar-sidebar-close" title="Close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="tree-container" class="ar-tree-wrap"></div>
+        </div>
+
+        <div class="ar-content-area">
+            <div class="ar-tabs">
+                <button class="ar-tab active" data-tab="editor">EDITOR</button>
+                <button class="ar-tab" data-tab="config">CONFIG</button>
+                <button class="ar-tab" data-tab="debug">DEBUG</button>
+                <button class="ar-tab" data-tab="test">TEST</button>
+            </div>
+
+            <!-- Editor Tab -->
+            <div id="tab-editor" class="ar-tab-content active">
+                <div class="ar-main-panel">
+                    <div id="editor-empty" class="ar-empty-state">
+                        <i class="fas fa-hand-pointer"></i>
+                        <div>Select a rule from the tree or create a new one</div>
+                        <button id="btn-new-mobile" class="ar-btn ar-btn-ok ar-mobile-toggle" style="margin-top:10px;">
+                            <i class="fas fa-plus"></i> New Rule
+                        </button>
+                    </div>
+                    <div id="editor-form" style="display:none;">
+                        <div class="ar-card">
+                            <div class="ar-card-hdr">
+                                <i class="fas fa-edit"></i>
+                                <span id="editor-title">NEW RULE</span>
+                            </div>
+                            <div class="ar-card-body">
+                                <div class="ar-form-group full" style="margin-bottom:14px;">
+                                    <label class="ar-form-label">Type</label>
+                                    <div class="ar-type-picker">
+                                        <div class="ar-type-opt selected" data-type="action">
+                                            <i class="fas fa-bolt" style="color:var(--ok)"></i>
+                                            <span>Action</span>
+                                        </div>
+                                        <div class="ar-type-opt" data-type="folder">
+                                            <i class="fas fa-folder" style="color:var(--pur)"></i>
+                                            <span>Folder</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="ar-form-grid">
+                                    <div class="ar-form-group">
+                                        <label class="ar-form-label">Label</label>
+                                        <input type="text" id="f-label" class="ar-inp" placeholder="Friendly label">
+                                    </div>
+                                    <div class="ar-form-group">
+                                        <label class="ar-form-label">Parent</label>
+                                        <select id="f-parent" class="ar-inp"></select>
+                                    </div>
+                                    <div class="ar-form-group">
+                                        <label class="ar-form-label">Trigger Phrase</label>
+                                        <input type="text" id="f-trigger" class="ar-inp" placeholder="!command">
+                                    </div>
+                                    <div class="ar-form-group">
+                                        <label class="ar-form-label">Match Type</label>
+                                        <select id="f-match" class="ar-inp">
+                                            <option value="exact">Exact</option>
+                                            <option value="contains">Contains</option>
+                                            <option value="regex">Regex</option>
+                                        </select>
+                                    </div>
+                                    <div class="ar-form-group">
+                                        <label class="ar-form-label">Cooldown (seconds)</label>
+                                        <input type="number" id="f-cooldown" class="ar-inp" value="60" min="0">
+                                    </div>
+                                    <div class="ar-form-group">
+                                        <label class="ar-form-label">Enabled</label>
+                                        <select id="f-enabled" class="ar-inp">
+                                            <option value="1">Yes</option>
+                                            <option value="0">No</option>
+                                        </select>
+                                    </div>
+                                    <div class="ar-form-group full">
+                                        <label class="ar-form-label">Response Message</label>
+                                        <textarea id="f-response" class="ar-inp" placeholder="Reply text with {macros}"></textarea>
+                                        <div id="macro-tray" class="ar-macro-tray"></div>
+                                    </div>
+                                </div>
+
+                                <div class="ar-form-actions">
+                                    <button id="btn-add-child" class="ar-btn ar-btn-acc" style="display:none;margin-right:auto;">
+                                        <i class="fas fa-plus"></i> Add Child
+                                    </button>
+                                    <button id="btn-cancel" class="ar-btn">Cancel</button>
+                                    <button id="btn-delete" class="ar-btn ar-btn-err" style="display:none;">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                    <button id="btn-save" class="ar-btn ar-btn-ok">
+                                        <i class="fas fa-save"></i> Save
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Config Tab -->
+            <div id="tab-config" class="ar-tab-content">
+                <div class="ar-main-panel">
+                    <div class="ar-card">
+                        <div class="ar-card-hdr">
+                            <i class="fas fa-cog"></i>
+                            GLOBAL CONFIGURATION
+                        </div>
+                        <div class="ar-card-body">
+                            <div class="ar-config-section">
+                                <h3>Message Filtering</h3>
+                                <div class="ar-config-row">
+                                    <label>Listen to Direct Messages</label>
+                                    <div id="cfg-listen-dm" class="ar-toggle on"></div>
+                                </div>
+                                <div class="ar-config-row">
+                                    <label>Listen to Channel Messages</label>
+                                    <div id="cfg-listen-channel" class="ar-toggle on"></div>
+                                </div>
+                                <div class="ar-config-row">
+                                    <label>Prefix channel replies with @nodeId</label>
+                                    <div id="cfg-channel-prefix" class="ar-toggle on"></div>
+                                </div>
+                            </div>
+
+                            <div class="ar-config-section">
+                                <h3>Session Settings</h3>
+                                <div class="ar-config-row">
+                                    <label>Menu Session Timeout (seconds)</label>
+                                    <input type="number" id="cfg-session-ttl" class="ar-inp" value="300" min="30">
+                                </div>
+                            </div>
+
+                            <div class="ar-form-actions">
+                                <button id="btn-save-config" class="ar-btn ar-btn-ok">
+                                    <i class="fas fa-save"></i> Save Config
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Debug Tab -->
+            <div id="tab-debug" class="ar-tab-content">
+                <div class="ar-main-panel">
+                    <div class="ar-card">
+                        <div class="ar-card-hdr">
+                            <i class="fas fa-bug"></i>
+                            EVENT LOG
+                            <div style="margin-left:auto;display:flex;gap:6px;">
+                                <button id="btn-refresh-debug" class="ar-btn ar-btn-sm">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                                <button id="btn-clear-debug" class="ar-btn ar-btn-sm ar-btn-err">
+                                    <i class="fas fa-trash"></i> Clear
+                                </button>
+                            </div>
+                        </div>
+                        <div class="ar-card-body" style="padding:0;max-height:300px;overflow-y:auto;">
+                            <div id="debug-log"></div>
+                        </div>
+                    </div>
+
+                    <div class="ar-card">
+                        <div class="ar-card-hdr">
+                            <i class="fas fa-users"></i>
+                            ACTIVE SESSIONS
+                        </div>
+                        <div class="ar-card-body">
+                            <pre id="debug-sessions" style="font-size:10px;color:var(--txt2);white-space:pre-wrap;">{}</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Test Tab -->
+            <div id="tab-test" class="ar-tab-content">
+                <div class="ar-main-panel">
+                    <div class="ar-card">
+                        <div class="ar-card-hdr">
+                            <i class="fas fa-flask"></i>
+                            TEST MESSAGE MATCHING
+                        </div>
+                        <div class="ar-card-body">
+                            <div class="ar-form-grid">
+                                <div class="ar-form-group full">
+                                    <label class="ar-form-label">Test Message</label>
+                                    <input type="text" id="test-message" class="ar-inp" placeholder="!md">
+                                </div>
+                                <div class="ar-form-group">
+                                    <label class="ar-form-label">Sender Node ID</label>
+                                    <input type="text" id="test-sender" class="ar-inp" value="!test1234">
+                                </div>
+                                <div class="ar-form-group">
+                                    <label class="ar-form-label">Channel</label>
+                                    <input type="number" id="test-channel" class="ar-inp" value="0" min="0" max="7">
+                                </div>
+                                <div class="ar-form-group">
+                                    <label class="ar-form-label">Slot ID</label>
+                                    <input type="text" id="test-slot" class="ar-inp" value="node_0">
+                                </div>
+                                <div class="ar-form-group">
+                                    <label class="ar-form-label">Message Type</label>
+                                    <select id="test-dm" class="ar-inp">
+                                        <option value="1">Direct Message</option>
+                                        <option value="0">Channel Message</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="ar-form-actions">
+                                <button id="btn-run-test" class="ar-btn ar-btn-acc">
+                                    <i class="fas fa-play"></i> Run Test
+                                </button>
+                            </div>
+                            <div id="test-result" class="ar-test-result" style="display:none;">
+                                <pre id="test-output"></pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="ar-toast"></div>
+
+<script>
+const PLUGIN_API = '/api/plugins/auto_reply';
+const MACROS = [
+    '{name}', '{node_id}', '{short_name}', '{battery_level}', '{voltage}',
+    '{snr}', '{rssi}', '{location}', '{latitude}', '{longitude}', '{altitude}',
+    '{temperature}', '{humidity}', '{pressure}', '{channel_utilization}',
+    '{air_util_tx}', '{firmware_version}', '{hw_model}', '{role}',
+    '{last_heard}', '{sats_in_view}'
+];
+
+let _rules = [];
+let _editingId = null;
+let _nodeType = 'action';
+
+function escHtml(s) {
+    if (s == null) return '';
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showToast(msg, type = 'ok') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'ar-toast show ' + type;
+    setTimeout(() => { t.classList.remove('show'); }, 2500);
+}
+
+async function loadStatus() {
+    try {
+        const res = await fetch(`${PLUGIN_API}/status`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const chip = document.getElementById('engine-status');
+        const text = document.getElementById('engine-status-text');
+        if (data.enabled) {
+            chip.classList.remove('off');
+            chip.classList.add('on');
+            text.textContent = 'ENABLED';
+        } else {
+            chip.classList.remove('on');
+            chip.classList.add('off');
+            text.textContent = 'DISABLED';
+        }
+        loadConfigUI(data.config);
+    } catch (e) { console.error(e); }
+}
+
+function loadConfigUI(cfg) {
+    document.getElementById('cfg-listen-dm').classList.toggle('on', cfg.listen_dm !== false);
+    document.getElementById('cfg-listen-channel').classList.toggle('on', cfg.listen_channel !== false);
+    document.getElementById('cfg-channel-prefix').classList.toggle('on', cfg.channel_reply_prefix !== false);
+    document.getElementById('cfg-session-ttl').value = cfg.session_ttl_seconds || 300;
+}
+
+async function loadRules() {
+    try {
+        const res = await fetch(`${PLUGIN_API}/rules`);
+        if (!res.ok) return;
+        _rules = await res.json();
+        renderTree();
+        populateParentSelect();
+    } catch (e) { console.error(e); }
+}
+
+function renderTree() {
+    const container = document.getElementById('tree-container');
+    const byId = {};
+    const roots = [];
+
+    _rules.forEach(r => { byId[r.id] = { ...r, children: [] }; });
+    _rules.forEach(r => {
+        if (r.parent_id && byId[r.parent_id]) {
+            byId[r.parent_id].children.push(byId[r.id]);
+        } else {
+            roots.push(byId[r.id]);
+        }
+    });
+
+    function renderNode(node, isRoot = false) {
+        const isFolder = node.node_type === 'folder';
+        const icon = isFolder ? 'fa-folder' : 'fa-bolt';
+        const iconClass = isFolder ? 'folder' : 'action';
+        const typeClass = isFolder ? 'folder' : 'action';
+        const disabledClass = node.is_enabled ? '' : 'disabled';
+        const selectedClass = node.id === _editingId ? 'selected' : '';
+
+        let html = `<div class="ar-tree-node ${isRoot ? 'root' : ''}">
+            <div class="ar-tree-item ${typeClass} ${disabledClass} ${selectedClass}" data-id="${node.id}">
+                <i class="fas ${icon} ar-tree-icon ${iconClass}"></i>
+                <span class="ar-tree-label">${escHtml(node.label || node.trigger_phrase)}</span>
+                <span class="ar-tree-trigger">${escHtml(node.trigger_phrase)}</span>
+            </div>`;
+
+        if (node.children && node.children.length > 0) {
+            node.children.forEach(child => { html += renderNode(child, false); });
+        }
+
+        html += '</div>';
+        return html;
+    }
+
+    container.innerHTML = roots.map(r => renderNode(r, true)).join('') || '<div style="padding:20px;text-align:center;color:var(--txt3)">No rules yet. Create one!</div>';
+
+    container.querySelectorAll('.ar-tree-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const id = parseInt(item.dataset.id, 10);
+            selectRule(id);
+        });
+    });
+}
+
+function populateParentSelect() {
+    const sel = document.getElementById('f-parent');
+    const folders = _rules.filter(r => r.node_type === 'folder');
+    sel.innerHTML = '<option value="">(Root level)</option>' +
+        folders.map(f => `<option value="${f.id}">${escHtml(f.label || f.trigger_phrase)}</option>`).join('');
+}
+
+function selectRule(id) {
+    _editingId = id;
+    const rule = _rules.find(r => r.id === id);
+    if (!rule) return;
+
+    document.getElementById('editor-empty').style.display = 'none';
+    document.getElementById('editor-form').style.display = 'block';
+    document.getElementById('editor-title').textContent = `EDIT: ${rule.label || rule.trigger_phrase}`;
+    document.getElementById('btn-delete').style.display = 'inline-flex';
+    
+    // Show Add Child button only for folders
+    const addChildBtn = document.getElementById('btn-add-child');
+    if (addChildBtn) {
+        addChildBtn.style.display = rule.node_type === 'folder' ? 'inline-flex' : 'none';
+        addChildBtn.onclick = () => newRule(rule.id);
+    }
+
+    document.getElementById('f-label').value = rule.label || '';
+    document.getElementById('f-trigger').value = rule.trigger_phrase || '';
+    document.getElementById('f-match').value = rule.match_type || 'exact';
+    document.getElementById('f-cooldown').value = rule.cooldown_seconds || 60;
+    document.getElementById('f-enabled').value = rule.is_enabled ? '1' : '0';
+    document.getElementById('f-response').value = rule.response_message || '';
+    document.getElementById('f-parent').value = rule.parent_id || '';
+
+    _nodeType = rule.node_type || 'action';
+    document.querySelectorAll('.ar-type-opt').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.type === _nodeType);
+    });
+
+    renderTree();
+}
+
+function newRule(parentId = null) {
+    _editingId = null;
+    document.getElementById('editor-empty').style.display = 'none';
+    document.getElementById('editor-form').style.display = 'block';
+    document.getElementById('editor-title').textContent = parentId ? 'NEW CHILD RULE' : 'NEW RULE';
+    document.getElementById('btn-delete').style.display = 'none';
+    
+    // Hide Add Child button for new rules
+    const addChildBtn = document.getElementById('btn-add-child');
+    if (addChildBtn) addChildBtn.style.display = 'none';
+
+    document.getElementById('f-label').value = '';
+    document.getElementById('f-trigger').value = '';
+    document.getElementById('f-match').value = 'exact';
+    document.getElementById('f-cooldown').value = '60';
+    document.getElementById('f-enabled').value = '1';
+    document.getElementById('f-response').value = '';
+    document.getElementById('f-parent').value = parentId || '';
+
+    _nodeType = 'action';
+    document.querySelectorAll('.ar-type-opt').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.type === 'action');
+    });
+
+    renderTree();
+}
+
+function cancelEdit() {
+    _editingId = null;
+    document.getElementById('editor-empty').style.display = 'flex';
+    document.getElementById('editor-form').style.display = 'none';
+    renderTree();
+}
+
+async function saveRule() {
+    const payload = {
+        label: document.getElementById('f-label').value.trim(),
+        trigger_phrase: document.getElementById('f-trigger').value.trim(),
+        match_type: document.getElementById('f-match').value,
+        cooldown_seconds: parseInt(document.getElementById('f-cooldown').value, 10) || 60,
+        is_enabled: document.getElementById('f-enabled').value === '1',
+        response_message: document.getElementById('f-response').value,
+        parent_id: document.getElementById('f-parent').value ? parseInt(document.getElementById('f-parent').value, 10) : null,
+        node_type: _nodeType,
+    };
+
+    if (!payload.trigger_phrase) { showToast('Trigger required', 'warn'); return; }
+    if (!payload.response_message) { showToast('Response required', 'warn'); return; }
+
+    const btn = document.getElementById('btn-save');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
+
+    try {
+        const method = _editingId ? 'PUT' : 'POST';
+        const url = _editingId ? `${PLUGIN_API}/rules/${_editingId}` : `${PLUGIN_API}/rules`;
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || 'Save failed');
+        }
+        showToast(_editingId ? 'Rule updated' : 'Rule created', 'ok');
+        await loadRules();
+        cancelEdit();
+    } catch (e) { showToast(e.message || 'Save failed', 'err'); }
+    finally { btn.innerHTML = '<i class="fas fa-save"></i> Save'; btn.disabled = false; }
+}
+
+async function deleteRule() {
+    if (!_editingId) return;
+    if (!confirm('Delete this rule and all its children?')) return;
+
+    const btn = document.getElementById('btn-delete');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
+
+    try {
+        const res = await fetch(`${PLUGIN_API}/rules/${_editingId}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Delete failed');
+        showToast('Rule deleted', 'ok');
+        await loadRules();
+        cancelEdit();
+    } catch (e) { showToast('Delete failed', 'err'); }
+    finally { btn.innerHTML = '<i class="fas fa-trash"></i> Delete'; btn.disabled = false; }
+}
+
+async function toggleEngine() {
+    try {
+        const res = await fetch(`${PLUGIN_API}/status`);
+        const data = await res.json();
+        const newState = !data.enabled;
+        await fetch(`${PLUGIN_API}/enabled?value=${newState}`, { method: 'PUT' });
+        showToast(newState ? 'Engine enabled' : 'Engine disabled', 'ok');
+        loadStatus();
+    } catch (e) { showToast('Toggle failed', 'err'); }
+}
+
+async function saveConfig() {
+    const cfg = {
+        listen_dm: document.getElementById('cfg-listen-dm').classList.contains('on'),
+        listen_channel: document.getElementById('cfg-listen-channel').classList.contains('on'),
+        channel_reply_prefix: document.getElementById('cfg-channel-prefix').classList.contains('on'),
+        session_ttl_seconds: parseInt(document.getElementById('cfg-session-ttl').value, 10) || 300,
+    };
+
+    try {
+        const res = await fetch(`${PLUGIN_API}/config`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(cfg)
+        });
+        if (!res.ok) throw new Error('Save failed');
+        showToast('Config saved', 'ok');
+    } catch (e) { showToast('Save failed', 'err'); }
+}
+
+async function deployDemo() {
+    if (!confirm('This will DELETE all existing rules and deploy a demo menu. Continue?')) return;
+
+    const btn = document.getElementById('btn-deploy-demo');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
+
+    try {
+        const res = await fetch(`${PLUGIN_API}/deploy-demo`, { method: 'POST' });
+        if (!res.ok) throw new Error('Deploy failed');
+        const data = await res.json();
+        showToast(`Deployed ${data.rules_created} rules`, 'ok');
+        await loadRules();
+        cancelEdit();
+    } catch (e) { showToast('Deploy failed', 'err'); }
+    finally { btn.innerHTML = '<i class="fas fa-magic"></i> Deploy Demo'; btn.disabled = false; }
+}
+
+async function clearAllRules() {
+    if (!confirm('This will DELETE ALL rules permanently. Are you sure?')) return;
+
+    const btn = document.getElementById('btn-clear-all');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
+
+    try {
+        const res = await fetch(`${PLUGIN_API}/rules`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Clear failed');
+        const data = await res.json();
+        showToast(`Deleted ${data.rules_deleted} rules`, 'ok');
+        await loadRules();
+        cancelEdit();
+    } catch (e) { showToast('Clear failed', 'err'); }
+    finally { btn.innerHTML = '<i class="fas fa-trash-alt"></i>'; btn.disabled = false; }
+}
+
+async function loadDebugLog() {
+    try {
+        const res = await fetch(`${PLUGIN_API}/debug/log`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const container = document.getElementById('debug-log');
+
+        if (!data.events || data.events.length === 0) {
+            container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--txt3)">No events. Send a message to see activity.</div>';
+            return;
+        }
+
+        container.innerHTML = data.events.map(e => {
+            const details = Object.entries(e)
+                .filter(([k]) => !['ts', 'type'].includes(k))
+                .map(([k, v]) => `<code>${k}</code>: ${escHtml(String(v))}`)
+                .join(' · ');
+
+            return `<div class="ar-debug-event">
+                <span class="ar-debug-ts">${e.ts?.split('T')[1]?.split('.')[0] || ''}</span>
+                <span class="ar-debug-type ${e.type || ''}">${(e.type || '').toUpperCase()}</span>
+                <span class="ar-debug-details">${details}</span>
+            </div>`;
+        }).join('');
+    } catch (e) { console.error(e); }
+}
+
+async function loadSessions() {
+    try {
+        const res = await fetch(`${PLUGIN_API}/debug/sessions`);
+        if (!res.ok) return;
+        const data = await res.json();
+        document.getElementById('debug-sessions').textContent = JSON.stringify(data.sessions, null, 2) || '{}';
+    } catch (e) { console.error(e); }
+}
+
+async function clearDebugLog() {
+    try {
+        await fetch(`${PLUGIN_API}/debug/log`, { method: 'DELETE' });
+        showToast('Debug log cleared', 'ok');
+        loadDebugLog();
+    } catch (e) { showToast('Clear failed', 'err'); }
+}
+
+async function runTest() {
+    const message = document.getElementById('test-message').value.trim();
+    if (!message) { showToast('Enter a test message', 'warn'); return; }
+
+    const sender = document.getElementById('test-sender').value.trim() || '!test1234';
+    const channel = parseInt(document.getElementById('test-channel').value) || 0;
+    const slot = document.getElementById('test-slot').value.trim() || 'node_0';
+    const isDm = document.getElementById('test-dm').value === '1';
+
+    const btn = document.getElementById('btn-run-test');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
+
+    try {
+        const params = new URLSearchParams({ message, sender, channel, slot_id: slot, is_dm: isDm });
+        const res = await fetch(`${PLUGIN_API}/debug/test?${params}`, { method: 'POST' });
+        const data = await res.json();
+
+        const resultDiv = document.getElementById('test-result');
+        resultDiv.style.display = 'block';
+        resultDiv.className = `ar-test-result ${data.would_reply ? 'success' : 'fail'}`;
+        document.getElementById('test-output').textContent = JSON.stringify(data, null, 2);
+
+        showToast(data.would_reply ? 'Match found!' : 'No match', data.would_reply ? 'ok' : 'warn');
+    } catch (e) { showToast('Test failed', 'err'); }
+    finally { btn.innerHTML = '<i class="fas fa-play"></i> Run Test'; btn.disabled = false; }
+}
+
+function initMacroTray() {
+    const tray = document.getElementById('macro-tray');
+    tray.innerHTML = MACROS.map(m => `<span class="ar-macro-btn" data-macro="${m}">${m}</span>`).join('');
+    tray.addEventListener('click', e => {
+        if (e.target.classList.contains('ar-macro-btn')) {
+            const ta = document.getElementById('f-response');
+            const start = ta.selectionStart;
+            const end = ta.selectionEnd;
+            ta.value = ta.value.substring(0, start) + e.target.dataset.macro + ta.value.substring(end);
+            ta.focus();
+            ta.selectionStart = ta.selectionEnd = start + e.target.dataset.macro.length;
+        }
+    });
+}
+
+function initTypeToggle() {
+    document.querySelectorAll('.ar-type-opt').forEach(opt => {
+        opt.addEventListener('click', () => {
+            document.querySelectorAll('.ar-type-opt').forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            _nodeType = opt.dataset.type;
+        });
+    });
+}
+
+function initTabs() {
+    document.querySelectorAll('.ar-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.ar-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.ar-tab-content').forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+
+            if (tab.dataset.tab === 'debug') {
+                loadDebugLog();
+                loadSessions();
+            }
+        });
+    });
+}
+
+function initToggles() {
+    document.querySelectorAll('.ar-toggle').forEach(toggle => {
+        toggle.addEventListener('click', () => {
+            toggle.classList.toggle('on');
+        });
+    });
+}
+
+// Mobile sidebar functions
+function openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebar-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebar-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function initMobileSidebar() {
+    const menuBtn = document.getElementById('btn-mobile-menu');
+    const closeBtn = document.getElementById('btn-close-sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const newMobileBtn = document.getElementById('btn-new-mobile');
+    
+    if (menuBtn) menuBtn.addEventListener('click', openSidebar);
+    if (closeBtn) closeBtn.addEventListener('click', closeSidebar);
+    if (overlay) overlay.addEventListener('click', closeSidebar);
+    if (newMobileBtn) newMobileBtn.addEventListener('click', () => {
+        newRule();
+        closeSidebar();
+    });
+    
+    // Close sidebar when selecting a rule on mobile
+    document.getElementById('tree-container').addEventListener('click', (e) => {
+        if (e.target.closest('.ar-tree-item') && window.innerWidth <= 768) {
+            setTimeout(closeSidebar, 100);
+        }
+    });
+}
+
+// Event listeners
+document.getElementById('btn-toggle-engine').addEventListener('click', toggleEngine);
+document.getElementById('btn-deploy-demo').addEventListener('click', deployDemo);
+document.getElementById('btn-clear-all').addEventListener('click', clearAllRules);
+document.getElementById('btn-refresh').addEventListener('click', () => { loadRules(); loadStatus(); });
+document.getElementById('btn-new-root').addEventListener('click', () => newRule());
+document.getElementById('btn-cancel').addEventListener('click', cancelEdit);
+document.getElementById('btn-save').addEventListener('click', saveRule);
+document.getElementById('btn-delete').addEventListener('click', deleteRule);
+document.getElementById('btn-save-config').addEventListener('click', saveConfig);
+document.getElementById('btn-refresh-debug').addEventListener('click', loadDebugLog);
+document.getElementById('btn-clear-debug').addEventListener('click', clearDebugLog);
+document.getElementById('btn-run-test').addEventListener('click', runTest);
+document.getElementById('test-message').addEventListener('keypress', e => { if (e.key === 'Enter') runTest(); });
+
+(async () => {
+    initMacroTray();
+    initTypeToggle();
+    initTabs();
+    initToggles();
+    initMobileSidebar();
+    await loadStatus();
+    await loadRules();
+})();
+</script>
+</body>
+</html>

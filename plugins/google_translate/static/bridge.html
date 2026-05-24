@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Google Translate Bridge</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>body{margin:0;padding:0;background:transparent;}</style>
+</head>
+<body>
+<script>
+'use strict';
+
+/*
+ * Google Translate Bridge v3.0
+ *
+ * Fixes vs v2:
+ *   - Body jumping: inject a <style> tag with body{top:0!important} BEFORE
+ *     loading the Google script so it never gets a chance to shift.
+ *     MutationObserver as belt-and-suspenders but CSS wins the race.
+ *   - Flashing logo / spinner: all Google UI elements hidden via CSS
+ *     using every known selector + body>* scope to catch obfuscated names.
+ *   - UI: pill button with built-in reset. No floating close button.
+ *     Panel has "↺ RESET TO ENGLISH" as a prominent row inside.
+ *   - Auto-switch: uses doGTranslate() correctly.
+ */
+
+var CONFIG_URL = '/api/plugins/google_translate/config';
+var _cfg = { enabled: true, position: 'bottom-right', default_language: '' };
+var _injected  = false;
+var _gtReady   = false;
+var _pendingLang = null;
+
+var LANGS = [
+    ['af','Afrikaans'],['sq','Albanian'],['am','Amharic'],['ar','Arabic'],
+    ['hy','Armenian'],['az','Azerbaijani'],['eu','Basque'],['be','Belarusian'],
+    ['bn','Bengali'],['bs','Bosnian'],['bg','Bulgarian'],['ca','Catalan'],
+    ['ceb','Cebuano'],['zh-CN','Chinese (Simplified)'],['zh-TW','Chinese (Traditional)'],
+    ['co','Corsican'],['hr','Croatian'],['cs','Czech'],['da','Danish'],
+    ['nl','Dutch'],['eo','Esperanto'],['et','Estonian'],['tl','Filipino'],
+    ['fi','Finnish'],['fr','French'],['fy','Frisian'],['gl','Galician'],
+    ['ka','Georgian'],['de','German'],['el','Greek'],['gu','Gujarati'],
+    ['ht','Haitian Creole'],['ha','Hausa'],['haw','Hawaiian'],['iw','Hebrew'],
+    ['hi','Hindi'],['hmn','Hmong'],['hu','Hungarian'],['is','Icelandic'],
+    ['ig','Igbo'],['id','Indonesian'],['ga','Irish'],['it','Italian'],
+    ['ja','Japanese'],['jw','Javanese'],['kn','Kannada'],['kk','Kazakh'],
+    ['km','Khmer'],['ko','Korean'],['ku','Kurdish'],['ky','Kyrgyz'],
+    ['lo','Lao'],['la','Latin'],['lv','Latvian'],['lt','Lithuanian'],
+    ['lb','Luxembourgish'],['mk','Macedonian'],['mg','Malagasy'],['ms','Malay'],
+    ['ml','Malayalam'],['mt','Maltese'],['mi','Maori'],['mr','Marathi'],
+    ['mn','Mongolian'],['my','Myanmar'],['ne','Nepali'],['no','Norwegian'],
+    ['ps','Pashto'],['fa','Persian'],['pl','Polish'],['pt','Portuguese'],
+    ['pa','Punjabi'],['ro','Romanian'],['ru','Russian'],['sm','Samoan'],
+    ['gd','Scots Gaelic'],['sr','Serbian'],['st','Sesotho'],['sn','Shona'],
+    ['sd','Sindhi'],['si','Sinhala'],['sk','Slovak'],['sl','Slovenian'],
+    ['so','Somali'],['es','Spanish'],['su','Sundanese'],['sw','Swahili'],
+    ['sv','Swedish'],['tg','Tajik'],['ta','Tamil'],['te','Telugu'],
+    ['th','Thai'],['tr','Turkish'],['uk','Ukrainian'],['ur','Urdu'],
+    ['uz','Uzbek'],['vi','Vietnamese'],['cy','Welsh'],['xh','Xhosa'],
+    ['yi','Yiddish'],['yo','Yoruba'],['zu','Zulu'],
+];
+
+/* ── Wait for parent DOM ── */
+(function _waitParent() {
+    try {
+        if (window.parent && window.parent.document && window.parent.document.body) {
+            _boot();
+        } else {
+            setTimeout(_waitParent, 150);
+        }
+    } catch(e) { setTimeout(_waitParent, 200); }
+})();
+
+async function _boot() {
+    try {
+        var r = await fetch(CONFIG_URL, { credentials: 'include', cache: 'no-store' });
+        if (r.ok) Object.assign(_cfg, await r.json());
+    } catch(e) {}
+
+    if (_cfg.enabled) _inject();
+
+    setInterval(async function() {
+        try {
+            var r = await fetch(CONFIG_URL, { credentials: 'include', cache: 'no-store' });
+            if (!r.ok) return;
+            var prev = Object.assign({}, _cfg);
+            Object.assign(_cfg, await r.json());
+            if (_cfg.enabled && !prev.enabled)  { _inject(); return; }
+            if (!_cfg.enabled && prev.enabled)  { _remove(); return; }
+            if (_cfg.enabled && _injected) {
+                _applyPosition();
+                if (_cfg.default_language !== prev.default_language && _cfg.default_language) {
+                    _switchLang(_cfg.default_language);
+                }
+            }
+        } catch(e) {}
+    }, 30000);
+
+    console.log('[Google Translate Bridge] v3.0 ready. enabled=' + _cfg.enabled);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * Language switch via doGTranslate() — Google's internal function.
+ *
+ * Key insight: our CSS actively hides Google's UI elements including the
+ * banner that sets `translated-ltr` on <body>, so body-class verification
+ * is not a reliable signal. We trust doGTranslate() if it doesn't throw.
+ *
+ * Reload-guard: sessionStorage['gt_reloaded'] prevents an infinite reload
+ * loop. If we already reloaded once for a given language this session, we
+ * never reload again — the page is translated via the cookie or we accept
+ * that the widget is unavailable.
+ *
+ * Strategy:
+ *   1. Set googtrans cookie + localStorage immediately.
+ *   2. Poll until doGTranslate() exists (up to ~3 s), then call it.
+ *   3. If doGTranslate never appears AND we haven't reloaded yet this
+ *      session → set reload guard + reload (cookie auto-translates the
+ *      fresh load). Guard prevents second reload.
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+var _switchTimer = null;   /* cancels in-flight waits on new switch call */
+
+/* sessionStorage key used as reload-loop guard */
+var GT_RELOAD_KEY = 'gt_reloaded';
+
+function _getReloadGuard(pw) {
+    try { return pw.sessionStorage.getItem(GT_RELOAD_KEY) || ''; } catch(e) { return 'error'; }
+}
+function _setReloadGuard(pw, code) {
+    try { pw.sessionStorage.setItem(GT_RELOAD_KEY, code); } catch(e) {}
+}
+function _clearReloadGuard(pw) {
+    try { pw.sessionStorage.removeItem(GT_RELOAD_KEY); } catch(e) {}
+}
+
+function _switchLang(code) {
+    var pw = window.parent;
+
+    if (!code || code === 'en') {
+        _resetToEnglish();
+        return;
+    }
+
+    /* Queue if widget not initialised yet — _waitForFn will call us */
+    if (!_gtReady) {
+        _pendingLang = code;
+        return;
+    }
+
+    /* Cancel any previous in-flight wait */
+    if (_switchTimer) { clearTimeout(_switchTimer); _switchTimer = null; }
+
+    /* Persist immediately — cookie ensures reload auto-translates */
+    _setCookie('googtrans', '/en/' + code, pw.document);
+    try { pw.localStorage.setItem('gt_lang', code); } catch(e) {}
+    _updatePillLabel(code);
+
+    /* If we just came back from a guard-reload for this code, Google has
+       already translated via the cookie. Don't call doGTranslate again —
+       just clear the guard and we're done. */
+    if (_getReloadGuard(pw) === code) {
+        _clearReloadGuard(pw);
+        _persistLang(code);
+        return;
+    }
+
+    /* Poll until doGTranslate is callable, then fire it once */
+    var _waitAttempts = 0;
+    (function _waitForFn() {
+        try {
+            if (typeof pw.doGTranslate === 'function') {
+                pw.doGTranslate('en|' + code);
+                _persistLang(code);
+                return;
+            }
+        } catch(e) {}
+
+        if (_waitAttempts++ < 20) {   /* ~3 s total at 150 ms each */
+            _switchTimer = setTimeout(_waitForFn, 150);
+        } else {
+            /* doGTranslate never appeared.
+               Only reload if we haven't already reloaded for this code. */
+            if (_getReloadGuard(pw) !== code) {
+                console.warn('[GT Bridge] doGTranslate unavailable — reloading once.');
+                _setReloadGuard(pw, code);
+                try { pw.location.reload(); } catch(e) {}
+            } else {
+                /* Already reloaded and still no doGTranslate — give up cleanly */
+                console.warn('[GT Bridge] doGTranslate unavailable after reload. Accepting cookie-only translation.');
+                _clearReloadGuard(pw);
+                _persistLang(code);
+            }
+        }
+    })();
+}
+
+function _resetToEnglish() {
+    var pw = window.parent;
+    /* Cancel any in-flight language switch */
+    if (_switchTimer) { clearTimeout(_switchTimer); _switchTimer = null; }
+    /* Clear reload guard so a future language switch can reload if needed */
+    _clearReloadGuard(pw);
+    /* Clear cookies */
+    _setCookie('googtrans', '', pw.document);
+    try { pw.localStorage.removeItem('gt_lang'); } catch(e) {}
+    _updatePillLabel('');
+    _persistLang('');
+    /* Restore original text — Google exposes this via doGTranslate('en|en')
+       or by clicking the banner's restore link. Reload only if neither works. */
+    var restored = false;
+    try {
+        if (typeof pw.doGTranslate === 'function') {
+            pw.doGTranslate('en|en');
+            restored = true;
+        }
+    } catch(e) {}
+    if (!restored) {
+        /* Last resort: reload with cleared cookie restores original */
+        try { pw.location.reload(); } catch(e) {}
+    }
+}
+
+function _setCookie(name, val, doc) {
+    var exp = val ? '; expires=Fri, 31 Dec 9999 23:59:59 GMT' : '; max-age=0';
+    doc.cookie = name + '=' + val + exp + '; path=/';
+    /* Also set on root domain */
+    var parts = doc.location.hostname.split('.');
+    if (parts.length > 1) {
+        var root = parts.slice(-2).join('.');
+        doc.cookie = name + '=' + val + exp + '; path=/; domain=.' + root;
+    }
+}
+
+function _persistLang(code) {
+    _cfg.default_language = code;
+    fetch(CONFIG_URL, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(_cfg),
+    }).catch(function() {});
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * Inject — everything runs once
+ * ══════════════════════════════════════════════════════════════════════════ */
+function _inject() {
+    if (_injected) return;
+    _injected = true;
+
+    var pd = window.parent.document;
+    var pw = window.parent;
+
+    /* ── 1. CSS first — wins the race against Google's body shift ── */
+    if (!pd.getElementById('gt-style')) {
+        var s = pd.createElement('style');
+        s.id  = 'gt-style';
+        s.textContent = _css();
+        pd.head.appendChild(s);
+    }
+
+    /* ── 2. MutationObserver — belt-and-suspenders for dynamic injections ── */
+    _watchGoogle(pd);
+
+    /* ── 3. Hidden anchor div for the Google engine ── */
+    if (!pd.getElementById('gt-anchor')) {
+        var a = pd.createElement('div');
+        a.id  = 'gt-anchor';
+        pd.body.appendChild(a);
+    }
+
+    /* ── 4. Our UI ── */
+    _buildUI(pd, pw);
+
+    /* ── 5. Load Google script ── */
+    pw.googleTranslateElementInit = function() {
+        _gtReady = true;
+        try {
+            new pw.google.translate.TranslateElement({
+                pageLanguage:      'en',
+                includedLanguages: '',
+                layout:            pw.google.translate.TranslateElement.InlineLayout.SIMPLE,
+                autoDisplay:       false,
+                gaTrack:           false,
+            }, 'gt-anchor');
+        } catch(e) {}
+
+        /* Apply saved language — _switchLang handles its own doGTranslate polling */
+        var lang = _cfg.default_language;
+        if (!lang) { try { lang = pw.localStorage.getItem('gt_lang') || ''; } catch(e) {} }
+        var pl = _pendingLang;
+        _pendingLang = null;
+        var target = lang || pl;
+        if (target) _switchLang(target);
+    };
+
+    if (!pd.getElementById('gt-script')) {
+        var sc = pd.createElement('script');
+        sc.id  = 'gt-script';
+        sc.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+        sc.async = true;
+        pd.head.appendChild(sc);
+    } else if (pw.google && pw.google.translate) {
+        pw.googleTranslateElementInit();
+    }
+}
+
+/* ── Build UI ── */
+function _buildUI(pd, pw) {
+    if (pd.getElementById('gt-pill')) return;
+
+    /* ── Pill — injected into the topbar, before #rmd-trigger ── */
+    var pill = pd.createElement('div');
+    pill.id  = 'gt-pill';
+    pill.setAttribute('translate', 'no');
+    pill.className = 'notranslate';
+    pill.title = 'Translate page';
+    pill.innerHTML =
+        '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"'
+        + ' stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">'
+        + '<circle cx="12" cy="12" r="10"/>'
+        + '<line x1="2" y1="12" x2="22" y2="12"/>'
+        + '<path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>'
+        + '</svg>'
+        + '<span id="gt-pill-label" class="notranslate" translate="no">TRANSLATE</span>';
+
+    /* Insert before #rmd-trigger in the topbar */
+    var anchor = pd.getElementById('rmd-trigger')
+               || pd.getElementById('radio-switcher')
+               || pd.getElementById('ws-topbar-group');
+    var topbar = pd.getElementById('topbar') || pd.querySelector('header');
+
+    if (anchor && anchor.parentNode) {
+        anchor.parentNode.insertBefore(pill, anchor);
+    } else if (topbar) {
+        topbar.appendChild(pill);
+    } else {
+        /* Fallback: float on body */
+        pill.style.cssText = 'position:fixed;bottom:44px;right:14px;z-index:2147483640;';
+        pd.body.appendChild(pill);
+    }
+
+    /* ── Dropdown panel — appended to body, positioned via JS ── */
+    var panel = pd.createElement('div');
+    panel.id  = 'gt-panel';
+    panel.setAttribute('translate', 'no');
+    panel.className = 'notranslate';
+
+    panel.innerHTML =
+        '<div id="gt-panel-head">'
+        +   '<span id="gt-panel-title" class="notranslate">TRANSLATE PAGE</span>'
+        + '</div>'
+        + '<div id="gt-current-row">'
+        +   '<span id="gt-current-ico" class="notranslate">◈</span>'
+        +   '<span id="gt-current-txt" class="notranslate" translate="no">English — Original</span>'
+        + '</div>'
+        + '<button id="gt-reset-btn" class="notranslate" translate="no">↺ Reset to English (original)</button>'
+        + '<div id="gt-search-row">'
+        +   '<span id="gt-search-ico" class="notranslate">⌕</span>'
+        +   '<input id="gt-search" type="text" placeholder="Search language…" autocomplete="off">'
+        + '</div>'
+        + '<div id="gt-lang-list"></div>';
+
+    pd.body.appendChild(panel);
+
+    var listEl   = panel.querySelector('#gt-lang-list');
+    var searchEl = panel.querySelector('#gt-search');
+
+    function _render(filter) {
+        listEl.innerHTML = '';
+        var lo = (filter || '').toLowerCase();
+        LANGS.filter(function(l) {
+            return !lo || l[1].toLowerCase().includes(lo) || l[0].toLowerCase().includes(lo);
+        }).forEach(function(l) {
+            var btn = pd.createElement('button');
+            btn.className    = 'gt-lb notranslate';
+            btn.dataset.code = l[0];
+            btn.setAttribute('translate', 'no');
+            btn.innerHTML = '<span class="gt-lcode notranslate" translate="no">' + l[0] + '</span>'
+                          + '<span class="gt-lname notranslate" translate="no">' + l[1] + '</span>';
+            if (l[0] === _cfg.default_language) btn.classList.add('gt-la');
+            btn.addEventListener('click', function() {
+                _switchLang(l[0]);
+                listEl.querySelectorAll('.gt-lb').forEach(function(b) {
+                    b.classList.toggle('gt-la', b.dataset.code === l[0]);
+                });
+                _closePanel();
+            });
+            listEl.appendChild(btn);
+        });
+    }
+    _render('');
+    searchEl.addEventListener('input', function() { _render(searchEl.value); });
+
+    /* ── Toggle open/close ── */
+    var _open = false;
+    function _openPanel() {
+        _open = true;
+        _applyPosition();   /* recalculate every open in case topbar reflowed */
+        panel.classList.add('gt-open');
+        pill.classList.add('gt-active');
+        searchEl.value = '';
+        _render('');
+        setTimeout(function() { try { searchEl.focus(); } catch(e){} }, 80);
+    }
+    function _closePanel() {
+        _open = false;
+        panel.classList.remove('gt-open');
+        pill.classList.remove('gt-active');
+    }
+
+    pill.addEventListener('click', function() { _open ? _closePanel() : _openPanel(); });
+
+    panel.querySelector('#gt-reset-btn').addEventListener('click', function() {
+        listEl.querySelectorAll('.gt-lb').forEach(function(b) { b.classList.remove('gt-la'); });
+        _resetToEnglish();
+        _closePanel();
+    });
+
+    /* Close on outside click */
+    pd.addEventListener('click', function(e) {
+        if (_open && !panel.contains(e.target) && !pill.contains(e.target)) {
+            _closePanel();
+        }
+    }, true);
+
+    /* Initial panel position */
+    _applyPosition();
+}
+
+/* ── Update pill label ── */
+function _updatePillLabel(code) {
+    try {
+        var pd  = window.parent.document;
+        var lbl = pd.getElementById('gt-pill-label');
+        var cur = pd.getElementById('gt-current-txt');
+        var ico = pd.getElementById('gt-current-ico');
+        var pil = pd.getElementById('gt-pill');
+        if (!lbl) return;
+        if (!code || code === 'en') {
+            lbl.textContent = 'TRANSLATE';
+            lbl.setAttribute('translate', 'no');
+            if (cur) { cur.textContent = 'English — Original'; cur.setAttribute('translate', 'no'); }
+            if (pil) pil.classList.remove('gt-translated');
+        } else {
+            var found = LANGS.find(function(l) { return l[0] === code; });
+            var name  = found ? found[1] : code.toUpperCase();
+            lbl.textContent = name.split(' ')[0].toUpperCase();
+            lbl.setAttribute('translate', 'no');
+            if (cur) { cur.textContent = name; cur.setAttribute('translate', 'no'); }
+            if (ico) ico.textContent = '✓';
+            if (pil) pil.classList.add('gt-translated');
+        }
+    } catch(e) {}
+}
+
+/* ── MutationObserver — hide everything Google tries to show ── */
+function _watchGoogle(pd) {
+    function _hide(node) {
+        if (!node || node.nodeType !== 1) return;
+        var cls = String(node.className || '');
+        var id  = String(node.id || '');
+        var tag = (node.tagName || '').toUpperCase();
+        var src = (node.getAttribute && node.getAttribute('src')) || '';
+
+        // Any iframe Google injects at body level
+        if (tag === 'IFRAME' && (
+            src === '#' ||
+            id.includes('.container') ||
+            cls.includes('goog-te') ||
+            cls.includes('skiptranslate') ||
+            cls.includes('VIpgJd')
+        )) {
+            node.style.setProperty('display', 'none', 'important');
+            node.style.setProperty('visibility', 'hidden', 'important');
+            return;
+        }
+        // Any div/span Google injects at body level (gadget, spinner, balloon, tooltip)
+        if (cls.includes('goog-te') || cls.includes('VIpgJd') ||
+            id === 'goog-gt-tt' || cls.includes('skiptranslate')) {
+            // Don't hide our own anchor
+            if (id === 'gt-anchor' || id === 'gt-style') return;
+            node.style.setProperty('display', 'none', 'important');
+        }
+    }
+
+    var obs = new (window.parent.MutationObserver)(function(mutations) {
+        mutations.forEach(function(m) {
+            m.addedNodes.forEach(_hide);
+            if (m.type === 'attributes' && m.target) {
+                // Google shifts body.style.top — immediately reset
+                if (m.target === pd.body && m.attributeName === 'style') {
+                    if (pd.body.style.top && pd.body.style.top !== '0px') {
+                        pd.body.style.setProperty('top', '0px', 'important');
+                    }
+                }
+                _hide(m.target);
+            }
+        });
+    });
+
+    obs.observe(pd.documentElement, {
+        childList:       true,
+        subtree:         true,
+        attributes:      true,
+        attributeFilter: ['style', 'class', 'src'],
+    });
+
+    // Nuke anything already present
+    pd.querySelectorAll(
+        'iframe.skiptranslate, .goog-te-banner-frame, #goog-gt-tt, ' +
+        '.goog-te-balloon-frame, .goog-te-spinner-pos, .VIpgJd-ZVi9od-ORHb-OEVmcd'
+    ).forEach(_hide);
+}
+
+/* ── Position — pill lives in topbar, panel anchors to it ── */
+function _applyPosition() {
+    var pd  = window.parent.document;
+    var pnl = pd.getElementById('gt-panel');
+    var pil = pd.getElementById('gt-pill');
+    if (!pnl || !pil) return;
+    /* Panel drops below the pill using its bounding rect */
+    var rect = pil.getBoundingClientRect();
+    pnl.style.top   = (rect.bottom + 6) + 'px';
+    /* Align panel right edge to pill right edge, clamp to viewport */
+    var panelW = 272;
+    var right  = window.parent.innerWidth - rect.right;
+    pnl.style.right = Math.max(4, right) + 'px';
+    pnl.style.left  = 'auto';
+    pnl.style.bottom = 'auto';
+}
+
+/* ── Remove ── */
+function _remove() {
+    _injected = false;
+    var pd = window.parent.document;
+    ['gt-pill','gt-panel','gt-style','gt-script','gt-anchor'].forEach(function(id) {
+        var el = pd.getElementById(id);
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+    try { delete window.parent.googleTranslateElementInit; } catch(e) {}
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * CSS — injected into parent <head> BEFORE the Google script loads.
+ * Using !important everywhere so these rules win over Google's inline styles.
+ * ══════════════════════════════════════════════════════════════════════════ */
+function _css() { return `
+/* ── Nuclear suppression of all Google Translate UI ── */
+/* Exempt our own UI from translation entirely */
+#gt-pill, #gt-panel, .notranslate { translate: no; }
+
+/* body shift — set BEFORE script loads so it never jumps */
+html, body { top: 0 !important; margin-top: 0 !important; }
+body.translated-ltr, body.translated-rtl { top: 0 !important; }
+
+/* Banner iframe */
+.goog-te-banner-frame,
+.skiptranslate.goog-te-banner-frame,
+iframe.skiptranslate { display: none !important; visibility: hidden !important; }
+
+/* Tooltip balloon iframes (id pattern :N.container) */
+iframe[src="#"] { display: none !important; visibility: hidden !important; }
+
+/* All Google gadget containers */
+.goog-te-gadget { display: none !important; }
+
+/* Tooltip div */
+#goog-gt-tt { display: none !important; }
+
+/* Balloon frame */
+.goog-te-balloon-frame { display: none !important; }
+
+/* Spinner / attribution logo */
+.goog-te-spinner-pos,
+.goog-te-spinner-animation,
+.goog-logo-link,
+.goog-te-gadget-icon { display: none !important; }
+
+/* VIpgJd obfuscated classes (tooltip wrapper) */
+.VIpgJd-ZVi9od-ORHb-OEVmcd,
+.VIpgJd-ZVi9od-xl07Ob-OEVmcd,
+[class*="VIpgJd-ZVi9od"] { display: none !important; }
+
+/* Our hidden anchor */
+#gt-anchor {
+  display: none !important;
+  width: 0; height: 0;
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* ── Pill — inline topbar element, matches other topbar controls ── */
+#gt-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 7px;
+  background: var(--bg2, var(--bg2));
+  border: 1px solid var(--bd2, var(--bd2));
+  border-radius: 5px;
+  font-family: var(--mono, "Fira Code", monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: var(--txt3, var(--txt3));
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-right: 6px;
+  transition: border-color .15s, color .15s;
+  position: relative;
+}
+#gt-pill svg { flex-shrink: 0; color: var(--txt3, var(--txt3)); transition: color .15s; }
+#gt-pill:hover,
+#gt-pill.gt-active {
+  border-color: var(--acc, var(--acc));
+  color: var(--acc, var(--acc));
+}
+#gt-pill:hover svg,
+#gt-pill.gt-active svg { color: var(--acc, var(--acc)); }
+#gt-pill.gt-translated {
+  border-color: var(--ok, var(--ok));
+  color: var(--ok, var(--ok));
+  background: rgba(0,232,122,.06);
+}
+#gt-pill.gt-translated svg { color: var(--ok, var(--ok)); }
+
+/* ── Dropdown panel — positioned by JS relative to pill ── */
+#gt-panel {
+  position: fixed;
+  z-index: 2147483647;
+  width: 272px;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+  background: rgba(8,14,24,0.97);
+  border: 1px solid var(--bd2);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.85);
+  backdrop-filter: blur(14px);
+  font-family: "Fira Code", monospace;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(6px) scale(.97);
+  pointer-events: none;
+  transition: opacity .13s, transform .13s;
+}
+#gt-panel.gt-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+#gt-panel-head {
+  padding: 9px 12px 7px;
+  border-bottom: 1px solid var(--bd2);
+  flex-shrink: 0;
+}
+#gt-panel-title {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: var(--txt);
+}
+
+#gt-current-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  flex-shrink: 0;
+  background: rgba(0,200,245,.04);
+}
+#gt-current-ico {
+  color: var(--acc);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+#gt-current-txt {
+  font-size: 10px;
+  color: var(--acc);
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+
+/* Reset button */
+#gt-reset-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  color: var(--txt3);
+  padding: 7px 12px;
+  font-family: inherit;
+  font-size: 9px;
+  letter-spacing: .5px;
+  cursor: pointer;
+  text-align: left;
+  transition: background .1s, color .1s;
+  flex-shrink: 0;
+}
+#gt-reset-btn:hover {
+  background: rgba(255,168,38,.06);
+  color: var(--warn);
+}
+
+#gt-search-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  flex-shrink: 0;
+}
+#gt-search-ico { color: var(--txt3); font-size: 13px; flex-shrink: 0; }
+#gt-search {
+  flex: 1;
+  background: rgba(255,255,255,.04);
+  border: 1px solid var(--bd2);
+  color: var(--txt);
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 10px;
+  outline: none;
+  transition: border-color .12s;
+}
+#gt-search:focus { border-color: var(--acc); }
+#gt-search::placeholder { color: var(--txt3); }
+
+#gt-lang-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 3px 0;
+}
+#gt-lang-list::-webkit-scrollbar { width: 3px; }
+#gt-lang-list::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 2px; }
+#gt-lang-list::-webkit-scrollbar-thumb:hover { background: var(--acc); }
+
+.gt-lb {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background: none;
+  border: none;
+  color: var(--txt2);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 10px;
+  text-align: left;
+  transition: background .08s, color .08s;
+}
+.gt-lb:hover { background: rgba(0,200,245,.07); color: var(--txt); }
+.gt-lb.gt-la  { background: rgba(0,200,245,.1); color: var(--acc); }
+.gt-lcode {
+  font-size: 8px;
+  color: var(--txt3);
+  min-width: 26px;
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+.gt-lb.gt-la .gt-lcode { color: var(--acc); }
+.gt-lname { flex: 1; }
+`; }
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "id": "auto_responder",
+  "name": "Auto-Responder",
+  "version": "1.0.2",
+  "author": "MeshDash",
+  "description": "Automatically replies to incoming Direct Messages. Includes an anti-spam cooldown to prevent infinite reply loops.",
+  "entry_point": "main.py",
+  "watchdog": true,
+  "router_prefix": "/api/plugins/auto_responder",
+  "static_prefix": "/static/plugins/auto_responder",
+  "nav_menu": [
+    {
+      "label": "Auto-Responder",
+      "icon": "fa-reply-all",
+      "href": "/plugin/auto_responder/index.html"
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+<style>
+    .iot-step-box { background: var(--bg2); border: 1px solid var(--bd2); border-radius: var(--r); padding: 16px; margin-bottom: 16px; transition: all 0.3s; }
+    .iot-step-box.disabled { opacity: 0.4; pointer-events: none; filter: grayscale(100%); }
+    .iot-step-head { font-family: var(--mono); font-size: 10px; color: var(--acc); font-weight: bold; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    
+    .iot-block-card { background: var(--bg); border: 1px solid var(--bd); border-radius: 4px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; font-family: var(--mono); }
+    .iot-block-card:hover { border-color: var(--acc); }
+    .iot-block-card.selected { background: rgba(0, 200, 245, 0.1); border-color: var(--acc); border-left: 4px solid var(--acc); }
+    .iot-block-meta { font-size: 9px; color: var(--txt3); margin-top: 8px; display: flex; gap: 12px; }
+    .iot-block-text { font-size: 11px; color: var(--txt); line-height: 1.5; max-height: 60px; overflow: hidden; text-overflow: ellipsis; }
+
+    .iot-summary-box { background: rgba(0,0,0,0.3); border: 1px dashed var(--bd); padding: 12px; border-radius: 4px; font-family: var(--mono); font-size: 10px; color: var(--txt2); margin-bottom: 16px; }
+    .iot-summary-val { color: var(--ok); font-weight: bold; }
+</style>
+
+<div class="vs" style="height: calc(100vh - 90px); height: calc(100dvh - 90px); display: flex; flex-direction: column;">
+    <div style="display: grid; grid-template-columns: 280px 1fr 300px; gap: 16px; flex: 1; overflow: hidden;">
+        
+        <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
+            <div class="ch"><span class="ct">◉ RF DESTINATION</span></div>
+            <div class="sidebar-search" style="padding: 10px; border-bottom: 1px solid var(--bd);">
+                <input type="text" id="iot-filter" class="inp mono" placeholder="Filter ID/Name..." style="font-size: 11px;">
+            </div>
+            <div id="iot-node-list" style="flex: 1; overflow-y: auto; background: var(--bg);">
+                <div style="padding:20px; text-align:center; color:var(--txt3); font-family:var(--mono); font-size:10px;">SCANNING MESH...</div>
+            </div>
+        </div>
+
+        <div class="card" style="display: flex; flex-direction: column; overflow-y: auto; border-color: var(--acc); padding-right:4px;">
+            <div class="ch"><span class="ct">⬡ WEB TELEMETRY INGRESS</span></div>
+            <div class="cb" style="padding: 16px;">
+                
+                <div id="iot-no-node" style="text-align:center; padding:60px 20px; color:var(--txt3); font-family:var(--mono);">
+                    <i class="fas fa-satellite-dish fa-3x" style="margin-bottom:16px; opacity:0.5;"></i><br>
+                    [ SELECT A DESTINATION NODE FROM THE SIDEBAR TO BEGIN ]
+                </div>
+
+                <div id="iot-wizard" style="display:none;">
+                    
+                    <div class="iot-step-box" id="iot-step-1">
+                        <div class="iot-step-head"><i class="fas fa-globe"></i> PHASE 1: TARGET ACQUISITION</div>
+                        <div style="display:flex; gap:8px;">
+                            <input type="url" id="iot-url" class="inp mono" placeholder="https://weather.example.com/data" style="flex:1;">
+                            <button id="btn-iot-fetch" class="btn btn-acc">PARSE DOM</button>
+                        </div>
+                    </div>
+
+                    <div class="iot-step-box disabled" id="iot-step-2">
+                        <div class="iot-step-head" style="justify-content:space-between;">
+                            <span><i class="fas fa-code"></i> PHASE 2: PAYLOAD EXTRACTION</span>
+                            <input type="text" id="iot-block-search" class="inp mono" placeholder="Filter payload text..." style="max-width:150px;width:100%;font-size:9px;padding:4px;">
+                        </div>
+                        <div id="iot-blocks-container" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"></div>
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <button id="btn-iot-prev" class="btn btn-sm" disabled>← PREV</button>
+                            <span id="iot-page-info" style="font-family:var(--mono); font-size:9px; color:var(--txt3);">PAGE 1</span>
+                            <button id="btn-iot-next" class="btn btn-sm" disabled>NEXT →</button>
+                        </div>
+                    </div>
+
+                    <div class="iot-step-box disabled" id="iot-step-3">
+                        <div class="iot-step-head"><i class="fas fa-broadcast-tower"></i> PHASE 3: RF TRANSMISSION & AUTOMATION</div>
+                        
+                        <div class="iot-summary-box">
+                            <div><strong>PAYLOAD:</strong> <span class="iot-summary-val" id="iot-sum-payload">None</span></div>
+                            <div style="margin-top:4px;"><strong>DESTINATION:</strong> <span class="iot-summary-val" id="iot-sum-node">None</span></div>
+                        </div>
+
+                        <div class="g2" style="margin-bottom:16px;">
+                            <div>
+                                <label style="font-size:9px; color:var(--txt3); font-family:var(--mono); display:block; margin-bottom:4px;">SENSOR LABEL (PREFIX)</label>
+                                <input type="text" id="iot-prefix" class="inp mono" placeholder="e.g. Tank Level:" required>
+                            </div>
+                            <div>
+                                <label style="font-size:9px; color:var(--txt3); font-family:var(--mono); display:block; margin-bottom:4px;">MESH CHANNEL</label>
+                                <input type="number" id="iot-channel" class="inp mono" value="0" min="0" max="7" required>
+                            </div>
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--bd);">
+                            <span style="font-family:var(--mono); font-size:10px; color:var(--txt2);">Trigger manual one-time transmission:</span>
+                            <button id="btn-iot-transmit" class="btn btn-acc"><i class="fas fa-paper-plane"></i> TRANSMIT NOW</button>
+                        </div>
+
+                        <div style="font-family:var(--mono); font-size:10px; color:var(--acc); margin-bottom:12px; font-weight:bold;">AUTOMATED CRON DIRECTIVE</div>
+                        
+                        <div class="g3" style="margin-bottom:12px;">
+                            <div>
+                                <label style="font-size:9px; color:var(--txt3); font-family:var(--mono); display:block; margin-bottom:4px;">SCHEDULE</label>
+                                <select id="iot-cron-type" class="inp mono">
+                                    <option value="once">Run Once</option>
+                                    <option value="daily">Daily</option>
+                                    <option value="hourly">Every Hour</option>
+                                </select>
+                            </div>
+                            <div id="iot-cron-time-wrap">
+                                <label style="font-size:9px; color:var(--txt3); font-family:var(--mono); display:block; margin-bottom:4px;">TIME / DATE</label>
+                                <input type="datetime-local" id="iot-cron-time" class="inp mono">
+                            </div>
+                        </div>
+
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <div style="font-family:var(--mono); font-size:9px; color:var(--txt3);">
+                                CRONTAB: <span id="iot-cron-preview" style="color:var(--warn); font-weight:bold;">* * * * *</span>
+                            </div>
+                            <button id="btn-iot-schedule" class="btn btn-primary"><i class="fas fa-calendar-plus"></i> DEPLOY TASK</button>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="display: flex; flex-direction: column;">
+            <div class="ch"><span class="ct">ℹ️ SYSTEM MANUAL</span></div>
+            <div class="cb" style="font-size: 11px; line-height: 1.6; color: var(--txt2);">
+                <h4 style="color:var(--acc); margin-top:0; font-family:var(--mono); letter-spacing:1px;">WEB-TO-RF BRIDGE</h4>
+                <p>This module allows you to extract numeric or text data from external websites and broadcast it across the Meshtastic network.</p>
+                
+                <h4 style="color:var(--txt); margin-bottom:4px; font-family:var(--mono);">1. ACQUISITION</h4>
+                <p style="margin-top:0;">Provide a public HTTP/HTTPS URL. The backend will fetch the DOM and segment it into readable data blocks.</p>
+
+                <h4 style="color:var(--txt); margin-bottom:4px; font-family:var(--mono);">2. EXTRACTION</h4>
+                <p style="margin-top:0;">Filter the returned blocks to isolate the specific text you wish to monitor (e.g., a temperature reading or server status).</p>
+
+                <h4 style="color:var(--txt); margin-bottom:4px; font-family:var(--mono);">3. DEPLOYMENT</h4>
+                <p style="margin-top:0;">You can fire the payload immediately over the radio, or deploy an automated Cron task to have the server re-scrape the URL and broadcast the updated value on a schedule.</p>
+            </div>
+        </div>
+
+    </div>
+</div>

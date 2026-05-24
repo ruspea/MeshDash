@@ -1,0 +1,18 @@
+{
+  "id": "weather",
+  "name": "Weather Plugin",
+  "version": "1.0.3",
+  "author": "MeshDash",
+  "description": "Fetch current weather from Open\u2011Meteo and broadcast to the mesh",
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/weather",
+  "static_prefix": "/static/plugins/weather",
+  "watchdog": true,
+  "nav_menu": [
+    {
+      "label": "Weather",
+      "icon": "fa-cloud-sun",
+      "href": "/plugin/weather/index.html"
+    }
+  ]
+}
