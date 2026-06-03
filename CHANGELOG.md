@@ -5,6 +5,7 @@
 - **`shutil.copytree` FileExistsError**: Backup copy now uses `dirs_exist_ok=True` to handle partial backup dirs from previous failed attempts.
 - **web_telemetry plugin crash**: Added missing `import asyncio` that caused `NameError` on startup.
 - **macOS venv Python version**: Self-heal now prefers `sys.executable` over `/usr/bin/python3` when running Python 3.10+, fixing the `anyio==4.13.0` incompatibility on macOS.
+- **Weather plugin daily/weekly schedules**: User-entered hour/minute was treated as UTC instead of being converted from local time. One-time schedules worked because `datetime-local` inputs go through `Date` (which handles timezone), but daily/weekly just passed raw numbers. Fixed: frontend now converts local time → UTC before sending to backend, and display converts UTC → local with a "(UTC HH:MM)" note when different. Users with existing daily schedules should recreate them.
 
 # MeshDash R3.1.1
 

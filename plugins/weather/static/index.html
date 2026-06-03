@@ -525,8 +525,8 @@ select option{background:var(--bg1);}
             <!-- Daily / Weekly time -->
             <div id="sf-time-section">
                 <div class="time-row" style="margin-top:8px;">
-                    <div><label for="sf-hour">Hour (0–23)</label><input type="number" id="sf-hour" min="0" max="23" value="8" placeholder="8"></div>
-                    <div><label for="sf-minute">Minute</label><input type="number" id="sf-minute" min="0" max="59" value="0" placeholder="0"></div>
+                    <div><label for="sf-hour">Hour (0–23, your local time)</label><input type="number" id="sf-hour" min="0" max="23" value="8" placeholder="8"></div>
+                    <div><label for="sf-minute">Minute (your local time)</label><input type="number" id="sf-minute" min="0" max="59" value="0" placeholder="0"></div>
                 </div>
                 <div id="sf-days-wrap" style="display:none;">
                     <label>Days</label>
@@ -1025,8 +1025,12 @@ async function createSchedule(){
     };
 
     if (sfSType==='daily'||sfSType==='weekly'){
-        body.hour=parseInt(document.getElementById('sf-hour').value)||0;
-        body.minute=parseInt(document.getElementById('sf-minute').value)||0;
+        // User enters their local time — convert to UTC for the scheduler
+        const localH=parseInt(document.getElementById('sf-hour').value)||0;
+        const localM=parseInt(document.getElementById('sf-minute').value)||0;
+        const utcDate=new Date();utcDate.setHours(localH,localM,0,0);
+        body.hour=utcDate.getUTCHours();
+        body.minute=utcDate.getUTCMinutes();
         if (sfSType==='weekly'){
             body.days=getSelectedDays();
             if (!body.days.length){showToast('Select at least one day','err');return;}
@@ -1092,14 +1096,24 @@ function renderSchedules(schedules){
             : `<i class="fas fa-broadcast-tower"></i> Ch ${s.channel}`;
         const unitsLabel = s.units === 'imperial' ? '°F/mph' : '°C/km/h';
 
-        // Schedule display
+        // Schedule display — convert UTC back to local time for readability
         let schedText='';
-        if (s.sched_type==='daily'){
-            schedText=`<i class="fas fa-clock"></i> Daily ${String(s.hour).padStart(2,'0')}:${String(s.minute).padStart(2,'0')} UTC`;
-        } else if (s.sched_type==='weekly'){
-            const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-            const dayStr=(s.days||[]).map(d=>dayNames[d]).join(', ');
-            schedText=`<i class="fas fa-calendar-week"></i> ${dayStr} ${String(s.hour).padStart(2,'0')}:${String(s.minute).padStart(2,'0')} UTC`;
+        if (s.sched_type==='daily'||s.sched_type==='weekly'){
+            // Convert stored UTC hour/minute to local for display
+            const localDate=new Date();localDate.setUTCHours(s.hour,s.minute,0,0);
+            const localH=String(localDate.getHours()).padStart(2,'0');
+            const localM=String(localDate.getMinutes()).padStart(2,'0');
+            const utcH=String(s.hour).padStart(2,'0');
+            const utcM=String(s.minute).padStart(2,'0');
+            // Show local time with UTC in parentheses if different
+            const tzNote=(localH!==utcH||localM!==utcM)?` (UTC ${utcH}:${utcM})`:` (UTC)`;
+            if (s.sched_type==='daily'){
+                schedText=`<i class="fas fa-clock"></i> Daily ${localH}:${localM}${tzNote}`;
+            } else {
+                const dayNames=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+                const dayStr=(s.days||[]).map(d=>dayNames[d]).join(', ');
+                schedText=`<i class="fas fa-calendar-week"></i> ${dayStr} ${localH}:${localM}${tzNote}`;
+            }
         } else {
             const dt=s.run_at?new Date(s.run_at*1000).toLocaleString():'–';
             schedText=`<i class="fas fa-bolt"></i> ${dt}`;
