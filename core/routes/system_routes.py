@@ -341,6 +341,12 @@ def _parse_version_number(v_str) -> tuple:
 
 @router.get("/system/version-status")
 async def get_version_status(notify: bool = False):
+    """Check for updates and ping the heartbeat server.
+
+    Always queries the heartbeat API regardless of whether a node is connected.
+    Sends the dashboard version and (if available) node_id so the C2 server
+    knows this dash is online and what version it's running.
+    """
     g = _get_globals()
     meshtastic_data = g["meshtastic_data"]
     COMMUNITY_API_KEY = g["COMMUNITY_API_KEY"]
@@ -351,23 +357,32 @@ async def get_version_status(notify: bool = False):
     status = "current"
     _node_id = meshtastic_data.local_node_id
 
-    if not _node_id:
-        return {"local": local_ver, "remote": remote_ver, "status": "current"}
+    # Always query the heartbeat server — version check and online ping
+    # should work even without a connected node.
+    params = {
+        "view": "version",
+        "action": "check",
+        "dashboard_version": local_ver,
+    }
+    headers = {
+        "User-Agent": f"MeshDash-Backend/{local_ver}",
+        "X-Dashboard-Version": local_ver,
+    }
+    if _node_id:
+        params["node_id"] = _node_id
+        headers["X-Api-Key"] = COMMUNITY_API_KEY
+        headers["X-Node-Id"] = _node_id
 
-    target_url = (
-        f"{_resolve_heartbeat()}?view=version&action=check"
-        f"&node_id={_node_id}"
-    )
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            resp = await client.get(target_url, headers={"X-Api-Key": COMMUNITY_API_KEY, "X-Node-Id": _node_id, "User-Agent": "MeshDash-Backend"})
+            resp = await client.get(_resolve_heartbeat(), params=params, headers=headers)
             if resp.status_code == 200:
                 data = resp.json()
                 remote_ver = data.get("version", local_ver)
             else:
-                logging.getLogger("meshtastic_dashboard").warning(f"Version check: HTTP {resp.status_code} from {target_url}")
+                logging.getLogger("meshtastic_dashboard").warning(f"Version check: HTTP {resp.status_code} from {_resolve_heartbeat()}")
     except Exception as e:
-        logging.getLogger("meshtastic_dashboard").warning(f"Version check exception: {e} (url={target_url})")
+        logging.getLogger("meshtastic_dashboard").warning(f"Version check exception: {e}")
         if notify:
             try:
                 import asyncio
@@ -437,11 +452,26 @@ async def start_update_process(request: Request, user: User = Depends(verify_csr
 
     app = g["app"]
     local_ver = getattr(app, 'version', '0.0.0')
+    _node_id = meshtastic_data.local_node_id
 
-    target_url = f"{_resolve_heartbeat()}?view=version&action=check&node_id={meshtastic_data.local_node_id}"
+    # Always query for updates — don't gate on node_id
+    params = {
+        "view": "version",
+        "action": "check",
+        "dashboard_version": local_ver,
+    }
+    headers = {
+        "User-Agent": f"MeshDash-Backend/{local_ver}",
+        "X-Dashboard-Version": local_ver,
+    }
+    if _node_id:
+        params["node_id"] = _node_id
+        headers["X-Api-Key"] = COMMUNITY_API_KEY
+        headers["X-Node-Id"] = _node_id
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(target_url, headers={"X-Api-Key": COMMUNITY_API_KEY, "X-Node-Id": meshtastic_data.local_node_id or "", "User-Agent": "MeshDash-Backend"})
+            resp = await client.get(_resolve_heartbeat(), params=params, headers=headers)
             if resp.status_code != 200:
                 raise HTTPException(502, "Update server returned error")
             data = resp.json()

@@ -1,3 +1,10 @@
+# MeshDash R3.1.3
+
+## Bug Fixes
+- **Version check without node**: The heartbeat/version check no longer requires a connected node (local_node_id) to work. Any running dashboard will always check for updates and report its version to the C2 server, even if no radio is connected. Previously, MQTT/WebSerial setups with invalid or missing node IDs would silently report "current" and never check for updates.
+- **MQTT_NODE_ID hex parsing**: Non-hex MQTT node IDs (like `!md3989820`) no longer silently discard the node identity. The raw ID string is preserved as a fallback so `local_node_id` always gets set when MQTT_NODE_ID is configured.
+- **Dashboard heartbeat ping**: The version check now sends `dashboard_version` and `X-Dashboard-Version` headers to the server, so the C2 backend knows which dashboards are online and what version they're running — even without a node connected.
+
 # MeshDash R3.1.2
 
 ## Bug Fixes

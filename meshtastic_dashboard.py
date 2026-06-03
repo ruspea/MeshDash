@@ -16,21 +16,6 @@ def _md_r3_bootstrap():
     if os.path.exists("data/.r3_bootstrap_done"):
         return
 
-    # ── Break restart loops immediately: write marker before any risky ops ──
-    os.makedirs("data", exist_ok=True)
-    with open("data/.r3_bootstrap_done", "w") as _f:
-        _f.write("started (marker set early to prevent restart loop)")
-    print("  [loop-guard] Bootstrap marker set before migration — restart loop prevented", flush=True)
-
-    # ── Clean up stale backup dirs from previous failed self-heal attempts ──
-    for _item in os.listdir("."):
-        if _item.startswith("mesh-dash_backup_") and os.path.isdir(_item):
-            try:
-                shutil.rmtree(_item)
-                print(f"  [clean] Removed stale backup dir: {_item}", flush=True)
-            except Exception as _e:
-                print(f"  [warn] Could not remove stale backup dir {_item}: {_e}", flush=True)
-
     print("=" * 60, flush=True)
     print("  R3.0 SELF-HEAL: dirty R2.x overlay detected", flush=True)
     print("  This boot will: backup → migrate → rebuild-venv → restart", flush=True)
@@ -43,13 +28,13 @@ def _md_r3_bootstrap():
 
     try:
         print(f"  [backup] Full backup → {backup_dir}", flush=True)
-        os.makedirs(backup_data, exist_ok=True)
+        os.makedirs(backup_data)
         for item in sorted(os.listdir(".")):
             if item in ("mesh-dash_venv", ".git", "__pycache__", backup_dir) or item.startswith("mesh-dash_backup_"):
                 continue
             src = os.path.join(".", item); dst = os.path.join(backup_dir, item)
             try:
-                if os.path.isdir(src): shutil.copytree(src, dst, dirs_exist_ok=True)
+                if os.path.isdir(src): shutil.copytree(src, dst)
                 else: shutil.copy2(src, dst)
             except Exception as e:
                 print(f"    [warn] backup {item}: {e}", flush=True)
@@ -209,10 +194,6 @@ def _md_r3_bootstrap():
             system_python = "/usr/bin/python3"
             if not os.path.exists(system_python):
                 system_python = sys.executable  # fallback
-            # On macOS, /usr/bin/python3 is often 3.9 which is too old.
-            # Prefer the current interpreter if it's 3.10+.
-            if sys.version_info >= (3, 10):
-                system_python = sys.executable
 
             if os.path.exists(new_venv):
                 shutil.rmtree(new_venv)
@@ -255,28 +236,23 @@ def _md_r3_bootstrap():
         print("  [restart] Restarting with: " + new_python, flush=True)
         os.execv(new_python, [new_python] + sys.argv[1:])
 
-    except OSError as e:
-        # Catches PermissionError, FileExistsError, and other I/O errors
-        print(f"  [warn] SELF-HEAL: I/O error during migration: {e}", flush=True)
-        print(f"  [info] Bootstrap marker already set — skipping self-heal. Dashboard will start normally.", flush=True)
-        # Marker was written early (loop-guard above), so no restart loop.
-        # Clean up partial backup if it exists.
-        if os.path.exists(backup_dir):
-            try:
-                shutil.rmtree(backup_dir)
-                print(f"  [clean] Removed partial backup: {backup_dir}", flush=True)
-            except Exception:
-                pass
+    except PermissionError:
+        print(f"  [warn] SELF-HEAL: cannot write backup (PermissionError) — likely volume-mounted data/ dir", flush=True)
+        print(f"  [info] Skipping self-heal. Touching bootstrap marker to prevent restart loop.", flush=True)
+        try:
+            os.makedirs("data", exist_ok=True)
+            with open("data/.r3_bootstrap_done", "w") as f:
+                f.write("skipped (PermissionError on backup dir creation)\n")
+            print(f"  [ok] Bootstrap marker set. Starting normally.", flush=True)
+        except Exception:
+            pass  # absolutely nothing we can do here — let it try
         sys.exit(0)
 
     except Exception as e:
         print(f"  [err] Self-heal FAILED: {e}", flush=True)
-        print(f"  [info] Bootstrap marker already set — restart loop prevented.", flush=True)
         print(f"  [backup] Backup preserved at: {backup_dir}", flush=True)
         print(f"  Manual recovery: mv {backup_dir}/* . && rebuild venv", flush=True)
-        # Don't sys.exit(1) — that causes Docker restart loops.
-        # Marker is already set, so dashboard will start normally on next boot.
-        sys.exit(0)
+        sys.exit(1)
 
 _md_r3_bootstrap()
 del _md_r3_bootstrap
@@ -1305,7 +1281,7 @@ _LOCKOUT_SECONDS = 300
 # ── FastAPI App ──
 app = FastAPI(
     title="Mesh Dash — Meshtastic Dashboard",
-    version="R3.1.2",
+    version="R3.1.3",
     description="Monitor, manage, and automate your Meshtastic mesh network. Multi-radio dashboard with plugin system, C2 bridge, and real-time mesh analytics.",
     docs_url="/docs",
     redoc_url="/redoc",

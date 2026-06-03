@@ -463,6 +463,7 @@ class MQTTConnectionManager:
         self._reconnect_delay: float = self.RECONNECT_DELAY_MIN
         self._last_msg_time:   float = 0.0
         self._from_node_num:   int   = 0
+        self._raw_mqtt_node_id: Optional[str] = None
         self._state: ConnectionState = ConnectionState.IDLE
 
         self.config: Dict[str, Any] = {
@@ -494,7 +495,9 @@ class MQTTConnectionManager:
             try:
                 self._from_node_num = int(node_id_str[1:], 16)
             except ValueError:
-                pass
+                # Non-hex node ID — store as-is so local_node_id still gets set
+                # (e.g. "!md3989820" from Meshtastic's base-40 or custom encoding)
+                self._raw_mqtt_node_id = node_id_str
 
         # Channel PSK store: {channel_name: expanded_key_bytes}
         # Populated via set_channel_psk().  Capped at 64 entries.
@@ -613,9 +616,13 @@ class MQTTConnectionManager:
                     lambda: self._on_connection_cb(self, topic="meshtastic.connection.established")
                 )
 
-            if self._from_node_num and self._loop and self._loop.is_running():
-                nid = f"!{self._from_node_num:08x}"
-                self._loop.call_soon_threadsafe(self._set_synthetic_local_node, nid)
+            if self._loop and self._loop.is_running():
+                # Prefer hex-parsed node num; fall back to raw MQTT_NODE_ID string
+                if self._from_node_num:
+                    nid = f"!{self._from_node_num:08x}"
+                    self._loop.call_soon_threadsafe(self._set_synthetic_local_node, nid)
+                elif self._raw_mqtt_node_id:
+                    self._loop.call_soon_threadsafe(self._set_synthetic_local_node, self._raw_mqtt_node_id)
 
         else:
             rc_msgs = {
