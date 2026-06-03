@@ -17,6 +17,8 @@ data/
 # Virtual environments
 venv/
 mesh-dash_venv/
+mesh-dash_venv_new/
+mesh-dash_venv_old_*/
 
 # Backups
 backup/

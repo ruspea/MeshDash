@@ -1,3 +1,11 @@
+# MeshDash R3.1.2
+
+## Bug Fixes
+- **Self-heal restart loop**: Fixed infinite Docker restart loop when self-heal migration fails with PermissionError or FileExistsError. The bootstrap marker is now written *before* any risky file operations, breaking the loop immediately. Stale backup dirs from failed attempts are cleaned up on entry. All I/O errors (not just PermissionError) are caught gracefully with `sys.exit(0)` instead of `sys.exit(1)`.
+- **`shutil.copytree` FileExistsError**: Backup copy now uses `dirs_exist_ok=True` to handle partial backup dirs from previous failed attempts.
+- **web_telemetry plugin crash**: Added missing `import asyncio` that caused `NameError` on startup.
+- **macOS venv Python version**: Self-heal now prefers `sys.executable` over `/usr/bin/python3` when running Python 3.10+, fixing the `anyio==4.13.0` incompatibility on macOS.
+
 # MeshDash R3.1.1
 
 ## Maintenance & Polish

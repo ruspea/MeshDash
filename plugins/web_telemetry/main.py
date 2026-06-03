@@ -14,6 +14,7 @@ This plugin uses existing dashboard endpoints:
 import logging
 import os
 import time
+import asyncio
 import threading
 from typing import Any, Dict
 
