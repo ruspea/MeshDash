@@ -1,7 +1,7 @@
 {
   "id": "web_telemetry",
   "name": "Web Telemetry",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "MeshDash",
   "description": "Extract data from websites and broadcast over mesh network. Supports one-time transmissions and scheduled cron tasks.",
   "watchdog": true,
