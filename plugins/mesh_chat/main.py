@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sqlite3
 import sys
 import threading
@@ -52,6 +53,12 @@ class ConfigUpdate(BaseModel):
     provider: Optional[str] = None
     api_key: Optional[str] = None
     api_model: Optional[str] = None
+    api_base_url: Optional[str] = None
+    skip_ssl_verify: Optional[bool] = None
+    max_tokens: Optional[int] = None
+    temperature: Optional[float] = None
+    disable_thinking: Optional[bool] = None
+    api_timeout: Optional[int] = None
 
 class ModelDownloadReq(BaseModel):
     model_repo: str
@@ -83,6 +90,12 @@ def _init_db():
             provider TEXT DEFAULT 'local',
             api_key TEXT DEFAULT '',
             api_model TEXT DEFAULT '',
+            api_base_url TEXT DEFAULT '',
+            skip_ssl_verify INTEGER DEFAULT 0,
+            max_tokens INTEGER DEFAULT 4096,
+            temperature REAL DEFAULT 0.9,
+            disable_thinking INTEGER DEFAULT 0,
+            api_timeout INTEGER DEFAULT 300,
             status TEXT DEFAULT 'uninitialized',
             progress TEXT DEFAULT ''
         );
@@ -118,12 +131,23 @@ def _init_db():
         CREATE INDEX IF NOT EXISTS idx_msg_sess ON messages(session_id);
         """)
         
-        try:
-            conn.execute("ALTER TABLE config ADD COLUMN provider TEXT DEFAULT 'local'")
-            conn.execute("ALTER TABLE config ADD COLUMN api_key TEXT DEFAULT ''")
-            conn.execute("ALTER TABLE config ADD COLUMN api_model TEXT DEFAULT ''")
-        except sqlite3.OperationalError:
-            pass
+        # Per-statement try/except so one failure (e.g. column already exists)
+        # doesn't skip migrations for the remaining columns.
+        for _stmt in (
+            "ALTER TABLE config ADD COLUMN provider TEXT DEFAULT 'local'",
+            "ALTER TABLE config ADD COLUMN api_key TEXT DEFAULT ''",
+            "ALTER TABLE config ADD COLUMN api_model TEXT DEFAULT ''",
+            "ALTER TABLE config ADD COLUMN api_base_url TEXT DEFAULT ''",
+            "ALTER TABLE config ADD COLUMN skip_ssl_verify INTEGER DEFAULT 0",
+            "ALTER TABLE config ADD COLUMN max_tokens INTEGER DEFAULT 4096",
+            "ALTER TABLE config ADD COLUMN temperature REAL DEFAULT 0.9",
+            "ALTER TABLE config ADD COLUMN disable_thinking INTEGER DEFAULT 0",
+            "ALTER TABLE config ADD COLUMN api_timeout INTEGER DEFAULT 300",
+        ):
+            try:
+                conn.execute(_stmt)
+            except sqlite3.OperationalError:
+                pass
 
         c = conn.execute("SELECT COUNT(*) FROM prompts").fetchone()[0]
         if c == 0:
@@ -274,18 +298,36 @@ def _load_llm():
     _llm_instance = Llama(model_path=model_path, n_ctx=2048, n_threads=4, verbose=False)
     return _llm_instance
 
-def _generate_hosted(provider: str, api_key: str, model: str, sys_prompt: str, history: list, query: str) -> str:
-    if not api_key:
+def _generate_hosted(provider: str, api_key: str, model: str, sys_prompt: str, history: list, query: str, api_base_url: str = "", skip_ssl_verify: bool = False, max_tokens: int = 4096, temperature: float = 0.9, disable_thinking: bool = False, api_timeout: int = 300) -> str:
+    if not api_key and provider != "custom":
         return "API key not configured."
 
     api_key = api_key.strip()
     if api_key.lower().startswith("bearer "):
         api_key = api_key[7:].strip()
 
+    # Use configurable timeout for custom provider, 30s for others
+    timeout = float(api_timeout) if provider == "custom" else 30.0
+
     try:
-        with httpx.Client(timeout=30.0) as client:
+        with httpx.Client(timeout=timeout, verify=not skip_ssl_verify) as client:
+            # Determine URL for OpenAI-compatible providers
             if provider in ("openai", "nvidia"):
                 url = "https://api.openai.com/v1/chat/completions" if provider == "openai" else "https://integrate.api.nvidia.com/v1/chat/completions"
+            elif provider == "custom":
+                base = api_base_url.strip().rstrip("/")
+                if not base:
+                    return "Custom API base URL not configured."
+                url = base + "/v1/chat/completions"
+            else:
+                pass  # gemini handles its own URL below
+
+            # OpenAI-compatible providers (openai, nvidia, custom)
+            if provider in ("openai", "nvidia", "custom"):
+                # Append /no_think to disable thinking (Qwen convention)
+                if disable_thinking and provider == "custom":
+                    query = query + " /no_think"
+
                 messages = [{"role": "system", "content": sys_prompt}]
                 for msg in history:
                     messages.append({"role": msg["role"], "content": msg["content"]})
@@ -297,16 +339,71 @@ def _generate_hosted(provider: str, api_key: str, model: str, sys_prompt: str, h
                 }
                 if provider == "nvidia":
                     payload.update({"top_p": 1.0, "frequency_penalty": 0.0, "presence_penalty": 0.0})
+                elif provider == "custom":
+                    payload["max_tokens"] = max_tokens
+                    payload["temperature"] = temperature
+                    if disable_thinking:
+                        payload["chat_template_kwargs"] = {"enable_thinking": False}
 
-                r = client.post(url, json=payload, headers={
+                headers = {
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                     "Accept": "application/json"
-                })
+                }
+                r = client.post(url, json=payload, headers=headers)
+                logger.info(f"Custom API HTTP {r.status_code}, body len={len(r.text)}")
                 if r.status_code >= 400:
-                    logger.error(f"Hosted API HTTPError {r.status_code}: {r.text}")
+                    logger.error(f"Custom API HTTPError {r.status_code}: {r.text[:500]}")
                     return f"API Error {r.status_code}."
-                return r.json()["choices"][0]["message"]["content"].strip()
+
+                # Parse response body
+                try:
+                    data = r.json()
+                except Exception:
+                    body_excerpt = r.text[:500] if r.text else "(empty body)"
+                    logger.error(f"Custom API returned non-JSON: {body_excerpt}")
+                    return "API returned non-JSON response."
+
+                choices = data.get("choices") or []
+                if not choices:
+                    return "API response missing 'choices'."
+
+                finish_reason = choices[0].get("finish_reason")
+                logger.info(f"Custom API finish_reason: {finish_reason}")
+
+                choice = choices[0]
+                msg = choice.get("message") or {}
+                content = msg.get("content")
+                if content is None:
+                    content = choice.get("text")
+                if content is None:
+                    content = choice.get("content")
+
+                if content is None:
+                    logger.warning(f"Custom API returned null content. Choice: {str(choice)[:500]}")
+                    return "[AI returned null response]"
+
+                content = content.strip() if isinstance(content, str) else str(content).strip()
+
+                # Fallback to reasoning_content (thinking/reasoning models)
+                if not content:
+                    reasoning = msg.get("reasoning_content") or choice.get("reasoning_content")
+                    if reasoning:
+                        content = reasoning.strip() if isinstance(reasoning, str) else str(reasoning).strip()
+                        logger.info(f"Custom API: using reasoning_content fallback ({len(content)} chars)")
+
+                # Strip `` tags (Qwen, DeepSeek reasoning models)
+                content = re.sub(r'<\s*think\s*>.*?<\s*/\s*think\s*>', '', content, flags=re.DOTALL).strip()
+                # Only discard if there's an UNCLOSED  block — thinking was cut off mid-stream
+                if '<think' in content and '</think>' not in content:
+                    content = ''
+
+                if not content:
+                    logger.warning(f"Custom API empty content. Full response body: {r.text[:1000]}")
+                    return "[AI returned empty response]"
+
+                logger.info(f"Custom API reply (%d chars): {content[:200]}", len(content))
+                return content
 
             elif provider == "gemini":
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -330,9 +427,15 @@ def _generate_hosted(provider: str, api_key: str, model: str, sys_prompt: str, h
                     logger.error(f"Gemini API HTTPError {r.status_code}: {r.text}")
                     return f"API Error {r.status_code}."
                 return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+    except httpx.TimeoutException as e:
+        logger.error(f"Custom API timeout after {timeout}s: {e}")
+        return f"API timed out after {int(timeout)}s. Try lowering max_tokens or disable thinking."
+    except httpx.HTTPError as e:
+        logger.error(f"Custom API HTTP error ({type(e).__name__}): {e}")
+        return f"API connection error: {type(e).__name__}"
     except Exception as e:
-        logger.error(f"Hosted generation error: {e}")
-        return f"Error contacting {provider} API."
+        logger.error(f"Hosted generation error ({type(e).__name__}): {e}", exc_info=True)
+        return f"Error contacting {provider} API: {type(e).__name__}"
 
     return "Unknown provider."
 
@@ -353,12 +456,16 @@ def _generate_response(node_id: str, prompt_text: str) -> str:
     
     if cfg.get("provider", "local") != "local":
         reply = _generate_hosted(
-            cfg["provider"], 
-            cfg.get("api_key", ""), 
-            cfg.get("api_model", ""), 
-            sys_prompt, 
-            [dict(h) for h in history], 
-            prompt_text
+            cfg["provider"],
+            cfg.get("api_key", ""),
+            cfg.get("api_model", ""),
+            sys_prompt,
+            [dict(h) for h in history],
+            prompt_text,
+            cfg.get("api_base_url", ""),
+            bool(cfg.get("skip_ssl_verify", 0)),
+            int(cfg.get("max_tokens", 4096)),
+            float(cfg.get("temperature", 0.9))
         )
         _add_message(sess_id, "assistant", reply)
         return reply
@@ -471,6 +578,10 @@ async def _llm_queue_worker():
                 _update_request_status(req_id, "error")
             else:
                 reply_text = gen_task.result()
+                if not reply_text or not reply_text.strip():
+                    logger.warning(f"Empty reply for node {node_id}, substituting placeholder")
+                    reply_text = "[AI returned empty response]"
+                logger.info(f"Sending reply to {node_id}: {reply_text[:100]}")
                 await _send_dm(node_id, reply_text, require_ack=True)
                 _update_request_status(req_id, "completed")
         except Exception:
@@ -591,6 +702,12 @@ def init_plugin(context: dict):
     if cfg.get("provider", "local") == "local":
         if cfg["status"] == "uninitialized" or not os.path.exists(os.path.join(_BASE_DIR, cfg["model_file"])):
             threading.Thread(target=_download_model_worker, args=(cfg["model_repo"], cfg["model_file"]), daemon=True).start()
+    else:
+        # Hosted/custom provider — no local model needed. Clear any stale
+        # error/uninitialized state left over from a previously-selected
+        # local provider so the UI reports "ready".
+        if cfg["status"] in ("uninitialized", "error", "downloading"):
+            _set_status("ready", "Hosted API configured")
 
     threading.Thread(target=_reap_sessions_worker, daemon=True).start()
 
@@ -624,6 +741,14 @@ async def get_state():
 async def set_config(body: ConfigUpdate):
     fields = {k: v for k, v in body.dict().items() if v is not None}
     if not fields: return {"status": "ok"}
+
+    # If the user is switching away from the local provider, clear any stale
+    # status left over from a failed/in-progress local model download so the
+    # UI immediately reports "ready" for the hosted/custom provider.
+    if "provider" in fields and fields["provider"] != "local":
+        fields["status"] = "ready"
+        fields["progress"] = "Hosted API configured"
+
     set_clause = ", ".join(f"{k}=?" for k in fields)
     with _DB_LOCK:
         conn = _get_db()

@@ -434,6 +434,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
             <option value="openai">OpenAI API</option>
             <option value="nvidia">Nvidia NIM API</option>
             <option value="gemini">Google Gemini API</option>
+            <option value="custom">Custom OpenAI-Compatible API</option>
           </select>
         </div>
 
@@ -490,6 +491,44 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
             <label class="form-label">Model Name</label>
             <input class="form-input" id="c-apimodel" type="text" placeholder="e.g. gpt-4o-mini, gemini-2.5-flash">
             <div class="form-hint">Exact model string expected by the provider.</div>
+          </div>
+          <div class="form-group" id="custom-base-url-group" style="display:none">
+            <label class="form-label">API Base URL</label>
+            <input class="form-input" id="c-apibaseurl" type="text" placeholder="https://your-server.com or http://localhost:8080">
+            <div class="form-hint">Base URL of your OpenAI-compatible API. /v1/chat/completions is appended automatically.</div>
+          </div>
+          <div id="custom-ssl-group" style="display:none">
+            <div class="form-row">
+              <label class="toggle-wrap">
+                <label class="toggle"><input type="checkbox" id="c-skipssl"><span class="toggle-slider"></span></label>
+                <span class="toggle-label" style="font-size:10px;color:var(--amb)">Skip SSL verification</span>
+              </label>
+            </div>
+            <div class="form-hint">Required if your server uses a self-signed certificate. ⚠ Disables certificate verification.</div>
+          </div>
+          <div id="custom-params-group" style="display:none">
+            <div class="form-group" style="margin-bottom:10px">
+              <label class="form-label">Max Tokens</label>
+              <input class="form-input" id="c-maxtokens" type="number" min="1" max="32768" step="1" placeholder="4096">
+              <div class="form-hint">Maximum tokens to generate. Reasoning models need ≥4096 to complete thinking + answer.</div>
+            </div>
+            <div class="form-group" style="margin-bottom:10px">
+              <label class="form-label">Temperature</label>
+              <input class="form-input" id="c-temperature" type="number" min="0" max="2" step="0.05" placeholder="0.9">
+              <div class="form-hint">0 = deterministic, 2 = maximum randomness. Default 0.9, reasoning models often use 0.95.</div>
+            </div>
+            <div class="form-group" style="margin-bottom:10px">
+              <label class="form-label">API Timeout (seconds)</label>
+              <input class="form-input" id="c-apitimeout" type="number" min="10" max="3600" step="5" placeholder="300">
+              <div class="form-hint">HTTP timeout for API calls. 27B models may need 300s+. Default 300.</div>
+            </div>
+            <div class="form-row" style="margin-bottom:10px">
+              <label class="toggle-wrap">
+                <label class="toggle"><input type="checkbox" id="c-disablethink"><span class="toggle-slider"></span></label>
+                <span class="toggle-label" style="font-size:10px;color:var(--amb)">Disable thinking mode</span>
+              </label>
+            </div>
+            <div class="form-hint">Sends /no_think and enable_thinking:false. Best for Qwen3/DeepSeek reasoning models.</div>
           </div>
           <button class="btn btn-primary" id="btn-save-api" onclick="saveCfg('btn-save-api')" style="margin-top:12px;width:100%;justify-content:center"><i class="fas fa-save"></i> Save API Config</button>
         </div>
@@ -569,6 +608,9 @@ function toggleProv() {
   const prov = document.getElementById('c-prov').value;
   document.getElementById('prov-local').style.display = prov === 'local' ? 'block' : 'none';
   document.getElementById('prov-hosted').style.display = prov !== 'local' ? 'block' : 'none';
+  document.getElementById('custom-base-url-group').style.display = prov === 'custom' ? 'flex' : 'none';
+  document.getElementById('custom-ssl-group').style.display = prov === 'custom' ? 'block' : 'none';
+  document.getElementById('custom-params-group').style.display = prov === 'custom' ? 'block' : 'none';
 }
 
 function ago(ts) {
@@ -596,7 +638,7 @@ async function poll() {
     const iconEl = document.getElementById('sys-icon');
     
     if (d.config.provider !== 'local') {
-      statEl.textContent = 'USING HOSTED API';
+      statEl.textContent = 'USING ' + d.config.provider.toUpperCase() + ' API';
       document.getElementById('sys-prog').textContent = d.config.provider.toUpperCase();
       strip.className = 'status-strip ok';
       iconEl.className='fas fa-cloud'; iconEl.style.color='var(--ok)'; statEl.style.color='var(--ok)';
@@ -613,7 +655,7 @@ async function poll() {
     }
 
     const disableAll = stat === 'downloading' || stat === 'installing_deps';
-    ['btn-save-cfg','btn-save-api','btn-dl-model','btn-save-pmpt','btn-rst-pmpt','c-en','c-ch','c-to','c-pmpt','c-prov','c-apikey','c-apimodel'].forEach(id => {
+    ['btn-save-cfg','btn-save-api','btn-dl-model','btn-save-pmpt','btn-rst-pmpt','c-en','c-ch','c-to','c-pmpt','c-prov','c-apikey','c-apimodel','c-apibaseurl','c-skipssl','c-maxtokens','c-temperature','c-apitimeout','c-disablethink'].forEach(id => {
       const el = document.getElementById(id); if(el) el.disabled = disableAll;
     });
     document.querySelectorAll('.preset-card').forEach(c => c.style.pointerEvents = disableAll ? 'none' : '');
@@ -628,6 +670,12 @@ async function poll() {
       document.getElementById('c-prov').value = d.config.provider || 'local';
       document.getElementById('c-apikey').value = d.config.api_key || '';
       document.getElementById('c-apimodel').value = d.config.api_model || '';
+      document.getElementById('c-apibaseurl').value = d.config.api_base_url || '';
+      document.getElementById('c-skipssl').checked = !!d.config.skip_ssl_verify;
+      document.getElementById('c-maxtokens').value = d.config.max_tokens || 4096;
+      document.getElementById('c-temperature').value = d.config.temperature != null ? d.config.temperature : 0.9;
+      document.getElementById('c-apitimeout').value = d.config.api_timeout || 300;
+      document.getElementById('c-disablethink').checked = !!d.config.disable_thinking;
       toggleProv();
       
       if (currentDbRepo !== d.config.model_repo || currentDbFile !== d.config.model_file) {
@@ -673,7 +721,13 @@ async function saveCfg(btnId) {
     sys_prompt: document.getElementById('c-pmpt').value,
     provider: document.getElementById('c-prov').value,
     api_key: document.getElementById('c-apikey').value,
-    api_model: document.getElementById('c-apimodel').value
+    api_model: document.getElementById('c-apimodel').value,
+    api_base_url: document.getElementById('c-apibaseurl').value,
+    skip_ssl_verify: document.getElementById('c-skipssl').checked,
+    max_tokens: parseInt(document.getElementById('c-maxtokens').value) || 4096,
+    temperature: parseFloat(document.getElementById('c-temperature').value) || 0.9,
+    disable_thinking: document.getElementById('c-disablethink').checked,
+    api_timeout: parseInt(document.getElementById('c-apitimeout').value) || 300
   })});
   btn.innerHTML = '<i class="fas fa-check"></i> Saved'; btn.disabled = false;
   setTimeout(() => { btn.innerHTML = origHtml; }, 1500);
