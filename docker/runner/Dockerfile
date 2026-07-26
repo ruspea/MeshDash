@@ -1,6 +1,6 @@
-# MeshDash R3.1.2 Runner — Self-updating Docker Container
+# MeshDash R3.1.3 Runner — Self-updating Docker Container
 #
-# This is the official Docker runner for MeshDash R3.1.1+.
+# This is the official Docker runner for MeshDash R3.1.3+.
 # Unlike the app Dockerfile (which bundles the source), this runner
 # is a thin bootstrap image that downloads and installs MeshDash
 # from meshdash.co.uk on first boot, then auto-updates on restarts.
@@ -20,11 +20,11 @@
 FROM python:3.12-slim
 
 LABEL maintainer="info@meshdash.co.uk"
-LABEL description="Official MeshDash Runner R3.1.1 — Self-updating Meshtastic Dashboard"
-LABEL version="3.1.2"
+LABEL description="Official MeshDash Runner R3.1.3 — Self-updating Meshtastic Dashboard"
+LABEL version="3.1.3"
 LABEL org.opencontainers.image.title="MeshDash Runner"
-LABEL org.opencontainers.image.description="Self-updating Docker container for MeshDash R3.1.2+"
-LABEL org.opencontainers.image.version="3.1.2"
+LABEL org.opencontainers.image.description="Self-updating Docker container for MeshDash R3.1.3+"
+LABEL org.opencontainers.image.version="3.1.3"
 LABEL org.opencontainers.image.source="https://github.com/ruspea/MeshDash"
 
 # Prevent Python from writing .pyc files and buffering stdout

@@ -2,7 +2,7 @@
 set -e
 
 # ═══════════════════════════════════════════════════════════════════
-# MeshDash R3.1.1 Docker Runner — Entrypoint
+# MeshDash R3.1.3 Docker Runner — Entrypoint
 #
 # Two boot modes:
 #
@@ -24,7 +24,7 @@ set -e
 # ═══════════════════════════════════════════════════════════════════
 
 echo "══════════════════════════════════════════════"
-echo "  MeshDash R3.1.2 Docker Runner"
+echo "  MeshDash R3.1.3 Docker Runner"
 echo "══════════════════════════════════════════════"
 
 APP_PORT="${WEBSERVER_PORT:-8000}"
