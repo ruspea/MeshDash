@@ -33,8 +33,12 @@ COPY --chown=meshdash:meshdash . .
 # Create data directory with proper permissions
 # Seed the R3 bootstrap marker so the self-heal routine
 # knows this is a clean install, not a dirty R2→R3 overlay.
+# Also write a minimal config with PUBLIC_MODE=False so the app
+# forces the setup wizard on first boot — without this the app
+# defaults to PUBLIC_MODE=True (no auth, no setup).
 RUN mkdir -p /app/data && \
     touch /app/data/.r3_bootstrap_done && \
+    printf 'PUBLIC_MODE=False\nDB_PATH=data/meshtastic_data.db\nTASK_DB_PATH=data/tasks.db\n' > /app/data/.mesh-dash_config && \
     chown -R meshdash:meshdash /app/data
 
 # App needs write access for self-heal backups and update extraction.
