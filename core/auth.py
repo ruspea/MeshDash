@@ -166,7 +166,7 @@ async def verify_csrf(request: Request, user: User = Depends(get_current_active_
     cookie_token = request.cookies.get("csrf-token", "")
     header_token = request.headers.get("x-csrf-token", "")
     if not cookie_token or not header_token:
-        return JSONResponse({"error": "CSRF token missing"}, status_code=403)
+        raise HTTPException(status_code=403, detail="CSRF token missing")
     if cookie_token != header_token:
-        return JSONResponse({"error": "CSRF token mismatch"}, status_code=403)
+        raise HTTPException(status_code=403, detail="CSRF token mismatch")
     return user
