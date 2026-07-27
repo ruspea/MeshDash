@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mesh Ping</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-size:12px}
+.shell{height:100%;display:flex;flex-direction:column}
+.topbar{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--bd2);background:var(--bg2)}
+.logo{width:32px;height:32px;background:linear-gradient(135deg,var(--acc),var(--pur));border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.tp-title{font-family:var(--mono);font-size:13px;font-weight:900;letter-spacing:1.5px;color:var(--acc)}
+.tp-sub{font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:.5px;margin-top:1px}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:var(--bd2);transition:all .3s;flex-shrink:0}
+.conn-dot.ok{background:var(--ok);box-shadow:0 0 5px var(--ok);animation:connpulse 3s ease-in-out infinite}
+.conn-dot.err{background:var(--err);box-shadow:0 0 5px var(--err)}
+@keyframes connpulse{0%,100%{opacity:1}50%{opacity:.5}}
+.main-tabs{flex-shrink:0;display:flex;border-bottom:1px solid var(--bd2);background:var(--bg2)}
+.mt-btn{padding:10px 16px;font-family:var(--mono);font-size:9px;font-weight:bold;letter-spacing:.5px;color:var(--txt3);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:6px}
+.mt-btn.on{color:var(--acc);border-bottom-color:var(--acc)}
+.mt-btn .bdg{background:var(--acc);color:#000;border-radius:8px;font-size:10px;font-weight:900;padding:1px 5px;min-width:14px;text-align:center;display:none}
+.mt-btn .bdg.show{display:inline-block}
+.views{flex:1;overflow:hidden;position:relative}
+.view{position:absolute;inset:0;display:none;overflow:hidden}
+.view.on{display:flex;flex-direction:column}
+
+/* ══ LAUNCH VIEW ══ */
+.lv{flex:1;display:grid;grid-template-columns:300px 1fr;overflow:hidden}
+.lv-left{border-right:1px solid var(--bd2);display:flex;flex-direction:column;overflow-y:auto;padding:14px;background:var(--bg2)}
+.lv-left::-webkit-scrollbar{width:3px}.lv-left::-webkit-scrollbar-thumb{background:var(--bd2)}
+.lv-right{display:flex;flex-direction:column;overflow:hidden}
+
+/* form */
+.fhdr{font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:1px;font-weight:bold;padding:0 0 7px;border-bottom:1px solid var(--bd);margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.fhdr i{color:var(--acc);width:12px;text-align:center}
+.fg{margin-bottom:12px}
+.fi{width:100%;font-family:var(--mono);font-size:10px;padding:6px 9px;background:var(--bg);border:1px solid var(--bd2);border-radius:4px;color:var(--txt);transition:border-color .15s}
+.fi:focus{outline:none;border-color:var(--acc)}
+.fi::placeholder{color:var(--txt3)}
+.stepper{display:flex;align-items:center;gap:6px}
+.sv{flex:1;text-align:center;font-family:var(--mono);font-size:20px;font-weight:900;color:var(--acc)}
+.sb{width:30px;height:30px;border-radius:4px;background:var(--bg);border:1px solid var(--bd2);color:var(--txt);cursor:pointer;font-size:16px;font-family:var(--mono);display:flex;align-items:center;justify-content:center;transition:all .15s}
+.sb:hover{border-color:var(--acc);color:var(--acc)}
+.sl-wrap{display:flex;align-items:center;gap:8px}
+.sl{flex:1;-webkit-appearance:none;height:4px;background:rgba(255,255,255,.08);border-radius:2px;outline:none}
+.sl::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--acc);cursor:pointer;box-shadow:0 0 6px rgba(0,200,245,.4)}
+.sl-v{font-family:var(--mono);font-size:11px;color:var(--acc);min-width:34px;text-align:right;font-weight:bold}
+.nd-wrap{position:relative}
+.nd-list{position:absolute;top:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--acc);border-top:none;border-radius:0 0 4px 4px;z-index:99;max-height:170px;overflow-y:auto;display:none}
+.nd-list.open{display:block}
+.nd-item{padding:6px 9px;font-family:var(--mono);font-size:9px;cursor:pointer;transition:background .1s}
+.nd-item:hover{background:rgba(0,200,245,.1);color:var(--acc)}
+.nd-id{color:var(--txt3);font-size:11px;display:block;margin-top:1px}
+.sp-wrap{display:flex;gap:4px;flex-wrap:wrap}
+.spl{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:3px;border:1px solid var(--bd2);background:var(--bg);cursor:pointer;transition:all .15s;color:var(--txt3)}
+.spl.on{border-color:var(--acc);background:rgba(0,200,245,.1);color:var(--acc)}
+.launch-btn{width:100%;padding:11px;background:linear-gradient(135deg,rgba(0,200,245,.15),rgba(176,96,255,.1));border:1px solid rgba(0,200,245,.4);border-radius:5px;color:var(--acc);font-family:var(--mono);font-size:11px;font-weight:900;letter-spacing:1px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:14px}
+.launch-btn:hover{background:linear-gradient(135deg,rgba(0,200,245,.25),rgba(176,96,255,.18));box-shadow:0 0 20px rgba(0,200,245,.12)}
+.launch-btn:active{transform:scale(.98)}
+.launch-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.dm-hint{background:rgba(176,96,255,.06);border:1px solid rgba(176,96,255,.2);border-radius:4px;padding:10px 12px;font-family:var(--mono);font-size:9px;color:var(--txt2);line-height:1.8;margin-top:14px}
+.dm-hint strong{color:var(--pur)}
+.dm-hint code{color:var(--acc);background:rgba(0,200,245,.08);padding:1px 4px;border-radius:2px}
+
+/* ── RIGHT SIDE of launch view ── */
+.rv{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.rv-tabs{flex-shrink:0;display:flex;align-items:center;gap:0;border-bottom:1px solid var(--bd2);background:var(--bg2);padding:0 12px}
+.rv-tab{padding:8px 10px;font-family:var(--mono);font-size:11px;font-weight:bold;letter-spacing:.5px;color:var(--txt3);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:4px;white-space:nowrap}
+.rv-tab.on{color:var(--acc);border-bottom-color:var(--acc)}
+.rv-tab .n{background:var(--acc);color:#000;border-radius:6px;font-size:10px;padding:1px 4px;font-weight:900;display:none}
+.rv-tab .n.s{display:inline-block}
+.rv-panels{flex:1;position:relative;overflow:hidden}
+.rvp{position:absolute;inset:0;overflow-y:auto;padding:10px;display:none}
+.rvp.on{display:block}
+.rvp::-webkit-scrollbar{width:3px}.rvp::-webkit-scrollbar-thumb{background:var(--bd2)}
+
+/* ── Session card ── */
+.sc{background:var(--bg2);border:1px solid var(--bd2);border-radius:6px;margin-bottom:8px;overflow:hidden;transition:border-color .3s,box-shadow .3s}
+.sc.running{border-color:rgba(0,200,245,.4);box-shadow:0 0 16px rgba(0,200,245,.07)}
+.sc.done{border-color:rgba(0,232,122,.25)}
+.sc.stopped{border-color:rgba(255,168,38,.2)}
+.sc-head{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--bd2)}
+.sc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:all .3s}
+.sc-dot.running{background:var(--acc);animation:pp 1.4s ease-in-out infinite;box-shadow:0 0 6px var(--acc)}
+.sc-dot.done{background:var(--ok)}
+.sc-dot.stopped{background:var(--warn)}
+@keyframes pp{0%,100%{opacity:1}50%{opacity:.3}}
+.sc-name{font-family:var(--mono);font-size:10px;font-weight:900;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sc-meta{font-family:var(--mono);font-size:11px;color:var(--txt3);flex-shrink:0}
+.stop-btn{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:2px;border:1px solid rgba(255,168,38,.5);background:rgba(255,168,38,.1);color:var(--warn);cursor:pointer;transition:all .15s;flex-shrink:0}
+.stop-btn:hover{background:rgba(255,168,38,.22)}
+.rerun-btn{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:2px;border:1px solid rgba(0,200,245,.4);background:rgba(0,200,245,.08);color:var(--acc);cursor:pointer;transition:all .15s;flex-shrink:0}
+.rerun-btn:hover{background:rgba(0,200,245,.18)}
+.src-dm{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:2px;background:rgba(176,96,255,.15);border:1px solid rgba(176,96,255,.3);color:var(--pur);flex-shrink:0;font-weight:bold}
+.src-ui{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:2px;background:rgba(0,200,245,.1);border:1px solid rgba(0,200,245,.25);color:var(--acc);flex-shrink:0;font-weight:bold}
+
+/* ping dots */
+.sc-tl{display:flex;gap:3px;padding:8px 12px;flex-wrap:wrap;min-height:38px;align-items:center}
+.pd{width:24px;height:24px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:10px;font-weight:900;transition:all .3s;position:relative;cursor:default;user-select:none}
+.pd.pending{background:rgba(255,255,255,.04);border:1px dashed rgba(255,255,255,.12);color:var(--txt3)}
+.pd.sending{background:rgba(0,200,245,.12);border:1px solid rgba(0,200,245,.5);color:var(--acc);animation:pp .7s ease-in-out infinite}
+.pd.ok{background:rgba(0,232,122,.14);border:1px solid rgba(0,232,122,.5);color:var(--ok)}
+.pd.timeout{background:rgba(255,168,38,.12);border:1px solid rgba(255,168,38,.45);color:var(--warn)}
+.pd.nak{background:rgba(255,48,80,.12);border:1px solid rgba(255,48,80,.45);color:var(--err)}
+.pd:hover .pd-tip{opacity:1}
+.pd-tip{position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);background:var(--bg2);border:1px solid var(--bd2);border-radius:3px;padding:4px 7px;font-family:var(--mono);font-size:11px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:999;text-align:left}
+.pd-tip .tr{color:var(--acc);font-weight:bold}
+
+/* stats */
+.sc-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--bd);border-top:1px solid var(--bd2)}
+.sc-stat{background:var(--bg);padding:6px 0;text-align:center}
+.sc-sv{font-family:var(--mono);font-size:11px;font-weight:900;line-height:1}
+.sc-sl{font-family:var(--mono);font-size:10px;color:var(--txt3);margin-top:2px}
+
+/* extended stats row for completed sessions */
+.sc-ext{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--bd)}
+.sc-ext-cell{background:var(--bg);padding:5px 0;text-align:center}
+.sc-ext-v{font-family:var(--mono);font-size:10px;font-weight:900;color:var(--txt2)}
+.sc-ext-l{font-family:var(--mono);font-size:10px;color:var(--txt3);margin-top:1px}
+
+/* sparkline */
+.sc-spark{padding:7px 12px;border-top:1px solid var(--bd)}
+.spark-bars{display:flex;align-items:flex-end;gap:3px;height:28px}
+.spark-bar{flex:1;border-radius:2px 2px 0 0;min-height:2px;transition:height .3s}
+.spark-ax{display:flex;justify-content:space-between;margin-top:2px;font-family:var(--mono);font-size:10px;color:var(--txt3)}
+
+/* ══ HISTORY VIEW ══ */
+.hist-view{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.hist-toolbar{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--bd2);background:var(--bg2)}
+.hist-scroll{flex:1;overflow-y:auto;padding:10px}
+.hist-scroll::-webkit-scrollbar{width:4px}.hist-scroll::-webkit-scrollbar-thumb{background:var(--bd2)}
+
+/* history items - expanded inline */
+.hi{background:var(--bg2);border:1px solid var(--bd2);border-radius:5px;margin-bottom:6px;overflow:hidden;transition:border-color .2s;cursor:pointer}
+.hi:hover{border-color:var(--bd3)}
+.hi.expanded{border-color:var(--acc);cursor:default}
+.hi-row{display:flex;align-items:center;gap:8px;padding:8px 12px}
+.hi-name{font-family:var(--mono);font-size:10px;font-weight:bold;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hi-result{font-family:var(--mono);font-size:10px;font-weight:900;flex-shrink:0}
+.hi-rtt{font-family:var(--mono);font-size:9px;flex-shrink:0;min-width:52px;text-align:right}
+.hi-jitter{font-family:var(--mono);font-size:9px;color:var(--txt3);flex-shrink:0;min-width:48px;text-align:right}
+.hi-meta{font-family:var(--mono);font-size:11px;color:var(--txt3);flex-shrink:0}
+.hi-expand{display:none;border-top:1px solid var(--bd2);padding:0}
+.hi.expanded .hi-expand{display:block}
+.hi-chevron{font-size:9px;color:var(--txt3);transition:transform .2s;flex-shrink:0}
+.hi.expanded .hi-chevron{transform:rotate(180deg)}
+
+/* ══ ANALYTICS VIEW ══ */
+.analytics-view{flex:1;overflow-y:auto;padding:12px}
+.analytics-view::-webkit-scrollbar{width:4px}.analytics-view::-webkit-scrollbar-thumb{background:var(--bd2)}
+.acard{background:var(--bg2);border:1px solid var(--bd2);border-radius:5px;margin-bottom:10px;overflow:hidden}
+.acard-hdr{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid var(--bd2)}
+.acard-hdr i{color:var(--acc);width:14px;text-align:center;font-size:10px}
+.acard-title{font-family:var(--mono);font-size:10px;font-weight:bold;letter-spacing:.5px;color:var(--acc)}
+.acard-body{padding:12px}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.ag{background:var(--bg);border:1px solid var(--bd2);border-radius:4px;padding:10px;text-align:center}
+.ag-v{font-family:var(--mono);font-size:18px;font-weight:900;line-height:1}
+.ag-l{font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:.5px;margin-top:3px}
+.node-rank{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.node-rank:last-child{border-bottom:none}
+.nr-pos{font-family:var(--mono);font-size:10px;font-weight:900;color:var(--txt3);width:18px;flex-shrink:0;text-align:center}
+.nr-name{flex:1;font-family:var(--mono);font-size:10px;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nr-bar-wrap{width:100px;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;flex-shrink:0}
+.nr-bar{height:100%;border-radius:3px;transition:width .4s}
+.nr-rtt{font-family:var(--mono);font-size:9px;flex-shrink:0;min-width:44px;text-align:right}
+.nr-reliability{font-family:var(--mono);font-size:9px;flex-shrink:0;min-width:38px;text-align:right}
+
+/* ══ FEED VIEW ══ */
+.feed-view{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.feed-toolbar{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--bd2);background:var(--bg2)}
+.feed-scroll{flex:1;overflow-y:auto;padding:8px 12px;font-family:var(--mono);font-size:9px}
+.feed-scroll::-webkit-scrollbar{width:3px}.feed-scroll::-webkit-scrollbar-thumb{background:var(--bd2)}
+.feed-hdr-row{display:grid;grid-template-columns:54px 90px 64px 50px 1fr;gap:8px;padding:4px 0;border-bottom:1px solid var(--bd);margin-bottom:4px;font-size:11px;color:var(--txt3)}
+.fr{display:grid;grid-template-columns:54px 90px 64px 50px 1fr;gap:8px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.025);animation:fi .18s ease}
+@keyframes fi{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:none}}
+.fr:hover{background:rgba(255,255,255,.02);border-radius:2px}
+.c-ok{color:var(--ok)}.c-to{color:var(--warn)}.c-nak{color:var(--err)}.c-acc{color:var(--acc)}
+
+/* ══ SETTINGS VIEW ══ */
+.settings-view{flex:1;overflow-y:auto;padding:16px;max-width:640px;margin:0 auto;width:100%}
+.settings-view::-webkit-scrollbar{width:4px}.settings-view::-webkit-scrollbar-thumb{background:var(--bd2)}
+.scard{background:var(--bg2);border:1px solid var(--bd2);border-radius:6px;margin-bottom:14px;overflow:hidden}
+.scard-hdr{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--bd2)}
+.scard-hdr i{color:var(--acc);width:14px;text-align:center}
+.scard-title{font-family:var(--mono);font-size:10px;font-weight:bold;letter-spacing:.5px;color:var(--acc)}
+.scard-body{padding:14px}
+.srow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.srow:last-child{border-bottom:none}
+.srow-key{font-family:var(--mono);font-size:10px;font-weight:bold;color:var(--txt)}
+.srow-desc{font-family:var(--mono);font-size:11px;color:var(--txt3);margin-top:2px;line-height:1.5}
+.toggle{position:relative;width:36px;height:20px;cursor:pointer;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-t{position:absolute;inset:0;background:var(--bd2);border-radius:10px;transition:background .2s}
+.toggle input:checked ~ .toggle-t{background:var(--acc)}
+.toggle-th{position:absolute;top:3px;left:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s;pointer-events:none}
+.toggle input:checked ~ .toggle-th{transform:translateX(16px)}
+.save-btn{width:100%;padding:10px;background:rgba(0,200,245,.12);border:1px solid rgba(0,200,245,.35);border-radius:4px;color:var(--acc);font-family:var(--mono);font-size:10px;font-weight:bold;cursor:pointer;letter-spacing:.5px;transition:all .2s;margin-top:14px}
+.save-btn:hover{background:rgba(0,200,245,.22);box-shadow:0 0 14px rgba(0,200,245,.1)}
+
+/* empty states */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:160px;gap:10px;color:var(--txt3);font-family:var(--mono)}
+.empty i{font-size:26px;opacity:.12}
+.empty span{font-size:10px}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- Topbar -->
+<div class="topbar">
+  <div class="logo"><i class="fas fa-satellite-dish" style="color:#000;"></i></div>
+  <div>
+    <div class="tp-title">MESH PING</div>
+    <div class="tp-sub">ROUND-TRIP LATENCY · RELIABILITY SCORING · DM-TRIGGERED SESSIONS</div>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:7px;">
+    <div class="conn-dot" id="conn-dot"></div>
+    <span id="conn-lbl" style="font-family:var(--mono);font-size:11px;color:var(--txt3);">…</span>
+  </div>
+</div>
+
+<!-- Main tabs -->
+<div class="main-tabs">
+  <button class="mt-btn on" onclick="App.mainTab('launch')" id="mt-launch">
+    <i class="fas fa-paper-plane"></i>LAUNCH
+    <span class="bdg" id="b-active">0</span>
+  </button>
+  <button class="mt-btn" onclick="App.mainTab('history')" id="mt-history">
+    <i class="fas fa-clock-rotate-left"></i>HISTORY
+    <span class="bdg" id="b-history">0</span>
+  </button>
+  <button class="mt-btn" onclick="App.mainTab('analytics')" id="mt-analytics">
+    <i class="fas fa-chart-line"></i>ANALYTICS
+  </button>
+  <button class="mt-btn" onclick="App.mainTab('feed')" id="mt-feed">
+    <i class="fas fa-rss"></i>LIVE FEED
+  </button>
+  <button class="mt-btn" onclick="App.mainTab('settings')" id="mt-settings">
+    <i class="fas fa-gear"></i>SETTINGS
+  </button>
+</div>
+
+<div class="views">
+
+<!-- ══ LAUNCH ══ -->
+<div class="view on" id="view-launch">
+  <div class="lv">
+    <!-- Left: form -->
+    <div class="lv-left">
+      <div class="fhdr"><i class="fas fa-broadcast-tower"></i>RADIO SLOT</div>
+      <div class="fg"><div class="sp-wrap" id="slot-pills"><div class="spl on" data-slot="node_0">node_0</div></div></div>
+
+      <div class="fhdr"><i class="fas fa-crosshairs"></i>TARGET NODE</div>
+      <div class="fg nd-wrap">
+        <input class="fi" id="target-inp" placeholder="Search name or node ID…" autocomplete="off"
+               oninput="App.filterNodes()" onfocus="App.openDd()" onblur="setTimeout(()=>App.closeDd(),200)">
+        <div class="nd-list" id="nd-list"></div>
+      </div>
+
+      <div class="fhdr"><i class="fas fa-hashtag"></i>PING COUNT</div>
+      <div class="fg">
+        <div class="stepper">
+          <button class="sb" onclick="App.adjCount(-1)">−</button>
+          <div class="sv" id="count-val">5</div>
+          <button class="sb" onclick="App.adjCount(1)">+</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-family:var(--mono);font-size:11px;color:var(--txt3);">
+          <span>1 min</span><span id="max-lbl">20 max</span>
+        </div>
+      </div>
+
+      <div class="fhdr"><i class="fas fa-stopwatch"></i>INTERVAL</div>
+      <div class="fg">
+        <div class="sl-wrap">
+          <input type="range" class="sl" id="iv-sl" min="1" max="15" step="0.5" value="5"
+                 oninput="$('iv-v').textContent=parseFloat(this.value).toFixed(1)+'s'">
+          <span class="sl-v" id="iv-v">5.0s</span>
+        </div>
+      </div>
+
+      <button class="launch-btn" id="launch-btn" onclick="App.launch()">
+        <i class="fas fa-paper-plane"></i>LAUNCH PING SESSION
+      </button>
+
+      <div class="dm-hint">
+        <strong>DM Trigger</strong> — send a DM to this node:<br>
+        <code>ping 5</code> — 5 pings, 2s apart<br>
+        <code>ping 10 3</code> — 10 pings, 3s apart<br>
+        Results auto-sent back as a summary DM.
+      </div>
+    </div>
+
+    <!-- Right: session area -->
+    <div class="rv">
+      <div class="rv-tabs">
+        <button class="rv-tab on" onclick="App.rvTab('active')" id="rt-active">
+          ACTIVE <span class="n" id="rn-active">0</span>
+        </button>
+        <button class="rv-tab" onclick="App.rvTab('last')" id="rt-last">
+          LAST RESULT
+        </button>
+        <button class="rv-tab" onclick="App.rvTab('feed')" id="rt-feed">
+          LIVE FEED
+        </button>
+      </div>
+      <div class="rv-panels">
+        <div class="rvp on" id="rvp-active"></div>
+        <div class="rvp" id="rvp-last"></div>
+        <div class="rvp" id="rvp-feed"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HISTORY ══ -->
+<div class="view" id="view-history">
+  <div class="hist-view">
+    <div class="hist-toolbar">
+      <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">COMPLETED SESSIONS — newest first · click to expand</span>
+      <div style="margin-left:auto;display:flex;gap:6px;">
+        <select id="hist-filter" class="fi" style="width:120px;padding:4px 7px;font-size:9px;" onchange="App._renderHistory()">
+          <option value="">All nodes</option>
+        </select>
+        <button class="btn btn-sm" onclick="App.clearHistory()" style="font-size:9px;">Clear</button>
+      </div>
+    </div>
+    <div class="hist-scroll" id="hist-area"></div>
+  </div>
+</div>
+
+<!-- ══ ANALYTICS ══ -->
+<div class="view" id="view-analytics">
+  <div class="analytics-view" id="analytics-area"></div>
+</div>
+
+<!-- ══ FEED ══ -->
+<div class="view" id="view-feed">
+  <div class="feed-view">
+    <div class="feed-toolbar">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--txt3);">ALL PING EVENTS</span>
+      <button class="btn btn-sm" onclick="App.clearFeed()" style="font-size:9px;margin-left:auto;">Clear</button>
+    </div>
+    <div class="feed-scroll">
+      <div class="feed-hdr-row" style="grid-template-columns:54px 90px 64px 50px 1fr;">
+        <span>TIME</span><span>NODE</span><span>STATUS</span><span style="text-align:right;">RTT</span><span>SENT MESSAGE</span>
+      </div>
+      <div id="feed-area"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SETTINGS ══ -->
+<div class="view" id="view-settings">
+  <div class="settings-view">
+    <div class="scard">
+      <div class="scard-hdr"><i class="fas fa-comment-dots"></i><span class="scard-title">DM TRIGGER</span></div>
+      <div class="scard-body">
+        <div class="srow">
+          <div><div class="srow-key">Enable DM Trigger</div><div class="srow-desc">Allow mesh users to start ping sessions by DM.</div></div>
+          <label class="toggle"><input type="checkbox" id="cfg-dm" checked><div class="toggle-t"></div><div class="toggle-th"></div></label>
+        </div>
+        <div class="srow">
+          <div><div class="srow-key">Trigger Word</div><div class="srow-desc">Command word. Letters only. Default: "ping"</div></div>
+          <input class="fi" id="cfg-word" style="width:90px;text-align:center;" value="ping" maxlength="12">
+        </div>
+        <div class="srow">
+          <div><div class="srow-key">Send Summary DM</div><div class="srow-desc">Auto-send RTT summary back to requester on completion.</div></div>
+          <label class="toggle"><input type="checkbox" id="cfg-sum" checked><div class="toggle-t"></div><div class="toggle-th"></div></label>
+        </div>
+      </div>
+    </div>
+    <div class="scard">
+      <div class="scard-hdr"><i class="fas fa-sliders"></i><span class="scard-title">LIMITS</span></div>
+      <div class="scard-body">
+        <div class="srow">
+          <div><div class="srow-key">Default Count</div><div class="srow-desc">Pings when count not specified in DM.</div></div>
+          <input class="fi" id="cfg-dc" type="number" min="1" max="20" value="5" style="width:70px;text-align:center;">
+        </div>
+        <div class="srow">
+          <div><div class="srow-key">Default Interval (s)</div><div class="srow-desc">Seconds between pings when not specified.</div></div>
+          <input class="fi" id="cfg-di" type="number" min="1" max="30" step="0.5" value="5" style="width:70px;text-align:center;">
+        </div>
+        <div class="srow">
+          <div><div class="srow-key">Max Count</div><div class="srow-desc">Hard cap. Protects airtime.</div></div>
+          <input class="fi" id="cfg-mc" type="number" min="1" max="20" value="20" style="width:70px;text-align:center;">
+        </div>
+        <div class="srow">
+          <div><div class="srow-key">Max Interval (s)</div><div class="srow-desc">Maximum interval DM users can request.</div></div>
+          <input class="fi" id="cfg-mi" type="number" min="1" max="60" value="30" style="width:70px;text-align:center;">
+        </div>
+      </div>
+    </div>
+    <div class="scard">
+      <div class="scard-hdr"><i class="fas fa-broadcast-tower"></i><span class="scard-title">RADIO</span></div>
+      <div class="scard-body">
+        <div class="srow">
+          <div><div class="srow-key">Channel Index</div><div class="srow-desc">Channel for pings and summary DMs. 0 = primary.</div></div>
+          <select class="fi" id="cfg-ch" style="width:100px;">
+            <option value="0">0 — Primary</option>
+            <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+            <option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <button class="save-btn" onclick="App.saveSettings()"><i class="fas fa-floppy-disk" style="margin-right:6px;"></i>SAVE SETTINGS</button>
+    <div class="scard" style="margin-top:14px;">
+      <div class="scard-hdr"><i class="fas fa-circle-info"></i><span class="scard-title">ABOUT</span></div>
+      <div class="scard-body" style="font-family:var(--mono);font-size:9px;color:var(--txt2);line-height:1.9;">
+        <strong style="color:var(--txt);">Mesh Ping v1.0.0</strong> · MeshDash<br>
+        RTT measured from packet send → ACK receipt. Includes TX time + mesh propagation + return path.<br>
+        Jitter = standard deviation of RTT across successful pings. Reliability = success% × (1 − jitter_penalty).
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+'use strict';
+const API = '/api/plugins/mesh_ping';
+const $ = id => document.getElementById(id);
+let _slot='node_0', _count=5, _nodes=[], _active={}, _history=[], _feed=[], _cfg={}, _sse=null;
+let _mainTab='launch', _rvTab='active', _lastCompleted=null, _expandedHist=null;
+let _analyticsChart=null;
+const _feedSeen=new Set(); // deduplicate feed entries by "sessionId-attemptIndex"
+
+function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function _rttCol(r){if(r==null)return'#5a7a96';if(r<1.5)return'#00e87a';if(r<4)return'#ffa826';return'#f04848';}
+function _ago(ts){const s=Math.floor(Date.now()/1000-ts);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+function _nodeName(id){const n=_nodes.find(n=>n.node_id===id);return n?(n.long_name||id):id;}
+function _stats(sess){
+  const atts=sess.attempts||[], ok=atts.filter(a=>a.status==='ok');
+  const rtts=ok.map(a=>a.rtt).filter(r=>r!=null);
+  const loss=atts.length?Math.round((1-ok.length/atts.length)*100):0;
+  const avg=rtts.length?rtts.reduce((a,b)=>a+b,0)/rtts.length:null;
+  const mn=rtts.length?Math.min(...rtts):null, mx=rtts.length?Math.max(...rtts):null;
+  // Jitter = std deviation of RTT
+  const jitter=rtts.length>1?Math.sqrt(rtts.reduce((s,r)=>s+(r-avg)**2,0)/rtts.length):null;
+  // Reliability score 0-100: success rate penalised by jitter
+  const jPenalty=jitter!=null?Math.min(30,jitter*10):0;
+  const reliability=Math.max(0,Math.round((1-loss/100)*100-jPenalty));
+  return{ok:ok.length,total:atts.length,loss,avg,min:mn,max:mx,rtts,jitter,reliability};
+}
+
+// SSE
+function _sseConnect(){
+  if(_sse){try{_sse.close();}catch(e){}}
+  _sse=new EventSource('/sse');
+  _sse.addEventListener('mesh_ping_update',e=>{try{_onUpdate(JSON.parse(e.data));}catch(err){}});
+  _sse.onopen=()=>{$('conn-dot').className='conn-dot ok';$('conn-lbl').textContent='Live';_loadSessions();};
+  _sse.onerror=()=>{$('conn-dot').className='conn-dot err';$('conn-lbl').textContent='Reconnecting…';setTimeout(_sseConnect,3000);};
+}
+
+function _onUpdate(sess){
+  if(!sess||!sess.id)return;
+  if(sess.status==='done'||sess.status==='stopped'){
+    delete _active[sess.id];
+    const idx=_history.findIndex(h=>h.id===sess.id);
+    if(idx>=0)_history[idx]=sess; else _history.unshift(sess);
+    if(_history.length>100)_history.pop();
+    // Session just finished — show results
+    _expandedHist=sess.id;
+    App._showLastResult(sess);
+  } else {
+    _active[sess.id]=sess;
+  }
+  const atts=sess.attempts||[];
+  // Add each newly resolved attempt to the feed (deduplicate by session_id+index)
+  atts.forEach(a => {
+    if(a.status!=='pending' && a.status!=='sending') {
+      const key=`${sess.id}-${a.index}`;
+      if(!_feedSeen.has(key)){
+        _feedSeen.add(key);
+        _feed.unshift({...a, session_id:sess.id, target_id:sess.target_id, ts:Date.now()});
+        if(_feed.length>500)_feed.pop();
+      }
+    }
+  });
+  App.render();
+}
+
+// Data
+async function _loadSlots(){
+  try{const r=await fetch('/api/slots');if(!r.ok)return;const d=await r.json();
+  $('slot-pills').innerHTML=(d.slots||[]).map(s=>`<div class="spl${s.slot_id===_slot?' on':''}" data-slot="${s.slot_id}" onclick="App.setSlot('${s.slot_id}')">${_esc(s.label||s.slot_id)}</div>`).join('');}catch(e){}
+}
+async function _loadNodes(){
+  try{const r=await fetch(`${API}/nodes/${_slot}`);if(!r.ok)return;const d=await r.json();_nodes=d.nodes||[];
+  // Populate history filter
+  const hf=$('hist-filter');
+  const prev=hf.value;
+  hf.innerHTML='<option value="">All nodes</option>'+_nodes.map(n=>`<option value="${n.node_id}">${_esc(n.long_name||n.node_id)}</option>`).join('');
+  hf.value=prev;
+  }catch(e){}
+}
+async function _loadCfg(){
+  try{const r=await fetch(`${API}/config`);if(!r.ok)return;_cfg=await r.json();_applyCfg();}catch(e){}
+}
+function _applyCfg(){
+  if(!_cfg)return;
+  $('cfg-dm').checked=!!_cfg.dm_trigger_enabled;
+  $('cfg-word').value=_cfg.dm_trigger_word||'ping';
+  $('cfg-sum').checked=!!_cfg.summary_dm_enabled;
+  $('cfg-dc').value=_cfg.default_count||5;
+  $('cfg-di').value=_cfg.default_interval||5;
+  $('cfg-mc').value=_cfg.max_count||20;
+  $('cfg-mi').value=_cfg.max_interval||30;
+  $('cfg-ch').value=String(_cfg.channel_index||0);
+  $('max-lbl').textContent=(_cfg.max_count||20)+' max';
+  $('iv-sl').max=Math.min(15,_cfg.max_interval||15);
+}
+async function _loadSessions(){
+  try{const r=await fetch(`${API}/sessions`);if(!r.ok)return;const d=await r.json();
+  _active={};(d.active||[]).forEach(s=>{_active[s.id]=s;});
+  _history=d.history||[];
+  // On first load: set last completed and pre-expand newest in history
+  if(_history.length>0){
+    if(!_lastCompleted)_lastCompleted=_history[0];
+    if(_expandedHist===null)_expandedHist=_history[0].id;
+  }
+  App.render();}catch(e){}
+}
+
+// App
+const App={
+  mainTab(name){
+    _mainTab=name;
+    ['launch','history','analytics','feed','settings'].forEach(t=>{
+      $('mt-'+t).classList.toggle('on',t===name);
+      $('view-'+t).classList.toggle('on',t===name);
+    });
+    if(name==='analytics')this._renderAnalytics();
+    if(name==='history'){
+      // Auto-expand the newest session on first open
+      if(_history.length>0&&_expandedHist===null)_expandedHist=_history[0].id;
+      this._renderHistory();
+    }
+  },
+  rvTab(name){
+    _rvTab=name;
+    ['active','last','feed'].forEach(t=>{
+      $('rt-'+t).classList.toggle('on',t===name);
+      $('rvp-'+t).classList.toggle('on',t===name);
+    });
+    if(name==='last'){
+      if(_lastCompleted)this._renderLastResult(_lastCompleted);
+      else $('rvp-last').innerHTML='<div class="empty"><i class="fas fa-satellite-dish"></i><span>No completed sessions yet</span></div>';
+    }
+    if(name==='feed')this._renderRvFeed();
+  },
+  setSlot(sid){
+    _slot=sid;
+    document.querySelectorAll('.spl').forEach(p=>p.classList.toggle('on',p.dataset.slot===sid));
+    _loadNodes();
+  },
+  adjCount(delta){
+    _count=Math.max(1,Math.min(parseInt(_cfg.max_count||20),_count+delta));
+    $('count-val').textContent=_count;
+  },
+  filterNodes(){this.openDd();this.renderDd($('target-inp').value.toLowerCase());},
+  openDd(){$('nd-list').classList.add('open');this.renderDd();},
+  closeDd(){$('nd-list').classList.remove('open');},
+  renderDd(q=''){
+    const f=_nodes.filter(n=>!q||(n.long_name||'').toLowerCase().includes(q)||(n.node_id||'').toLowerCase().includes(q)).slice(0,20);
+    $('nd-list').innerHTML=f.length?f.map(n=>`<div class="nd-item" onmousedown="App.selectNode('${n.node_id}','${_esc(n.long_name||n.node_id)}')">${_esc(n.long_name||n.node_id)}<span class="nd-id">${n.node_id}</span></div>`).join(''):'<div class="nd-item" style="color:var(--txt3);">No nodes</div>';
+  },
+  selectNode(id,name){
+    $('target-inp').value=`${name}  (${id})`;
+    $('target-inp').dataset.nid=id;
+    this.closeDd();
+  },
+  async launch(){
+    const inp=$('target-inp');
+    const nid=inp.dataset.nid||inp.value.trim();
+    if(!nid){if(window.triggerToast)triggerToast('Enter a target node','warn');return;}
+    const iv=parseFloat($('iv-sl').value);
+    const btn=$('launch-btn');
+    btn.disabled=true;
+    try{
+      const r=await fetch(`${API}/start`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({target_id:nid,slot_id:_slot,count:_count,interval:iv})});
+      if(!r.ok)throw new Error(await r.text());
+      this.rvTab('active'); // switch to active panel
+      if(window.triggerToast)triggerToast('Ping session started','ok');
+    }catch(e){if(window.triggerToast)triggerToast('Failed: '+e.message,'err');}
+    finally{btn.disabled=false;}
+  },
+  async stop(sid){await fetch(`${API}/stop/${sid}`,{method:'POST',credentials:'include'});},
+  async rerun(sid){
+    const s=_history.find(h=>h.id===sid)||_active[sid];
+    if(!s)return;
+    const r=await fetch(`${API}/start`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({target_id:s.target_id,slot_id:s.slot_id||_slot,count:s.count,interval:s.interval})});
+    if(r.ok){this.rvTab('active');if(window.triggerToast)triggerToast('Re-running ping session','ok');}
+  },
+
+  render(){
+    this._renderActive();
+    this._renderRvFeed();
+    this._updateBadges();
+    // Always keep feed DOM current regardless of active tab
+    this._renderFeed();
+    if(_mainTab==='history')this._renderHistory();
+    if(_mainTab==='analytics')this._renderAnalytics();
+  },
+
+  _updateBadges(){
+    const ac=Object.keys(_active).length, hc=_history.length;
+    $('b-active').textContent=ac;$('b-active').classList.toggle('show',ac>0);
+    $('b-history').textContent=hc;$('b-history').classList.toggle('show',hc>0);
+    $('rn-active').textContent=ac;$('rn-active').classList.toggle('s',ac>0);
+  },
+
+  _renderActive(){
+    const el=$('rvp-active');
+    const sess=Object.values(_active);
+    if(sess.length){
+      el.innerHTML=sess.map(s=>_sessCard(s,true)).join('');
+      return;
+    }
+    // No active sessions — show last completed or empty
+    if(_lastCompleted){
+      const st=_stats(_lastCompleted);
+      const lc=st.loss===0?'var(--ok)':st.loss===100?'var(--err)':'var(--warn)';
+      const icon=st.loss===0?'fa-check-circle':'fa-circle-exclamation';
+      const label=st.loss===0?'COMPLETED — ALL PINGS SUCCEEDED':'COMPLETED — '+st.loss+'% PACKET LOSS';
+      el.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 2px 10px;">
+        <div style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;font-weight:bold;letter-spacing:.5px;color:${lc};">
+          <i class="fas ${icon}"></i>${label}
+        </div>
+        <button onclick="App.mainTab('history')" style="font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:2px;border:1px solid var(--bd2);background:var(--bg);color:var(--txt3);cursor:pointer;">VIEW ALL →</button>
+      </div>`+_sessCard(_lastCompleted,false);
+    } else {
+      el.innerHTML='<div class="empty"><i class="fas fa-satellite-dish"></i><span>No active sessions</span><span>Launch one or trigger via DM command</span></div>';
+    }
+  },
+
+  _showLastResult(sess){
+    _lastCompleted=sess;
+    // Always update last-result panel
+    this._renderLastResult(sess);
+    if(Object.keys(_active).length===0){
+      // No other sessions running — active sub-panel shows the completed result
+      this._renderActive();
+      // If we're on the launch view, switch the right-side sub-tab to last result
+      if(_mainTab==='launch'){
+        this.rvTab('last');
+      }
+    }
+    // Update badges — history count went up
+    this._updateBadges();
+    // Auto-expand this session in history when user switches to it
+    _expandedHist=sess.id;
+    // Render history silently so it's ready when user clicks
+    this._renderHistory();
+  },
+
+  _renderLastResult(sess){
+    $('rvp-last').innerHTML=_sessCard(sess,false);
+  },
+
+  _renderRvFeed(){
+    const el=$('rvp-feed');
+    if(!_feed.length){el.innerHTML='<div class="empty"><i class="fas fa-rss"></i><span>No events yet</span></div>';return;}
+    el.innerHTML='<div style="font-family:var(--mono);font-size:11px;color:var(--txt3);display:grid;grid-template-columns:52px 80px 64px 48px 1fr;gap:8px;padding:4px 2px;border-bottom:1px solid var(--bd);margin-bottom:4px;"><span>TIME</span><span>NODE</span><span>STATUS</span><span style=text-align:right>RTT</span><span>SENT MESSAGE</span></div>'
+      +_feed.slice(0,60).map(_feedRow).join('');
+  },
+
+  _renderHistory(){
+    const el=$('hist-area');
+    const filterNode=$('hist-filter')?.value||'';
+    let items=_history.filter(s=>!filterNode||s.target_id===filterNode);
+    if(!items.length){
+      el.innerHTML='<div class="empty"><i class="fas fa-clock-rotate-left"></i><span>No completed sessions</span></div>';
+      return;
+    }
+    el.innerHTML=items.map(s=>{
+      const st=_stats(s);
+      const lc=st.loss===0?'var(--ok)':st.loss===100?'var(--err)':'var(--warn)';
+      const rttStr=st.avg!=null?`<span style="color:${_rttCol(st.avg)}">${st.avg.toFixed(2)}s</span>`:'—';
+      const jStr=st.jitter!=null?`±${st.jitter.toFixed(2)}s`:'—';
+      const relCol=st.reliability>=80?'var(--ok)':st.reliability>=50?'var(--warn)':'var(--err)';
+      const src=s.triggered_by==='dm'?'<span class="src-dm">DM</span>':'<span class="src-ui">UI</span>';
+      const isExp=_expandedHist===s.id;
+      return `<div class="hi${isExp?' expanded':''}" id="hi-${s.id}">
+        <div class="hi-row" onclick="App._toggleHist('${s.id}')">
+          ${src}
+          <div class="hi-name">${_esc(_nodeName(s.target_id))}</div>
+          <div class="hi-result" style="color:${lc}">${st.ok}/${st.total}</div>
+          <div class="hi-rtt">${rttStr}</div>
+          <div class="hi-jitter">${jStr}</div>
+          <div style="font-family:var(--mono);font-size:9px;font-weight:bold;color:${relCol};flex-shrink:0;min-width:32px;text-align:right;">${st.reliability}%</div>
+          <div class="hi-meta">${s.started_at?_ago(s.started_at):'—'}</div>
+          <i class="fas fa-chevron-down hi-chevron"></i>
+        </div>
+        <div class="hi-expand">${isExp?_sessCard(s,false):''}</div>
+      </div>`;
+    }).join('');
+  },
+
+  _toggleHist(sid){
+    const prev=_expandedHist;
+    _expandedHist=_expandedHist===sid?null:sid;
+    // Populate expand div if opening
+    if(_expandedHist){
+      const s=_history.find(h=>h.id===sid);
+      const exp=document.querySelector(`#hi-${sid} .hi-expand`);
+      if(exp&&s)exp.innerHTML=_sessCard(s,false);
+    }
+    this._renderHistory();
+  },
+
+  _renderAnalytics(){
+    const el=$('analytics-area');
+    if(!_history.length){
+      el.innerHTML='<div class="empty" style="height:200px;"><i class="fas fa-chart-line"></i><span>No session data yet</span><span>Complete some ping sessions to see analytics</span></div>';
+      return;
+    }
+
+    // Aggregate per-node stats
+    const nodeMap={};
+    _history.forEach(sess=>{
+      const st=_stats(sess), nid=sess.target_id;
+      if(!nodeMap[nid])nodeMap[nid]={name:_nodeName(nid),sessions:0,total_pings:0,ok_pings:0,rtts:[],reliability_sum:0};
+      const nm=nodeMap[nid];
+      nm.sessions++;
+      nm.total_pings+=st.total;
+      nm.ok_pings+=st.ok;
+      nm.rtts.push(...st.rtts);
+      nm.reliability_sum+=st.reliability;
+    });
+    const nodes=Object.entries(nodeMap).map(([id,nm])=>{
+      const rtts=nm.rtts;
+      const avg=rtts.length?rtts.reduce((a,b)=>a+b,0)/rtts.length:null;
+      const jitter=rtts.length>1?Math.sqrt(rtts.reduce((s,r)=>s+(r-avg)**2,0)/rtts.length):null;
+      const reliability=Math.round(nm.reliability_sum/nm.sessions);
+      const loss=Math.round((1-nm.ok_pings/Math.max(nm.total_pings,1))*100);
+      return{id,name:nm.name,sessions:nm.sessions,total_pings:nm.total_pings,ok_pings:nm.ok_pings,avg,jitter,reliability,loss,rtts};
+    }).sort((a,b)=>(b.reliability||0)-(a.reliability||0));
+
+    // Fleet totals
+    const allRTTs=_history.flatMap(s=>_stats(s).rtts);
+    const fleetAvg=allRTTs.length?allRTTs.reduce((a,b)=>a+b,0)/allRTTs.length:null;
+    const allOk=_history.reduce((s,h)=>s+_stats(h).ok,0);
+    const allTotal=_history.reduce((s,h)=>s+_stats(h).total,0);
+    const fleetLoss=allTotal?Math.round((1-allOk/allTotal)*100):0;
+
+    // RTT trend (last 30 sessions)
+    const trendData=_history.slice(0,30).reverse().map(s=>{const st=_stats(s);return{ts:s.started_at,avg:st.avg,label:_nodeName(s.target_id).slice(0,8)};});
+
+    const maxAvg=Math.max(...nodes.map(n=>n.avg||0),0.01);
+
+    el.innerHTML=`
+    <div class="acard">
+      <div class="acard-hdr"><i class="fas fa-globe"></i><span class="acard-title">FLEET SUMMARY</span></div>
+      <div class="acard-body">
+        <div class="stat-grid">
+          <div class="ag"><div class="ag-v">${_history.length}</div><div class="ag-l">SESSIONS</div></div>
+          <div class="ag"><div class="ag-v">${allTotal}</div><div class="ag-l">TOTAL PINGS</div></div>
+          <div class="ag"><div class="ag-v" style="color:${_rttCol(fleetAvg)}">${fleetAvg!=null?fleetAvg.toFixed(2)+'s':'—'}</div><div class="ag-l">AVG RTT</div></div>
+          <div class="ag"><div class="ag-v" style="color:${fleetLoss>20?'var(--err)':fleetLoss>5?'var(--warn)':'var(--ok)'}">${fleetLoss}%</div><div class="ag-l">PKT LOSS</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="acard">
+      <div class="acard-hdr"><i class="fas fa-chart-line"></i><span class="acard-title">RTT TREND — LAST 30 SESSIONS</span></div>
+      <div class="acard-body" style="padding:10px;">
+        <div style="position:relative;height:140px;"><canvas id="trend-chart"></canvas></div>
+      </div>
+    </div>
+    <div class="acard">
+      <div class="acard-hdr"><i class="fas fa-trophy"></i><span class="acard-title">NODE RELIABILITY RANKING</span>
+        <span style="font-family:var(--mono);font-size:11px;color:var(--txt3);margin-left:auto;">Reliability = success% − jitter_penalty</span>
+      </div>
+      <div class="acard-body">
+        ${nodes.map((n,i)=>{
+          const rc=n.reliability>=80?'var(--ok)':n.reliability>=50?'var(--warn)':'var(--err)';
+          const barW=Math.round((n.avg||0)/maxAvg*100);
+          const jStr=n.jitter!=null?`±${n.jitter.toFixed(2)}s`:'—';
+          return `<div class="node-rank">
+            <div class="nr-pos" style="color:${i===0?'#ffd700':i===1?'#c0c0c0':i===2?'#cd7f32':'var(--txt3)'}">${i+1}</div>
+            <div class="nr-name">${_esc(n.name)}</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);flex-shrink:0;width:60px;text-align:center;">${n.sessions} sess</div>
+            <div class="nr-bar-wrap"><div class="nr-bar" style="width:${barW}%;background:${_rttCol(n.avg)};"></div></div>
+            <div class="nr-rtt" style="color:${_rttCol(n.avg)}">${n.avg!=null?n.avg.toFixed(2)+'s':'—'}</div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);flex-shrink:0;width:44px;text-align:right;">${jStr}</div>
+            <div class="nr-reliability" style="color:${rc};font-weight:bold">${n.reliability}%</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+    // Render trend chart
+    if(_analyticsChart){_analyticsChart.destroy();_analyticsChart=null;}
+    if(trendData.length>1){
+      const ctx=document.getElementById('trend-chart')?.getContext('2d');
+      if(ctx){
+        _analyticsChart=new Chart(ctx,{
+          type:'line',
+          data:{
+            labels:trendData.map((_,i)=>i+1),
+            datasets:[{
+              label:'Avg RTT',
+              data:trendData.map(d=>d.avg),
+              borderColor:'#00c8f5',
+              backgroundColor:'rgba(0,200,245,.08)',
+              fill:true, tension:.4, pointRadius:3,
+              pointBackgroundColor:trendData.map(d=>_rttCol(d.avg)),
+              borderWidth:2,
+            }]
+          },
+          options:{responsive:true,maintainAspectRatio:false,animation:{duration:300},
+            plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(0,0,0,.85)',titleFont:{family:'monospace',size:9},bodyFont:{family:'monospace',size:9},callbacks:{title:ctx=>`Session ${ctx[0].dataIndex+1}: ${trendData[ctx[0].dataIndex].label}`,label:ctx=>`RTT: ${ctx.raw!=null?ctx.raw.toFixed(3)+'s':'—'}`}}},
+            scales:{
+              x:{ticks:{color:'rgba(255,255,255,.3)',font:{family:'monospace',size:8}},grid:{color:'rgba(255,255,255,.04)'}},
+              y:{ticks:{color:'rgba(255,255,255,.3)',font:{family:'monospace',size:8},callback:v=>v!=null?v.toFixed(1)+'s':''},grid:{color:'rgba(255,255,255,.04)'},title:{display:true,text:'RTT (s)',color:'rgba(255,255,255,.3)',font:{family:'monospace',size:8}}}
+            }
+          }
+        });
+      }
+    }
+  },
+
+  _renderFeed(){
+    const el=$('feed-area');
+    if(!_feed.length){el.innerHTML='<div class="empty" style="height:100px;"><i class="fas fa-rss"></i><span>No events yet</span></div>';return;}
+    el.innerHTML=_feed.slice(0,200).map(_feedRow).join('');
+  },
+  clearFeed(){_feed=[];_feedSeen.clear();App._renderFeed();App._renderRvFeed();},
+
+  async clearHistory(){
+    await fetch(`${API}/history`,{method:'DELETE',credentials:'include'});
+    _history=[];_lastCompleted=null;_expandedHist=null;
+    App._renderHistory();App._updateBadges();
+  },
+
+  async saveSettings(){
+    const body={dm_trigger_enabled:$('cfg-dm').checked,dm_trigger_word:$('cfg-word').value.trim().toLowerCase()||'ping',summary_dm_enabled:$('cfg-sum').checked,default_count:parseInt($('cfg-dc').value)||5,default_interval:parseFloat($('cfg-di').value)||2,max_count:parseInt($('cfg-mc').value)||20,max_interval:parseFloat($('cfg-mi').value)||30,channel_index:parseInt($('cfg-ch').value)||0};
+    try{const r=await fetch(`${API}/config`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});if(!r.ok)throw new Error(await r.text());_cfg=body;$('max-lbl').textContent=body.max_count+' max';if(window.triggerToast)triggerToast('Settings saved','ok');}catch(e){if(window.triggerToast)triggerToast('Save failed: '+e.message,'err');}
+  },
+};
+
+// Session card renderer
+function _sessCard(sess,showStop){
+  const st=_stats(sess), status=sess.status;
+  const lc=st.loss===0?'var(--ok)':st.loss===100?'var(--err)':'var(--warn)';
+  const elapsed=sess.started_at?((sess.ended_at||Date.now()/1000)-sess.started_at).toFixed(0)+'s':'—';
+  const src=sess.triggered_by==='dm'?'<span class="src-dm">DM</span>':'<span class="src-ui">UI</span>';
+  const stopBtn=showStop&&status==='running'?`<button class="stop-btn" onclick="event.stopPropagation();App.stop('${sess.id}')">■ STOP</button>`:'';
+  const rerunBtn=!showStop||status!=='running'?`<button class="rerun-btn" onclick="event.stopPropagation();App.rerun('${sess.id}')"><i class="fas fa-redo" style="font-size:11px;margin-right:3px;"></i>RE-RUN</button>`:'';
+
+  const dots=Array.from({length:sess.count},(_,i)=>{
+    const a=(sess.attempts||[])[i];
+    if(!a)return`<div class="pd pending">${i+1}</div>`;
+    const dc=a.status==='ok'?'ok':a.status==='timeout'?'timeout':a.status==='nak'?'nak':'sending';
+    const rttLine=a.rtt!=null?`<span class="tr">${a.rtt.toFixed(3)}s</span><br>`:'';
+    const errLine=a.error?`<span style="color:var(--err)">${_esc(a.error)}</span>`:'';
+    return`<div class="pd ${dc}">${i+1}<div class="pd-tip">#${i+1} ${a.status.toUpperCase()}<br>${rttLine}${errLine}</div></div>`;
+  }).join('');
+
+  const maxR=Math.max(...st.rtts,0.01);
+  const bars=Array.from({length:sess.count},(_,i)=>{
+    const a=(sess.attempts||[])[i],r=a?.rtt;
+    const h=r!=null?Math.max(3,Math.round((r/maxR)*26)):2;
+    return`<div class="spark-bar" style="height:${h}px;background:${r!=null?_rttCol(r):'rgba(255,255,255,.08)'};"></div>`;
+  }).join('');
+
+  const relCol=st.reliability>=80?'var(--ok)':st.reliability>=50?'var(--warn)':'var(--err)';
+
+  return`<div class="sc ${status}">
+    <div class="sc-head">
+      <div class="sc-dot ${status}"></div>
+      <div style="flex:1;min-width:0;">
+        <div class="sc-name">${_esc(_nodeName(sess.target_id))}</div>
+        <div class="sc-meta">${_esc(sess.target_id)} · ${sess.count}× ${sess.interval}s · ${elapsed}</div>
+      </div>
+      ${src}${stopBtn}${rerunBtn}
+    </div>
+    <div class="sc-tl">${dots}</div>
+    <div class="sc-stats">
+      <div class="sc-stat"><div class="sc-sv" style="color:${lc}">${st.ok}/${st.total}</div><div class="sc-sl">SUCCESS</div></div>
+      <div class="sc-stat"><div class="sc-sv" style="color:${st.loss>0?'var(--err)':'var(--txt3)'}">${st.loss}%</div><div class="sc-sl">LOSS</div></div>
+      <div class="sc-stat"><div class="sc-sv" style="color:${_rttCol(st.avg)}">${st.avg!=null?st.avg.toFixed(2)+'s':'—'}</div><div class="sc-sl">AVG RTT</div></div>
+      <div class="sc-stat"><div class="sc-sv">${st.min!=null?st.min.toFixed(2)+'s':'—'}</div><div class="sc-sl">MIN</div></div>
+      <div class="sc-stat"><div class="sc-sv">${st.max!=null?st.max.toFixed(2)+'s':'—'}</div><div class="sc-sl">MAX</div></div>
+    </div>
+    <div class="sc-ext">
+      <div class="sc-ext-cell"><div class="sc-ext-v">${st.jitter!=null?'±'+st.jitter.toFixed(3)+'s':'—'}</div><div class="sc-ext-l">JITTER</div></div>
+      <div class="sc-ext-cell"><div class="sc-ext-v" style="color:${relCol}">${st.reliability}%</div><div class="sc-ext-l">RELIABILITY</div></div>
+      <div class="sc-ext-cell"><div class="sc-ext-v">${sess.interval}s</div><div class="sc-ext-l">INTERVAL</div></div>
+      <div class="sc-ext-cell"><div class="sc-ext-v">${sess.id}</div><div class="sc-ext-l">SESSION ID</div></div>
+    </div>
+    <div class="sc-spark">
+      <div class="spark-bars">${bars}</div>
+      <div class="spark-ax"><span>RTT per ping</span><span>${maxR.toFixed(1)}s max</span></div>
+    </div>
+  </div>`;
+}
+
+function _feedRow(f){
+  const ts=new Date(f.ts||Date.now()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const sc=f.status==='ok'?'c-ok':f.status==='timeout'?'c-to':'c-nak';
+  const rtt=f.rtt!=null?`<span style="color:${_rttCol(f.rtt)}">${f.rtt.toFixed(2)}s</span>`:'<span style="color:var(--txt3)">—</span>';
+  const statusIcon=f.status==='ok'?'✓':f.status==='timeout'?'⏱':'✗';
+  const msg=f.sent_text?`<span style="color:var(--txt3)">${_esc(f.sent_text)}</span>`:`<span style="color:var(--txt3)">#${f.index}·${f.session_id}</span>`;
+  return`<div class="fr"><span style="color:var(--txt3)">${ts}</span><span class="c-acc" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${_esc(_nodeName(f.target_id))}</span><span class="${sc}" style="font-weight:bold">${statusIcon} ${f.status.toUpperCase()}</span><span style="text-align:right">${rtt}</span>${msg}</div>`;
+}
+
+// Boot
+(async function boot(){
+  const qs=new URLSearchParams(location.search);
+  const qNode=qs.get('node'),qSlot=qs.get('slot'),qTab=qs.get('tab');
+  if(qSlot)_slot=qSlot;
+  if(qNode){$('target-inp').value=qNode;$('target-inp').dataset.nid=qNode;}
+  await _loadSlots();
+  await _loadNodes();
+  await _loadCfg();
+  await _loadSessions();
+  _sseConnect();
+
+  // If URL requested a specific tab (e.g. from context menu)
+  if(qTab&&['history','analytics','feed','settings'].includes(qTab))App.mainTab(qTab);
+
+  // Continuous polling — fast at first, slows to 5s
+  let pc=0;
+  async function poll(){
+    pc++;
+    try{
+      const r=await fetch(`${API}/sessions`);
+      if(!r.ok)return;
+      const d=await r.json();
+      _active={};(d.active||[]).forEach(s=>{_active[s.id]=s;});
+      // Push any new resolved attempts to feed
+      [...(d.active||[]), ...(d.history||[])].forEach(sess=>{
+        (sess.attempts||[]).forEach(a=>{
+          if(a.status!=='pending'){
+            const key=`${sess.id}-${a.index}`;
+            if(!_feedSeen.has(key)){
+              _feedSeen.add(key);
+              _feed.unshift({...a,session_id:sess.id,target_id:sess.target_id,ts:Date.now()});
+              if(_feed.length>500)_feed.pop();
+            }
+          }
+        });
+      });
+      const prevNewest=_history[0]?.id;
+      _history=d.history||[];
+      const newNewest=_history[0]?.id;
+      // New session just completed — auto-expand it
+      if(newNewest&&newNewest!==prevNewest){
+        _lastCompleted=_history[0];
+        _expandedHist=newNewest;
+        // If user is on launch view with no active sessions, show result inline
+        if(_mainTab==='launch'&&Object.keys(_active).length===0){
+          App.rvTab('last');
+        }
+      }
+      if(_history.length>0&&!_lastCompleted)_lastCompleted=_history[0];
+      App.render();
+    }catch(e){}
+    setTimeout(poll,pc<15?2000:Object.keys(_active).length>0?3000:8000);
+  }
+  setTimeout(poll,1500);
+})();
+</script>
+</body>
+</html>

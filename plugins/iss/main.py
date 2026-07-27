@@ -24,11 +24,15 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Body, HTTPException, Query
 
+# ---------------------------------------------------------------------------
 # Plugin registry
+# ---------------------------------------------------------------------------
 core_context: dict = {}
 plugin_router = APIRouter()
 
+# ---------------------------------------------------------------------------
 # Database path – self-contained
+# ---------------------------------------------------------------------------
 _DB_PATH: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "iss_schedules.db")
 _db_conn: Optional[sqlite3.Connection] = None
 _scheduler_task: Optional[asyncio.Task] = None
@@ -37,7 +41,9 @@ _watchdog_task:  Optional[asyncio.Task] = None
 # Cache to respect Open-Notify's 5-second polling limits
 _iss_cache = {"data": None, "time": 0.0}
 
+# ---------------------------------------------------------------------------
 # Math & Distance Logic
+# ---------------------------------------------------------------------------
 
 def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calculates the great-circle distance between two points in km."""
@@ -49,7 +55,9 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
+# ---------------------------------------------------------------------------
 # DB helpers
+# ---------------------------------------------------------------------------
 
 def _get_db() -> sqlite3.Connection:
     global _db_conn
@@ -125,7 +133,9 @@ def _delete_schedule(sid: str):
     conn.execute("DELETE FROM schedules WHERE id=?", (sid,))
     conn.commit()
 
+# ---------------------------------------------------------------------------
 # Core ISS API Fetch
+# ---------------------------------------------------------------------------
 
 async def fetch_iss_data() -> dict:
     """Fetches location and crew count. Caches for 5s to avoid API limits."""
@@ -188,7 +198,9 @@ async def _do_iss_send(user_lat: float, user_lon: float, dest_type: str,
 
     return msg
 
+# ---------------------------------------------------------------------------
 # Watchdog heartbeat
+# ---------------------------------------------------------------------------
 
 async def _watchdog_heartbeat():
     logger = core_context.get("logger") or logging.getLogger("iss_plugin")
@@ -205,7 +217,9 @@ async def _watchdog_heartbeat():
         except Exception as e:
             logger.warning(f"⚠️ Watchdog heartbeat error: {e}")
 
+# ---------------------------------------------------------------------------
 # Scheduler worker (Distance Threshold Poller)
+# ---------------------------------------------------------------------------
 
 async def _scheduler_worker():
     """
@@ -275,7 +289,9 @@ async def _scheduler_worker():
         except Exception as e:
             logger.error(f"❌ Scheduler worker error: {e}", exc_info=True)
 
+# ---------------------------------------------------------------------------
 # Plugin lifecycle
+# ---------------------------------------------------------------------------
 
 def init_plugin(context: dict):
     global _scheduler_task, _watchdog_task
@@ -302,7 +318,9 @@ def init_plugin(context: dict):
     except Exception as e:
         logger.error(f"❌ Could not start watchdog heartbeat: {e}")
 
+# ---------------------------------------------------------------------------
 # API Endpoints
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("/iss-location")
 async def get_iss_location():

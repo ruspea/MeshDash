@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Medi AI</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700;800&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--mono);font-size:12px}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.025) 2px,rgba(0,0,0,.025) 4px);pointer-events:none;z-index:9999}
+.shell{height:100%;display:flex;flex-direction:column}
+.hdr{flex-shrink:0;height:54px;background:linear-gradient(90deg,var(--bg),var(--bg1));border-bottom:1px solid var(--acc);display:flex;align-items:center;padding:0 20px;gap:18px;position:relative}
+.hdr::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(0,212,255,.7),transparent);animation:scan 5s ease-in-out infinite}
+@keyframes scan{0%,100%{opacity:.2}50%{opacity:1}}
+.logo{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo-icon{width:36px;height:36px;border:1.5px solid var(--acc);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:17px;color:var(--acc);background:rgba(0,212,255,.07);box-shadow:0 0 14px rgba(0,212,255,.18)}
+.logo-text{display:flex;flex-direction:column;line-height:1}
+.logo-name{font-family:var(--sans);font-size:15px;font-weight:800;color:var(--txt);letter-spacing:2.5px}
+.logo-sub{font-size:10px;color:var(--acc);letter-spacing:3px;opacity:.65;margin-top:2px}
+.hdr-stats{display:flex;gap:22px;margin-left:auto}
+.stat{text-align:center}
+.stat-val{font-size:17px;font-weight:800;color:var(--acc);line-height:1;font-family:var(--sans)}
+.stat-lbl{font-size:9px;color:var(--txt3);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px}
+.hdr-nav{display:flex;gap:6px;margin-left:18px}
+.nav-tab{display:flex;align-items:center;gap:6px;padding:6px 14px;border:1px solid var(--bd2);border-radius:4px;background:transparent;color:var(--txt2);font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:1px;cursor:pointer;transition:all .15s;text-transform:uppercase}
+.nav-tab:hover{border-color:var(--acc);color:var(--acc);background:rgba(0,212,255,.06)}
+.nav-tab.active{border-color:var(--acc);color:var(--acc);background:rgba(0,212,255,.12);box-shadow:0 0 8px rgba(0,212,255,.14)}
+.nav-tab i{font-size:10px}
+.main{flex:1;overflow:hidden;display:flex}
+.page{width:100%;height:100%;overflow-y:auto;padding:16px;display:none;flex-direction:column;gap:14px}
+.page.active{display:flex}
+.card{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;overflow:hidden;flex-shrink:0}
+.card-head{padding:9px 14px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.012)}
+.card-title{font-size:11px;letter-spacing:1.5px;font-weight:700;text-transform:uppercase;color:var(--txt2);display:flex;align-items:center;gap:7px}
+.card-title i{color:var(--acc);font-size:10px}
+.card-body{padding:14px}
+.guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.guide-full{grid-column:1/-1}
+@media(max-width:900px){.guide-grid{grid-template-columns:1fr}}
+.prefix-banner{background:linear-gradient(135deg,rgba(0,212,255,.07),rgba(0,232,150,.04));border:1px solid rgba(0,212,255,.28);border-radius:6px;padding:14px 16px;display:flex;align-items:center;gap:16px}
+.prefix-tag{font-family:var(--mono);font-size:19px;font-weight:800;color:var(--acc);background:rgba(0,212,255,.1);border:1.5px solid rgba(0,212,255,.35);padding:6px 14px;border-radius:4px;letter-spacing:1px;box-shadow:0 0 16px rgba(0,212,255,.14);flex-shrink:0}
+.prefix-info{flex:1}
+.prefix-info-title{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--txt);margin-bottom:3px}
+.prefix-info-desc{font-size:9.5px;color:var(--txt2);line-height:1.6;font-family:var(--sans)}
+.warn-banner{background:rgba(255,51,88,.06);border:1px solid rgba(255,51,88,.25);border-left:3px solid var(--err);border-radius:0 5px 5px 0;padding:11px 14px;display:flex;align-items:flex-start;gap:10px}
+.warn-icon{font-size:16px;color:var(--err);flex-shrink:0;margin-top:1px}
+.warn-text{font-size:9.5px;color:var(--txt);line-height:1.6;font-family:var(--sans)}
+.warn-text strong{color:var(--err)}
+.how-block{background:var(--bg2);border:1px solid var(--bd);border-radius:6px;overflow:hidden}
+.how-head{padding:10px 14px;background:rgba(0,212,255,.03);border-bottom:1px solid var(--bd);display:flex;align-items:center;gap:9px}
+.how-head-icon{width:26px;height:26px;border-radius:4px;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.2);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--acc)}
+.how-head-title{font-family:var(--sans);font-size:12px;font-weight:700;color:var(--txt)}
+.how-head-sub{font-size:11px;color:var(--txt3);letter-spacing:.5px;margin-top:1px}
+.how-body{padding:14px;display:flex;flex-direction:column;gap:8px}
+.cmd-row{display:flex;align-items:flex-start;gap:10px;padding:8px 10px;background:rgba(255,255,255,.02);border-radius:4px;border:1px solid rgba(255,255,255,.04)}
+.cmd-label{background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.25);color:var(--acc);padding:3px 8px;border-radius:3px;font-size:9px;font-weight:700;white-space:nowrap;flex-shrink:0;font-family:var(--mono)}
+.cmd-desc{font-size:9.5px;color:var(--txt);line-height:1.5;font-family:var(--sans)}
+.cmd-desc strong{color:var(--txt)}
+.cmd-example{font-size:11px;color:var(--txt3);margin-top:2px;font-family:var(--mono)}
+.step-list{display:flex;flex-direction:column;gap:7px}
+.step{display:flex;align-items:flex-start;gap:10px}
+.step-num{width:20px;height:20px;border-radius:50%;background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--acc);flex-shrink:0;margin-top:1px}
+.step-text{font-size:9.5px;color:var(--txt);line-height:1.55;font-family:var(--sans)}
+.step-text strong{color:var(--txt)}
+.step-text code{font-family:var(--mono);font-size:9px;color:var(--acc);background:rgba(0,212,255,.08);padding:1px 5px;border-radius:2px}
+.disclaimer-box{background:rgba(255,170,0,.05);border:1px solid rgba(255,170,0,.22);border-left:3px solid var(--amb);border-radius:0 5px 5px 0;padding:11px 14px;font-size:9px;color:var(--txt);line-height:1.65;font-family:var(--sans)}
+.disclaimer-box strong{color:var(--amb)}
+.live-grid{display:grid;grid-template-columns:1fr 2fr;gap:14px;flex:1;min-height:0}
+.flex-card{display:flex;flex-direction:column;min-height:0}
+.scroll-body{flex:1;overflow-y:auto}
+.q-item{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:10px}
+.q-node{font-size:10px;color:var(--acc);font-weight:700}
+.q-text{font-size:9px;color:var(--txt2);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px;font-family:var(--sans)}
+.qb{padding:2px 7px;border-radius:8px;font-size:10px;font-weight:700;letter-spacing:.5px;flex-shrink:0}
+.qb-proc{background:rgba(255,170,0,.1);border:1px solid rgba(255,170,0,.3);color:var(--amb)}
+.qb-pend{background:rgba(0,212,255,.1);border:1px solid rgba(0,212,255,.3);color:var(--acc)}
+.qb-done{background:rgba(0,232,150,.1);border:1px solid rgba(0,232,150,.3);color:var(--ok)}
+.qb-err{background:rgba(255,51,88,.1);border:1px solid rgba(255,51,88,.3);color:var(--err)}
+.sess-item{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;align-items:center;gap:10px}
+.sess-node{font-size:10px;color:var(--acc);font-weight:700;font-family:var(--mono)}
+.sess-id{font-size:11px;color:var(--txt3);margin-left:5px;font-family:var(--mono)}
+.sess-meta{font-size:11px;color:var(--txt3);margin-top:2px;font-family:var(--sans)}
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:860px){.cfg-grid{grid-template-columns:1fr}}
+.status-strip{border-radius:5px;padding:12px 15px;margin-bottom:14px;border-left:3px solid var(--acc);background:rgba(0,212,255,.04);display:flex;align-items:center;gap:12px;transition:all .3s}
+.status-strip.busy{border-color:var(--amb);background:rgba(255,170,0,.05);animation:pulsebg 2s infinite}
+.status-strip.ok{border-color:var(--ok);background:rgba(0,232,150,.04)}
+.status-strip.err{border-color:var(--err);background:rgba(255,51,88,.04)}
+@keyframes pulsebg{0%,100%{box-shadow:none}50%{box-shadow:0 0 20px rgba(255,170,0,.12)}}
+.stat-label{font-size:11px;font-weight:700;margin-bottom:2px;color:var(--txt)}
+.stat-prog{font-size:9.5px;color:var(--txt2);font-family:var(--sans)}
+.form-group{display:flex;flex-direction:column;gap:3px;margin-bottom:10px}
+.form-label{font-size:10px;color:var(--txt3);letter-spacing:1.5px;text-transform:uppercase}
+.form-input,.form-select,.form-textarea{background:var(--bg);border:1px solid var(--bd2);color:var(--txt);padding:7px 10px;border-radius:4px;font-family:var(--mono);font-size:10px;width:100%;transition:border-color .15s}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--acc);box-shadow:0 0 0 2px rgba(0,212,255,.07)}
+.form-input:disabled,.form-select:disabled,.form-textarea:disabled{opacity:.4;cursor:not-allowed}
+.form-textarea{resize:vertical;min-height:90px;font-family:var(--sans);font-size:10px;line-height:1.6}
+.form-hint{font-size:11px;color:var(--txt3);margin-top:2px;line-height:1.4;font-family:var(--sans)}
+.toggle{position:relative;width:34px;height:18px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--bd2);border-radius:9px;transition:.2s;border:1px solid var(--bd)}
+.toggle-slider::before{content:'';position:absolute;width:12px;height:12px;left:2px;top:2px;background:var(--txt3);border-radius:50%;transition:.2s}
+.toggle input:checked+.toggle-slider{background:rgba(0,212,255,.25);border-color:var(--acc)}
+.toggle input:checked+.toggle-slider::before{transform:translateX(16px);background:var(--acc)}
+.btn{padding:6px 13px;border-radius:4px;font-family:var(--mono);font-size:9px;font-weight:700;cursor:pointer;transition:all .15s;border:1px solid;display:inline-flex;align-items:center;gap:6px;letter-spacing:.5px;white-space:nowrap}
+.btn-primary{background:rgba(0,212,255,.1);border-color:var(--acc);color:var(--acc)}
+.btn-primary:hover:not(:disabled){background:var(--acc);color:#000;box-shadow:0 0 12px rgba(0,212,255,.25)}
+.btn-ghost{background:transparent;border-color:var(--bd2);color:var(--txt3)}
+.btn-ghost:hover:not(:disabled){border-color:var(--txt2);color:var(--txt)}
+.btn:disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+.btn-sm{padding:3px 9px;font-size:11px}
+.preset-cards{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.preset-card{padding:9px 11px;border:1px solid var(--bd);border-radius:4px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:10px}
+.preset-card:hover,.preset-card.sel{border-color:var(--acc);background:rgba(0,212,255,.05)}
+.preset-card.sel .preset-radio{background:var(--acc)}
+.preset-radio{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--acc);flex-shrink:0;transition:.15s}
+.preset-name{font-size:10px;font-weight:700;color:var(--txt);flex:1}
+.preset-meta{font-size:11px;color:var(--txt3);margin-top:1px;font-family:var(--sans)}
+.preset-size{font-size:11px;padding:2px 6px;border-radius:3px;font-weight:700;flex-shrink:0}
+.ps-sm{background:rgba(0,232,150,.1);color:var(--ok);border:1px solid rgba(0,232,150,.2)}
+.ps-md{background:rgba(255,170,0,.1);color:var(--amb);border:1px solid rgba(255,170,0,.2)}
+.ps-lg{background:rgba(255,51,88,.1);color:var(--err);border:1px solid rgba(255,51,88,.2)}
+.divider{height:1px;background:var(--bd);margin:12px 0}
+.section-label{font-size:10px;color:var(--txt3);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--bd)}
+#msg-modal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-box{background:var(--bg2);border:1px solid var(--acc);border-radius:8px;width:620px;max-width:90vw;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 0 40px rgba(0,212,255,.12)}
+.modal-head{padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.modal-title{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--txt)}
+.modal-body{padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;flex:1}
+.msg-bubble{padding:9px 13px;border-radius:5px;max-width:85%;font-family:var(--sans);font-size:11px;line-height:1.5}
+.msg-user{background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.2);align-self:flex-end;color:var(--txt)}
+.msg-ai{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);align-self:flex-start;color:var(--txt)}
+.msg-role{font-size:10px;font-weight:700;letter-spacing:1.5px;color:var(--txt3);text-transform:uppercase;margin-bottom:4px;font-family:var(--mono)}
+.disclaimer-tag{font-size:11px;color:var(--amb);font-family:var(--mono);margin-top:5px;opacity:.8}
+.empty{text-align:center;padding:28px 16px;color:var(--txt3);font-size:9px;letter-spacing:.5px}
+.empty i{display:block;font-size:22px;margin-bottom:8px;opacity:.25}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+
+<div class="hdr">
+  <div class="logo">
+    <div class="logo-icon"><i class="fas fa-user-md"></i></div>
+    <div class="logo-text">
+      <div class="logo-name">MEDI AI</div>
+      <div class="logo-sub">OFFLINE MEDICAL ADVISOR</div>
+    </div>
+  </div>
+  <div class="hdr-stats">
+    <div class="stat"><div class="stat-val" id="k-sess">0</div><div class="stat-lbl">Sessions</div></div>
+    <div class="stat"><div class="stat-val" id="k-msgs">0</div><div class="stat-lbl">Messages</div></div>
+    <div class="stat"><div class="stat-val" id="k-queue">0</div><div class="stat-lbl">Queue</div></div>
+  </div>
+  <div class="hdr-nav">
+    <button class="nav-tab" onclick="show('guide')" id="n-guide"><i class="fas fa-book-medical"></i> How to Use</button>
+    <button class="nav-tab active" onclick="show('live')" id="n-live"><i class="fas fa-bolt"></i> Live</button>
+    <button class="nav-tab" onclick="show('cfg')" id="n-cfg"><i class="fas fa-sliders-h"></i> Config & Model</button>
+  </div>
+</div>
+
+<div class="main">
+
+<div class="page" id="p-guide">
+  <div class="prefix-banner">
+    <div class="prefix-tag">medi.</div>
+    <div class="prefix-info">
+      <div class="prefix-info-title">The Command Prefix</div>
+      <div class="prefix-info-desc">Every query to Medi AI must begin with <strong>medi.</strong> — this is how the plugin distinguishes medical queries from normal mesh traffic. Everything after this prefix is sent directly to the AI as your question.</div>
+    </div>
+    <div style="text-align:center;flex-shrink:0">
+      <div style="font-size:11px;color:var(--txt3);letter-spacing:1px;margin-bottom:4px">ROUTER PREFIX (API)</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--txt2);background:var(--bg3);border:1px solid var(--bd);padding:4px 9px;border-radius:3px">/api/plugins/medi</div>
+    </div>
+  </div>
+
+  <div class="warn-banner">
+    <div class="warn-icon"><i class="fas fa-exclamation-triangle"></i></div>
+    <div class="warn-text">
+      <strong>This is NOT a substitute for professional medical care.</strong> Medi AI is a survival-oriented offline assistant designed for situations where <strong>no doctor, no equipment, and no connectivity</strong> is available. All responses are AI-generated and automatically tagged <em>[AI Gen. Not a doctor.]</em> — this cannot be disabled. Cross-reference with trained personnel whenever possible. Do not use this tool when real medical help is accessible.
+    </div>
+  </div>
+
+  <div class="guide-grid">
+    <div class="how-block">
+      <div class="how-head">
+        <div class="how-head-icon"><i class="fas fa-paper-plane"></i></div>
+        <div><div class="how-head-title">Sending Queries</div><div class="how-head-sub">How to get medical guidance from your node</div></div>
+      </div>
+      <div class="how-body">
+        <div class="step-list">
+          <div class="step"><div class="step-num">1</div><div class="step-text">Open your Meshtastic client and navigate to the <strong>channel</strong> Medi AI is listening on (configured in Config tab, default channel 0)</div></div>
+          <div class="step"><div class="step-num">2</div><div class="step-text">Type your query starting with <code>medi.</code> — describe symptoms clearly: include <strong>location, severity, duration, and what caused it</strong></div></div>
+          <div class="step"><div class="step-num">3</div><div class="step-text">The AI replies via <strong>private DM to your node only</strong> — no one else on the channel sees your query or the response</div></div>
+          <div class="step"><div class="step-num">4</div><div class="step-text">Generation takes <strong>30–130 seconds</strong> depending on model size and hardware. You receive a "Still thinking..." DM at 30s and 60s. A 130s timeout triggers an error response.</div></div>
+          <div class="step"><div class="step-num">5</div><div class="step-text">Long responses are <strong>chunked into 200-byte segments</strong> and sent sequentially with delivery acknowledgment between each chunk — do not re-send if waiting for chunks</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="how-block">
+      <div class="how-head">
+        <div class="how-head-icon"><i class="fas fa-terminal"></i></div>
+        <div><div class="how-head-title">Command Reference</div><div class="how-head-sub">All valid medi. commands</div></div>
+      </div>
+      <div class="how-body">
+        <div class="cmd-row">
+          <div class="cmd-label">medi.&lt;query&gt;</div>
+          <div><div class="cmd-desc">Ask any medical or symptom question. Be specific and descriptive for best results.</div><div class="cmd-example">e.g. medi.left ankle very swollen after fall, cannot bear weight</div></div>
+        </div>
+        <div class="cmd-row">
+          <div class="cmd-label">medi.help</div>
+          <div><div class="cmd-desc">Receive a quick command reference and usage reminder as a DM back to your node</div><div class="cmd-example">Sent as a private DM to your node ID only</div></div>
+        </div>
+        <div style="font-size:11px;color:var(--txt3);padding:8px 10px;background:rgba(255,255,255,.02);border-radius:3px;border:1px solid rgba(255,255,255,.04);font-family:var(--sans);line-height:1.55;margin-top:2px">
+          Unlike some other plugins, Medi AI has <strong style="color:var(--txt)">no mode switching commands</strong>. The AI always uses the single global system prompt set by the admin. All nodes use the same medical persona.
+        </div>
+      </div>
+    </div>
+
+    <div class="how-block">
+      <div class="how-head">
+        <div class="how-head-icon" style="background:rgba(0,170,255,.1);border-color:rgba(0,170,255,.2)"><i class="fas fa-brain" style="color:var(--blu)"></i></div>
+        <div><div class="how-head-title">How the AI Responds</div><div class="how-head-sub">What to expect and how to interact effectively</div></div>
+      </div>
+      <div class="how-body">
+        <div class="step-list">
+          <div class="step"><div class="step-num"><i class="fas fa-hand-paper" style="font-size:9px"></i></div><div class="step-text">The AI is tuned for <strong>bare-hand physical examination only</strong>. It will never suggest equipment, labs, X-ray, or machines — only what can be confirmed with your hands and eyes in the field.</div></div>
+          <div class="step"><div class="step-num"><i class="fas fa-compress-alt" style="font-size:9px"></i></div><div class="step-text">Responses are intentionally <strong>capped at 3 sentences</strong> to fit Meshtastic's bandwidth and be actionable under pressure. Follow-up questions build context.</div></div>
+          <div class="step"><div class="step-num"><i class="fas fa-question-circle" style="font-size:9px"></i></div><div class="step-text">The AI typically <strong>ends with a physical test question</strong> — describe what you find when you perform it in your next message. This is how it narrows the diagnosis.</div></div>
+          <div class="step"><div class="step-num"><i class="fas fa-tag" style="font-size:9px"></i></div><div class="step-text">Every response automatically ends with <code>[AI Gen. Not a doctor.]</code> — appended at the server level, cannot be removed by any user or admin setting.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="how-block">
+      <div class="how-head">
+        <div class="how-head-icon"><i class="fas fa-history"></i></div>
+        <div><div class="how-head-title">Sessions & Context</div><div class="how-head-sub">How conversation memory works</div></div>
+      </div>
+      <div class="how-body">
+        <div class="step-list">
+          <div class="step"><div class="step-num"><i class="fas fa-user" style="font-size:9px"></i></div><div class="step-text">Each node gets its own <strong>private session</strong>. Conversation history is isolated to your node ID — other nodes cannot access it.</div></div>
+          <div class="step"><div class="step-num"><i class="fas fa-clock" style="font-size:9px"></i></div><div class="step-text">Sessions expire after <strong>60 seconds of inactivity</strong> by default. After expiry a new session starts — the AI loses all context of the previous exchange.</div></div>
+          <div class="step"><div class="step-num"><i class="fas fa-comments" style="font-size:9px"></i></div><div class="step-text">Within an active session, the AI <strong>retains the full conversation history</strong> — follow-up messages continue the same diagnostic thread without needing to repeat context.</div></div>
+          <div class="step"><div class="step-num"><i class="fas fa-eye" style="font-size:9px"></i></div><div class="step-text">Admins can review full session transcripts in the <strong>Live tab</strong> by clicking View on any session row.</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="how-block guide-full">
+      <div class="how-head">
+        <div class="how-head-icon" style="background:rgba(255,170,0,.1);border-color:rgba(255,170,0,.25)"><i class="fas fa-shield-alt" style="color:var(--amb)"></i></div>
+        <div><div class="how-head-title">Admin Configuration</div><div class="how-head-sub">What admins control in the Config & Model tab</div></div>
+      </div>
+      <div class="how-body" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px">
+        <div>
+          <div style="font-size:11px;color:var(--amb);letter-spacing:1.5px;font-weight:700;text-transform:uppercase;margin-bottom:8px">⚙ Core Settings</div>
+          <div class="step-list">
+            <div class="step"><div class="step-num" style="background:rgba(255,170,0,.1);border-color:rgba(255,170,0,.3);color:var(--amb)"><i class="fas fa-power-off" style="font-size:9px"></i></div><div class="step-text"><strong>Enable/Disable</strong> the plugin without uninstalling — useful during model updates or maintenance</div></div>
+            <div class="step"><div class="step-num" style="background:rgba(255,170,0,.1);border-color:rgba(255,170,0,.3);color:var(--amb)"><i class="fas fa-broadcast-tower" style="font-size:9px"></i></div><div class="step-text">Set the <strong>Channel Index</strong> (0–7) the plugin monitors for broadcast messages</div></div>
+            <div class="step"><div class="step-num" style="background:rgba(255,170,0,.1);border-color:rgba(255,170,0,.3);color:var(--amb)"><i class="fas fa-hourglass" style="font-size:9px"></i></div><div class="step-text">Set <strong>Session Timeout</strong> — seconds of inactivity before a session is closed and context erased</div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--acc);letter-spacing:1.5px;font-weight:700;text-transform:uppercase;margin-bottom:8px">⬇ Model Management</div>
+          <div class="step-list">
+            <div class="step"><div class="step-num"><i class="fas fa-microchip" style="font-size:9px"></i></div><div class="step-text">Choose from <strong>4 presets</strong> (Qwen 1.5B, Phi-3 Mini, Llama 3 8B, Mistral 7B) or enter a custom HuggingFace GGUF path</div></div>
+            <div class="step"><div class="step-num"><i class="fas fa-download" style="font-size:9px"></i></div><div class="step-text"><strong>Download & Apply</strong> pulls the model from HuggingFace Hub directly to the server — inference pauses until complete</div></div>
+            <div class="step"><div class="step-num"><i class="fas fa-memory" style="font-size:9px"></i></div><div class="step-text">All models run <strong>fully offline via llama.cpp</strong>. Exceeding available system RAM will crash the host — check RAM requirements per preset before downloading</div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--ok);letter-spacing:1.5px;font-weight:700;text-transform:uppercase;margin-bottom:8px">✎ System Prompt</div>
+          <div class="step-list">
+            <div class="step"><div class="step-num" style="background:rgba(0,232,150,.1);border-color:rgba(0,232,150,.3);color:var(--ok)"><i class="fas fa-file-medical" style="font-size:9px"></i></div><div class="step-text">The <strong>system prompt</strong> is the hidden instruction sent before every conversation — it defines the AI's medical focus, constraints, and response style for all users</div></div>
+            <div class="step"><div class="step-num" style="background:rgba(0,232,150,.1);border-color:rgba(0,232,150,.3);color:var(--ok)"><i class="fas fa-edit" style="font-size:9px"></i></div><div class="step-text">Admins can customise the prompt to shift focus — e.g. wilderness medicine, combat casualty care (TCCC), paediatric triage, or burn management</div></div>
+            <div class="step"><div class="step-num" style="background:rgba(0,232,150,.1);border-color:rgba(0,232,150,.3);color:var(--ok)"><i class="fas fa-undo" style="font-size:9px"></i></div><div class="step-text"><strong>Reset to Default</strong> restores the built-in survival medicine prompt — bare-hand exam, 3-sentence max, end with physical test question</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="disclaimer-box guide-full">
+      <strong>About the Disclaimer:</strong> The text <em>[AI Gen. Not a doctor.]</em> is automatically appended server-side to every AI response and cannot be disabled via any setting or prompt edit. This is intentional. Medi AI cannot examine a patient, run tests, or account for individual medical history. It is a last-resort decision-support tool only. If professional medical help or proper equipment is accessible, use it.
+    </div>
+  </div>
+</div>
+
+<div class="page active" id="p-live">
+  <div class="live-grid" style="flex:1;min-height:0">
+    <div class="card flex-card">
+      <div class="card-head">
+        <span class="card-title"><i class="fas fa-bolt"></i> Processing Queue</span>
+        <span id="q-count" style="font-size:11px;color:var(--txt3)">0 items</span>
+      </div>
+      <div id="queue-list" class="scroll-body"><div class="empty"><i class="fas fa-inbox"></i>No active requests</div></div>
+    </div>
+    <div class="card flex-card">
+      <div class="card-head">
+        <span class="card-title"><i class="fas fa-history"></i> Recent Sessions</span>
+        <span id="s-count" style="font-size:11px;color:var(--txt3)">0 sessions</span>
+      </div>
+      <div id="sess-list" class="scroll-body"><div class="empty"><i class="fas fa-comments"></i>No sessions yet</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="p-cfg">
+  <div class="status-strip" id="sys-strip">
+    <div style="font-size:16px"><i id="sys-icon" class="fas fa-circle-notch fa-spin" style="color:var(--acc)"></i></div>
+    <div style="flex:1">
+      <div class="stat-label">System Status: <span id="sys-stat" style="color:var(--acc)">Checking...</span></div>
+      <div class="stat-prog" id="sys-prog"></div>
+    </div>
+    <div style="font-size:11px;color:var(--txt3);letter-spacing:1px">AUTO-REFRESHES · 3s</div>
+  </div>
+
+  <div class="cfg-grid">
+    <div class="card">
+      <div class="card-head"><span class="card-title"><i class="fas fa-sliders-h"></i> Core Settings</span></div>
+      <div class="card-body">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <label class="toggle"><input type="checkbox" id="c-en"><span class="toggle-slider"></span></label>
+          <span style="font-size:9.5px;color:var(--txt)">Enable Medi AI</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Channel Index</label>
+          <input class="form-input" id="c-ch" type="number" min="0" max="7">
+          <div class="form-hint">0–7. Must match the channel your mesh nodes broadcast on.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Session Timeout (seconds)</label>
+          <input class="form-input" id="c-to" type="number" min="10">
+          <div class="form-hint">Default: 60s. After this period of inactivity the session closes and context is lost.</div>
+        </div>
+        <button class="btn btn-primary" id="btn-save-cfg" onclick="saveCfg('btn-save-cfg')"><i class="fas fa-save"></i> Save Settings</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><span class="card-title"><i class="fas fa-microchip"></i> AI Provider & Model</span></div>
+      <div class="card-body">
+        <div class="form-group" style="margin-bottom:15px">
+          <label class="form-label">AI Provider</label>
+          <select class="form-select" id="c-prov" onchange="toggleProv()">
+            <option value="local">Local Model (llama.cpp)</option>
+            <option value="openai">OpenAI API</option>
+            <option value="nvidia">Nvidia NIM API</option>
+            <option value="gemini">Google Gemini API</option>
+          </select>
+        </div>
+
+        <div id="prov-local">
+          <div style="font-size:11px;color:var(--txt2);line-height:1.6;margin-bottom:12px;padding:9px 11px;background:rgba(0,212,255,.03);border-radius:4px;border:1px solid rgba(0,212,255,.1);font-family:var(--sans)">
+            Models run locally via <strong style="color:var(--txt)">llama.cpp</strong> in GGUF format. Downloaded once from HuggingFace Hub, then fully offline. <strong style="color:var(--err)">Exceeding available RAM will crash the host.</strong>
+          </div>
+          <div class="section-label">Select Preset</div>
+          <div class="preset-cards">
+            <div class="preset-card" data-preset="qwen1.5b" onclick="selectPreset('qwen1.5b',this)">
+              <div class="preset-radio"></div>
+              <div style="flex:1"><div class="preset-name">Qwen 2.5 1.5B Instruct</div><div class="preset-meta">Qwen/Qwen2.5-1.5B-Instruct-GGUF · Q4_K_M · 4GB+ RAM</div></div>
+              <span class="preset-size ps-sm">1.5 GB</span>
+            </div>
+            <div class="preset-card sel" data-preset="phi3" onclick="selectPreset('phi3',this)">
+              <div class="preset-radio"></div>
+              <div style="flex:1"><div class="preset-name">Phi-3.1 Mini 4K Instruct <span style="font-size:11px;color:var(--ok);margin-left:4px">★ Recommended</span></div><div class="preset-meta">bartowski/Phi-3.1-mini-4k-instruct-GGUF · Q4_K_M · 8GB+ RAM</div></div>
+              <span class="preset-size ps-md">2.5 GB</span>
+            </div>
+            <div class="preset-card" data-preset="llama3" onclick="selectPreset('llama3',this)">
+              <div class="preset-radio"></div>
+              <div style="flex:1"><div class="preset-name">Llama 3 8B Instruct</div><div class="preset-meta">QuantFactory/Meta-Llama-3-8B-Instruct-GGUF · Q4_K_M · 16GB+ RAM</div></div>
+              <span class="preset-size ps-lg">5.5 GB</span>
+            </div>
+            <div class="preset-card" data-preset="mistral" onclick="selectPreset('mistral',this)">
+              <div class="preset-radio"></div>
+              <div style="flex:1"><div class="preset-name">Mistral 7B Instruct v0.3</div><div class="preset-meta">MaziyarPanahi/Mistral-7B-Instruct-v0.3-GGUF · Q4_K_M · 12GB+ RAM</div></div>
+              <span class="preset-size ps-lg">4.5 GB</span>
+            </div>
+            <div class="preset-card" data-preset="custom" onclick="selectPreset('custom',this)">
+              <div class="preset-radio"></div>
+              <div style="flex:1"><div class="preset-name">Custom HuggingFace Model</div><div class="preset-meta">Specify repo and GGUF filename manually</div></div>
+              <span style="font-size:11px;color:var(--txt3);flex-shrink:0">Custom</span>
+            </div>
+          </div>
+          <div id="custom-fields" style="display:none">
+            <div class="divider"></div>
+            <div class="section-label">Custom Model</div>
+            <div class="form-group"><label class="form-label">HuggingFace Repo</label><input class="form-input" id="m-repo" placeholder="org/ModelName-GGUF"></div>
+            <div class="form-group"><label class="form-label">GGUF Filename</label><input class="form-input" id="m-file" placeholder="model-name-q4_k_m.gguf"></div>
+          </div>
+          <button class="btn btn-primary" id="btn-dl-model" onclick="dlModel()" style="margin-top:12px;width:100%;justify-content:center"><i class="fas fa-download"></i> Download & Apply Local Model</button>
+          <div style="font-size:11px;color:var(--txt3);text-align:center;margin-top:5px;font-family:var(--sans)">Inference pauses during download. Progress shown in status bar above.</div>
+        </div>
+
+        <div id="prov-hosted" style="display:none">
+          <div class="divider"></div>
+          <div class="section-label">API Configuration</div>
+          <div class="form-group">
+            <label class="form-label">API Key</label>
+            <input class="form-input" id="c-apikey" type="password" placeholder="Enter API Key">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Model Name</label>
+            <input class="form-input" id="c-apimodel" type="text" placeholder="e.g. gpt-4o-mini, gemini-2.5-flash">
+            <div class="form-hint">Exact model string expected by the provider.</div>
+          </div>
+          <button class="btn btn-primary" id="btn-save-api" onclick="saveCfg('btn-save-api')" style="margin-top:12px;width:100%;justify-content:center"><i class="fas fa-save"></i> Save API Config</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="grid-column:1/-1">
+      <div class="card-head">
+        <span class="card-title"><i class="fas fa-comment-medical"></i> System Prompt</span>
+        <span style="font-size:11px;color:var(--txt3)">Controls the AI's medical persona and response behaviour for all users</span>
+      </div>
+      <div class="card-body">
+        <div style="font-size:11px;color:var(--txt2);line-height:1.6;margin-bottom:10px;font-family:var(--sans);padding:8px 10px;background:rgba(0,212,255,.03);border-left:2px solid var(--acc);border-radius:0 4px 4px 0">
+          This is the hidden instruction sent to the AI before every conversation. It defines the AI's role, examination methodology, response format, and length constraints. The disclaimer <code style="font-family:var(--mono);font-size:11px;color:var(--amb)">[AI Gen. Not a doctor.]</code> is appended server-side regardless of what is written here.
+        </div>
+        <div class="form-group">
+          <textarea class="form-textarea" id="c-pmpt" style="min-height:110px"></textarea>
+          <div class="form-hint">Specify: the AI's role, what physical tests to describe, maximum sentence count, follow-up question behaviour, and any clinical focus area (e.g. wilderness, TCCC, paediatric).</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" id="btn-save-pmpt" onclick="saveCfg('btn-save-pmpt')"><i class="fas fa-save"></i> Save Prompt</button>
+          <button class="btn btn-ghost" id="btn-rst-pmpt" onclick="resetPmpt()"><i class="fas fa-undo"></i> Reset to Default</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<div id="msg-modal" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title" id="modal-title">Session Transcript</div>
+      <button class="btn btn-ghost btn-sm" onclick="document.getElementById('msg-modal').style.display='none'"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="msg-list" class="modal-body"></div>
+  </div>
+</div>
+
+<script>
+const API = '/api/plugins/medi';
+const modelPresets = {
+  'qwen1.5b': { repo: 'Qwen/Qwen2.5-1.5B-Instruct-GGUF',             file: 'qwen2.5-1.5b-instruct-q4_k_m.gguf' },
+  'phi3':     { repo: 'bartowski/Phi-3.1-mini-4k-instruct-GGUF',       file: 'Phi-3.1-mini-4k-instruct-Q4_K_M.gguf' },
+  'llama3':   { repo: 'QuantFactory/Meta-Llama-3-8B-Instruct-GGUF',    file: 'Meta-Llama-3-8B-Instruct.Q4_K_M.gguf' },
+  'mistral':  { repo: 'MaziyarPanahi/Mistral-7B-Instruct-v0.3-GGUF',  file: 'Mistral-7B-Instruct-v0.3.Q4_K_M.gguf' }
+};
+let currentDbRepo = '', currentDbFile = '', activePreset = 'phi3';
+
+function show(id) {
+  document.querySelectorAll('.page,.nav-tab').forEach(e => e.classList.remove('active'));
+  document.getElementById('p-'+id).classList.add('active');
+  document.getElementById('n-'+id).classList.add('active');
+}
+
+function selectPreset(key, el) {
+  activePreset = key;
+  document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('custom-fields').style.display = key === 'custom' ? 'block' : 'none';
+  if (key !== 'custom') {
+    document.getElementById('m-repo').value = modelPresets[key]?.repo || '';
+    document.getElementById('m-file').value = modelPresets[key]?.file || '';
+  }
+}
+
+function matchPreset(repo, file) {
+  for (const [k, v] of Object.entries(modelPresets)) {
+    if (v.repo === repo && v.file === file) return k;
+  }
+  return 'custom';
+}
+
+function toggleProv() {
+  const prov = document.getElementById('c-prov').value;
+  document.getElementById('prov-local').style.display = prov === 'local' ? 'block' : 'none';
+  document.getElementById('prov-hosted').style.display = prov !== 'local' ? 'block' : 'none';
+}
+
+function ago(ts) {
+  const s = Math.floor(Date.now()/1000 - ts);
+  if (s < 60) return s+'s'; if (s < 3600) return Math.floor(s/60)+'m';
+  if (s < 86400) return Math.floor(s/3600)+'h'; return Math.floor(s/86400)+'d';
+}
+
+function qbClass(s) {
+  return {processing:'qb-proc',pending:'qb-pend',completed:'qb-done',error:'qb-err'}[s]||'qb-pend';
+}
+
+async function poll() {
+  try {
+    const r = await fetch(API+'/state'); const d = await r.json();
+    document.getElementById('k-sess').textContent = d.stats.total_sessions;
+    document.getElementById('k-msgs').textContent = d.stats.total_msgs;
+    document.getElementById('k-queue').textContent = d.queue.length;
+    document.getElementById('q-count').textContent = d.queue.length+' item'+(d.queue.length!==1?'s':'');
+    document.getElementById('s-count').textContent = d.sessions.length+' session'+(d.sessions.length!==1?'s':'');
+
+    const stat = d.config.status;
+    const strip = document.getElementById('sys-strip');
+    const statEl = document.getElementById('sys-stat');
+    const iconEl = document.getElementById('sys-icon');
+    
+    if (d.config.provider !== 'local') {
+      statEl.textContent = 'USING HOSTED API';
+      document.getElementById('sys-prog').textContent = d.config.provider.toUpperCase();
+      strip.className = 'status-strip ok';
+      iconEl.className='fas fa-cloud'; iconEl.style.color='var(--ok)'; statEl.style.color='var(--ok)';
+    } else {
+      statEl.textContent = stat.toUpperCase();
+      document.getElementById('sys-prog').textContent = d.config.progress || '';
+
+      const isBusy = stat === 'downloading' || stat === 'installing_deps';
+      strip.className = 'status-strip'+(isBusy?' busy':stat==='ready'?' ok':stat==='error'?' err':'');
+      if (isBusy) { iconEl.className='fas fa-circle-notch fa-spin'; iconEl.style.color='var(--amb)'; statEl.style.color='var(--amb)'; }
+      else if (stat==='ready') { iconEl.className='fas fa-check-circle'; iconEl.style.color='var(--ok)'; statEl.style.color='var(--ok)'; }
+      else if (stat==='error') { iconEl.className='fas fa-exclamation-triangle'; iconEl.style.color='var(--err)'; statEl.style.color='var(--err)'; }
+      else { iconEl.className='fas fa-info-circle'; iconEl.style.color='var(--acc)'; statEl.style.color='var(--acc)'; }
+    }
+
+    const disableAll = stat === 'downloading' || stat === 'installing_deps';
+    ['btn-save-cfg','btn-save-api','btn-dl-model','btn-save-pmpt','btn-rst-pmpt','c-en','c-ch','c-to','c-pmpt','c-prov','c-apikey','c-apimodel'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.disabled = disableAll;
+    });
+    document.querySelectorAll('.preset-card').forEach(c => c.style.pointerEvents = disableAll ? 'none' : '');
+    document.getElementById('m-repo').disabled = disableAll;
+    document.getElementById('m-file').disabled = disableAll;
+
+    if (!document.activeElement.matches('input,textarea,select') && !disableAll) {
+      document.getElementById('c-en').checked = d.config.enabled;
+      document.getElementById('c-ch').value = d.config.channel_index;
+      document.getElementById('c-to').value = d.config.session_timeout;
+      document.getElementById('c-pmpt').value = d.config.sys_prompt || '';
+      document.getElementById('c-prov').value = d.config.provider || 'local';
+      document.getElementById('c-apikey').value = d.config.api_key || '';
+      document.getElementById('c-apimodel').value = d.config.api_model || '';
+      toggleProv();
+      
+      if (currentDbRepo !== d.config.model_repo || currentDbFile !== d.config.model_file) {
+        currentDbRepo = d.config.model_repo; currentDbFile = d.config.model_file;
+        document.getElementById('m-repo').value = currentDbRepo;
+        document.getElementById('m-file').value = currentDbFile;
+        const matched = matchPreset(currentDbRepo, currentDbFile);
+        activePreset = matched;
+        document.querySelectorAll('.preset-card').forEach(c => c.classList.toggle('sel', c.dataset.preset === matched));
+        document.getElementById('custom-fields').style.display = matched === 'custom' ? 'block' : 'none';
+      }
+    }
+
+    document.getElementById('queue-list').innerHTML = d.queue.length ? d.queue.map(i => `
+      <div class="q-item">
+        <div style="flex:1">
+          <div class="q-node">${i.node_id}</div>
+          <div class="q-text">${i.query}</div>
+        </div>
+        <span class="qb ${qbClass(i.status)}">${i.status.toUpperCase()}</span>
+      </div>`).join('') : '<div class="empty"><i class="fas fa-inbox"></i>No active requests</div>';
+
+    document.getElementById('sess-list').innerHTML = d.sessions.length ? d.sessions.map(i => `
+      <div class="sess-item">
+        <div style="flex:1">
+          <div><span class="sess-node">${i.node_id}</span><span class="sess-id">#${i.id}</span></div>
+          <div class="sess-meta">Updated ${ago(i.updated_at)} ago</div>
+        </div>
+        <span class="qb ${i.status==='active'?'qb-done':'qb-err'}">${i.status.toUpperCase()}</span>
+        <button class="btn btn-ghost btn-sm" onclick="viewSess('${i.id}','${i.node_id}')"><i class="fas fa-eye"></i> View</button>
+      </div>`).join('') : '<div class="empty"><i class="fas fa-comments"></i>No sessions yet</div>';
+  } catch(e) {}
+}
+
+async function saveCfg(btnId) {
+  const btn = document.getElementById(btnId);
+  const origHtml = btn.innerHTML;
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Saving...'; btn.disabled = true;
+  await fetch(API+'/config', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({
+    enabled: document.getElementById('c-en').checked,
+    channel_index: parseInt(document.getElementById('c-ch').value)||0,
+    session_timeout: parseInt(document.getElementById('c-to').value)||60,
+    sys_prompt: document.getElementById('c-pmpt').value,
+    provider: document.getElementById('c-prov').value,
+    api_key: document.getElementById('c-apikey').value,
+    api_model: document.getElementById('c-apimodel').value
+  })});
+  btn.innerHTML = '<i class="fas fa-check"></i> Saved'; btn.disabled = false;
+  setTimeout(() => { btn.innerHTML = origHtml; }, 1500);
+  poll();
+}
+
+async function resetPmpt() {
+  if (!confirm('Reset system prompt to the default survival medicine configuration?')) return;
+  const btn = document.getElementById('btn-rst-pmpt');
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>'; btn.disabled = true;
+  await fetch(API+'/config/reset_prompt', {method:'POST'});
+  btn.innerHTML = '<i class="fas fa-undo"></i> Reset to Default'; btn.disabled = false;
+  poll();
+}
+
+async function dlModel() {
+  const repo = document.getElementById('m-repo').value.trim();
+  const file = document.getElementById('m-file').value.trim();
+  if (!repo || !file) { alert('Repo and filename are required.'); return; }
+  if (!confirm(`Download model?\n\n${repo}\n${file}\n\nInference will pause until download and install completes.\nEnsure sufficient free RAM before proceeding.`)) return;
+  const btn = document.getElementById('btn-dl-model');
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Starting...'; btn.disabled = true;
+  await fetch(API+'/model/download', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({model_repo:repo, model_file:file})});
+  poll();
+}
+
+async function viewSess(id, nodeId) {
+  document.getElementById('modal-title').textContent = 'Session: '+nodeId+' #'+id;
+  document.getElementById('msg-list').innerHTML = '<div class="empty"><i class="fas fa-circle-notch fa-spin"></i></div>';
+  document.getElementById('msg-modal').style.display = 'flex';
+  const r = await fetch(API+'/sessions/'+id+'/messages');
+  const d = await r.json();
+  document.getElementById('msg-list').innerHTML = d.messages.length ? d.messages.map(m => {
+    const hasDisclaimer = m.content.includes('[AI Gen. Not a doctor.]');
+    const clean = m.content.replace('[AI Gen. Not a doctor.]','').trim();
+    return `<div class="msg-bubble ${m.role==='user'?'msg-user':'msg-ai'}">
+      <div class="msg-role">${m.role}</div>
+      ${clean}
+      ${hasDisclaimer?'<div class="disclaimer-tag"><i class="fas fa-exclamation-circle"></i> AI Gen. Not a doctor.</div>':''}
+    </div>`;
+  }).join('') : '<div class="empty">No messages in this session</div>';
+}
+
+document.getElementById('m-repo').value = modelPresets['phi3'].repo;
+document.getElementById('m-file').value = modelPresets['phi3'].file;
+toggleProv();
+setInterval(poll, 3000);
+poll();
+</script>
+</body>
+</html>

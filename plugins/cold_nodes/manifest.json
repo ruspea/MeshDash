@@ -1,9 +1,9 @@
 {
   "id": "cold_nodes",
   "name": "Cold Nodes",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "author": "MeshDash",
-  "description": "Detects nodes not heard within a configurable period. Stamps stale badges on Overview cards, adds a Cold Node tab to the node detail modal, and provides a management page for bulk deletion.",
+  "description": "Detects nodes not heard within a configurable period. Stamps stale badges on Overview cards, adds a Cold Node tab to the node detail modal, and provides a management page for bulk deletion. MeshDash v3.0+ required for full functionality.",
   "entry_point": "main.py",
   "router_prefix": "/api/plugins/cold_nodes",
   "static_prefix": "/static/plugins/cold_nodes",

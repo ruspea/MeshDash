@@ -23,6 +23,7 @@ _DB_LOCK   = threading.Lock()
 _cfg_lock  = threading.Lock()
 _watchdog_task: Optional[asyncio.Task] = None
 
+# ── Default theme — mirrors style.css :root exactly ──────────────────────────
 # These are the values users can override. Stored as a flat dict of
 # CSS variable name → hex/value. Only the keys the user has changed
 # are stored; the rest fall through to the stylesheet defaults.
@@ -46,6 +47,7 @@ _DEFAULT: Dict[str, str] = {
 _overrides: Dict[str, str] = {}
 
 
+# ── DB helpers ────────────────────────────────────────────────────────────────
 def _db_load() -> Dict[str, str]:
     try:
         with _DB_LOCK:
@@ -76,6 +78,7 @@ def _db_save(data: Dict[str, str]) -> None:
         logger.warning("Theme Editor: save error: %s", e)
 
 
+# ── Watchdog heartbeat ────────────────────────────────────────────────────────
 async def _watchdog_heartbeat(context: dict) -> None:
     """
     Pings the MeshDash core watchdog every 30 s.
@@ -96,6 +99,7 @@ async def _watchdog_heartbeat(context: dict) -> None:
             logger.warning("Theme Editor watchdog error: %s", e)
 
 
+# ── Plugin init ───────────────────────────────────────────────────────────────
 def init_plugin(context: dict) -> None:
     global _overrides
     saved = _db_load()
@@ -120,10 +124,12 @@ def init_plugin(context: dict) -> None:
         logger.error("Theme Editor: could not start watchdog heartbeat: %s", e)
 
 
+# ── Pydantic models ───────────────────────────────────────────────────────────
 class ThemeModel(BaseModel):
     overrides: Dict[str, str] = {}
 
 
+# ── Endpoints ─────────────────────────────────────────────────────────────────
 @plugin_router.get("/theme")
 async def get_theme():
     """Returns defaults + current overrides so the bridge can build the full CSS."""

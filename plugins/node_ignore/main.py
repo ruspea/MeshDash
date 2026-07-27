@@ -41,7 +41,9 @@ _DB_LOCK = threading.Lock()
 _node_registry: Dict[str, Any] = {}
 _event_loop:    Optional[asyncio.AbstractEventLoop] = None
 
+# ---------------------------------------------------------------------------
 # DB
+# ---------------------------------------------------------------------------
 
 def _db_init():
     with _DB_LOCK:
@@ -109,7 +111,9 @@ def _db_is_ignored(node_id: str, slot_id: str) -> bool:
     return row is not None
 
 
+# ---------------------------------------------------------------------------
 # Core: stamp _ni_ignored flag into live node data
+# ---------------------------------------------------------------------------
 
 def _stamp_node(node_id: str, slot_id: str, ignored: bool):
     """
@@ -149,7 +153,9 @@ def _stamp_all(slot_id: str, ignored_ids: List[str]):
         logger.info("Node Ignore: stamped %d ignored node(s) in slot '%s'", len(ignored_ids), slot_id)
 
 
+# ---------------------------------------------------------------------------
 # Plugin lifecycle
+# ---------------------------------------------------------------------------
 
 def init_plugin(context: dict):
     global _node_registry, _event_loop
@@ -185,7 +191,9 @@ async def _watchdog(context):
             pass
 
 
+# ---------------------------------------------------------------------------
 # Routes
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("")
 @plugin_router.get("/")
@@ -195,6 +203,7 @@ async def health():
             "total_ignored": total}
 
 
+# ── List ──────────────────────────────────────────────────────────────────────
 
 @plugin_router.get("/list")
 async def list_ignored(slot_id: str = "node_0"):
@@ -218,6 +227,7 @@ async def list_all_ignored():
     return {"ignored": rows, "count": len(rows)}
 
 
+# ── Check ─────────────────────────────────────────────────────────────────────
 
 @plugin_router.get("/check")
 async def check_ignored(node_id: str, slot_id: str = "node_0"):
@@ -225,6 +235,7 @@ async def check_ignored(node_id: str, slot_id: str = "node_0"):
             "ignored": _db_is_ignored(node_id, slot_id)}
 
 
+# ── Ignore / Unignore ─────────────────────────────────────────────────────────
 
 class IgnoreReq(BaseModel):
     node_id: str
@@ -280,6 +291,7 @@ async def unignore_node(r: IgnoreReq):
     return {"status": "unignored", "node_id": r.node_id, "slot_id": r.slot_id}
 
 
+# ── Bulk ops ─────────────────────────────────────────────────────────────────
 
 class BulkReq(BaseModel):
     node_ids: List[str]
@@ -312,6 +324,7 @@ async def unignore_all(slot_id: str = "node_0"):
     return {"status": "ok", "unignored": len(rows)}
 
 
+# ── Nodes available to ignore ─────────────────────────────────────────────────
 
 @plugin_router.get("/nodes/{slot_id}")
 async def list_nodes(slot_id: str):

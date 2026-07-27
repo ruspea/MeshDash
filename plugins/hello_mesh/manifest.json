@@ -1,9 +1,9 @@
 {
   "id": "hello_mesh",
   "name": "Hello Mesh",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "author": "MeshDash",
-  "description": "Interactive API explorer & plugin tutorial. Learn how to build MeshDash plugins by running live examples.",
+  "description": "Interactive API explorer & plugin tutorial. Learn how to build MeshDash plugins by running live examples. MeshDash v3.0+ required for full functionality.",
   "entry_point": "main.py",
   "router_prefix": "/api/plugins/hello_mesh",
   "static_prefix": "/static/plugins/hello_mesh",

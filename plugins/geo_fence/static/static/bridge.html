@@ -1,0 +1,138 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><script>
+'use strict';
+var API = '/api/plugins/geo_fence';
+var _tabReg = false;
+var _zoneState = {};   // zone_id → {zone_name, nodes_inside:[]}
+
+function _waitBridge(cb) {
+  if (window.parent && typeof window.parent.PluginBridge === 'object') {
+    cb(window.parent.PluginBridge);
+  } else {
+    setTimeout(function() { _waitBridge(cb); }, 150);
+  }
+}
+
+// ── Poll zone state and inject into node cards ─────────────────────────────
+function _pollState() {
+  var slot = (window.parent && window.parent._activeSlotId) || 'node_0';
+  fetch(API + '/state/' + encodeURIComponent(slot))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      _zoneState = d.zones || {};
+      _injectCards();
+    })
+    .catch(function(){});
+  setTimeout(_pollState, 30000);
+}
+
+function _injectCards() {
+  var doc = window.parent.document;
+  Object.keys(_zoneState).forEach(function(zid) {
+    var st = _zoneState[zid];
+    (st.nodes_inside || []).forEach(function(nodeId) {
+      var card = doc.querySelector('.ov-nc[data-node-id="' + nodeId + '"]');
+      if (!card) return;
+      var existing = card.querySelector('.gf-badge-' + zid);
+      if (existing) return;
+      var zone = doc.querySelector('.pb-section-zone') ||
+                 card.querySelector('.pb-section-zone');
+      var badge = doc.createElement('span');
+      badge.className = 'pb-badge pb-badge-ok gf-badge-' + zid;
+      badge.title = 'Inside zone: ' + st.zone_name;
+      badge.innerHTML = '<i class="fas fa-draw-polygon"></i> ' + (st.zone_name||'zone');
+      // Add to section zone if available
+      var sz = card.querySelector('.pb-section-zone');
+      if (sz) sz.appendChild(badge);
+    });
+  });
+}
+
+// ── Modal tab ──────────────────────────────────────────────────────────────
+function _registerTab(PB) {
+  if (_tabReg) return;
+  _tabReg = true;
+  PB.addModalTab({
+    id: 'geo_fence-status',
+    label: '📍 GEO FENCE',
+    pluginId: 'geo_fence',
+    render: function(nodeId) {
+      var slot = PB.getActiveSlot() || 'node_0';
+      var node = PB.getNode(nodeId);
+      var esc  = window.parent.escapeHtml || function(s){return String(s||'');};
+      var lat  = node && node.latitude;
+      var lon  = node && node.longitude;
+
+      // Find zones this node is inside
+      var inZones = [];
+      Object.keys(_zoneState).forEach(function(zid) {
+        if ((_zoneState[zid].nodes_inside||[]).includes(nodeId)) {
+          inZones.push(_zoneState[zid].zone_name || zid);
+        }
+      });
+
+      var posStr = (lat && lon)
+        ? lat.toFixed(5) + ', ' + lon.toFixed(5)
+        : 'No GPS position';
+
+      return '<div style="padding:4px 0;">'
+        + '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:4px;padding:10px 12px;margin-bottom:12px;">'
+        +   '<div style="font-family:var(--mono);font-size:8px;color:var(--txt3);margin-bottom:3px;">CURRENT POSITION</div>'
+        +   '<div style="font-family:var(--mono);font-size:11px;color:var(--txt);">' + esc(posStr) + '</div>'
+        + '</div>'
+
+        + '<div style="font-family:var(--mono);font-size:8px;color:var(--txt3);letter-spacing:.5px;margin-bottom:6px;">ZONE MEMBERSHIP</div>'
+        + (inZones.length
+          ? inZones.map(function(zn) {
+              return '<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);">'
+                + '<i class="fas fa-draw-polygon" style="color:var(--ok);font-size:10px;width:14px;text-align:center;"></i>'
+                + '<span style="font-family:var(--mono);font-size:10px;font-weight:bold;color:var(--ok);">' + esc(zn) + '</span>'
+                + '<span style="font-family:var(--mono);font-size:8px;color:var(--txt3);margin-left:auto;">INSIDE</span>'
+                + '</div>';
+            }).join('')
+          : '<div style="font-family:var(--mono);font-size:9px;color:var(--txt3);padding:8px 0;">Not currently inside any monitored zone.</div>'
+          )
+
+        + '<div style="text-align:center;margin-top:14px;">'
+        +   '<a href="/static/plugins/geo_fence/index.html?slot=' + slot + '" target="_blank"'
+        +      ' style="font-family:var(--mono);font-size:9px;color:var(--ok);text-decoration:none;'
+        +      'border:1px solid rgba(0,232,122,.3);padding:5px 14px;border-radius:3px;display:inline-block;">'
+        +     '<i class="fas fa-draw-polygon" style="margin-right:5px;"></i>OPEN GEO FENCE MAP'
+        +   '</a>'
+        + '</div>'
+      + '</div>';
+    },
+  });
+}
+
+// ── SSE: listen for geo_fence_event and show toast ────────────────────────
+function _listenSSE() {
+  var pw = window.parent;
+  if (!pw) return;
+  // Hook into the existing SSE EventSource if accessible
+  try {
+    var es = pw._sse && pw._sse.instance;
+    if (es) {
+      es.addEventListener('geo_fence_event', function(e) {
+        try {
+          var d = JSON.parse(e.data);
+          if (pw.triggerToast) {
+            var icons = { enter:'→', exit:'←', dwell:'⏱', absent:'👻',
+                          proximity:'◎', speed:'⚡', heading:'↺' };
+            var msg = (icons[d.trigger_type]||'') + ' ' +
+                      (d.node_name||d.node_id) + ' ' + d.trigger_type.toUpperCase() +
+                      (d.zone_name ? ' @ ' + d.zone_name : '');
+            pw.triggerToast(msg, d.trigger_type === 'absent' ? 'err' : 'ok');
+          }
+        } catch(err) {}
+      });
+    }
+  } catch(err) {}
+}
+
+_waitBridge(function(PB) {
+  _registerTab(PB);
+  setTimeout(_pollState, 3000);
+  setTimeout(_listenSSE, 2000);
+  PB.onNodesUpdated(function() { _injectCards(); });
+});
+</script></body></html>

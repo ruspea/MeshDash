@@ -20,7 +20,9 @@ sys.path.insert(0, PLUGIN_DIR)
 logger = logging.getLogger("node_monitor_plugin")
 plugin_router = APIRouter()
 
+# ---------------------------------------------------------------------------
 # Globals - set by init_plugin
+# ---------------------------------------------------------------------------
 _db_path = None
 _local = threading.local()
 _m_data = None
@@ -68,7 +70,9 @@ def init_plugin(context: dict):
         logger.error("event_loop not in context and plugin_coros unavailable \u2014 monitor_worker cannot start")
 
 
+# ---------------------------------------------------------------------------
 # Database Management
+# ---------------------------------------------------------------------------
 
 def _get_conn():
     """Thread-local SQLite connection."""
@@ -102,7 +106,9 @@ def _init_db():
     logger.info("✅ Node Monitor: database initialized at %s", _db_path)
 
 
+# ---------------------------------------------------------------------------
 # Pydantic Models
+# ---------------------------------------------------------------------------
 
 class MonitorRuleBase(BaseModel):
     name: str
@@ -131,7 +137,9 @@ class MonitorRuleResponse(MonitorRuleBase):
     last_alerted: float
 
 
+# ---------------------------------------------------------------------------
 # Database CRUD
+# ---------------------------------------------------------------------------
 
 def _db_get_rules() -> List[dict]:
     conn = _get_conn()
@@ -184,7 +192,9 @@ def _db_update_timestamps(rule_id: int, checked: float, alerted: float):
     conn.commit()
 
 
+# ---------------------------------------------------------------------------
 # Helpers
+# ---------------------------------------------------------------------------
 
 def _get_slot_cm(slot_id: str):
     """Return the connection_manager for a given slot_id, falling back to node_0."""
@@ -229,7 +239,9 @@ def _extract_metric(node_info: dict, metric: str) -> Optional[float]:
     return None
 
 
+# ---------------------------------------------------------------------------
 # Background Worker
+# ---------------------------------------------------------------------------
 
 async def _monitor_worker():
     """Non-blocking background loop that evaluates rules and sends alerts."""
@@ -316,7 +328,9 @@ async def _monitor_worker():
             logger.error(f"❌ Node Monitor worker error: {e}", exc_info=True)
 
 
+# ---------------------------------------------------------------------------
 # API Endpoints
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("/status")
 async def get_status():

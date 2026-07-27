@@ -30,7 +30,9 @@ _cooldowns: dict = {}
 COOLDOWN_SECONDS = 300  # 5 minutes
 
 
+# ---------------------------------------------------------------------------
 # Database Helpers
+# ---------------------------------------------------------------------------
 
 def _get_db() -> sqlite3.Connection:
     global _db_conn
@@ -66,7 +68,9 @@ def _update_config(enabled: int, message: str):
     conn.commit()
 
 
+# ---------------------------------------------------------------------------
 # Pubsub Callback  (sync — runs on the meshtastic radio thread)
+# ---------------------------------------------------------------------------
 
 def _on_receive(packet, interface=None):
     logger = core_context.get("logger") or logging.getLogger("auto_responder")
@@ -88,6 +92,7 @@ def _on_receive(packet, interface=None):
         if portnum not in ("TEXT_MESSAGE_APP", 1):
             return
 
+        # ── Resolve from_id ──────────────────────────────────────────────────
         from_id = packet.get("fromId")
         if not from_id:
             raw_from = packet.get("from")
@@ -97,6 +102,7 @@ def _on_receive(packet, interface=None):
             logger.debug("auto_responder: could not resolve from_id, dropping")
             return
 
+        # ── Resolve to_id ────────────────────────────────────────────────────
         to_id = packet.get("toId")
         if not to_id:
             raw_to = packet.get("to")
@@ -108,10 +114,12 @@ def _on_receive(packet, interface=None):
 
         logger.debug(f"auto_responder: text packet from={from_id} to={to_id}")
 
+        # ── Must not be a broadcast ──────────────────────────────────────────
         if to_id == "^all":
             logger.debug("auto_responder: broadcast, ignoring")
             return
 
+        # ── Must be addressed to our local node ─────────────────────────────
         meshtastic_data = core_context.get("meshtastic_data")
         local_node_id = getattr(meshtastic_data, "local_node_id", None) if meshtastic_data else None
 
@@ -125,12 +133,14 @@ def _on_receive(packet, interface=None):
             logger.debug(f"auto_responder: packet not for us ({to_id} != {local_node_id}), ignoring")
             return
 
+        # ── Don't reply to ourselves ─────────────────────────────────────────
         if from_id == local_node_id:
             logger.debug("auto_responder: packet from ourselves, ignoring")
             return
 
         logger.info(f"auto_responder: DM detected from {from_id}, queueing reply")
 
+        # ── Hand off to async worker ─────────────────────────────────────────
         loop  = core_context.get("event_loop")
         queue = _dm_queue
         if loop is None or queue is None:
@@ -149,7 +159,9 @@ def _on_receive(packet, interface=None):
         logger.error(f"auto_responder _on_receive error: {exc}", exc_info=True)
 
 
+# ---------------------------------------------------------------------------
 # Async Worker
+# ---------------------------------------------------------------------------
 
 async def _responder_worker():
     logger = core_context.get("logger") or logging.getLogger("auto_responder")
@@ -227,7 +239,9 @@ async def _watchdog_heartbeat() -> None:
             logger.warning("auto_responder: watchdog error: %s", e)
 
 
+# ---------------------------------------------------------------------------
 # Plugin Lifecycle
+# ---------------------------------------------------------------------------
 
 async def _setup():
     global _dm_queue, _worker_task
@@ -263,7 +277,9 @@ def init_plugin(context: dict):
     logger.info("auto_responder: subscribed to meshtastic.receive, init complete")
 
 
+# ---------------------------------------------------------------------------
 # API Endpoints
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("/config")
 async def get_config():

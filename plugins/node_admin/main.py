@@ -99,7 +99,9 @@ async def _watchdog(context):
             logger.warning("Watchdog: %s", e)
 
 
+# ---------------------------------------------------------------------------
 # Slot / interface helpers
+# ---------------------------------------------------------------------------
 
 def _get_slot(slot_id):
     s = _node_registry.get(slot_id)
@@ -177,7 +179,9 @@ def _pub_key(slot_id):
     return None
 
 
+# ---------------------------------------------------------------------------
 # ACK helpers
+#
 # OFFICIAL PATTERN (from __main__.py):
 #   - Config writes (setOwner, writeConfig): NO waitForAckNak — fire and forget
 #     The node's onAckNak callback fires asynchronously if/when it receives it
@@ -185,6 +189,7 @@ def _pub_key(slot_id):
 #
 # We report "sent" for config writes (that's all the CLI does too).
 # For control commands we wait and report the actual ACK/NAK.
+# ---------------------------------------------------------------------------
 
 _NAK_REASONS = {
     "PKI_UNKNOWN_PUBKEY": (
@@ -258,7 +263,9 @@ def _patch_onak(node):
     node.onAckNak = patched
 
 
+# ---------------------------------------------------------------------------
 # Execution wrapper
+# ---------------------------------------------------------------------------
 
 async def _run(slot_id, node_id, op, fn):
     """fn() returns (detail_str, ack_dict)."""
@@ -278,7 +285,9 @@ async def _run(slot_id, node_id, op, fn):
         raise HTTPException(500, f"{op} failed: {e}") from e
 
 
+# ---------------------------------------------------------------------------
 # Enum maps
+# ---------------------------------------------------------------------------
 
 ROLE_MAP = {
     "CLIENT": 0, "CLIENT_MUTE": 1, "ROUTER": 2, "ROUTER_CLIENT": 3,
@@ -298,7 +307,9 @@ REGION_MAP = {
 CH_ROLE_MAP = {"PRIMARY": 1, "SECONDARY": 2, "DISABLED": 0}
 
 
+# ---------------------------------------------------------------------------
 # ACK responses for different command types
+# ---------------------------------------------------------------------------
 
 def _ack_sent(is_remote):
     """Config write — fire and forget, just report sent."""
@@ -314,7 +325,9 @@ def _ack_wait(iface, node, is_remote):
     return _wait_ack(iface)
 
 
+# ---------------------------------------------------------------------------
 # Request models
+# ---------------------------------------------------------------------------
 
 class _Base(BaseModel):
     slot_id: str
@@ -430,7 +443,9 @@ class NodeRefReq(_Base):
     target_node_id: str
 
 
+# ---------------------------------------------------------------------------
 # Routes — health / metadata
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("")
 @plugin_router.get("/")
@@ -496,8 +511,10 @@ async def get_public_key(slot_id: str):
             "note": "" if pk else "Not available — check firmware \u22652.5 and radio connected"}
 
 
+# ---------------------------------------------------------------------------
 # Config write routes — FIRE AND FORGET (no waitForAckNak)
 # Official CLI pattern: just call the method and move on
+# ---------------------------------------------------------------------------
 
 @plugin_router.post("/set_owner")
 async def set_owner(r: OwnerReq):
@@ -654,7 +671,9 @@ async def set_bluetooth_config(r: BluetoothReq):
     return await _run(r.slot_id, r.node_id, "set_bluetooth_config", _do)
 
 
+# ---------------------------------------------------------------------------
 # Control command routes — WAIT FOR ACK (official pattern: reboot, shutdown)
+# ---------------------------------------------------------------------------
 
 @plugin_router.post("/reboot")
 async def reboot_node(r: RebootReq):
@@ -770,7 +789,9 @@ async def remove_ignored(r: NodeRefReq):
     return await _run(r.slot_id, r.node_id, "remove_ignored", _do)
 
 
+# ---------------------------------------------------------------------------
 # Channel routes
+# ---------------------------------------------------------------------------
 
 @plugin_router.post("/read_channels")
 async def read_channels(r: ChReadReq):
@@ -835,7 +856,9 @@ async def set_channel(r: ChSetReq):
     return await _run(r.slot_id, r.node_id, "set_channel", _do)
 
 
+# ---------------------------------------------------------------------------
 # Log
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("/log")
 async def get_log(limit: int = 60):

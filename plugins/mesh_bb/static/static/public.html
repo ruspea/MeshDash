@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mesh BB — Public Board</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060b12;--bg2:#0c1420;--bg3:#111c2c;
+  --bd:#192638;--bd2:#1e3048;
+  --acc:#00c8f5;--ok:#00e87a;--warn:#ffa826;--err:#ff3050;--pur:#b060ff;
+  --txt:#c8d8e8;--txt2:#7a96b2;--txt3:#4a6a88;
+  --mono:'Share Tech Mono',monospace;--sans:'Exo 2',system-ui,sans-serif;
+}
+html,body{min-height:100vh;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:13px}
+a{color:inherit;text-decoration:none}
+
+/* ── Header ── */
+.hdr{background:var(--bg2);border-bottom:1px solid var(--bd2);padding:0 20px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+.hdr-left{display:flex;align-items:center;gap:10px}
+.hdr-logo{font-size:18px;font-weight:900;letter-spacing:2px;font-family:var(--mono);color:var(--txt)}
+.hdr-logo span{color:var(--acc)}
+.hdr-sub{font-size:8px;color:var(--txt3);letter-spacing:1.5px}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.hdr-pill{font-size:8px;color:var(--txt3);background:var(--bg);border:1px solid var(--bd2);padding:3px 9px;border-radius:20px;font-family:var(--mono)}
+.hdr-pill.live{color:var(--ok);border-color:rgba(0,232,122,.3);background:rgba(0,232,122,.06)}
+.md-link{font-size:8px;color:var(--txt3);font-family:var(--mono);border:1px solid var(--bd2);padding:3px 9px;border-radius:4px;transition:all .2s}
+.md-link:hover{color:var(--acc);border-color:var(--acc)}
+
+/* ── Stats bar ── */
+.stats-bar{background:var(--bg2);border-bottom:1px solid var(--bd2);padding:10px 20px;display:flex;gap:24px;justify-content:center;flex-wrap:wrap}
+.stat-item{text-align:center}
+.stat-val{font-size:20px;font-weight:900;color:var(--acc);font-family:var(--mono);line-height:1}
+.stat-lbl{font-size:7px;color:var(--txt3);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
+
+/* ── Layout ── */
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px;display:grid;grid-template-columns:1fr 300px;gap:20px}
+@media(max-width:720px){.wrap{grid-template-columns:1fr}}
+
+/* ── Cards ── */
+.card{background:var(--bg2);border:1px solid var(--bd2);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.card-head{padding:12px 16px;border-bottom:1px solid var(--bd2);display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.02)}
+.card-title{font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--txt2)}
+.card-body{padding:14px 16px}
+
+/* ── Room cards ── */
+.room-card{background:var(--bg2);border:1px solid var(--bd2);border-radius:8px;overflow:hidden;margin-bottom:16px;transition:border-color .2s}
+.room-card:hover{border-color:rgba(0,200,245,.25)}
+.room-hdr{padding:14px 16px;border-bottom:1px solid var(--bd2);display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.room-name{font-size:15px;font-weight:900;letter-spacing:.5px}
+.room-cmd{font-size:8px;color:var(--acc);font-family:var(--mono);margin-top:3px}
+.room-desc{font-size:10px;color:var(--txt3);margin-top:2px}
+.room-meta-chips{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.chip{font-size:8px;color:var(--txt3);background:var(--bg);border:1px solid var(--bd2);padding:2px 7px;border-radius:3px;font-family:var(--mono)}
+.room-right{text-align:right;flex-shrink:0}
+.acc-count{font-size:18px;font-weight:900;color:var(--acc);font-family:var(--mono);line-height:1}
+.acc-lbl{font-size:7px;color:var(--txt3);letter-spacing:1px}
+.badge{padding:2px 7px;border-radius:8px;font-size:8px;font-weight:bold;display:inline-block}
+.b-live{background:rgba(0,232,122,.1);color:var(--ok);border:1px solid rgba(0,232,122,.3)}
+.b-locked{background:rgba(255,48,80,.1);color:var(--err);border:1px solid rgba(255,48,80,.3)}
+
+/* ── Posts ── */
+.post{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:12px}
+.post:last-child{border-bottom:none}
+.post-num{width:32px;height:32px;border-radius:5px;background:rgba(0,200,245,.08);border:1px solid rgba(0,200,245,.2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:var(--acc);flex-shrink:0;font-family:var(--mono)}
+.post-num.pinned{background:rgba(255,200,0,.1);border-color:rgba(255,200,0,.4);color:#ffc800}
+.post-wrap{flex:1;min-width:0}
+.post-meta{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.post-author{font-size:10px;color:var(--acc);font-weight:700;font-family:var(--mono)}
+.post-node{font-size:8px;color:var(--txt3)}
+.post-ts{font-size:8px;color:var(--txt3);margin-left:auto}
+.post-body{font-size:12px;color:var(--txt2);margin-top:5px;line-height:1.6;white-space:pre-wrap;word-break:break-word;font-family:var(--sans)}
+.post-reads{font-size:8px;color:var(--txt3);margin-top:4px}
+.no-posts{text-align:center;padding:24px;color:var(--txt3);font-size:11px}
+
+/* ── Sidebar widgets ── */
+.widget-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.widget-row:last-child{border-bottom:none}
+.widget-rank{width:20px;font-size:9px;color:var(--txt3);font-family:var(--mono);text-align:center;flex-shrink:0}
+.widget-rank.top{color:var(--acc);font-weight:900}
+.widget-info{flex:1;min-width:0}
+.widget-name{font-size:10px;font-weight:700;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.widget-sub{font-size:8px;color:var(--txt3);margin-top:1px}
+.widget-val{font-size:11px;font-weight:900;color:var(--acc);font-family:var(--mono);text-align:right;flex-shrink:0}
+
+/* Activity feed */
+.act-item{padding:7px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:8px;align-items:flex-start}
+.act-item:last-child{border-bottom:none}
+.act-dot{width:6px;height:6px;border-radius:50%;background:var(--acc);flex-shrink:0;margin-top:4px;opacity:.7}
+.act-text{font-size:10px;color:var(--txt2);line-height:1.4}
+.act-time{font-size:8px;color:var(--txt3);white-space:nowrap;margin-left:auto;flex-shrink:0}
+
+/* Chart bar */
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.bar-lbl{font-size:8px;color:var(--txt3);font-family:var(--mono);width:55px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;background:var(--bg);border-radius:3px;height:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--acc),rgba(0,200,245,.5));transition:width .4s ease}
+.bar-val{font-size:8px;color:var(--txt3);font-family:var(--mono);width:28px;text-align:right;flex-shrink:0}
+
+/* Refresh indicator */
+.refresh-ring{width:8px;height:8px;border-radius:50%;border:1.5px solid var(--ok);border-top-color:transparent;display:inline-block;animation:spin 1s linear infinite;margin-right:5px;vertical-align:middle;opacity:0}
+.refresh-ring.active{opacity:1}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Error/loading */
+.error{text-align:center;padding:60px 20px;color:var(--err);font-family:var(--mono)}
+.loading{text-align:center;padding:60px;color:var(--txt3);font-size:22px;animation:spin 1s linear infinite}
+.empty{text-align:center;padding:40px;color:var(--txt3);font-size:11px}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-left">
+    <div>
+      <div class="hdr-logo">MESH <span>BB</span></div>
+      <div class="hdr-sub">PUBLIC BULLETIN BOARD</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <span class="hdr-pill live" id="live-pill">● LIVE</span>
+    <span class="hdr-pill" id="last-update">Loading…</span>
+    <span class="refresh-ring" id="refresh-ring"></span>
+    <a href="https://meshdash.co.uk" target="_blank" class="md-link">⊙ MeshDash</a>
+  </div>
+</div>
+
+<div class="stats-bar" id="stats-bar" style="display:none">
+  <div class="stat-item"><div class="stat-val" id="s-rooms">—</div><div class="stat-lbl">Boards</div></div>
+  <div class="stat-item"><div class="stat-val" id="s-posts">—</div><div class="stat-lbl">Posts</div></div>
+  <div class="stat-item"><div class="stat-val" id="s-nodes">—</div><div class="stat-lbl">Posters</div></div>
+  <div class="stat-item"><div class="stat-val" id="s-reads">—</div><div class="stat-lbl">Total Reads</div></div>
+  <div class="stat-item"><div class="stat-val" id="s-acc">—</div><div class="stat-lbl">Accesses</div></div>
+</div>
+
+<div id="page-main"><div class="loading">⟳</div></div>
+
+<script>
+const token = new URLSearchParams(location.search).get('token') || '';
+const API = '/api/plugins/mesh_bb/public/' + token;
+let _data = null;
+
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function ago(ts){
+  const s=Math.floor(Date.now()/1000-ts);
+  if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';
+  if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';
+}
+function fmt(ts){return new Date(ts*1000).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}
+
+function renderStats(rooms){
+  const totalPosts = rooms.reduce((a,r)=>a+(r.post_count||0),0);
+  const totalReads = rooms.reduce((a,r)=>a+r.posts.reduce((b,p)=>b+(p.read_count||0),0),0);
+  const totalAcc = rooms.reduce((a,r)=>a+(r.access_count||0),0);
+  const posters = new Set();
+  rooms.forEach(r=>r.posts.forEach(p=>posters.add(p.author_id)));
+  document.getElementById('s-rooms').textContent = rooms.length;
+  document.getElementById('s-posts').textContent = totalPosts;
+  document.getElementById('s-nodes').textContent = posters.size;
+  document.getElementById('s-reads').textContent = totalReads;
+  document.getElementById('s-acc').textContent = totalAcc;
+  document.getElementById('stats-bar').style.display = '';
+}
+
+function renderSidebar(rooms){
+  // Top boards by access
+  const topRooms = [...rooms].sort((a,b)=>(b.access_count||0)-(a.access_count||0)).slice(0,5);
+  const maxAcc = Math.max(1,...topRooms.map(r=>r.access_count||0));
+  const topRoomsHtml = topRooms.length ? topRooms.map((r,i)=>`
+    <div class="bar-row">
+      <div class="bar-lbl" title="${esc(r.name)}">${esc(r.id)}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round((r.access_count||0)/maxAcc*100)}%"></div></div>
+      <div class="bar-val">${r.access_count||0}</div>
+    </div>`).join('') : '<div class="empty" style="padding:12px">No data</div>';
+
+  // Top posts by reads across all rooms
+  const allPosts = [];
+  rooms.forEach(r=>r.posts.forEach(p=>allPosts.push({...p,room_id:r.id,room_name:r.name})));
+  allPosts.sort((a,b)=>(b.read_count||0)-(a.read_count||0));
+  const topPosts = allPosts.slice(0,5);
+  const maxReads = Math.max(1,...topPosts.map(p=>p.read_count||0));
+  const topPostsHtml = topPosts.length ? topPosts.map((p,i)=>`
+    <div class="widget-row">
+      <div class="widget-rank${i===0?' top':''}">${i+1}</div>
+      <div class="widget-info">
+        <div class="widget-name">${esc(p.body.substring(0,40))}${p.body.length>40?'…':''}</div>
+        <div class="widget-sub">[${esc(p.room_id)}] #${p.seq} · ${esc(p.author_name)}</div>
+      </div>
+      <div class="widget-val">${p.read_count||0}</div>
+    </div>`).join('') : '<div class="empty" style="padding:12px">No reads yet</div>';
+
+  // Top posters
+  const posterMap = {};
+  rooms.forEach(r=>r.posts.forEach(p=>{
+    if(!posterMap[p.author_id])posterMap[p.author_id]={name:p.author_name,count:0};
+    posterMap[p.author_id].count++;
+  }));
+  const topPosters = Object.entries(posterMap).sort((a,b)=>b[1].count-a[1].count).slice(0,5);
+  const topPostersHtml = topPosters.length ? topPosters.map(([id,{name,count}],i)=>`
+    <div class="widget-row">
+      <div class="widget-rank${i===0?' top':''}">${i+1}</div>
+      <div class="widget-info">
+        <div class="widget-name">${esc(name||id)}</div>
+        <div class="widget-sub">${esc(id)}</div>
+      </div>
+      <div class="widget-val">${count}</div>
+    </div>`).join('') : '<div class="empty" style="padding:12px">No posts yet</div>';
+
+  // Recent activity feed (latest 8 posts across all rooms, newest first)
+  const recent = [...allPosts].sort((a,b)=>b.created_at-a.created_at).slice(0,8);
+  const recentHtml = recent.length ? recent.map(p=>`
+    <div class="act-item">
+      <div class="act-dot"></div>
+      <div class="act-text"><strong style="color:#c8d8e8">${esc(p.author_name)}</strong> posted in <strong style="color:#00c8f5">[${esc(p.room_id)}]</strong><br>${esc(p.body.substring(0,60))}${p.body.length>60?'…':''}</div>
+      <div class="act-time">${ago(p.created_at)}</div>
+    </div>`).join('') : '<div class="empty" style="padding:12px">No activity</div>';
+
+  return `
+    <div class="card">
+      <div class="card-head"><span class="card-title">📊 Board Activity</span></div>
+      <div class="card-body">${topRoomsHtml}</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">🔥 Top Posts</span></div>
+      <div style="padding:4px 0">${topPostsHtml}</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">✍️ Top Posters</span></div>
+      <div style="padding:4px 0">${topPostersHtml}</div>
+    </div>
+    <div class="card">
+      <div class="card-head"><span class="card-title">⚡ Recent Activity</span></div>
+      <div style="padding:4px 16px">${recentHtml}</div>
+    </div>`;
+}
+
+function renderRooms(rooms){
+  if(!rooms.length) return '<div class="empty">No bulletin boards available.</div>';
+  return rooms.map(room=>{
+    const posts = [...(room.posts||[])].sort((a,b)=>{
+      if(a.pinned&&!b.pinned)return-1;if(!a.pinned&&b.pinned)return 1;return b.seq-a.seq;
+    });
+    const postsHtml = !posts.length
+      ? '<div class="no-posts">No posts yet — be the first to post via DM.</div>'
+      : posts.map(p=>`
+        <div class="post">
+          <div class="post-num${p.pinned?' pinned':''}">${p.pinned?'📌':'#'}${p.seq}</div>
+          <div class="post-wrap">
+            <div class="post-meta">
+              <span class="post-author">${esc(p.author_name)}</span>
+              <span class="post-node">${esc(p.author_id)}</span>
+              <span class="post-ts">${fmt(p.created_at)}</span>
+            </div>
+            <div class="post-body">${esc(p.body)}</div>
+            ${p.read_count?`<div class="post-reads">👁 ${p.read_count} reads</div>`:''}
+          </div>
+        </div>`).join('');
+    return `
+      <div class="room-card">
+        <div class="room-hdr">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span class="room-name">${esc(room.name)}</span>
+              <span class="badge b-live">LIVE</span>
+            </div>
+            <div class="room-cmd">DM: bb.${esc(room.id)} post MSG</div>
+            ${room.description?`<div class="room-desc">${esc(room.description)}</div>`:''}
+            <div class="room-meta-chips">
+              <span class="chip">ch${room.channel_index}</span>
+              <span class="chip">${room.post_count||0} posts</span>
+              <span class="chip">${room.access_count||0} accesses</span>
+            </div>
+          </div>
+          <div class="room-right">
+            <div class="acc-count">${room.access_count||0}</div>
+            <div class="acc-lbl">ACCESSES</div>
+          </div>
+        </div>
+        ${postsHtml}
+      </div>`;
+  }).join('');
+}
+
+async function load(){
+  document.getElementById('refresh-ring').classList.add('active');
+  try{
+    const r = await fetch(API);
+    if(r.status===403){
+      document.getElementById('page-main').innerHTML='<div class="error" style="padding:60px 20px">🔒 This board is not publicly accessible.<br><small style="color:#4a6a88;margin-top:8px;display:block">The share link may be disabled or invalid.</small></div>';
+      document.getElementById('live-pill').textContent='● OFFLINE';
+      document.getElementById('live-pill').style.cssText='color:#ff3050;border-color:rgba(255,48,80,.3);background:rgba(255,48,80,.06)';
+      return;
+    }
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d = await r.json();
+    _data = d;
+    const rooms = d.rooms||[];
+
+    renderStats(rooms);
+
+    document.getElementById('page-main').innerHTML=`
+      <div class="wrap">
+        <div id="col-rooms">${renderRooms(rooms)}</div>
+        <div id="col-sidebar">${renderSidebar(rooms)}</div>
+      </div>`;
+
+    document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+    document.getElementById('live-pill').textContent='● LIVE';
+    document.getElementById('live-pill').className='hdr-pill live';
+  }catch(e){
+    document.getElementById('page-main').innerHTML='<div class="error">Failed to load boards.<br>'+e.message+'</div>';
+  }finally{
+    document.getElementById('refresh-ring').classList.remove('active');
+  }
+}
+
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>

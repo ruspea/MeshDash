@@ -59,7 +59,9 @@ except ImportError:
 logger        = logging.getLogger("plugin.channel_vault")
 plugin_router = APIRouter()
 
+# ---------------------------------------------------------------------------
 # DB
+# ---------------------------------------------------------------------------
 _DB_PATH = os.path.join(PLUGIN_DIR, "channel_vault.db")
 _DB_LOCK = threading.Lock()
 
@@ -119,7 +121,9 @@ def _get_vault_channels() -> List[dict]:
     ]
 
 
+# ---------------------------------------------------------------------------
 # State
+# ---------------------------------------------------------------------------
 _node_registry: Dict[str, Any] = {}
 _event_loop:    Optional[asyncio.AbstractEventLoop] = None
 _alerts:        List[dict] = []          # unknown-channel alerts
@@ -127,7 +131,9 @@ _alert_seen:    set        = set()       # (slot_id, channel_idx) already alerte
 _decrypt_stats  = {"attempted": 0, "succeeded": 0, "failed": 0}
 
 
+# ---------------------------------------------------------------------------
 # Plugin lifecycle
+# ---------------------------------------------------------------------------
 
 def init_plugin(context: dict):
     global _node_registry, _event_loop
@@ -161,7 +167,9 @@ async def _watchdog(context):
             pass
 
 
+# ---------------------------------------------------------------------------
 # Packet listener — detect unknown channels + attempt decrypt
+# ---------------------------------------------------------------------------
 
 def _on_receive(packet, interface=None):
     try:
@@ -319,7 +327,9 @@ def _save_decrypted(event_id: str, vault_id: str, portnum: str, payload_json: Op
         logger.warning("save_decrypted: %s", e)
 
 
+# ---------------------------------------------------------------------------
 # Retroactive decrypt — process historical encrypted packets from the main DB
+# ---------------------------------------------------------------------------
 
 async def _retroactive_decrypt(slot_id: str, vault_id: str):
     """
@@ -401,7 +411,9 @@ async def _retroactive_decrypt(slot_id: str, vault_id: str):
     return decrypted
 
 
+# ---------------------------------------------------------------------------
 # Helpers
+# ---------------------------------------------------------------------------
 
 def _slot_for_iface(_iface) -> str:
     # meshtastic.receive topic delivers only (packet) — no interface
@@ -442,7 +454,9 @@ def _read_radio_channels(slot_id: str) -> List[dict]:
     return chs
 
 
+# ---------------------------------------------------------------------------
 # REST routes — Vault CRUD
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("")
 @plugin_router.get("/")
@@ -536,7 +550,9 @@ async def vault_update(vid: str, r: VaultUpdateReq):
     return {"status": "updated"}
 
 
+# ---------------------------------------------------------------------------
 # Alerts
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("/alerts")
 async def get_alerts():
@@ -551,7 +567,9 @@ async def dismiss_alert(aid: str):
     return {"status": "dismissed"}
 
 
+# ---------------------------------------------------------------------------
 # Decrypt cache / results
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("/decrypted")
 async def get_decrypted(limit: int = 100):
@@ -571,7 +589,9 @@ async def get_decrypted(limit: int = 100):
     ]}
 
 
+# ---------------------------------------------------------------------------
 # Backup / Restore
+# ---------------------------------------------------------------------------
 
 @plugin_router.post("/backup")
 async def backup_channels(slot_id: str = "node_0", label: str = ""):
@@ -625,7 +645,9 @@ async def delete_backup(bid: str):
     return {"status": "deleted"}
 
 
+# ---------------------------------------------------------------------------
 # Radio channel read
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("/radio/{slot_id}")
 async def read_radio_channels(slot_id: str):
@@ -633,7 +655,9 @@ async def read_radio_channels(slot_id: str):
     return {"slot_id": slot_id, "channels": chs}
 
 
+# ---------------------------------------------------------------------------
 # Hotswap — write a vault channel to the radio
+# ---------------------------------------------------------------------------
 
 class HotswapReq(BaseModel):
     vault_id:      str
@@ -710,7 +734,9 @@ async def hotswap(r: HotswapReq):
     return result
 
 
+# ---------------------------------------------------------------------------
 # Import vault from backup (copy backup channels into vault)
+# ---------------------------------------------------------------------------
 
 @plugin_router.post("/import_backup/{bid}")
 async def import_from_backup(bid: str):

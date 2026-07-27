@@ -56,7 +56,9 @@ async def _watchdog(context):
             logger.warning("Watchdog: %s", e)
 
 
+# ---------------------------------------------------------------------------
 # DB helpers
+# ---------------------------------------------------------------------------
 
 def _get_db_path(slot_id: str) -> str:
     slot = _node_registry.get(slot_id)
@@ -89,7 +91,9 @@ def _list_slots_with_db():
     return results
 
 
+# ---------------------------------------------------------------------------
 # Core computation functions
+# ---------------------------------------------------------------------------
 
 def _compute_lqs(path: str, node_id: str, now: float) -> dict:
     """Compute Link Quality Score (0-10) for one node."""
@@ -458,7 +462,9 @@ def _get_cached_entropy(slot_id: str, path: str) -> dict:
     return data
 
 
+# ---------------------------------------------------------------------------
 # Routes
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("")
 @plugin_router.get("/")
@@ -612,8 +618,10 @@ async def invalidate_cache(slot_id: str):
     return {"status": "invalidated", "slot_id": slot_id}
 
 
+# ---------------------------------------------------------------------------
 # Fleet Overview — shown BEFORE a node is selected
 # Everything computable from a single DB pass
+# ---------------------------------------------------------------------------
 
 def _compute_fleet_overview(path: str, now: float) -> dict:
     """
@@ -629,6 +637,7 @@ def _compute_fleet_overview(path: str, now: float) -> dict:
     try:
         conn = _conn(path)
 
+        # ── Node counts & activity ─────────────────────────────────────────
         all_nodes = conn.execute("SELECT * FROM nodes WHERE is_local=FALSE").fetchall()
         total = len(all_nodes)
         active_1h  = sum(1 for n in all_nodes if n["last_heard"] and n["last_heard"] > w1h)
@@ -667,6 +676,7 @@ def _compute_fleet_overview(path: str, now: float) -> dict:
             "avg": avg_snr, "poor_count": poor_snr, "tracked": len(snrs),
         }
 
+        # ── Packet traffic 24h ─────────────────────────────────────────────
         pkt_24h = conn.execute(
             "SELECT COUNT(*) as n FROM packets WHERE timestamp > ?", (w24h,)
         ).fetchone()["n"]
@@ -684,6 +694,7 @@ def _compute_fleet_overview(path: str, now: float) -> dict:
             "messages_24h": msg_24h, "traceroutes_24h": tr_24h,
         }
 
+        # ── Hourly packet rate (24h sparkline) ────────────────────────────
         bucket = 3600
         pkt_hourly = conn.execute("""
             SELECT
@@ -699,6 +710,7 @@ def _compute_fleet_overview(path: str, now: float) -> dict:
             rate_arr[idx] = r["n"]
         result["packet_rate_24h"] = rate_arr
 
+        # ── Fleet SNR trend (from average_metrics_history) ────────────────
         snr_hist = conn.execute("""
             SELECT timestamp, average_snr, average_rssi, node_count
             FROM average_metrics_history
@@ -707,23 +719,27 @@ def _compute_fleet_overview(path: str, now: float) -> dict:
         """, (w7d,)).fetchall()
         result["snr_history"] = [dict(r) for r in snr_hist]
 
+        # ── Active node count trend (from average_metrics_history) ────────
         result["node_count_history"] = [
             {"ts": r["timestamp"], "count": r["node_count"]}
             for r in snr_hist
         ]
 
+        # ── Role distribution ──────────────────────────────────────────────
         roles = {}
         for n in all_nodes:
             r = n["role"] or "UNKNOWN"
             roles[r] = roles.get(r, 0) + 1
         result["roles"] = roles
 
+        # ── Hardware model distribution ───────────────────────────────────
         hw_models: dict = {}
         for n in all_nodes:
             hw = n["hw_model"] or "Unknown"
             hw_models[hw] = hw_models.get(hw, 0) + 1
         result["hw_models"] = dict(sorted(hw_models.items(), key=lambda x: -x[1])[:10])
 
+        # ── Top talkers (last 24h) ────────────────────────────────────────
         talkers = conn.execute("""
             SELECT from_id, COUNT(*) as n FROM packets
             WHERE timestamp > ? GROUP BY from_id ORDER BY n DESC LIMIT 10
@@ -735,6 +751,7 @@ def _compute_fleet_overview(path: str, now: float) -> dict:
             for r in talkers
         ]
 
+        # ── Fleet health score (0-100) ────────────────────────────────────
         # Computed from multiple signals, saved with timestamp for trending
         hs = 100.0
         if total > 0:
@@ -763,6 +780,7 @@ def _compute_fleet_overview(path: str, now: float) -> dict:
             "#ff3050"
         )
 
+        # ── Recent events summary ──────────────────────────────────────────
         hw_events = conn.execute("""
             SELECT node_id, event_type, details, timestamp
             FROM hardware_logs ORDER BY timestamp DESC LIMIT 10

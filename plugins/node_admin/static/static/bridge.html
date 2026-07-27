@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Node Admin Bridge</title>
+<style>body{margin:0;padding:0;background:transparent;}</style>
+</head>
+<body>
+<script>
+'use strict';
+const PLUGIN_ID='node_admin', TAB_ID='na_admin_tab';
+var _reg=false;
+function _wait(cb){if(window.parent&&typeof window.parent.PluginBridge==='object'){cb(window.parent.PluginBridge);}else{setTimeout(()=>_wait(cb),150);}}
+function _esc(s){const d=window.parent.document.createElement('div');d.textContent=String(s||'');return d.innerHTML;}
+function _html(nodeId,PB){
+  const n=PB.getNode(nodeId);
+  const u=n&&n.user||{};
+  const name=u.longName||u.shortName||nodeId;
+  return[
+    '<div style="padding:12px;font-family:var(--mono);">',
+    '<div style="font-size:10px;color:var(--acc);font-weight:bold;margin-bottom:10px;letter-spacing:1px;">',
+    '<i class="fas fa-sliders" style="margin-right:6px;"></i>REMOTE NODE MANAGEMENT</div>',
+    '<div style="font-size:11px;color:var(--txt2);margin-bottom:14px;line-height:1.6;">',
+    'Full admin controls for <b style="color:var(--txt);">',_esc(name),'</b><br>',
+    '<span style="font-size:9px;color:var(--txt3);">',_esc(nodeId),'</span></div>',
+    '<a href="/plugin/node_admin/index.html?node=',encodeURIComponent(nodeId),'" ',
+    'style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg);',
+    'border:1px solid var(--acc);border-radius:var(--r);color:var(--acc);font-size:10px;',
+    'font-weight:bold;text-decoration:none;" ',
+    'onmouseover="this.style.background=\'rgba(0,200,245,0.08)\'" ',
+    'onmouseout="this.style.background=\'var(--bg)\'"',
+    '>',
+    '<i class="fas fa-sliders" style="font-size:14px;flex-shrink:0;"></i>',
+    '<div><div>OPEN FULL ADMIN PANEL</div>',
+    '<div style="font-size:9px;color:var(--txt3);font-weight:normal;margin-top:2px;">',
+    'Identity · Role · LoRa · Position · MQTT · Channels · Reboot</div></div>',
+    '<i class="fas fa-external-link-alt" style="margin-left:auto;font-size:10px;opacity:.5;"></i>',
+    '</a>',
+    '<div style="margin-top:12px;padding:10px;background:rgba(255,168,38,.06);border:1px solid rgba(255,168,38,.2);border-radius:4px;font-size:9px;color:var(--warn);line-height:1.6;">',
+    '<i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i>',
+    'Remote admin requires a one-time public key setup — see the Setup Guide tab in the admin panel.',
+    '</div></div>',
+  ].join('');
+}
+_wait(PB=>{
+  if(_reg) return; _reg=true;
+  PB.addModalTab({id:TAB_ID,pluginId:PLUGIN_ID,label:'⚡ ADMIN',render:(nodeId)=>_html(nodeId,PB)});
+  console.log('[Node Admin Bridge] v1.1 ready.');
+});
+</script>
+</body>
+</html>

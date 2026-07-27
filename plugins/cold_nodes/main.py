@@ -37,8 +37,7 @@ import logging
 import threading
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 # User type — lazy import to avoid circular import when plugin loads at startup
@@ -58,7 +57,9 @@ def _get_user_type():
 logger = logging.getLogger("plugin.cold_nodes")
 plugin_router = APIRouter()
 
+# ---------------------------------------------------------------------------
 # Persistence — SQLite single-row config store, lives next to main.py
+# ---------------------------------------------------------------------------
 _DB_PATH = os.path.join(os.path.dirname(__file__), "cold_nodes_config.db")
 _DB_LOCK = threading.Lock()
 
@@ -100,7 +101,9 @@ def _db_save_config(cfg: dict) -> None:
     except Exception as e:
         logger.warning("Cold Nodes: failed to persist config: %s", e)
 
+# ---------------------------------------------------------------------------
 # Globals injected by init_plugin
+# ---------------------------------------------------------------------------
 _node_registry: Dict[str, Any] = {}
 _meshtastic_data = None
 _db_manager = None
@@ -145,7 +148,9 @@ def init_plugin(context: dict) -> None:
         logger.error("Cold Nodes: could not start watchdog heartbeat: %s", e)
 
 
+# ---------------------------------------------------------------------------
 # Watchdog heartbeat
+# ---------------------------------------------------------------------------
 
 async def _watchdog_heartbeat(context: dict) -> None:
     """
@@ -167,10 +172,13 @@ async def _watchdog_heartbeat(context: dict) -> None:
             logger.warning("Cold Nodes watchdog error: %s", e)
 
 
+# ---------------------------------------------------------------------------
 # Field accessors — single source of truth for reading node dicts
+#
 # After the meshtastic_dashboard.py fix, all in-memory nodes use camelCase.
 # We still include snake_case fallbacks here as defensive safety nets in case
 # the plugin is deployed against an older unpatched dashboard version.
+# ---------------------------------------------------------------------------
 
 def _last_heard(node: dict) -> float:
     """
@@ -269,7 +277,9 @@ def _age_hours(lh: float) -> Optional[float]:
     return round((time.time() - lh) / 3600, 2)
 
 
+# ---------------------------------------------------------------------------
 # Slot / node collection helpers
+# ---------------------------------------------------------------------------
 
 def _get_local_node_ids() -> set:
     """Collect all local radio node IDs across all slots."""
@@ -328,7 +338,9 @@ def _collect_nodes(slot_id: str) -> Dict[str, Dict]:
     return merged
 
 
+# ---------------------------------------------------------------------------
 # Pydantic models
+# ---------------------------------------------------------------------------
 
 class ConfigModel(BaseModel):
     enabled:         bool  = False
@@ -340,7 +352,9 @@ class DeleteRequest(BaseModel):
     slot_id:  str = "node_0"   # informational — delete always hits all slots
 
 
+# ---------------------------------------------------------------------------
 # API routes
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("/config")
 async def get_config():
@@ -430,23 +444,12 @@ async def get_cold_nodes(
     }
 
 
-async def _require_admin_or_operator(request: Request):
-    """
-    Resolve the current user (via the shared get_current_active_user dep)
-    and raise 403 if they are not admin (0) or operator (1).
-
-    NOTE: get_current_active_user is imported lazily here to avoid a circular
-    import at plugin load time — meshtastic_dashboard imports plugins, and
-    plugins import from meshtastic_dashboard.
-    """
-    from meshtastic_dashboard import get_current_active_user
-
-    user = await get_current_active_user(request)
+def _require_admin_or_operator(user: "User"):
+    """Guard: raise 403 if user is not admin (0) or operator (1)."""
     if isinstance(user, RedirectResponse):
         return user
     if user.role not in (0, 1):
         raise HTTPException(403, "Admin or Operator access required.")
-    return user
 
 
 @plugin_router.post("/delete")
@@ -483,6 +486,7 @@ async def delete_nodes(
             "removed_from_db":      False,
         }
         try:
+            # ── Remove from every slot's in-memory node dict ──────────────
             for sid, slot in _node_registry.items():
                 try:
                     if nid in slot.meshtastic_data.nodes:
@@ -496,6 +500,7 @@ async def delete_nodes(
                         "Cold Nodes: memory remove error for %s [slot=%s]: %s", nid, sid, e
                     )
 
+            # ── Remove from every slot's SQLite database ──────────────────
             for sid, slot in _node_registry.items():
                 try:
                     db = slot.db_manager

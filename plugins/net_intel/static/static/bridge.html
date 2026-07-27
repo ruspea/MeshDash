@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Net Intel Bridge</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>body{margin:0;padding:0;background:transparent;}</style>
+</head><body><script>
+'use strict';
+
+var PLUGIN_ID  = 'net_intel';
+var API        = '/api/plugins/net_intel';
+var CACHE_TTL  = 120000;
+
+var _lqs       = {};
+var _lastFetch = 0;
+var _tabReg    = false;
+
+function _waitBridge(cb) {
+  if (window.parent && typeof window.parent.PluginBridge === 'object') {
+    cb(window.parent.PluginBridge);
+  } else {
+    setTimeout(function () { _waitBridge(cb); }, 150);
+  }
+}
+
+function _fetchLQS() {
+  var PB   = window.parent && window.parent.PluginBridge;
+  var slot = PB ? PB.getActiveSlot() : 'node_0';
+  fetch(API + '/lqs/' + encodeURIComponent(slot), { credentials: 'include', cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d) return;
+      _lqs = d;
+      _lastFetch = Date.now();
+      _injectAllCards();
+    })
+    .catch(function () {});
+}
+
+function _col(score) {
+  if (score >= 7) return 'var(--ok)';
+  if (score >= 4) return 'var(--warn)';
+  return 'var(--err)';
+}
+
+// ── Directly inject LQS into the stats grid cells of a single card ───────────
+// Targets the 4th, 5th, and 6th .ov-nc-cell (the empty ones) and replaces
+// them with: LQS score | SNR | HOP — all inside the existing card layout.
+function _injectCard(card) {
+  var nodeId = card.getAttribute('data-node-id');
+  if (!nodeId) return;
+  var info = _lqs[nodeId];
+  if (!info) return;
+
+  // Mark as injected to avoid re-doing it on every call
+  if (card.dataset.niInjected === '1') return;
+
+  var sc  = typeof info.score === 'number' ? info.score : 0;
+  var col = _col(sc);
+  var snr = info.last_snr != null ? info.last_snr.toFixed(1) : '—';
+  var hop = info.hop_avg  != null ? info.hop_avg.toFixed(1)  : '—';
+
+  var grid = card.querySelector('.ov-nc-grid');
+  if (!grid) return;
+
+  var cells = grid.querySelectorAll('.ov-nc-cell');
+  // cells[3], [4], [5] are the empty placeholder cells (indices 3,4,5)
+  if (cells.length < 6) return;
+
+  // Cell 4: LQS score
+  cells[3].classList.remove('ov-nc-cell-empty');
+  cells[3].dataset.niCell = '1';
+  cells[3].innerHTML =
+    '<div class="ov-nc-cell-val" style="color:' + col + ';font-size:11px;font-weight:900;">'
+    + sc.toFixed(1)
+    + '</div>'
+    + '<div class="ov-nc-cell-lbl">LQS</div>';
+
+  // Cell 5: SNR
+  cells[4].classList.remove('ov-nc-cell-empty');
+  cells[4].dataset.niCell = '1';
+  cells[4].innerHTML =
+    '<div class="ov-nc-cell-val" style="color:var(--txt);font-size:11px;">'
+    + snr
+    + '</div>'
+    + '<div class="ov-nc-cell-lbl">SNR dB</div>';
+
+  // Cell 6: Avg hops
+  cells[5].classList.remove('ov-nc-cell-empty');
+  cells[5].dataset.niCell = '1';
+  cells[5].innerHTML =
+    '<div class="ov-nc-cell-val" style="color:var(--acc);font-size:11px;">'
+    + hop
+    + '</div>'
+    + '<div class="ov-nc-cell-lbl">AVG HOP</div>';
+
+  card.dataset.niInjected = '1';
+
+  // Wire click on these cells to open the modal tab
+  [cells[3], cells[4], cells[5]].forEach(function (cell) {
+    cell.style.cursor = 'pointer';
+    cell.title = 'Link Quality Score — click for full analysis';
+    cell.addEventListener('click', function (e) {
+      e.stopPropagation();
+      try { window.parent.c2OpenNodeDetail(nodeId, 'pb-net_intel-lqs'); } catch (err) {}
+    });
+  });
+}
+
+// ── Inject into all cards currently in the DOM ───────────────────────────────
+function _injectAllCards() {
+  var doc = window.parent && window.parent.document;
+  if (!doc) return;
+  doc.querySelectorAll('.ov-nc[data-node-id]').forEach(function (card) {
+    _injectCard(card);
+  });
+}
+
+// ── Called by PluginBridge._applyAll after every c2RenderNodes() ─────────────
+// We also hook addNodeCardSection purely to get the _applyAll callback trigger.
+// The actual injection is done via direct DOM manipulation above.
+function _applyAll(PB) {
+  // Re-check every card — new renders reset dataset.niInjected
+  // so we always pick up freshly rendered cards.
+  var doc = window.parent && window.parent.document;
+  if (!doc) return;
+  doc.querySelectorAll('.ov-nc[data-node-id]').forEach(function (card) {
+    // If card was re-rendered, niInjected is gone — re-inject
+    if (card.dataset.niInjected !== '1') {
+      _injectCard(card);
+    }
+  });
+}
+
+// ── Modal tab content ─────────────────────────────────────────────────────────
+function _modalHtml(nodeId) {
+  var info = _lqs[nodeId];
+  if (!info) {
+    return '<div style="text-align:center;padding:40px;font-family:var(--mono);font-size:11px;color:var(--txt3);">'
+      + '<i class="fas fa-circle-notch fa-spin" style="font-size:24px;color:var(--acc);display:block;margin-bottom:12px;"></i>'
+      + 'Loading link quality data…</div>';
+  }
+
+  var sc   = typeof info.score === 'number' ? info.score : 0;
+  var col  = _col(sc);
+  var pct  = Math.round(sc * 10);
+  var snr  = info.last_snr != null ? info.last_snr.toFixed(1) : '—';
+  var hop  = info.hop_avg  != null ? info.hop_avg.toFixed(1)  : '—';
+  var std  = info.hop_std  != null ? info.hop_std.toFixed(2)  : '—';
+  var hmin = info.hop_min  != null ? info.hop_min : '—';
+  var hmax = info.hop_max  != null ? info.hop_max : '—';
+
+  var esc = (window.parent && window.parent.escapeHtml)
+    || function (s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+
+  var iconMap = {
+    snr_strong:'fas fa-signal', snr_ok:'fas fa-signal',
+    snr_weak:'fas fa-signal', snr_poor:'fas fa-exclamation-triangle',
+    hop_stable:'fas fa-route', hop_flapping:'fas fa-random',
+    traceroute_ok:'fas fa-check-circle', pki_error:'fas fa-lock',
+    silent:'fas fa-moon', neighbor_ok:'fas fa-wifi', error:'fas fa-bug',
+  };
+
+  var compHtml = '';
+  if (info.components && info.components.length) {
+    info.components.forEach(function (c) {
+      var dc = c[1] > 0 ? 'var(--ok)' : c[1] < 0 ? 'var(--err)' : 'var(--txt3)';
+      var sign = c[1] > 0 ? '+' : '';
+      compHtml +=
+        '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);">'
+      + '<i class="' + (iconMap[c[0]] || 'fas fa-circle') + '" style="color:' + dc + ';width:14px;text-align:center;font-size:10px;flex-shrink:0;"></i>'
+      + '<span style="flex:1;font-size:10px;color:var(--txt2);">' + esc(c[2]) + '</span>'
+      + '<span style="font-family:var(--mono);font-size:10px;font-weight:bold;color:' + dc + ';flex-shrink:0;">' + sign + c[1] + '</span>'
+      + '</div>';
+    });
+  } else {
+    compHtml = '<div style="color:var(--txt3);font-size:10px;padding:8px 0;">No component data — node may be new or silent.</div>';
+  }
+
+  return '<div style="padding:4px 0 0;">'
+
+    + '<div style="display:grid;grid-template-columns:148px 1fr;gap:16px;align-items:start;margin-bottom:16px;">'
+
+    // Giant score
+    + '<div style="text-align:center;">'
+    + '<div style="font-family:var(--mono);font-size:54px;font-weight:900;line-height:1;color:' + col + ';">' + sc.toFixed(1) + '</div>'
+    + '<div style="font-family:var(--mono);font-size:8px;color:var(--txt3);letter-spacing:1px;margin-top:3px;">OUT OF 10</div>'
+    + '<div style="height:5px;background:rgba(255,255,255,.06);border-radius:3px;margin:8px 0 0;overflow:hidden;">'
+    + '<div style="height:100%;width:' + pct + '%;background:' + col + ';border-radius:3px;transition:width .6s ease;"></div>'
+    + '</div>'
+    // 3 mini stats
+    + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:10px;">'
+    + '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:3px;padding:5px 2px;">'
+    + '<div style="font-family:var(--mono);font-size:13px;font-weight:900;color:var(--txt);">' + snr + '</div>'
+    + '<div style="font-family:var(--mono);font-size:7px;color:var(--txt3);">SNR dB</div>'
+    + '</div>'
+    + '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:3px;padding:5px 2px;">'
+    + '<div style="font-family:var(--mono);font-size:13px;font-weight:900;color:var(--acc);">' + hop + '</div>'
+    + '<div style="font-family:var(--mono);font-size:7px;color:var(--txt3);">AVG HOP</div>'
+    + '</div>'
+    + '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:3px;padding:5px 2px;">'
+    + '<div style="font-family:var(--mono);font-size:13px;font-weight:900;color:var(--txt);">' + std + '</div>'
+    + '<div style="font-family:var(--mono);font-size:7px;color:var(--txt3);">HOP σ</div>'
+    + '</div>'
+    + '</div>'
+    + '<div style="font-family:var(--mono);font-size:8px;color:var(--txt3);margin-top:6px;">Range: ' + hmin + '–' + hmax + ' hops</div>'
+    + '</div>'
+
+    // Components
+    + '<div>'
+    + '<div style="font-family:var(--mono);font-size:8px;color:var(--txt3);letter-spacing:.5px;margin-bottom:6px;">SCORE COMPONENTS</div>'
+    + compHtml
+    + '</div>'
+    + '</div>'
+
+    // Formula
+    + '<div style="background:var(--bg);border:1px solid var(--bd);border-radius:4px;padding:10px 12px;margin-bottom:12px;">'
+    + '<div style="font-family:var(--mono);font-size:8px;color:var(--txt3);letter-spacing:.5px;margin-bottom:6px;">SCORING FORMULA</div>'
+    + '<div style="font-family:var(--mono);font-size:9px;color:var(--txt2);line-height:1.9;">'
+    + 'Base 5.0'
+    + ' · <span style="color:var(--ok)">+1.0</span> SNR &gt; −5 dB · <span style="color:var(--ok)">+0.5</span> SNR &gt; −10 dB'
+    + ' · <span style="color:var(--err)">−0.5</span> SNR &gt; −15 dB · <span style="color:var(--err)">−1.5</span> SNR &lt; −15 dB<br>'
+    + '<span style="color:var(--ok)">+0.5</span> stable routing · <span style="color:var(--err)">−1.0</span> route flapping'
+    + ' · <span style="color:var(--ok)">+1.0</span> traceroute ok &lt;1 h · <span style="color:var(--err)">−5.0</span> PKI error<br>'
+    + '<span style="color:var(--err)">−1.0</span> silent &gt; 3× interval · <span style="color:var(--ok)">+0.5</span> direct neighbour · Clamped 0–10'
+    + '</div>'
+    + '</div>'
+
+    // Link
+    + '<div style="text-align:center;">'
+    + '<a href="/static/plugins/net_intel/index.html?node=' + encodeURIComponent(nodeId) + '" '
+    + 'target="_blank" onclick="event.stopPropagation();" '
+    + 'style="font-family:var(--mono);font-size:9px;color:var(--acc);text-decoration:none;'
+    + 'border:1px solid rgba(0,200,245,.35);padding:6px 18px;border-radius:3px;display:inline-block;letter-spacing:.5px;">'
+    + '<i class="fas fa-satellite-dish" style="margin-right:5px;"></i>OPEN FULL ANALYSIS'
+    + '</a>'
+    + '</div>'
+
+  + '</div>';
+}
+
+// ── Register modal tab ────────────────────────────────────────────────────────
+function _registerTab(PB) {
+  if (_tabReg) return;
+  _tabReg = true;
+  PB.addModalTab({
+    id:       'net_intel-lqs',
+    label:    '⬡ LINK QUALITY',
+    pluginId: PLUGIN_ID,
+    render: function (nodeId) {
+      if (!_lqs[nodeId]) {
+        var slot = PB.getActiveSlot() || 'node_0';
+        fetch(API + '/lqs/' + encodeURIComponent(slot) + '/' + encodeURIComponent(nodeId),
+              { credentials: 'include' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            if (!d) return;
+            _lqs[nodeId] = d;
+            var content = window.parent.document.getElementById('c2-modal-content');
+            var check   = content && content.querySelector('[data-ni-node="' + nodeId + '"]');
+            if (check) check.innerHTML = _modalHtml(nodeId);
+          }).catch(function () {});
+      }
+      return '<div data-ni-node="' + nodeId + '">' + _modalHtml(nodeId) + '</div>';
+    },
+  });
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+_waitBridge(function (PB) {
+  _registerTab(PB);
+  _fetchLQS();
+
+  // PluginBridge._applyAll fires after every c2RenderNodes() — hook into it
+  PB.onNodesUpdated(function () {
+    if (Date.now() - _lastFetch > CACHE_TTL) {
+      _fetchLQS();
+    } else {
+      _applyAll(PB);
+    }
+  });
+
+  // Also observe the node grid directly — catches DOM updates that don't
+  // trigger onNodesUpdated (e.g. slot switches, lazy renders)
+  var doc = window.parent && window.parent.document;
+  if (doc) {
+    var observer = new window.parent.MutationObserver(function () {
+      _applyAll(PB);
+    });
+    var grid = doc.getElementById('ov-node-grid');
+    if (grid) {
+      observer.observe(grid, { childList: true, subtree: false });
+    } else {
+      // Grid not yet in DOM — wait for it
+      var bodyObs = new window.parent.MutationObserver(function () {
+        var g = doc.getElementById('ov-node-grid');
+        if (g) {
+          bodyObs.disconnect();
+          observer.observe(g, { childList: true, subtree: false });
+        }
+      });
+      bodyObs.observe(doc.body, { childList: true, subtree: true });
+    }
+  }
+
+  setInterval(function () { _fetchLQS(); }, CACHE_TTL);
+});
+</script></body></html>

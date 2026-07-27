@@ -1,0 +1,426 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><script>
+'use strict';
+/*
+ * Node Ignore Bridge
+ * ==================
+ * This bridge does the heavy lifting that makes ignored nodes disappear
+ * from EVERY part of the UI — node grid, map, DM panel, analytics,
+ * everything — without touching the core dashboard code.
+ *
+ * Three interception points:
+ *
+ * 1. meshState.nodes PROXY
+ *    Wraps window.meshState.nodes in a Proxy so any read of the node dict
+ *    (by c2RenderNodes, map, DMs, etc.) automatically skips _ni_ignored nodes
+ *    UNLESS the user has toggled "show ignored". The proxy is transparent —
+ *    no other code knows it exists.
+ *
+ * 2. SSE nodeUpdate handler PATCH
+ *    Intercepts the nodeUpdate event handler so that when an ignored node
+ *    receives a packet and sends a node_update SSE event, the update is
+ *    dropped from meshState — the node stays hidden even while active.
+ *
+ * 3. Context menu PATCH
+ *    Adds "Ignore Node" / "Unignore Node" to the right-click menu on any
+ *    node card, and injects a toolbar toggle button to show/hide ignored nodes.
+ *
+ * 4. Modal tab
+ *    Every node's detail modal gets an "IGNORE" tab to ignore/unignore with
+ *    a notes field.
+ */
+
+var API        = '/api/plugins/node_ignore';
+var _ignored   = {};   // { node_id: {notes, ignored_at} } — local cache
+var _showIgnored = false;
+var _tabReg    = false;
+var _proxied   = false;
+var _slot      = 'node_0';
+var _menuPatched = false;
+var _toolbarAdded = false;
+
+function _waitBridge(cb) {
+  if (window.parent && typeof window.parent.PluginBridge === 'object') {
+    cb(window.parent.PluginBridge);
+  } else {
+    setTimeout(function() { _waitBridge(cb); }, 150);
+  }
+}
+
+// ── 1. Load ignored list from server ─────────────────────────────────────────
+function _loadIgnored() {
+  var slot = (window.parent && window.parent._activeSlotId) || 'node_0';
+  _slot = slot;
+  fetch(API + '/list?slot_id=' + encodeURIComponent(slot))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      _ignored = {};
+      (d.ignored || []).forEach(function(row){
+        _ignored[row.node_id] = { notes: row.notes, ignored_at: row.ignored_at };
+      });
+      _applyProxy();
+      _retriggerRender();
+    })
+    .catch(function(e){ console.warn('[NodeIgnore] load failed:', e); });
+}
+
+// ── 2. meshState Proxy ────────────────────────────────────────────────────────
+function _applyProxy() {
+  var pw = window.parent;
+  if (!pw || !pw.meshState || !pw.meshState.nodes) return;
+  if (_proxied) { _syncIgnoredToNodes(); return; }
+
+  // Stamp _ni_ignored into existing nodes from our local cache
+  _syncIgnoredToNodes();
+
+  // Install a Proxy that filters _ni_ignored nodes on Object.values() / iteration
+  var _raw = pw.meshState.nodes;
+
+  var _proxy = new Proxy(_raw, {
+    get: function(target, prop) {
+      // Passthrough for symbol properties and known iteration methods
+      if (typeof prop === 'symbol') return target[prop];
+
+      // Direct key access — always return the real node (used internally for updates)
+      if (prop === '__raw') return target;
+
+      // Array / enumeration methods that c2RenderNodes and map use:
+      // Object.values() calls ownKeys → getOwnPropertyDescriptor → get
+      // We filter here by returning undefined for ignored nodes
+      // when _showIgnored is false
+      var val = target[prop];
+
+      // If it's a node object (has node_id), filter it
+      if (val && typeof val === 'object' && val.node_id && !_showIgnored) {
+        if (val._ni_ignored) return undefined;
+      }
+
+      // For functions on the object, bind them to target
+      if (typeof val === 'function') return val.bind(target);
+
+      return val;
+    },
+    ownKeys: function(target) {
+      if (_showIgnored) return Object.keys(target);
+      return Object.keys(target).filter(function(k){
+        var n = target[k];
+        return !(n && n._ni_ignored);
+      });
+    },
+    getOwnPropertyDescriptor: function(target, prop) {
+      var desc = Object.getOwnPropertyDescriptor(target, prop);
+      if (!desc) return desc;
+      if (!_showIgnored && target[prop] && target[prop]._ni_ignored) {
+        return undefined; // hide from enumeration
+      }
+      return desc;
+    },
+    has: function(target, prop) {
+      if (!_showIgnored && target[prop] && target[prop]._ni_ignored) return false;
+      return prop in target;
+    },
+    set: function(target, prop, value) {
+      target[prop] = value;
+      return true;
+    },
+    deleteProperty: function(target, prop) {
+      delete target[prop];
+      return true;
+    },
+  });
+
+  pw.meshState.nodes = _proxy;
+  _proxied = true;
+  console.log('[NodeIgnore] meshState.nodes proxy installed');
+}
+
+function _syncIgnoredToNodes() {
+  var pw = window.parent;
+  if (!pw || !pw.meshState) return;
+  var raw = (pw.meshState.nodes && pw.meshState.nodes.__raw) || pw.meshState.nodes;
+  if (!raw) return;
+  // Stamp _ni_ignored=true/false into all nodes based on our cache
+  Object.keys(raw).forEach(function(nid) {
+    if (raw[nid]) raw[nid]._ni_ignored = !!_ignored[nid];
+  });
+}
+
+// ── 3. SSE nodeUpdate patch ───────────────────────────────────────────────────
+function _patchSSEHandler() {
+  var pw = window.parent;
+  if (!pw || !pw._sseHandlers) return;
+  var orig = pw._sseHandlers.nodeUpdate;
+  if (!orig || orig.__niPatched) return;
+
+  pw._sseHandlers.nodeUpdate = function(e) {
+    try {
+      var nodeData = JSON.parse(e.data);
+      if (nodeData && nodeData.node_id) {
+        // Merge _ni_ignored from our local cache into incoming data
+        if (_ignored[nodeData.node_id]) {
+          nodeData._ni_ignored = true;
+        } else {
+          nodeData._ni_ignored = false;
+        }
+        // If ignored and not showing, drop the SSE event entirely
+        // (don't let it trigger a re-render that shows the ignored node)
+        if (nodeData._ni_ignored && !_showIgnored) {
+          // Still update the raw node data silently (keeps data fresh)
+          var raw = pw.meshState && pw.meshState.nodes && pw.meshState.nodes.__raw;
+          if (raw) {
+            raw[nodeData.node_id] = Object.assign(raw[nodeData.node_id] || {}, nodeData);
+          }
+          return; // Don't trigger re-render
+        }
+      }
+    } catch(err) {}
+    orig.call(this, e);
+  };
+  pw._sseHandlers.nodeUpdate.__niPatched = true;
+}
+
+// ── 4. Right-click context menu patch ────────────────────────────────────────
+function _patchContextMenu() {
+  var pw = window.parent;
+  if (!pw || !pw.showGlobalContextMenu || _menuPatched) return;
+  _menuPatched = true;
+
+  // Track cursor position
+  pw.document.addEventListener('mousemove', function(e) {
+    pw._ctxMousePos = { x: e.clientX, y: e.clientY };
+  }, { passive: true });
+
+  var _origShow = pw.showGlobalContextMenu;
+  pw.showGlobalContextMenu = function(x, y) {
+    // Remove previous node-ignore injection
+    pw.document.querySelectorAll('.ni-ctx-item').forEach(function(el){ el.remove(); });
+
+    // Find hovered node card
+    var pos = pw._ctxMousePos;
+    var nodeId = null;
+    if (pos) {
+      var els = pw.document.elementsFromPoint(pos.x, pos.y);
+      for (var i = 0; i < els.length; i++) {
+        var cur = els[i];
+        while (cur && cur !== pw.document.body) {
+          if (cur.classList && cur.classList.contains('ov-nc') && cur.dataset.nodeId) {
+            nodeId = cur.dataset.nodeId; break;
+          }
+          cur = cur.parentElement;
+        }
+        if (nodeId) break;
+      }
+    }
+
+    if (nodeId) {
+      var isIgnored = !!_ignored[nodeId];
+      var container = pw.document.getElementById('custom-ctx-container');
+      var menu = container && container.firstChild;
+      if (menu) {
+        // Divider
+        var div = pw.document.createElement('div');
+        div.className = 'ni-ctx-item';
+        div.style.cssText = 'height:1px;background:rgba(255,255,255,.08);margin:3px 0;';
+        menu.appendChild(div);
+
+        var item = pw.document.createElement('div');
+        item.className = 'ctx-item ni-ctx-item';
+        item.style.cssText = isIgnored ? 'color:var(--ok);' : 'color:var(--warn);';
+        item.innerHTML = isIgnored
+          ? '<i class="fas fa-eye ctx-icon" style="color:var(--ok);"></i><span class="ctx-label">Unignore Node</span>'
+          : '<i class="fas fa-eye-slash ctx-icon" style="color:var(--warn);"></i><span class="ctx-label">Ignore Node</span>';
+
+        var _nid = nodeId;
+        item.onclick = function(e) {
+          e.stopPropagation();
+          pw.hideGlobalContextMenu();
+          if (isIgnored) {
+            _unignoreNode(_nid);
+          } else {
+            _ignoreNode(_nid, '');
+          }
+        };
+        menu.appendChild(item);
+      }
+    }
+
+    _origShow.call(pw, x, y);
+  };
+}
+
+// ── 5. Toolbar toggle button ───────────────────────────────────────────────────
+function _addToolbarToggle() {
+  var pw = window.parent;
+  if (!pw || _toolbarAdded) return;
+  var toolbar = pw.document.getElementById('pb-ov-toolbar');
+  if (!toolbar) return;
+  _toolbarAdded = true;
+
+  var btn = pw.document.createElement('button');
+  btn.id = 'ni-toggle-btn';
+  btn.className = 'btn btn-sm';
+  btn.style.cssText = 'font-family:var(--mono);font-size:8px;display:flex;align-items:center;gap:5px;';
+  btn.innerHTML = '<i class="fas fa-eye-slash" style="font-size:9px;color:var(--txt3);"></i><span id="ni-toggle-lbl">SHOW IGNORED</span>';
+  btn.title = 'Show or hide ignored nodes';
+  btn.onclick = function() {
+    _showIgnored = !_showIgnored;
+    var lbl = pw.document.getElementById('ni-toggle-lbl');
+    var icon = btn.querySelector('i');
+    if (_showIgnored) {
+      btn.style.borderColor = 'var(--warn)';
+      btn.style.color = 'var(--warn)';
+      if (icon) { icon.className = 'fas fa-eye'; icon.style.color = 'var(--warn)'; }
+      if (lbl) lbl.textContent = 'HIDE IGNORED';
+    } else {
+      btn.style.borderColor = '';
+      btn.style.color = '';
+      if (icon) { icon.className = 'fas fa-eye-slash'; icon.style.color = 'var(--txt3)'; }
+      if (lbl) lbl.textContent = 'SHOW IGNORED';
+    }
+    _retriggerRender();
+  };
+
+  toolbar.appendChild(btn);
+
+  // Badge showing ignored count
+  var badge = pw.document.createElement('span');
+  badge.id = 'ni-count-badge';
+  badge.style.cssText = 'font-family:var(--mono);font-size:7px;padding:1px 5px;border-radius:8px;background:rgba(255,168,38,.15);border:1px solid rgba(255,168,38,.3);color:var(--warn);display:none;';
+  toolbar.appendChild(badge);
+
+  _updateBadge();
+}
+
+function _updateBadge() {
+  var pw = window.parent;
+  var badge = pw && pw.document.getElementById('ni-count-badge');
+  if (!badge) return;
+  var count = Object.keys(_ignored).length;
+  badge.textContent = count + ' IGNORED';
+  badge.style.display = count > 0 ? 'inline-block' : 'none';
+}
+
+// ── 6. Actions ────────────────────────────────────────────────────────────────
+function _ignoreNode(nodeId, notes) {
+  fetch(API + '/ignore', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ node_id: nodeId, slot_id: _slot, notes: notes || '' }),
+  }).then(function() {
+    _ignored[nodeId] = { notes: notes || '', ignored_at: Date.now() / 1000 };
+    _syncIgnoredToNodes();
+    _updateBadge();
+    _retriggerRender();
+    var pw = window.parent;
+    if (pw && pw.triggerToast) pw.triggerToast('Node ignored — hidden from UI', 'ok');
+  }).catch(function(e) {
+    var pw = window.parent;
+    if (pw && pw.triggerToast) pw.triggerToast('Ignore failed: ' + e.message, 'err');
+  });
+}
+
+function _unignoreNode(nodeId) {
+  fetch(API + '/unignore', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ node_id: nodeId, slot_id: _slot }),
+  }).then(function() {
+    delete _ignored[nodeId];
+    _syncIgnoredToNodes();
+    _updateBadge();
+    _retriggerRender();
+    var pw = window.parent;
+    if (pw && pw.triggerToast) pw.triggerToast('Node restored — visible again', 'ok');
+  }).catch(function(e) {
+    var pw = window.parent;
+    if (pw && pw.triggerToast) pw.triggerToast('Unignore failed: ' + e.message, 'err');
+  });
+}
+
+function _retriggerRender() {
+  var pw = window.parent;
+  if (pw && typeof pw.c2RenderNodes === 'function') {
+    try { pw.c2RenderNodes(false); } catch(e) {}
+  }
+}
+
+// ── 7. Modal tab ──────────────────────────────────────────────────────────────
+function _registerTab(PB) {
+  if (_tabReg) return;
+  _tabReg = true;
+  PB.addModalTab({
+    id:       'node_ignore-tab',
+    label:    '🚫 IGNORE',
+    pluginId: 'node_ignore',
+    render: function(nodeId) {
+      var isIgnored = !!_ignored[nodeId];
+      var info = _ignored[nodeId] || {};
+      var esc = window.parent.escapeHtml || function(s){ return String(s||''); };
+      var since = info.ignored_at ? new Date(info.ignored_at * 1000).toLocaleString() : '';
+
+      if (isIgnored) {
+        return '<div style="padding:6px 0;">'
+          + '<div style="background:rgba(255,168,38,.08);border:1px solid rgba(255,168,38,.3);border-radius:5px;padding:12px 14px;margin-bottom:14px;">'
+          + '<div style="font-family:var(--mono);font-size:9px;font-weight:bold;color:var(--warn);margin-bottom:4px;"><i class="fas fa-eye-slash" style="margin-right:5px;"></i>THIS NODE IS IGNORED</div>'
+          + '<div style="font-family:var(--mono);font-size:8px;color:var(--txt2);line-height:1.7;">'
+          + 'Hidden from the node grid, map, and all UI views since ' + esc(since) + '.<br>'
+          + (info.notes ? 'Note: ' + esc(info.notes) : '')
+          + '</div></div>'
+          + '<button onclick="_niUnignore(\'' + nodeId + '\')" style="width:100%;padding:10px;background:rgba(0,232,122,.1);border:1px solid rgba(0,232,122,.35);border-radius:4px;color:var(--ok);font-family:var(--mono);font-size:11px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">'
+          + '<i class="fas fa-eye"></i>RESTORE NODE — MAKE VISIBLE AGAIN'
+          + '</button>'
+          + '</div>';
+      }
+
+      return '<div style="padding:6px 0;">'
+        + '<div style="font-family:var(--mono);font-size:9px;color:var(--txt2);line-height:1.8;margin-bottom:14px;">'
+        + 'Hiding this node removes it from the node grid, map, and all UI views.<br>'
+        + 'The node continues to relay on the mesh — this is purely a UI filter.<br>'
+        + '<strong style="color:var(--txt);">Reversible at any time.</strong>'
+        + '</div>'
+        + '<div style="font-family:var(--mono);font-size:8px;color:var(--txt3);letter-spacing:.5px;margin-bottom:5px;">REASON / NOTES (optional)</div>'
+        + '<input id="ni-notes" style="width:100%;font-family:var(--mono);font-size:10px;padding:7px 9px;background:var(--bg);border:1px solid var(--bd2);border-radius:4px;color:var(--txt);margin-bottom:12px;" placeholder="e.g. Duplicate, spammer, out-of-area node…">'
+        + '<button onclick="_niIgnore(\'' + nodeId + '\')" style="width:100%;padding:10px;background:rgba(255,168,38,.1);border:1px solid rgba(255,168,38,.4);border-radius:4px;color:var(--warn);font-family:var(--mono);font-size:11px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">'
+        + '<i class="fas fa-eye-slash"></i>IGNORE NODE — HIDE FROM UI'
+        + '</button>'
+        + '</div>';
+    },
+  });
+}
+
+window._niIgnore = function(nodeId) {
+  var notes = (document.getElementById('ni-notes') || {}).value || '';
+  _ignoreNode(nodeId, notes);
+};
+window._niUnignore = function(nodeId) {
+  _unignoreNode(nodeId);
+};
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+_waitBridge(function(PB) {
+  _registerTab(PB);
+
+  // Wait for meshState to be available then install proxy
+  function _tryInit() {
+    var pw = window.parent;
+    if (!pw || !pw.meshState || !pw.meshState.nodes) {
+      setTimeout(_tryInit, 300); return;
+    }
+    _loadIgnored();
+    _patchSSEHandler();
+    _patchContextMenu();
+    _addToolbarToggle();
+  }
+  _tryInit();
+
+  // Re-apply after slot changes or full reloads
+  PB.onNodesUpdated(function() {
+    _patchSSEHandler();
+    _addToolbarToggle();
+    _syncIgnoredToNodes();
+    _updateBadge();
+  });
+
+  // Reload ignored list every 2 minutes (catches changes made in the settings UI)
+  setInterval(_loadIgnored, 120000);
+});
+</script></body></html>

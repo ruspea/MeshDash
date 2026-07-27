@@ -36,13 +36,17 @@ from fastapi import APIRouter, Body, HTTPException, Path as PathParam, Query, st
 # pydantic is always available in this environment — use it directly
 from pydantic import BaseModel, Field
 
+# ---------------------------------------------------------------------------
 # Plugin directory and database
+# ---------------------------------------------------------------------------
 PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(PLUGIN_DIR, "auto_reply.db")
 CONFIG_PATH = os.path.join(PLUGIN_DIR, "config.json")
 AUTO_REPLY_TABLE = "auto_reply_rules"
 
+# ---------------------------------------------------------------------------
 # Module-level context references (set by init_plugin)
+# ---------------------------------------------------------------------------
 _logger = None
 _db_manager = None
 _meshtastic_data = None
@@ -54,7 +58,9 @@ _plugin_id = None
 _watchdog_task: Optional[asyncio.Task] = None
 
 
+# ===========================================================================
 # WATCHDOG HEARTBEAT
+# ===========================================================================
 # Because this plugin sets "watchdog": true in manifest.json, the MeshDash
 # core will track it in _plugin_watchdog and expect a heartbeat every 30 s.
 # If no heartbeat arrives within 120 s, the core marks the plugin as "hung".
@@ -77,7 +83,9 @@ async def _watchdog_heartbeat():
             pass
 
 
+# ---------------------------------------------------------------------------
 # Debug log buffer (circular, last 100 events)
+# ---------------------------------------------------------------------------
 _debug_log: deque = deque(maxlen=100)
 _debug_lock = threading.Lock()
 
@@ -106,7 +114,9 @@ def clear_debug_log() -> int:
         return count
 
 
+# ---------------------------------------------------------------------------
 # Global Configuration
+# ---------------------------------------------------------------------------
 _DEFAULT_CONFIG = {
     "enabled": True,
     "listen_slots": [],
@@ -192,7 +202,9 @@ def set_enabled(value: bool) -> None:
         _logger.info("AUTO_REPLY: engine %s", "ENABLED" if value else "DISABLED")
 
 
+# ---------------------------------------------------------------------------
 # Cooldown tracking: keyed by (slot_id, rule_id, sender_id)
+# ---------------------------------------------------------------------------
 _cooldowns: Dict[str, Dict[int, Dict[str, float]]] = {}
 _cooldown_lock = threading.Lock()
 
@@ -226,7 +238,9 @@ def clear_rule_cooldowns(rule_id: int) -> None:
             slot_cd.pop(rule_id, None)
 
 
+# ---------------------------------------------------------------------------
 # Session tracking: per-sender menu navigation state
+# ---------------------------------------------------------------------------
 _sessions: Dict[str, Dict[str, Any]] = {}
 _session_lock = threading.Lock()
 
@@ -269,7 +283,9 @@ def get_all_sessions() -> Dict[str, Dict]:
         }
 
 
+# ---------------------------------------------------------------------------
 # Database
+# ---------------------------------------------------------------------------
 
 def _get_db_connection(db_path: str = DB_PATH) -> sqlite3.Connection:
     """Get a database connection with WAL mode and proper settings."""
@@ -686,7 +702,9 @@ def db_deploy_demo_menu(db_path: str = DB_PATH) -> int:
     return count
 
 
+# ---------------------------------------------------------------------------
 # Placeholder replacement (21+ tokens)
+# ---------------------------------------------------------------------------
 
 def replace_placeholders(message: str, node_info: Dict[str, Any]) -> str:
     """Replace {tokens} in message with node data."""
@@ -777,7 +795,9 @@ def replace_placeholders(message: str, node_info: Dict[str, Any]) -> str:
     return message
 
 
+# ---------------------------------------------------------------------------
 # Message matching engine with scope filtering
+# ---------------------------------------------------------------------------
 
 def _rule_applies_to_context(
     rule: Dict[str, Any],
@@ -991,7 +1011,9 @@ def check_message_for_auto_reply(
     return []
 
 
+# ---------------------------------------------------------------------------
 # FastAPI Router
+# ---------------------------------------------------------------------------
 
 plugin_router = APIRouter()
 
@@ -1241,7 +1263,9 @@ async def test_message(
     }
 
 
+# ---------------------------------------------------------------------------
 # Plugin lifecycle
+# ---------------------------------------------------------------------------
 
 def init_plugin(context: Dict[str, Any]) -> None:
     """Called by MeshDash plugin loader on startup."""

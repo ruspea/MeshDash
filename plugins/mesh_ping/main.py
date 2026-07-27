@@ -51,7 +51,9 @@ def _get_broadcast():
 logger        = logging.getLogger("plugin.mesh_ping")
 plugin_router = APIRouter()
 
+# ---------------------------------------------------------------------------
 # Config persistence
+# ---------------------------------------------------------------------------
 _DB_PATH = os.path.join(PLUGIN_DIR, "mesh_ping.db")
 _DB_LOCK = threading.Lock()
 
@@ -97,7 +99,9 @@ def _save_config(cfg: dict):
 
 _cfg: dict = {}
 
+# ---------------------------------------------------------------------------
 # State
+# ---------------------------------------------------------------------------
 _node_registry: Dict[str, Any] = {}
 _event_loop:    Optional[asyncio.AbstractEventLoop] = None
 _sessions:      Dict[str, dict] = {}
@@ -105,7 +109,9 @@ _history:       List[dict]      = []
 _sessions_lock  = threading.Lock()
 _MAX_HISTORY    = 100
 
+# ---------------------------------------------------------------------------
 # Plugin lifecycle
+# ---------------------------------------------------------------------------
 
 def init_plugin(context: dict):
     global _node_registry, _event_loop, _cfg
@@ -142,7 +148,9 @@ async def _watchdog(context):
         except Exception:
             pass
 
+# ---------------------------------------------------------------------------
 # Ping message builder
+# ---------------------------------------------------------------------------
 
 def _ping_text(index: int, count: int, interval: float) -> str:
     """
@@ -153,7 +161,9 @@ def _ping_text(index: int, count: int, interval: float) -> str:
     iv_str = f"{interval:.0f}s" if interval == int(interval) else f"{interval:.1f}s"
     return f"PING {index}/{count} (every {iv_str}) \u2014 pls ignore, RTT test"
 
+# ---------------------------------------------------------------------------
 # Incoming packet handler
+# ---------------------------------------------------------------------------
 
 def _on_receive(packet, interface=None):
     try:
@@ -162,6 +172,7 @@ def _on_receive(packet, interface=None):
         from_id = packet.get("fromId") or packet.get("from_id") or ""
         to_id   = packet.get("toId")   or packet.get("to_id")   or ""
 
+        # ── DM trigger ────────────────────────────────────────────────────────
         if _cfg.get("dm_trigger_enabled") and "TEXT_MESSAGE" in portnum:
             text = decoded.get("text", "").strip()
             word = _cfg.get("dm_trigger_word", "ping")
@@ -184,6 +195,7 @@ def _on_receive(packet, interface=None):
                             _event_loop,
                         )
 
+        # ── ACK / response matching ───────────────────────────────────────────
         if "ROUTING" in portnum or "NODEINFO" in portnum:
             decoded2 = packet.get("decoded", {})
             req_id   = decoded2.get("requestId") or decoded2.get("request_id")
@@ -233,7 +245,9 @@ def _slot_for_iface(_iface) -> str:
         return sid
     return "node_0"
 
+# ---------------------------------------------------------------------------
 # Session engine
+# ---------------------------------------------------------------------------
 
 async def _start_session(target_id, count, interval, slot_id,
                           triggered_by="ui", requester_id=None) -> str:
@@ -293,6 +307,7 @@ async def _run_session(sid: str):
             _sessions[sid]["attempts"].append(att)
             _sessions[sid]["current"] = i + 1
 
+        # ── Send the ping DM ──────────────────────────────────────────────
         send_time = time.time()
         pkt_id    = None
         send_ok   = False
@@ -331,6 +346,7 @@ async def _run_session(sid: str):
 
         await _broadcast(sid)
 
+        # ── Wait for ACK ─────────────────────────────────────────────────────
         if send_ok:
             deadline = time.time() + ack_timeout
             while time.time() < deadline:
@@ -347,6 +363,7 @@ async def _run_session(sid: str):
 
             await _broadcast(sid)
 
+        # ── Wait for the rest of the interval before sending next ping ────────
         # Always wait a full `interval` seconds from send_time before next ping.
         # This means the total session time = count × interval (predictable).
         if i < count - 1:
@@ -355,6 +372,7 @@ async def _run_session(sid: str):
             if remaining > 0:
                 await asyncio.sleep(remaining)
 
+    # ── Finalise ─────────────────────────────────────────────────────────────
     with _sessions_lock:
         s = _sessions.get(sid, {})
         if s.get("status") == "running":
@@ -418,7 +436,9 @@ async def _send_summary(sess: dict):
         logger.error("Summary DM: %s", e)
 
 
+# ---------------------------------------------------------------------------
 # SSE broadcast
+# ---------------------------------------------------------------------------
 
 async def _broadcast(sid: str):
     try:
@@ -464,7 +484,9 @@ def _safe(sess: dict) -> dict:
         ],
     }
 
+# ---------------------------------------------------------------------------
 # Routes
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("")
 @plugin_router.get("/")
@@ -526,6 +548,7 @@ async def clear_history():
     return {"status": "cleared"}
 
 
+# ── Config ────────────────────────────────────────────────────────────────────
 
 @plugin_router.get("/config")
 async def get_config():
@@ -557,6 +580,7 @@ async def set_config(body: ConfigBody):
     return {"status": "saved", "config": _cfg}
 
 
+# ── Nodes ─────────────────────────────────────────────────────────────────────
 
 @plugin_router.get("/nodes/{slot_id}")
 async def list_nodes(slot_id: str):

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Responder</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css">
+    <link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+        
+        *{box-sizing:border-box;margin:0;padding:0;}
+        html,body{background:var(--bg);color:var(--txt);font-family:var(--sans);height:100%;}
+        
+        .container {
+            max-width: 600px; margin: 40px auto; padding: 24px;
+            background: var(--bg2); border: 1px solid var(--bd);
+            border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,.5);
+        }
+        
+        h2 { color: var(--acc); font-size: 1.5rem; display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .desc { font-family: var(--mono); font-size: 0.75rem; color: var(--txt2); margin-bottom: 24px; line-height: 1.5; border-bottom: 1px solid var(--bd); padding-bottom: 16px; }
+        
+        label { display: block; margin: 16px 0 8px; font-family: var(--mono); font-size: 0.75rem; font-weight: 600; color: var(--txt3); text-transform: uppercase; }
+        
+        textarea {
+            width: 100%; height: 100px; padding: 12px;
+            background: var(--bg1); border: 1px solid var(--bd2); border-radius: 8px;
+            color: var(--txt); font-family: var(--mono); font-size: 0.85rem;
+            resize: vertical; outline: none; transition: border-color .15s;
+        }
+        textarea:focus { border-color: var(--acc); }
+        
+        /* Toggle Switch */
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; background: var(--bg1); padding: 16px; border-radius: 8px; border: 1px solid var(--bd2); }
+        .toggle-label { font-family: var(--sans); font-weight: 600; font-size: 1rem; color: var(--txt); }
+        .toggle-sub { font-family: var(--mono); font-size: 0.7rem; color: var(--txt3); margin-top: 4px; }
+        
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg3); transition: .3s; border-radius: 34px; border: 1px solid var(--bd2); }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: var(--txt2); transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--ok); border-color: var(--ok); }
+        input:checked + .slider:before { transform: translateX(24px); background-color: var(--bg); }
+        
+        .btn {
+            width: 100%; background: linear-gradient(135deg, var(--acc), var(--acc));
+            color: var(--bg); border: none; padding: 12px; border-radius: 8px;
+            font-weight: 700; font-size: 0.95rem; cursor: pointer; margin-top: 24px;
+            display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity .2s;
+        }
+        .btn:hover { opacity: .9; }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+        .toast {
+            position: fixed; bottom: 20px; right: 20px; background: var(--ok); color: var(--bg);
+            padding: 12px 20px; border-radius: 8px; font-family: var(--mono); font-size: 0.8rem; font-weight: 700;
+            transform: translateY(100px); opacity: 0; transition: all .3s; box-shadow: 0 4px 12px rgba(0,0,0,.3);
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.error { background: var(--err); }
+    
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h2><i class="fas fa-reply-all"></i> Auto-Responder</h2>
+    <div class="desc">Automatically reply to Direct Messages sent to this node. To prevent spam, the responder will only reply to the same node once every 5 minutes.</div>
+
+    <div class="toggle-row">
+        <div>
+            <div class="toggle-label">Enable Auto-Responder</div>
+            <div class="toggle-sub" id="status-text">Currently disabled</div>
+        </div>
+        <label class="switch">
+            <input type="checkbox" id="enable-toggle">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <label for="reply-msg">Auto-Reply Message</label>
+    <textarea id="reply-msg" placeholder="e.g., Auto-reply: I am away from my radio right now."></textarea>
+
+    <button class="btn" id="save-btn" onclick="saveConfig()"><i class="fas fa-save"></i> Save Configuration</button>
+</div>
+
+<div class="toast" id="toast">Saved successfully!</div>
+
+<script>
+    const toggle = document.getElementById('enable-toggle');
+    const msgInput = document.getElementById('reply-msg');
+    const statusText = document.getElementById('status-text');
+
+    toggle.addEventListener('change', () => {
+        statusText.textContent = toggle.checked ? 'Currently active and listening' : 'Currently disabled';
+        statusText.style.color = toggle.checked ? 'var(--ok)' : 'var(--txt3)';
+    });
+
+    function showToast(msg, isError = false) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = `toast show ${isError ? 'error' : ''}`;
+        setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    async function loadConfig() {
+        try {
+            const res = await fetch('/api/plugins/auto_responder/config');
+            const data = await res.json();
+            toggle.checked = data.enabled === 1;
+            msgInput.value = data.message;
+            toggle.dispatchEvent(new Event('change'));
+        } catch (e) {
+            showToast('Failed to load configuration', true);
+        }
+    }
+
+    async function saveConfig() {
+        const btn = document.getElementById('save-btn');
+        btn.disabled = true;
+        try {
+            const res = await fetch('/api/plugins/auto_responder/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    enabled: toggle.checked ? 1 : 0,
+                    message: msgInput.value
+                })
+            });
+            if (!res.ok) throw new Error((await res.json()).detail);
+            showToast('Configuration saved!');
+        } catch (e) {
+            showToast(e.message || 'Failed to save', true);
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    loadConfig();
+</script>
+
+</body>
+</html>

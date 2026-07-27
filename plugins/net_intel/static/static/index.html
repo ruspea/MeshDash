@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Network Intelligence</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:12px}
+.shell{height:100%;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── top bar ── */
+.topbar{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--bd2);background:var(--bg2)}
+.topbar-title{font-family:var(--mono);font-size:13px;font-weight:900;letter-spacing:1px;color:var(--acc)}
+.topbar-sub{font-size:9px;color:var(--txt3);font-family:var(--mono)}
+
+/* ── entropy widget ── */
+.entropy-bar{display:flex;align-items:center;gap:10px;padding:4px 14px;border-bottom:1px solid var(--bd2);background:var(--bg2)}
+.entropy-label{font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:.5px}
+.entropy-value{font-family:var(--mono);font-size:12px;font-weight:900}
+.entropy-track{flex:1;height:4px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden}
+.entropy-fill{height:100%;border-radius:2px;transition:width .5s ease,background .5s ease}
+.entropy-comps{display:flex;gap:6px;font-size:9px;font-family:var(--mono);color:var(--txt3)}
+.entropy-comp{padding:1px 5px;border-radius:2px;background:rgba(255,255,255,.05)}
+
+/* ── main grid ── */
+.main{flex:1;display:grid;grid-template-columns:280px 1fr;overflow:hidden}
+
+/* ── sidebar ── */
+.sidebar{border-right:1px solid var(--bd2);display:flex;flex-direction:column;overflow:hidden}
+.sb-sec{padding:8px 10px;border-bottom:1px solid var(--bd2)}
+.sb-lbl{font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:1px;margin-bottom:5px}
+.slot-sel{width:100%;font-family:var(--mono);font-size:10px;padding:5px 8px;background:var(--bg2);border:1px solid var(--bd2);border-radius:3px;color:var(--txt)}
+.filter-inp{width:100%;font-family:var(--mono);font-size:10px;padding:5px 8px;background:var(--bg2);border:1px solid var(--bd2);border-radius:3px;color:var(--txt);margin-top:5px}
+.filter-inp:focus,.slot-sel:focus{outline:none;border-color:var(--acc)}
+
+/* ── node list ── */
+.node-list{flex:1;overflow-y:auto}
+.node-list::-webkit-scrollbar{width:3px}
+.node-list::-webkit-scrollbar-thumb{background:var(--bd2)}
+.ni{display:grid;grid-template-columns:1fr auto;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s}
+.ni:hover{background:rgba(255,255,255,.03)}
+.ni.active{background:rgba(0,200,245,.07);border-left:2px solid var(--acc);padding-left:8px}
+.ni-name{font-size:11px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ni-sub{font-size:9px;color:var(--txt3);font-family:var(--mono)}
+.lqs-pill{font-family:var(--mono);font-size:9px;font-weight:900;padding:2px 6px;border-radius:3px;flex-shrink:0;min-width:28px;text-align:center}
+.lqs-hi{background:rgba(0,232,122,.15);border:1px solid rgba(0,232,122,.4);color:var(--ok)}
+.lqs-mid{background:rgba(255,168,38,.12);border:1px solid rgba(255,168,38,.35);color:var(--warn)}
+.lqs-lo{background:rgba(255,48,80,.12);border:1px solid rgba(255,48,80,.35);color:var(--err)}
+
+/* ── content ── */
+.content{display:flex;flex-direction:column;overflow:hidden}
+
+/* ── tab nav ── */
+.tab-nav{flex-shrink:0;display:flex;border-bottom:1px solid var(--bd2);background:var(--bg2);overflow-x:auto}
+.tab-nav::-webkit-scrollbar{height:0}
+.tab-btn{padding:9px 13px;font-family:var(--mono);font-size:9px;font-weight:bold;letter-spacing:.5px;color:var(--txt3);border:none;background:none;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent}
+.tab-btn:hover{color:var(--txt)}
+.tab-btn.active{color:var(--acc);border-bottom-color:var(--acc)}
+
+/* ── panels ── */
+.panels{flex:1;overflow-y:auto}
+.panels::-webkit-scrollbar{width:4px}
+.panels::-webkit-scrollbar-thumb{background:var(--bd2)}
+.panel{display:none;padding:14px}
+.panel.active{display:block}
+
+/* ── cards ── */
+.card{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);margin-bottom:12px}
+.card:last-child{margin-bottom:0}
+.card-head{display:flex;align-items:center;gap:8px;padding:9px 13px;border-bottom:1px solid var(--bd2)}
+.card-head i{color:var(--acc);width:14px;text-align:center}
+.card-title{font-family:var(--mono);font-size:10px;font-weight:bold;letter-spacing:.5px;color:var(--acc)}
+.card-sub{font-size:9px;color:var(--txt3);margin-left:auto}
+.card-body{padding:13px}
+
+/* ── score display ── */
+.score-giant{font-family:var(--mono);font-size:52px;font-weight:900;line-height:1;margin-bottom:2px}
+.score-label{font-size:9px;font-family:var(--mono);letter-spacing:1px;color:var(--txt3)}
+.score-bar{height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin:8px 0}
+.score-fill{height:100%;border-radius:3px;transition:width .6s ease}
+
+/* ── components list ── */
+.comp-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.comp-row:last-child{border-bottom:none}
+.comp-icon{width:16px;text-align:center;font-size:10px;flex-shrink:0}
+.comp-label{flex:1;font-size:10px;color:var(--txt2)}
+.comp-delta{font-family:var(--mono);font-size:10px;font-weight:bold;flex-shrink:0}
+.comp-plus{color:var(--ok)}
+.comp-minus{color:var(--err)}
+
+/* ── hop stats ── */
+.hop-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.hop-stat{background:var(--bg);border:1px solid var(--bd2);border-radius:4px;padding:8px 10px;text-align:center}
+.hop-stat-val{font-family:var(--mono);font-size:16px;font-weight:900;color:var(--acc)}
+.hop-stat-lbl{font-size:11px;color:var(--txt3);font-family:var(--mono);letter-spacing:.5px}
+
+/* ── chart wrap ── */
+.chart-wrap{position:relative;height:160px}
+.chart-wrap-tall{position:relative;height:200px}
+
+/* ── fleet grid ── */
+.fleet-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.fstat{background:var(--bg);border:1px solid var(--bd2);border-radius:4px;padding:10px;text-align:center}
+.fstat-val{font-family:var(--mono);font-size:22px;font-weight:900}
+.fstat-lbl{font-size:9px;color:var(--txt3);font-family:var(--mono);letter-spacing:.5px;margin-top:2px}
+
+/* ── relay bars ── */
+.relay-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.relay-row:last-child{border-bottom:none}
+.relay-name{font-size:10px;font-weight:bold;flex-shrink:0;width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.relay-bar-wrap{flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.relay-bar-fill{height:100%;background:var(--acc);border-radius:3px;transition:width .4s ease}
+.relay-count{font-family:var(--mono);font-size:9px;color:var(--txt3);flex-shrink:0;width:45px;text-align:right}
+
+/* ── traceroute table ── */
+.tr-tbl{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:9px}
+.tr-tbl th{text-align:left;color:var(--txt3);padding:5px 8px;border-bottom:1px solid var(--bd2);font-weight:normal;letter-spacing:.5px}
+.tr-tbl td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:top}
+.tr-tbl tr:hover td{background:rgba(255,255,255,.02)}
+.route-path{display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+.route-node{padding:1px 5px;border-radius:2px;background:rgba(0,200,245,.1);border:1px solid rgba(0,200,245,.2);color:var(--acc)}
+.route-arrow{color:var(--txt3)}
+.snr-hop{color:var(--ok);font-size:11px}
+
+/* ── neighbor graph placeholder ── */
+.nb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px}
+.nb-card{background:var(--bg);border:1px solid var(--bd2);border-radius:4px;padding:8px 10px}
+.nb-name{font-size:10px;font-weight:bold;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nb-snr{font-family:var(--mono);font-size:11px;font-weight:900}
+.nb-time{font-size:11px;color:var(--txt3)}
+
+/* ── empty state ── */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;gap:10px;color:var(--txt3);font-family:var(--mono)}
+.empty i{font-size:28px;opacity:.2}
+
+/* ── loading spinner ── */
+.spin{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- Top bar -->
+<div class="topbar">
+  <i class="fas fa-satellite-dish" style="color:var(--acc);font-size:16px;"></i>
+  <div>
+    <div class="topbar-title">NETWORK INTELLIGENCE</div>
+    <div class="topbar-sub">LINK QUALITY · SMART HOPS · ENTROPY · RELAY ANALYSIS</div>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+    <select id="slot-sel" style="font-family:var(--mono);font-size:9px;padding:4px 8px;background:var(--bg2);border:1px solid var(--bd2);border-radius:3px;color:var(--txt);max-width:160px;" onchange="App.onSlotChange()"><option>Loading...</option></select>
+    <button class="btn btn-sm" onclick="App.refresh()"><i class="fas fa-sync"></i></button>
+  </div>
+</div>
+
+<!-- Entropy bar (fleet-wide) -->
+<div class="entropy-bar" id="entropy-bar" style="display:none;">
+  <span class="entropy-label">MESH ENTROPY</span>
+  <span class="entropy-value" id="ent-val">—</span>
+  <div class="entropy-track"><div class="entropy-fill" id="ent-fill" style="width:0%"></div></div>
+  <span id="ent-label" style="font-family:var(--mono);font-size:9px;font-weight:bold;"></span>
+  <div class="entropy-comps" id="ent-comps"></div>
+</div>
+
+<div class="main">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sb-sec">
+      <div class="sb-lbl">SORT BY</div>
+      <select id="sort-sel" style="width:100%;font-family:var(--mono);font-size:9px;padding:4px 8px;background:var(--bg2);border:1px solid var(--bd2);border-radius:3px;color:var(--txt);" onchange="App.renderList()">
+        <option value="score_asc">LQS — Worst First</option>
+        <option value="score_desc">LQS — Best First</option>
+        <option value="name">Name A-Z</option>
+        <option value="hops">Avg Hops</option>
+      </select>
+      <input type="text" id="node-filter" class="filter-inp" placeholder="Filter nodes..." oninput="App.renderList()">
+    </div>
+    <div class="node-list" id="node-list">
+      <div class="empty"><i class="fas fa-circle-notch spin"></i><span>Loading...</span></div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <!-- Fleet Overview (shown before node selected) -->
+    <div id="no-sel" style="flex:1;overflow-y:auto;padding:14px;">
+
+      <!-- Health Score Hero -->
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:16px;margin-bottom:12px;">
+        <div class="card" style="min-width:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:1px;margin-bottom:6px;">FLEET HEALTH</div>
+          <div id="ov-health-score" style="font-family:var(--mono);font-size:56px;font-weight:900;line-height:1;color:var(--ok);">—</div>
+          <div id="ov-health-label" style="font-family:var(--mono);font-size:10px;font-weight:bold;letter-spacing:2px;margin-top:4px;color:var(--ok);">LOADING</div>
+          <div style="width:100%;height:4px;background:rgba(255,255,255,.06);border-radius:2px;margin-top:10px;overflow:hidden;">
+            <div id="ov-health-bar" style="height:100%;border-radius:2px;transition:width .8s ease,background .8s ease;width:0%;background:var(--ok);"></div>
+          </div>
+          <div style="margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--txt3);">Updated <span id="ov-health-time">—</span></div>
+        </div>
+
+        <!-- Stats grid -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:8px;">
+          <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;">
+            <div id="ov-total-nodes" style="font-family:var(--mono);font-size:26px;font-weight:900;color:var(--txt);">—</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:.5px;">TOTAL NODES</div>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;">
+            <div id="ov-active-1h" style="font-family:var(--mono);font-size:26px;font-weight:900;color:var(--ok);">—</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:.5px;">ACTIVE / 1H</div>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;">
+            <div id="ov-silent" style="font-family:var(--mono);font-size:26px;font-weight:900;color:var(--err);">—</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:.5px;">SILENT &gt;3H</div>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;">
+            <div id="ov-avg-snr" style="font-family:var(--mono);font-size:26px;font-weight:900;color:var(--acc);">—</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:.5px;">AVG SNR dB</div>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;">
+            <div id="ov-ch-util" style="font-family:var(--mono);font-size:26px;font-weight:900;color:var(--warn);">—</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:.5px;">CH UTIL %</div>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:12px;">
+            <div id="ov-avg-bat" style="font-family:var(--mono);font-size:26px;font-weight:900;color:var(--ok);">—</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:.5px;">AVG BATTERY</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">
+        <!-- Packet rate sparkline -->
+        <div class="card">
+          <div class="card-head"><i class="fas fa-broadcast-tower"></i><span class="card-title">PACKET RATE — 24H</span></div>
+          <div class="card-body" style="padding:10px;">
+            <div style="position:relative;height:90px;"><canvas id="ov-pkt-chart"></canvas></div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;">
+              <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">24H AGO</span>
+              <span id="ov-pkt-total" style="font-family:var(--mono);font-size:9px;font-weight:bold;color:var(--acc);"></span>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">NOW</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- LQS distribution donut -->
+        <div class="card">
+          <div class="card-head"><i class="fas fa-chart-pie"></i><span class="card-title">LQS DISTRIBUTION</span></div>
+          <div class="card-body" style="padding:10px;display:flex;align-items:center;gap:12px;">
+            <div style="position:relative;height:90px;width:90px;flex-shrink:0;"><canvas id="ov-lqs-chart"></canvas></div>
+            <div id="ov-lqs-legend" style="font-family:var(--mono);font-size:9px;display:flex;flex-direction:column;gap:4px;"></div>
+          </div>
+        </div>
+
+        <!-- Fleet SNR trend -->
+        <div class="card">
+          <div class="card-head"><i class="fas fa-signal"></i><span class="card-title">FLEET AVG SNR TREND</span></div>
+          <div class="card-body" style="padding:10px;">
+            <div style="position:relative;height:90px;"><canvas id="ov-snr-trend"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom row -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <!-- Top talkers -->
+        <div class="card">
+          <div class="card-head"><i class="fas fa-sort-amount-down"></i><span class="card-title">TOP TALKERS — 24H</span></div>
+          <div class="card-body" style="padding:0 0 8px 0;">
+            <div id="ov-talkers"></div>
+          </div>
+        </div>
+
+        <!-- Role + HW breakdown -->
+        <div class="card">
+          <div class="card-head"><i class="fas fa-microchip"></i><span class="card-title">ROLE DISTRIBUTION</span></div>
+          <div class="card-body" style="padding:10px;">
+            <div style="position:relative;height:110px;"><canvas id="ov-roles-chart"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Click hint -->
+      <div style="text-align:center;margin-top:12px;font-family:var(--mono);font-size:9px;color:var(--txt3);">
+        <i class="fas fa-arrow-left" style="margin-right:5px;"></i>SELECT A NODE FROM THE LIST FOR DETAILED LINK QUALITY ANALYSIS
+      </div>
+    </div>
+
+    <!-- Node detail -->
+    <div id="node-detail" style="display:none;flex-direction:column;height:100%;">
+      <!-- Node header -->
+      <div style="flex-shrink:0;display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--bd2);background:var(--bg2);">
+        <div id="nd-avatar" style="width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:900;color:#000;flex-shrink:0;"></div>
+        <div>
+          <div id="nd-name" style="font-size:13px;font-weight:bold;"></div>
+          <div id="nd-id" style="font-size:9px;color:var(--txt3);font-family:var(--mono);"></div>
+        </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+          <div id="nd-score-pill" style="font-family:var(--mono);font-size:14px;font-weight:900;padding:4px 10px;border-radius:4px;"></div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="App.tab('lqs')">LINK QUALITY</button>
+        <button class="tab-btn" onclick="App.tab('hops')">SMART HOPS</button>
+        <button class="tab-btn" onclick="App.tab('snr')">SNR HISTORY</button>
+        <button class="tab-btn" onclick="App.tab('fleet')">FLEET VIEW</button>
+        <button class="tab-btn" onclick="App.tab('relay')">RELAY MAP</button>
+        <button class="tab-btn" onclick="App.tab('traceroutes')">TRACEROUTES</button>
+        <button class="tab-btn" onclick="App.tab('neighbors')">NEIGHBORS</button>
+      </div>
+
+      <div class="panels" id="panels">
+
+        <!-- ══ LINK QUALITY ══ -->
+        <div class="panel active" id="pan-lqs">
+          <div class="card">
+            <div class="card-head"><i class="fas fa-tachometer-alt"></i><span class="card-title">LINK QUALITY SCORE</span><span class="card-sub" id="lqs-updated"></span></div>
+            <div class="card-body">
+              <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;align-items:start;">
+                <div style="text-align:center;min-width:100px;">
+                  <div class="score-giant" id="lqs-giant">—</div>
+                  <div class="score-label">OUT OF 10</div>
+                  <div class="score-bar"><div class="score-fill" id="lqs-fill" style="width:0%"></div></div>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:8px;font-family:var(--mono);font-size:9px;text-align:center;">
+                    <div><div id="lqs-snr" style="font-size:11px;font-weight:bold;">—</div><div style="color:var(--txt3)">SNR dB</div></div>
+                    <div><div id="lqs-hops" style="font-size:11px;font-weight:bold;color:var(--acc)">—</div><div style="color:var(--txt3)">AVG HOP</div></div>
+                    <div><div id="lqs-std" style="font-size:11px;font-weight:bold;">—</div><div style="color:var(--txt3)">HOP σ</div></div>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:.5px;margin-bottom:8px;">SCORE COMPONENTS</div>
+                  <div id="lqs-components"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><i class="fas fa-info-circle"></i><span class="card-title">SCORING FORMULA</span></div>
+            <div class="card-body" style="font-size:9px;color:var(--txt2);line-height:1.9;font-family:var(--mono);">
+              Base 5.0 · <span style="color:var(--ok)">+1.0</span> SNR&gt;-5dB · <span style="color:var(--ok)">+0.5</span> SNR&gt;-10dB · <span style="color:var(--err)">-0.5</span> SNR&gt;-15dB · <span style="color:var(--err)">-1.5</span> SNR&lt;-15dB<br>
+              <span style="color:var(--ok)">+0.5</span> stable routing · <span style="color:var(--err)">-1.0</span> route flapping · <span style="color:var(--ok)">+1.0</span> traceroute ok · <span style="color:var(--err)">-2.0</span> traceroute failed<br>
+              <span style="color:var(--err)">-5.0</span> PKI error · <span style="color:var(--err)">-1.0</span> silent &gt;3× interval · <span style="color:var(--ok)">+0.5</span> direct neighbor confirmed · Clamped 0–10
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ SMART HOPS ══ -->
+        <div class="panel" id="pan-hops">
+          <div class="card">
+            <div class="card-head"><i class="fas fa-route"></i><span class="card-title">SMART HOPS — 24H WINDOW</span><span class="card-sub">15-minute buckets · hopStart − hopLimit</span></div>
+            <div class="card-body">
+              <div class="hop-stats" id="hops-stats"></div>
+              <div class="chart-wrap-tall"><canvas id="hops-chart"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><i class="fas fa-table"></i><span class="card-title">HOP VARIANCE ANALYSIS</span></div>
+            <div class="card-body">
+              <div id="hops-analysis" style="font-size:10px;color:var(--txt2);line-height:1.8;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ SNR HISTORY ══ -->
+        <div class="panel" id="pan-snr">
+          <div class="card">
+            <div class="card-head">
+              <i class="fas fa-signal"></i><span class="card-title">SNR / RSSI HISTORY</span>
+              <div style="margin-left:auto;display:flex;gap:6px;">
+                <button class="btn btn-sm" onclick="App.loadSNR(24)" id="snr-24">24H</button>
+                <button class="btn btn-sm btn-acc" onclick="App.loadSNR(48)" id="snr-48">48H</button>
+                <button class="btn btn-sm" onclick="App.loadSNR(168)" id="snr-7d">7D</button>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="chart-wrap-tall"><canvas id="snr-chart"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><i class="fas fa-chart-area"></i><span class="card-title">RSSI HISTORY</span></div>
+            <div class="card-body">
+              <div class="chart-wrap"><canvas id="rssi-chart"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ FLEET VIEW ══ -->
+        <div class="panel" id="pan-fleet">
+          <div class="card">
+            <div class="card-head"><i class="fas fa-network-wired"></i><span class="card-title">FLEET HEALTH SUMMARY</span></div>
+            <div class="card-body">
+              <div class="fleet-stats" id="fleet-stats"></div>
+              <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:.5px;margin-bottom:8px;">CRITICAL NODES (LQS &lt; 4)</div>
+              <div id="fleet-critical"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><i class="fas fa-chart-bar"></i><span class="card-title">LQS DISTRIBUTION</span></div>
+            <div class="card-body">
+              <div class="chart-wrap"><canvas id="fleet-dist-chart"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ RELAY MAP ══ -->
+        <div class="panel" id="pan-relay">
+          <div class="card">
+            <div class="card-head"><i class="fas fa-project-diagram"></i><span class="card-title">RELAY CONTRIBUTION</span><span class="card-sub">24h traffic load · larger = more relay activity</span></div>
+            <div class="card-body">
+              <div id="relay-list"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><i class="fas fa-info-circle"></i><span class="card-title">WHAT THIS MEANS</span></div>
+            <div class="card-body" style="font-size:10px;color:var(--txt2);line-height:1.8;">
+              Nodes with high relay load are critical infrastructure — if they fail, large parts of the mesh lose connectivity.<br>
+              High load + ROUTER role = expected. High load + CLIENT role = potential misconfiguration.<br>
+              Relay concentration (Gini) above 0.7 means your mesh depends heavily on 1–2 nodes.
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ TRACEROUTES ══ -->
+        <div class="panel" id="pan-traceroutes">
+          <div class="card">
+            <div class="card-head"><i class="fas fa-map-signs"></i><span class="card-title">TRACEROUTE HISTORY</span>
+              <button class="btn btn-sm btn-acc" style="margin-left:auto;font-size:9px;" onclick="App.loadTraceroutes()"><i class="fas fa-sync"></i> Refresh</button>
+            </div>
+            <div class="card-body" style="padding:0;">
+              <div id="tr-body" style="overflow-x:auto;">
+                <div class="empty"><i class="fas fa-circle-notch spin"></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ NEIGHBORS ══ -->
+        <div class="panel" id="pan-neighbors">
+          <div class="card">
+            <div class="card-head"><i class="fas fa-wifi"></i><span class="card-title">DIRECT RF NEIGHBORS</span><span class="card-sub">Nodes that reported this node as 1-hop neighbor</span></div>
+            <div class="card-body">
+              <div class="nb-grid" id="nb-grid">
+                <div class="empty"><i class="fas fa-circle-notch spin"></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /panels -->
+    </div><!-- /node-detail -->
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<script>
+'use strict';
+const API = '/api/plugins/net_intel';
+const PALETTE = ['var(--acc)','var(--ok)','var(--warn)','var(--pur)','var(--err)','#46f0f0','#ff6b35','#a8ff78'];
+let _hopsChart = null, _snrChart = null, _rssiChart = null, _fleetChart = null;
+
+const App = {
+  slot: null,
+  nodeId: null,
+  curTab: 'lqs',
+  allLQS: {},
+  nodes: [],
+
+  async init() {
+    // Read URL params
+    const qs = new URLSearchParams(location.search);
+    const qNode = qs.get('node'), qSlot = qs.get('slot');
+
+    await this.loadSlots();
+    if (qSlot && document.getElementById('slot-sel').querySelector(`option[value="${qSlot}"]`)) {
+      document.getElementById('slot-sel').value = qSlot;
+      this.slot = qSlot;
+    }
+    await this.loadData();
+    await this.loadOverview();   // load fleet overview immediately
+    if (qNode) {
+      this.selectNode(qNode);
+    }
+    setInterval(() => this.silentRefresh(), 120000);
+  },
+
+  async loadSlots() {
+    try {
+      const r = await fetch(`${API}/slots`), d = await r.json();
+      const sel = document.getElementById('slot-sel');
+      if (!d.slots?.length) { sel.innerHTML='<option>No slots</option>'; return; }
+      sel.innerHTML = d.slots.map(s=>`<option value="${s.slot_id}">${s.label||s.slot_id}</option>`).join('');
+      this.slot = d.slots[0].slot_id;
+    } catch(e) { console.error(e); }
+  },
+
+  async onSlotChange() {
+    this.slot = document.getElementById('slot-sel').value;
+    this.nodeId = null;
+    document.getElementById('no-sel').style.display = 'block';
+    document.getElementById('node-detail').style.display = 'none';
+    await this.loadData();
+    await this.loadOverview();
+  },
+
+  async loadData() {
+    if (!this.slot) return;
+    document.getElementById('node-list').innerHTML = '<div class="empty"><i class="fas fa-circle-notch spin"></i></div>';
+
+    // Load LQS + fleet in parallel
+    const [lqsR, entR] = await Promise.allSettled([
+      fetch(`${API}/lqs/${this.slot}`).then(r=>r.json()),
+      fetch(`${API}/entropy/${this.slot}`).then(r=>r.json()),
+    ]);
+
+    if (lqsR.status === 'fulfilled') this.allLQS = lqsR.value;
+    if (entR.status === 'fulfilled') this.renderEntropy(entR.value);
+
+    // Get node list from parent dashboard or build from LQS keys
+    this.nodes = Object.entries(this.allLQS)
+      .filter(([k,v]) => typeof v === 'object' && v.score !== undefined)
+      .map(([k,v]) => ({ node_id: k, score: v.score, hop_avg: v.hop_avg,
+                          long_name: k, short_name: k.slice(-4).toUpperCase() }));
+
+    this.renderList();
+  },
+
+  async silentRefresh() {
+    if (!this.slot) return;
+    try {
+      const [lqsD, entD] = await Promise.all([
+        fetch(`${API}/lqs/${this.slot}`).then(r=>r.json()),
+        fetch(`${API}/entropy/${this.slot}`).then(r=>r.json()),
+      ]);
+      this.allLQS = lqsD;
+      this.renderEntropy(entD);
+      this.renderList();
+      if (!this.nodeId) {
+        await this.loadOverview();  // refresh overview panel
+      } else if (this.curTab === 'lqs') {
+        this.renderLQS();
+      }
+    } catch(e) {}
+  },
+
+  renderEntropy(d) {
+    if (!d || d.entropy === undefined) return;
+    const bar = document.getElementById('entropy-bar');
+    bar.style.display = 'flex';
+    document.getElementById('ent-val').textContent = d.entropy.toFixed(1);
+    document.getElementById('ent-val').style.color = d.color;
+    document.getElementById('ent-label').textContent = d.label;
+    document.getElementById('ent-label').style.color = d.color;
+    document.getElementById('ent-fill').style.width = (d.entropy * 10) + '%';
+    document.getElementById('ent-fill').style.background = d.color;
+    document.getElementById('ent-comps').innerHTML = (d.components||[]).map(c=>
+      `<span class="entropy-comp" title="${c[2]}">${c[0].replace(/_/g,' ')}: ${c[1]}</span>`
+    ).join('');
+  },
+
+  renderList() {
+    const filter = (document.getElementById('node-filter').value || '').toLowerCase();
+    const sort   = document.getElementById('sort-sel').value;
+    let items = this.nodes.filter(n =>
+      !filter || (n.long_name||'').toLowerCase().includes(filter) ||
+      (n.node_id||'').toLowerCase().includes(filter)
+    );
+    if (sort === 'score_asc')  items.sort((a,b) => (a.score||0) - (b.score||0));
+    if (sort === 'score_desc') items.sort((a,b) => (b.score||0) - (a.score||0));
+    if (sort === 'name')       items.sort((a,b) => (a.long_name||'').localeCompare(b.long_name||''));
+    if (sort === 'hops')       items.sort((a,b) => (a.hop_avg||99) - (b.hop_avg||99));
+
+    const list = document.getElementById('node-list');
+    if (!items.length) {
+      list.innerHTML = '<div class="empty"><i class="fas fa-search"></i><span>No nodes</span></div>';
+      return;
+    }
+    list.innerHTML = items.map(n => {
+      const sc = n.score || 0;
+      const cls = sc >= 7 ? 'lqs-hi' : sc >= 4 ? 'lqs-mid' : 'lqs-lo';
+      const lqs = this.allLQS[n.node_id];
+      const snrTxt = lqs?.last_snr !== null && lqs?.last_snr !== undefined
+        ? `${lqs.last_snr.toFixed(1)}dB` : '';
+      const hopTxt = lqs?.hop_avg !== null && lqs?.hop_avg !== undefined
+        ? `${lqs.hop_avg.toFixed(1)}h` : '';
+      const sub = [snrTxt, hopTxt].filter(Boolean).join(' · ');
+      return `<div class="ni${n.node_id === this.nodeId ? ' active' : ''}" onclick="App.selectNode('${this._esc(n.node_id)}')">
+        <div>
+          <div class="ni-name">${this._esc(n.long_name || n.node_id)}</div>
+          <div class="ni-sub">${this._esc(n.node_id)}${sub ? ' · ' + sub : ''}</div>
+        </div>
+        <span class="lqs-pill ${cls}">LQ${Math.round(sc)}</span>
+      </div>`;
+    }).join('');
+  },
+
+  async selectNode(nodeId) {
+    this.nodeId = nodeId;
+    this.renderList();
+    document.getElementById('no-sel').style.display = 'none';
+    const detail = document.getElementById('node-detail');
+    detail.style.display = 'flex';
+
+    // Header
+    const lqs = this.allLQS[nodeId] || {};
+    const sc  = lqs.score || 0;
+    const col = sc >= 7 ? 'var(--ok)' : sc >= 4 ? 'var(--warn)' : 'var(--err)';
+    const sn  = nodeId.slice(-4).toUpperCase();
+    let h = 0; for (let c of nodeId) h = (Math.imul(31,h) + c.charCodeAt(0)) | 0;
+    const avcol = PALETTE[Math.abs(h) % PALETTE.length];
+    document.getElementById('nd-avatar').style.background = avcol;
+    document.getElementById('nd-avatar').textContent = sn.slice(0,2);
+    document.getElementById('nd-name').textContent = lqs.long_name || nodeId;
+    document.getElementById('nd-id').textContent = nodeId;
+    document.getElementById('nd-score-pill').textContent = `LQ ${Math.round(sc)}/10`;
+    document.getElementById('nd-score-pill').style.cssText =
+      `background:${col}22;border:1px solid ${col}66;color:${col};font-family:var(--mono);font-size:14px;font-weight:900;padding:4px 12px;border-radius:4px;`;
+
+    this.tab(this.curTab);
+  },
+
+  tab(name) {
+    this.curTab = name;
+    document.querySelectorAll('.tab-btn').forEach((b,i) => {
+      const tabs = ['lqs','hops','snr','fleet','relay','traceroutes','neighbors'];
+      b.classList.toggle('active', tabs[i] === name);
+    });
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    const p = document.getElementById('pan-' + name);
+    if (p) p.classList.add('active');
+
+    if (name === 'lqs')         this.renderLQS();
+    if (name === 'hops')        this.loadHops();
+    if (name === 'snr')         this.loadSNR(24);
+    if (name === 'fleet')       this.loadFleet();
+    if (name === 'relay')       this.loadRelay();
+    if (name === 'traceroutes') this.loadTraceroutes();
+    if (name === 'neighbors')   this.loadNeighbors();
+  },
+
+  renderLQS() {
+    if (!this.nodeId) return;
+    const lqs = this.allLQS[this.nodeId];
+    if (!lqs) { return; }
+    const sc  = lqs.score || 0;
+    const col = sc >= 7 ? 'var(--ok)' : sc >= 4 ? 'var(--warn)' : 'var(--err)';
+
+    document.getElementById('lqs-giant').textContent = sc.toFixed(1);
+    document.getElementById('lqs-giant').style.color  = col;
+    document.getElementById('lqs-fill').style.width   = (sc * 10) + '%';
+    document.getElementById('lqs-fill').style.background = col;
+    document.getElementById('lqs-snr').textContent    = lqs.last_snr !== null && lqs.last_snr !== undefined ? lqs.last_snr.toFixed(1) : '—';
+    document.getElementById('lqs-hops').textContent   = lqs.hop_avg !== null && lqs.hop_avg !== undefined ? lqs.hop_avg.toFixed(1) : '—';
+    document.getElementById('lqs-std').textContent    = lqs.hop_std !== null && lqs.hop_std !== undefined ? lqs.hop_std.toFixed(2) : '—';
+    document.getElementById('lqs-updated').textContent = lqs.computed_at ? new Date(lqs.computed_at * 1000).toLocaleTimeString() : '';
+
+    // Components
+    const compsEl = document.getElementById('lqs-components');
+    const comps = lqs.components || [];
+    if (!comps.length) { compsEl.innerHTML = '<div style="color:var(--txt3);font-size:10px;">No data — node may be new or silent.</div>'; return; }
+    compsEl.innerHTML = comps.map(([key, delta, msg]) => {
+      const dcol  = delta > 0 ? 'var(--ok)' : delta < 0 ? 'var(--err)' : 'var(--txt3)';
+      const dtext = delta > 0 ? `+${delta}` : `${delta}`;
+      const icon  = this._compIcon(key);
+      return `<div class="comp-row">
+        <span class="comp-icon" style="color:${dcol}">${icon}</span>
+        <span class="comp-label">${this._esc(msg)}</span>
+        <span class="comp-delta ${delta>0?'comp-plus':delta<0?'comp-minus':''}">${dtext}</span>
+      </div>`;
+    }).join('');
+  },
+
+  _compIcon(key) {
+    const m = { snr_strong:'<i class="fas fa-signal"></i>', snr_ok:'<i class="fas fa-signal"></i>',
+      snr_weak:'<i class="fas fa-signal"></i>', snr_poor:'<i class="fas fa-exclamation-triangle"></i>',
+      hop_stable:'<i class="fas fa-route"></i>', hop_flapping:'<i class="fas fa-random"></i>',
+      traceroute_ok:'<i class="fas fa-check-circle"></i>', pki_error:'<i class="fas fa-lock"></i>',
+      silent:'<i class="fas fa-moon"></i>', neighbor_ok:'<i class="fas fa-wifi"></i>',
+    };
+    return m[key] || '<i class="fas fa-circle"></i>';
+  },
+
+  async loadHops() {
+    if (!this.nodeId || !this.slot) return;
+    try {
+      const r = await fetch(`${API}/smart_hops/${this.slot}/${encodeURIComponent(this.nodeId)}`);
+      const d = await r.json();
+      const buckets = d.buckets || [];
+
+      // Stats
+      const lqs = this.allLQS[this.nodeId] || {};
+      document.getElementById('hops-stats').innerHTML = [
+        ['MIN', lqs.hop_min ?? '—', 'var(--ok)'],
+        ['AVG', lqs.hop_avg !== null && lqs.hop_avg !== undefined ? lqs.hop_avg.toFixed(1) : '—', 'var(--acc)'],
+        ['MAX', lqs.hop_max ?? '—', 'var(--warn)'],
+        ['σ',   lqs.hop_std !== null && lqs.hop_std !== undefined ? lqs.hop_std.toFixed(2) : '—', 'var(--txt2)'],
+      ].map(([lbl, val, col]) =>
+        `<div class="hop-stat"><div class="hop-stat-val" style="color:${col}">${val}</div><div class="hop-stat-lbl">${lbl}</div></div>`
+      ).join('');
+
+      // Chart
+      if (_hopsChart) { _hopsChart.destroy(); _hopsChart = null; }
+      if (!buckets.length) {
+        document.getElementById('hops-analysis').innerHTML = '<span style="color:var(--txt3)">No hop data in the last 24 hours.</span>';
+        return;
+      }
+      const labels = buckets.map(b => new Date(b.ts * 1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+      const ctx = document.getElementById('hops-chart').getContext('2d');
+      _hopsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label:'Max', data: buckets.map(b=>b.hop_max), borderColor:'rgba(255,48,80,.6)', backgroundColor:'rgba(255,48,80,.05)', fill:false, pointRadius:1, tension:.3 },
+            { label:'Avg', data: buckets.map(b=>b.hop_avg), borderColor:'rgba(0,200,245,1)',  backgroundColor:'rgba(0,200,245,.1)', fill:false, pointRadius:2, tension:.3, borderWidth:2 },
+            { label:'Min', data: buckets.map(b=>b.hop_min), borderColor:'rgba(0,232,122,.6)', backgroundColor:'rgba(0,232,122,.05)', fill:false, pointRadius:1, tension:.3 },
+          ]
+        },
+        options: this._chartOpts('Hop Count', false)
+      });
+
+      // Analysis
+      if (lqs.hop_std !== null && lqs.hop_std !== undefined) {
+        const stability = lqs.hop_std < 0.5 ? 'Highly stable — same path every time.'
+          : lqs.hop_std < 1.0 ? 'Mostly stable with occasional re-routing.'
+          : lqs.hop_std < 1.5 ? 'Moderate instability — network is finding different paths.'
+          : 'High instability — route flapping detected. Check intermediate relay nodes.';
+        const gaps = buckets.filter(b => b.pkt_count === 0).length;
+        document.getElementById('hops-analysis').innerHTML =
+          `<strong>Routing stability:</strong> σ=${lqs.hop_std.toFixed(2)} — ${stability}<br>` +
+          `<strong>Data gaps:</strong> ${gaps} silent 15-min periods in last 24h.<br>` +
+          `<strong>Range:</strong> ${lqs.hop_min ?? '?'}–${lqs.hop_max ?? '?'} hops. ` +
+          (lqs.hop_min !== lqs.hop_max
+            ? `Wide spread suggests network is routing around a failing relay.`
+            : `Consistent hop count — good.`);
+      }
+    } catch(e) { console.error(e); }
+  },
+
+  async loadSNR(hours) {
+    ['snr-24','snr-48','snr-7d'].forEach(id => {
+      document.getElementById(id).className = 'btn btn-sm';
+    });
+    const idMap = {24:'snr-24', 48:'snr-48', 168:'snr-7d'};
+    if (idMap[hours]) document.getElementById(idMap[hours]).className = 'btn btn-sm btn-acc';
+
+    if (!this.nodeId || !this.slot) return;
+    try {
+      const r = await fetch(`${API}/snr_history/${this.slot}/${encodeURIComponent(this.nodeId)}?hours=${hours}`);
+      const d = await r.json();
+      const buckets = d.buckets || [];
+      if (!buckets.length) return;
+
+      const labels = buckets.map(b => new Date(b.ts * 1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+
+      if (_snrChart) { _snrChart.destroy(); _snrChart = null; }
+      const ctx1 = document.getElementById('snr-chart').getContext('2d');
+      _snrChart = new Chart(ctx1, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label:'Max SNR', data: buckets.map(b=>b.max_snr), borderColor:'rgba(0,232,122,.4)', fill:false, pointRadius:0, tension:.4 },
+            { label:'Avg SNR', data: buckets.map(b=>b.avg_snr), borderColor:'#00e87a', fill:'+1', backgroundColor:'rgba(0,232,122,.08)', pointRadius:1, tension:.4, borderWidth:2 },
+            { label:'Min SNR', data: buckets.map(b=>b.min_snr), borderColor:'rgba(255,168,38,.4)', fill:false, pointRadius:0, tension:.4 },
+          ]
+        },
+        options: this._chartOpts('SNR (dB)', false)
+      });
+
+      if (_rssiChart) { _rssiChart.destroy(); _rssiChart = null; }
+      const ctx2 = document.getElementById('rssi-chart').getContext('2d');
+      _rssiChart = new Chart(ctx2, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            { label:'Avg RSSI', data: buckets.map(b=>b.avg_rssi), borderColor:'#b060ff', backgroundColor:'rgba(176,96,255,.1)', fill:true, pointRadius:1, tension:.4, borderWidth:2 },
+          ]
+        },
+        options: this._chartOpts('RSSI (dBm)', false)
+      });
+    } catch(e) { console.error(e); }
+  },
+
+  async loadFleet() {
+    if (!this.slot) return;
+    try {
+      const r = await fetch(`${API}/fleet/${this.slot}`);
+      const d = await r.json();
+
+      // Stats
+      document.getElementById('fleet-stats').innerHTML = [
+        [d.node_count, 'TOTAL NODES', 'var(--txt)'],
+        [d.healthy,    'LQS ≥ 7',     'var(--ok)'],
+        [d.degraded,   'LQS 4-6',      'var(--warn)'],
+        [d.critical,   'LQS < 4',      'var(--err)'],
+        [d.avg_lqs,    'AVG LQS',      d.avg_lqs >= 7 ? 'var(--ok)' : d.avg_lqs >= 4 ? 'var(--warn)' : 'var(--err)'],
+        [d.entropy?.entropy?.toFixed(1) || '—', 'ENTROPY', d.entropy?.color || 'var(--txt)'],
+      ].map(([v, l, c]) =>
+        `<div class="fstat"><div class="fstat-val" style="color:${c}">${v}</div><div class="fstat-lbl">${l}</div></div>`
+      ).join('');
+
+      // Critical nodes
+      const crit = d.critical_nodes || [];
+      document.getElementById('fleet-critical').innerHTML = crit.length
+        ? crit.map(n => `
+          <div class="comp-row" onclick="App.selectNode('${n.node_id}')" style="cursor:pointer;">
+            <span class="comp-icon" style="color:var(--err)"><i class="fas fa-exclamation-circle"></i></span>
+            <span class="comp-label">${this._esc(n.node_id)}</span>
+            <span class="lqs-pill lqs-lo">LQ${Math.round(n.score)}</span>
+          </div>`).join('')
+        : '<div style="color:var(--txt3);font-size:10px;padding:8px 0;">No critical nodes. All scores ≥ 4.</div>';
+
+      // Distribution chart
+      const scores = Object.values(this.allLQS)
+        .filter(v => typeof v === 'object' && v.score !== undefined)
+        .map(v => Math.floor(v.score));
+      const bins = Array(11).fill(0);
+      scores.forEach(s => bins[Math.min(10, Math.max(0, s))]++);
+
+      if (_fleetChart) { _fleetChart.destroy(); _fleetChart = null; }
+      const ctx = document.getElementById('fleet-dist-chart').getContext('2d');
+      _fleetChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['0','1','2','3','4','5','6','7','8','9','10'],
+          datasets: [{ label:'Nodes', data: bins,
+            backgroundColor: bins.map((_,i) => i >= 7 ? 'rgba(0,232,122,.6)' : i >= 4 ? 'rgba(255,168,38,.6)' : 'rgba(255,48,80,.6)'),
+            borderColor: bins.map((_,i) => i >= 7 ? '#00e87a' : i >= 4 ? '#ffa826' : '#f04848'),
+            borderWidth: 1, borderRadius: 2 }]
+        },
+        options: { ...this._chartOpts('Nodes', true), plugins: { legend: { display: false } } }
+      });
+    } catch(e) { console.error(e); }
+  },
+
+  async loadRelay() {
+    if (!this.slot) return;
+    try {
+      const r = await fetch(`${API}/relay_map/${this.slot}`);
+      const d = await r.json();
+      const nodes = d.nodes || [];
+      document.getElementById('relay-list').innerHTML = nodes.length ? nodes.map(n => `
+        <div class="relay-row">
+          <div class="relay-name" title="${this._esc(n.node_id)}">${this._esc(n.long_name || n.node_id)}</div>
+          <div class="relay-bar-wrap"><div class="relay-bar-fill" style="width:${n.load_pct}%"></div></div>
+          <div class="relay-count" style="color:var(--txt2);">${n.packet_count.toLocaleString()}</div>
+          <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);width:50px;text-align:right;">${n.role || ''}</div>
+        </div>`).join('')
+        : '<div style="color:var(--txt3);font-size:10px;padding:8px 0;">No relay data available.</div>';
+    } catch(e) { console.error(e); }
+  },
+
+  async loadTraceroutes() {
+    if (!this.slot) return;
+    try {
+      const r = await fetch(`${API}/traceroutes/${this.slot}?limit=50`);
+      const d = await r.json();
+      const trs = d.traceroutes || [];
+      const el  = document.getElementById('tr-body');
+      if (!trs.length) { el.innerHTML = '<div class="empty"><i class="fas fa-route"></i><span>No traceroutes recorded.</span></div>'; return; }
+
+      el.innerHTML = `<table class="tr-tbl">
+        <thead><tr><th>TIME</th><th>FROM</th><th>TO</th><th>PATH (→)</th><th>HOPS</th></tr></thead>
+        <tbody>${trs.map(tr => {
+          const rp = tr.route_path || {};
+          const route = rp.route_to || [];
+          const snrs  = rp.snr_towards || [];
+          const hops  = rp.hops_used ?? route.length;
+          const pathHTML = route.length
+            ? route.map((n, i) => `<span class="route-node">${n.slice(-8)}</span>${snrs[i] !== undefined ? `<span class="snr-hop">${snrs[i].toFixed(1)}dB</span>` : ''}<span class="route-arrow">→</span>`).join('') + `<span class="route-node">${(tr.to_id||'').slice(-8)}</span>`
+            : `<span style="color:var(--txt3)">direct</span>`;
+          return `<tr>
+            <td>${new Date((tr.timestamp||0)*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</td>
+            <td style="color:var(--acc);font-size:9px;">${(tr.from_id||'').slice(-8)}</td>
+            <td style="color:var(--pur,'var(--pur)');font-size:9px;">${(tr.to_id||'').slice(-8)}</td>
+            <td><div class="route-path">${pathHTML}</div></td>
+            <td style="text-align:center;">${hops}</td>
+          </tr>`;
+        }).join('')}</tbody></table>`;
+    } catch(e) { console.error(e); }
+  },
+
+  async loadNeighbors() {
+    if (!this.slot || !this.nodeId) return;
+    try {
+      const r = await fetch(`${API}/neighbors/${this.slot}`);
+      const d = await r.json();
+      const nb = (d.neighbors || []).filter(n =>
+        n.node_id === this.nodeId || n.neighbor_id === this.nodeId
+      );
+      const nodeInfo = d.nodes || {};
+      const el = document.getElementById('nb-grid');
+      if (!nb.length) { el.innerHTML = '<div class="empty"><i class="fas fa-wifi"></i><span>No neighbor data for this node.</span></div>'; return; }
+      el.innerHTML = nb.map(n => {
+        const peerId = n.node_id === this.nodeId ? n.neighbor_id : n.node_id;
+        const peer   = nodeInfo[peerId] || {};
+        const snr    = n.snr;
+        const snrCol = snr > -5 ? 'var(--ok)' : snr > -10 ? 'var(--warn)' : 'var(--err)';
+        const lqsInfo = this.allLQS[peerId];
+        return `<div class="nb-card" onclick="App.selectNode('${this._esc(peerId)}')" style="cursor:pointer;">
+          <div class="nb-name" title="${peerId}">${peer.long_name || peerId}</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div><div class="nb-snr" style="color:${snrCol}">${snr != null ? snr.toFixed(1) + 'dB' : '—'}</div><div class="nb-time">SNR</div></div>
+            ${lqsInfo ? `<span class="lqs-pill ${lqsInfo.score>=7?'lqs-hi':lqsInfo.score>=4?'lqs-mid':'lqs-lo'}">LQ${Math.round(lqsInfo.score)}</span>` : ''}
+          </div>
+          <div class="nb-time" style="margin-top:4px;">${n.last_seen ? new Date(n.last_seen).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : ''}</div>
+        </div>`;
+      }).join('');
+    } catch(e) { console.error(e); }
+  },
+
+  _ovCharts: {},
+
+  async loadOverview() {
+    if (!this.slot) return;
+    try {
+      const r = await fetch(`${API}/overview/${this.slot}`);
+      if (!r.ok) return;
+      const d = await r.json();
+
+      // ── Health score ──────────────────────────────────────────────────
+      const hs = d.health_score ?? 0;
+      const hc = d.health_color ?? 'var(--ok)';
+      const el = (id) => document.getElementById(id);
+      el('ov-health-score').textContent = hs;
+      el('ov-health-score').style.color = hc;
+      el('ov-health-label').textContent = d.health_label || '';
+      el('ov-health-label').style.color = hc;
+      el('ov-health-bar').style.width = hs + '%';
+      el('ov-health-bar').style.background = hc;
+      el('ov-health-time').textContent = d.computed_at
+        ? new Date(d.computed_at * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})
+        : '—';
+
+      // ── Stat counters ─────────────────────────────────────────────────
+      const nd = d.nodes || {};
+      el('ov-total-nodes').textContent = nd.total ?? '—';
+      el('ov-active-1h').textContent   = nd.active_1h ?? '—';
+      const silent = nd.silent_3h ?? 0;
+      el('ov-silent').textContent = silent;
+      el('ov-silent').style.color = silent > 0 ? 'var(--err)' : 'var(--ok)';
+
+      const snr = d.snr || {};
+      el('ov-avg-snr').textContent = snr.avg !== null && snr.avg !== undefined ? snr.avg : '—';
+      el('ov-avg-snr').style.color = snr.avg > -10 ? 'var(--ok)' : snr.avg > -15 ? 'var(--warn)' : 'var(--err)';
+
+      const ch = d.channel || {};
+      el('ov-ch-util').textContent = ch.avg_utilization !== null && ch.avg_utilization !== undefined
+        ? ch.avg_utilization.toFixed(1) : '—';
+      el('ov-ch-util').style.color = (ch.avg_utilization || 0) > 25 ? 'var(--err)'
+        : (ch.avg_utilization || 0) > 10 ? 'var(--warn)' : 'var(--ok)';
+
+      const bat = d.battery || {};
+      el('ov-avg-bat').textContent = bat.avg !== null && bat.avg !== undefined
+        ? bat.avg.toFixed(0) + '%' : '—';
+      el('ov-avg-bat').style.color = (bat.avg || 100) < 20 ? 'var(--err)'
+        : (bat.avg || 100) < 40 ? 'var(--warn)' : 'var(--ok)';
+      el('ov-pkt-total').textContent = (d.traffic?.packets_24h || 0).toLocaleString() + ' pkts/24h';
+
+      // ── Packet rate sparkline ─────────────────────────────────────────
+      const rates = d.packet_rate_24h || Array(24).fill(0);
+      this._mkChart('ov-pkt-chart', {
+        type: 'bar',
+        data: {
+          labels: rates.map((_,i) => `${23-i}h`).reverse(),
+          datasets: [{
+            data: rates,
+            backgroundColor: rates.map(v => v > 0 ? 'rgba(0,200,245,.5)' : 'rgba(255,255,255,.06)'),
+            borderColor: rates.map(v => v > 0 ? '#00c8f5' : 'transparent'),
+            borderWidth: 1, borderRadius: 2,
+          }]
+        },
+        options: {
+          ...this._miniChartOpts(),
+          plugins: { legend: { display: false }, tooltip: {
+            callbacks: { label: (ctx) => `${ctx.raw} packets` }
+          }}
+        }
+      });
+
+      // ── LQS donut ────────────────────────────────────────────────────
+      const lqsd = d.lqs_distribution || {};
+      const [healthy, degraded, critical] = [lqsd.healthy||0, lqsd.degraded||0, lqsd.critical||0];
+      const lqsTotal = healthy + degraded + critical || 1;
+      this._mkChart('ov-lqs-chart', {
+        type: 'doughnut',
+        data: {
+          labels: ['Healthy (≥7)', 'Degraded (4-6)', 'Critical (<4)'],
+          datasets: [{
+            data: [healthy, degraded, critical],
+            backgroundColor: ['rgba(0,232,122,.7)', 'rgba(255,168,38,.7)', 'rgba(255,48,80,.7)'],
+            borderColor: ['#00e87a', '#ffa826', '#f04848'],
+            borderWidth: 1,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false, cutout: '68%',
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw} (${Math.round(c.raw/lqsTotal*100)}%)` } }
+          }
+        }
+      });
+      el('ov-lqs-legend').innerHTML = [
+        ['var(--ok)', `Healthy`, healthy],
+        ['var(--warn)', `Degraded`, degraded],
+        ['var(--err)', `Critical`, critical],
+      ].map(([c, l, n]) =>
+        `<div style="display:flex;align-items:center;gap:5px;">
+          <div style="width:8px;height:8px;border-radius:1px;background:${c};flex-shrink:0;"></div>
+          <span style="color:var(--txt2);">${l}</span>
+          <span style="margin-left:auto;font-weight:bold;color:${c};">${n}</span>
+        </div>`
+      ).join('');
+
+      // ── Fleet SNR trend ──────────────────────────────────────────────
+      const snrHist = d.snr_history || [];
+      if (snrHist.length > 1) {
+        const labels = snrHist.map(h =>
+          new Date(h.timestamp*1000).toLocaleDateString([],{month:'short',day:'numeric'})
+        );
+        this._mkChart('ov-snr-trend', {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Avg SNR',
+              data: snrHist.map(h => h.average_snr),
+              borderColor: '#00e87a',
+              backgroundColor: 'rgba(0,232,122,.08)',
+              fill: true, tension: .4, pointRadius: 0, borderWidth: 2,
+            }]
+          },
+          options: { ...this._miniChartOpts('SNR dB'), plugins: { legend: { display: false } } }
+        });
+      }
+
+      // ── Top talkers ──────────────────────────────────────────────────
+      const talkers = d.top_talkers || [];
+      const maxCount = Math.max(...talkers.map(t => t.count), 1);
+      el('ov-talkers').innerHTML = talkers.slice(0, 8).map(t => {
+        const pct = Math.round(100 * t.count / maxCount);
+        const lqsInfo = this.allLQS[t.node_id];
+        const lqsBadge = lqsInfo ? `<span class="lqs-pill ${lqsInfo.score>=7?'lqs-hi':lqsInfo.score>=4?'lqs-mid':'lqs-lo'}" style="margin-left:4px;">LQ${Math.round(lqsInfo.score)}</span>` : '';
+        return `<div class="relay-row" style="padding:5px 12px;cursor:pointer;" onclick="App.selectNode('${this._esc(t.node_id)}')">
+          <div class="relay-name">${this._esc(t.name.slice(0,18))}</div>
+          <div class="relay-bar-wrap"><div class="relay-bar-fill" style="width:${pct}%"></div></div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);flex-shrink:0;width:60px;text-align:right;">${t.count.toLocaleString()} pkts${lqsBadge}</div>
+        </div>`;
+      }).join('');
+
+      // ── Role distribution horizontal bars ────────────────────────────
+      const roles = d.roles || {};
+      const roleEntries = Object.entries(roles).sort((a,b) => b[1]-a[1]).slice(0, 8);
+      const roleMax = Math.max(...roleEntries.map(r => r[1]), 1);
+      const roleColors = { CLIENT:'var(--acc)', ROUTER:'var(--err)', REPEATER:'#ff8c00',
+        ROUTER_CLIENT:'var(--warn)', TRACKER:'var(--ok)', SENSOR:'var(--pur)',
+        CLIENT_MUTE:'#888', TAK:'#46f0f0' };
+      this._mkChart('ov-roles-chart', {
+        type: 'bar',
+        data: {
+          labels: roleEntries.map(r => r[0]),
+          datasets: [{
+            data: roleEntries.map(r => r[1]),
+            backgroundColor: roleEntries.map(r => (roleColors[r[0]] || '#aaa') + 'bb'),
+            borderColor: roleEntries.map(r => roleColors[r[0]] || '#aaa'),
+            borderWidth: 1, borderRadius: 2,
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          ...this._miniChartOpts('Nodes', true),
+          plugins: { legend: { display: false } }
+        }
+      });
+
+    } catch(e) { console.error('overview', e); }
+  },
+
+  _mkChart(id, config) {
+    if (this._ovCharts[id]) { this._ovCharts[id].destroy(); }
+    const ctx = document.getElementById(id);
+    if (!ctx) return;
+    this._ovCharts[id] = new Chart(ctx.getContext('2d'), config);
+  },
+
+  _miniChartOpts(yLabel) {
+    return {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: 'rgba(0,0,0,.85)', titleColor: '#fff',
+          bodyColor: 'rgba(255,255,255,.7)',
+          titleFont: { family: 'monospace', size: 9 }, bodyFont: { family: 'monospace', size: 9 } }
+      },
+      scales: {
+        x: { ticks: { color: 'rgba(255,255,255,.25)', font: { family: 'monospace', size: 7 }, maxTicksLimit: 6 },
+             grid: { color: 'rgba(255,255,255,.03)' } },
+        y: { ticks: { color: 'rgba(255,255,255,.25)', font: { family: 'monospace', size: 7 }, maxTicksLimit: 5 },
+             grid: { color: 'rgba(255,255,255,.03)' },
+             ...(yLabel ? { title: { display: false } } : {}) }
+      }
+    };
+  },
+
+  _chartOpts(yLabel, isBar) {
+    return {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: true, position: 'top', labels: { color: 'rgba(255,255,255,.5)', font: { family: 'monospace', size: 9 }, boxWidth: 10 } },
+        tooltip: { backgroundColor: 'rgba(0,0,0,.85)', titleColor: '#fff', bodyColor: 'rgba(255,255,255,.7)', titleFont: { family: 'monospace', size: 9 }, bodyFont: { family: 'monospace', size: 9 } }
+      },
+      scales: {
+        x: { ticks: { color: 'rgba(255,255,255,.3)', font: { family: 'monospace', size: 8 }, maxTicksLimit: 8 }, grid: { color: 'rgba(255,255,255,.04)' } },
+        y: { title: { display: true, text: yLabel, color: 'rgba(255,255,255,.3)', font: { family: 'monospace', size: 8 } }, ticks: { color: 'rgba(255,255,255,.3)', font: { family: 'monospace', size: 8 } }, grid: { color: 'rgba(255,255,255,.04)' } }
+      }
+    };
+  },
+
+  _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); },
+
+  async refresh() {
+    await this.loadData();
+    if (this.nodeId) this.tab(this.curTab);
+  },
+};
+
+document.addEventListener('DOMContentLoaded', () => App.init());
+</script>
+</body>
+</html>

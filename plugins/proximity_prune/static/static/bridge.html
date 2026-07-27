@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Proximity Pruner Bridge</title>
+<link rel="stylesheet" href="/static/css/plugin.css"></head>
+<body>
+<script>
+console.log('[Proximity Pruner Bridge] Script starting...');
+'use strict';
+const PLUGIN_ID = 'proximity_prune';
+const API_BASE = `/api/plugins/${PLUGIN_ID}`;
+let _cfg = { slots: {} };
+let _active = false;
+let _previewCircle = null;
+let _previewInterval = null;
+let _toolbarRetryCount = 0;
+const _toolbarMaxRetries = 20;
+
+// Get parent document - always fresh reference
+function pDoc() { 
+    try { return window.parent.document; } 
+    catch(e) { return null; } 
+}
+
+// Helper to get element by ID from parent document
+function $(id) { 
+    var doc = pDoc();
+    return doc ? doc.getElementById(id) : null; 
+}
+
+function _getMap() { 
+    try { 
+        // Try multiple ways to find the map
+        if (window.parent.C2MapApp?.map) return window.parent.C2MapApp.map;
+        if (window.parent.app?.map) return window.parent.app.map;
+        if (window.parent.map) return window.parent.map;
+        var mapEl = window.parent.document.getElementById('main-c2-map');
+        if (mapEl && mapEl._leaflet_map) return mapEl._leaflet_map;
+        var containers = window.parent.document.querySelectorAll('.leaflet-container');
+        for (var i = 0; i < containers.length; i++) {
+            if (containers[i]._leaflet_map) return containers[i]._leaflet_map;
+        }
+        return null; 
+    } catch(e) { return null; }
+}
+function _getL() { return window.parent.L || null; }
+
+function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function _getAnchorLatLon(slotId) {
+    const ms = window.parent.meshState;
+    const localId = ms?.local_node_id;
+    let lat = null, lon = null;
+    if (localId && ms?.nodes?.[localId]) {
+        const n = ms.nodes[localId];
+        lat = n.position?.latitude || n.latitude;
+        lon = n.position?.longitude || n.longitude;
+    }
+    if (lat && lon && !(lat === 0 && lon === 0)) return [parseFloat(lat), parseFloat(lon)];
+    const slotCfg = _cfg.slots?.[slotId] || {};
+    if (slotCfg.manual_lat && slotCfg.manual_lon) return [slotCfg.manual_lat, slotCfg.manual_lon];
+    return null;
+}
+
+function _getMarkers() {
+    try {
+        // Try multiple ways to find the markers object
+        if (window.parent.C2MapApp?.markers) return window.parent.C2MapApp.markers;
+        if (window.parent.app?.markers) return window.parent.app.markers;
+        if (window.parent.markers) return window.parent.markers;
+        if (window.parent.c2Markers) return window.parent.c2Markers;
+        return {};
+    } catch(e) { return {}; }
+}
+
+function updatePreview() {
+    const map = _getMap();
+    const L2 = _getL();
+    if (!map || !L2 || !_active) return;
+    const slotId = window.parent._activeSlotId;
+    if (!slotId || slotId === 'all') return;
+
+    const anchor = _getAnchorLatLon(slotId);
+    const errEl = $('prox-error');
+    const contentEl = $('prox-content');
+
+    if (!anchor) {
+        if (errEl) {
+            errEl.style.display = 'block';
+            errEl.innerHTML = '<i class="fas fa-exclamation-circle" style="color:var(--warn);margin-bottom:6px;font-size:14px;"></i><br>Local radio has no GPS fix and no manual fallback location is configured.<br><span style="color:var(--txt3);font-size:9px;">Set a fallback location in Proximity Pruner plugin settings.</span>';
+        }
+        if (contentEl) contentEl.style.display = 'none';
+        return;
+    }
+    if (errEl) errEl.style.display = 'none';
+    if (contentEl) contentEl.style.display = 'block';
+
+    const [cLat, cLon] = anchor;
+    const radiusKm = parseFloat($('prox-range').value) || 10.0;
+    const valEl = $('prox-val');
+    if (valEl) valEl.textContent = radiusKm + ' km';
+
+    if (_previewCircle) map.removeLayer(_previewCircle);
+    _previewCircle = L2.circle([cLat, cLon], {
+        radius: radiusKm * 1000,
+        color: 'var(--err)', weight: 2, fillOpacity: 0.05, interactive: false, dashArray: '5 5'
+    }).addTo(map);
+
+    const markers = _getMarkers();
+    const pruneNoGps = $('prox-nogps').checked;
+    const ms = window.parent.meshState;
+    const localId = ms?.local_node_id;
+    Object.entries(ms?.nodes || {}).forEach(([nid, n]) => {
+        if (nid === localId || n.isLocal || n.is_local) return;
+        const nLat = n.position?.latitude || n.latitude;
+        const nLon = n.position?.longitude || n.longitude;
+        let isOut = false;
+        if (!nLat || !nLon) {
+            isOut = pruneNoGps;
+        } else {
+            isOut = getDistance(cLat, cLon, nLat, nLon) > radiusKm;
+        }
+        const markerArr = markers[nid];
+        if (markerArr) {
+            markerArr.forEach(m => {
+                const el = m.getElement?.();
+                if (el) {
+                    el.style.transition = 'opacity 0.3s, filter 0.3s';
+                    el.style.opacity = isOut ? '0.2' : '1';
+                    el.style.filter = isOut ? 'grayscale(100%)' : 'none';
+                    el.style.zIndex = isOut ? '100' : '1000';
+                }
+            });
+        }
+    });
+}
+
+function resetPreview() {
+    const map = _getMap();
+    if (_previewCircle && map) { map.removeLayer(_previewCircle); _previewCircle = null; }
+    const markers = _getMarkers();
+    Object.values(markers).flat().forEach(m => {
+        const el = m.getElement?.();
+        if (el) { el.style.opacity = '1'; el.style.filter = 'none'; el.style.zIndex = ''; }
+    });
+}
+
+function _requestBrowserLocation(slotId) {
+    const errEl = $('prox-error');
+    const contentEl = $('prox-content');
+    if (errEl) {
+        errEl.style.display = 'block';
+        errEl.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="color:var(--acc);margin-bottom:6px;font-size:14px;"></i><br>Requesting browser location…';
+    }
+    if (!navigator.geolocation) {
+        if (errEl) errEl.innerHTML = '<i class="fas fa-times-circle" style="color:var(--err);margin-bottom:6px;font-size:14px;"></i><br>Browser geolocation not supported.<br><span style="color:var(--txt3);font-size:9px;margin-top:4px;display:block;">Set a manual fallback location in <strong>Proximity Pruner</strong> plugin settings.</span>';
+        return;
+    }
+    navigator.geolocation.getCurrentPosition(
+        function(pos) {
+            const lat = parseFloat(pos.coords.latitude.toFixed(6));
+            const lon = parseFloat(pos.coords.longitude.toFixed(6));
+            if (!_cfg.slots[slotId]) _cfg.slots[slotId] = { enabled: false, radius_km: 10, prune_no_gps: false };
+            _cfg.slots[slotId].manual_lat = lat;
+            _cfg.slots[slotId].manual_lon = lon;
+            fetch(API_BASE + '/config', {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(_cfg)
+            }).catch(function() {});
+            window.parent.triggerToast?.('Browser location acquired and saved as fallback.', 'ok');
+            updatePreview();
+        },
+        function(err) {
+            if (errEl) {
+                errEl.style.display = 'block';
+                errEl.innerHTML = '<i class="fas fa-times-circle" style="color:var(--err);margin-bottom:6px;font-size:14px;"></i><br>'
+                    + 'Location access denied.'
+                    + '<br><span style="color:var(--txt3);font-size:9px;margin-top:4px;display:block;">Open <strong>Proximity Pruner</strong> in the sidebar, enter a manual fallback latitude and longitude, and save.</span>'
+                    + '<button id="prox-open-settings" style="margin-top:8px;background:none;border:1px solid var(--acc);color:var(--acc);padding:4px 10px;border-radius:3px;font-family:var(--mono);font-size:9px;cursor:pointer;letter-spacing:.5px;">OPEN SETTINGS ↗</button>';
+                const settBtn = $('prox-open-settings');
+                if (settBtn) settBtn.addEventListener('click', function() {
+                    try { window.parent.loadView && window.parent.loadView('proximity_prune'); } catch(e) {}
+                });
+            }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+}
+
+function togglePanel() {
+    _active = !_active;
+    const panel = $('prox-panel');
+    const btn = $('prox-tb-btn');
+
+    if (_active) {
+        if (panel) panel.style.display = 'block';
+        if (btn) btn.className = 'btn btn-sm btn-err';
+
+        const slotId = window.parent._activeSlotId || 'node_0';
+        if (slotId === 'all') {
+            const errEl = $('prox-error');
+            const contentEl = $('prox-content');
+            if (errEl) {
+                errEl.style.display = 'block';
+                errEl.innerHTML = '<i class="fas fa-exclamation-circle" style="color:var(--warn);margin-bottom:6px;font-size:14px;"></i><br>Please select a specific radio. "All Radios" mode cannot be pruned.';
+            }
+            if (contentEl) contentEl.style.display = 'none';
+        } else {
+            const slotCfg = _cfg.slots[slotId] || { enabled: false, radius_km: 10, prune_no_gps: false };
+            if ($('prox-range')) $('prox-range').value = slotCfg.radius_km;
+            if ($('prox-val')) $('prox-val').textContent = slotCfg.radius_km + ' km';
+            if ($('prox-auto')) $('prox-auto').checked = slotCfg.enabled;
+            if ($('prox-nogps')) $('prox-nogps').checked = slotCfg.prune_no_gps;
+
+            // Check if we have an anchor — if not, request browser location automatically
+            const anchor = _getAnchorLatLon(slotId);
+            if (!anchor) {
+                _requestBrowserLocation(slotId);
+            } else {
+                updatePreview();
+            }
+            _previewInterval = setInterval(updatePreview, 1500);
+        }
+    } else {
+        if (panel) panel.style.display = 'none';
+        if (btn) btn.className = 'btn btn-sm';
+        clearInterval(_previewInterval);
+        resetPreview();
+    }
+}
+
+async function saveAndPrune() {
+    const slotId = window.parent._activeSlotId;
+    if (!slotId || slotId === 'all') return;
+    const slotCfg = _cfg.slots[slotId] || {};
+    _cfg.slots[slotId] = {
+        ...slotCfg,
+        enabled: $('prox-auto').checked,
+        radius_km: parseFloat($('prox-range').value),
+        prune_no_gps: $('prox-nogps').checked
+    };
+    const btn = $('prox-commit');
+    if (btn) btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> PRUNING...';
+    try {
+        await fetch(API_BASE + '/config', { method: 'POST', credentials: 'include', headers: {'Content-Type':'application/json'}, body: JSON.stringify(_cfg) });
+        await fetch(`${API_BASE}/prune_now/${slotId}`, { method: 'POST', credentials: 'include' });
+        window.parent.triggerToast?.('Nodes outside boundary purged.', 'ok');
+        window.parent.c2FetchAndDrawMap?.();
+    } catch(e) {
+        window.parent.triggerToast?.('Failed to prune database.', 'err');
+    }
+    if (btn) btn.innerHTML = '<i class="fas fa-trash-alt"></i> PRUNE NOW & SAVE';
+    togglePanel();
+}
+
+const PROX_CSS = `
+#prox-panel {
+    position: absolute; top: 15px; right: 15px; z-index: 2000;
+    background: var(--bg2, var(--bg2)); border: 1px solid var(--err); border-radius: 6px;
+    padding: 15px; font-family: var(--mono, monospace); color: var(--txt, var(--txt));
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8); width: 280px;
+}
+#prox-panel h4 { margin: 0 0 10px 0; color: var(--err); font-size: 11px; letter-spacing: 1px;
+    border-bottom: 1px solid rgba(255,48,80,0.3); padding-bottom: 6px;
+    display: flex; align-items: center; justify-content: space-between; }
+#prox-panel-close { background: none; border: none; color: var(--txt3); cursor: pointer;
+    font-size: 14px; padding: 0; line-height: 1; }
+#prox-panel-close:hover { color: var(--err); }
+.prox-row { display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px; font-size: 10px; }
+.prox-slider { width: 100%; margin-bottom: 15px; accent-color: var(--err); cursor: pointer; }
+.prox-btn { width: 100%; background: rgba(255,48,80,0.1); border: 1px solid var(--err);
+    color: var(--err); padding: 6px; border-radius: 4px; cursor: pointer;
+    font-weight: bold; font-size: 10px; transition: all 0.2s; margin-top: 10px;
+    font-family: var(--mono, monospace); }
+.prox-btn:hover { background: var(--err); color: #000; box-shadow: 0 0 10px rgba(255,48,80,0.5); }
+.prox-tog { position:relative; width:30px; height:16px; flex-shrink:0; }
+.prox-tog input { opacity:0; width:0; height:0; position:absolute; }
+.prox-tog-sl { position:absolute; inset:0; background:var(--bd2,var(--bd2));
+    border-radius:8px; cursor:pointer; transition:background .2s; }
+.prox-tog-sl::after { content:''; position:absolute; width:10px; height:10px;
+    left:3px; top:3px; background:var(--txt3,var(--txt3));
+    border-radius:50%; transition:all .2s; }
+.prox-tog input:checked + .prox-tog-sl { background:var(--err); }
+.prox-tog input:checked + .prox-tog-sl::after { transform:translateX(14px); background:#000; }
+#prox-error { color: var(--txt2); font-size: 10px; line-height: 1.5; text-align: center;
+    padding: 8px 0; }
+`;
+
+const PROX_HTML = `
+<div id="prox-panel" style="display:none;">
+    <h4>
+        <span><i class="fas fa-compress-arrows-alt" style="margin-right:6px;"></i>PROXIMITY PRUNER</span>
+        <button id="prox-panel-close" title="Close">✕</button>
+    </h4>
+    <div id="prox-error" style="display:none;"></div>
+    <div id="prox-content">
+        <div class="prox-row">
+            <span>BOUNDARY RADIUS</span>
+            <span id="prox-val" style="color:#fff;font-weight:bold;font-size:12px;">10 km</span>
+        </div>
+        <input type="range" id="prox-range" class="prox-slider" min="1" max="250" value="10" step="0.5">
+        <div class="prox-row">
+            <span>AUTO-PRUNE (background)</span>
+            <label class="prox-tog"><input type="checkbox" id="prox-auto"><span class="prox-tog-sl"></span></label>
+        </div>
+        <div class="prox-row">
+            <span>REMOVE NO-GPS NODES</span>
+            <label class="prox-tog"><input type="checkbox" id="prox-nogps"><span class="prox-tog-sl"></span></label>
+        </div>
+        <div style="font-size:9px;color:var(--txt3);line-height:1.5;border-top:1px solid var(--bd2);padding-top:8px;margin-top:4px;">
+            Faded nodes are outside the boundary and will be deleted on prune.
+        </div>
+        <button class="prox-btn" id="prox-commit"><i class="fas fa-trash-alt"></i> PRUNE NOW &amp; SAVE</button>
+    </div>
+</div>
+`;
+
+function initUI() {
+    if (!pDoc().getElementById('prox-prune-css')) {
+        const style = pDoc().createElement('style');
+        style.id = 'prox-prune-css';
+        style.innerHTML = PROX_CSS;
+        pDoc().head.appendChild(style);
+    }
+
+    // Find map container - try multiple strategies
+    let mapCard = pDoc().querySelector('#main-c2-map')?.parentElement;
+    if (!mapCard) {
+        mapCard = pDoc().querySelector('.leaflet-container')?.closest('.card');
+    }
+    if (!mapCard) {
+        mapCard = pDoc().querySelector('#map-toolbar')?.closest('.card');
+    }
+    
+    if (mapCard && !pDoc().getElementById('prox-panel')) {
+        mapCard.insertAdjacentHTML('beforeend', PROX_HTML);
+        $('prox-range').addEventListener('input', updatePreview);
+        $('prox-nogps').addEventListener('change', updatePreview);
+        $('prox-commit').addEventListener('click', saveAndPrune);
+        $('prox-panel-close').addEventListener('click', function() {
+            _active = false;
+            $('prox-panel').style.display = 'none';
+            const btn = $('prox-tb-btn');
+            if (btn) btn.className = 'btn btn-sm';
+            clearInterval(_previewInterval);
+            resetPreview();
+        });
+        console.log('[Proximity Pruner] ✓ Panel injected');
+    }
+
+    // Find toolbar - try multiple strategies
+    let tb = null;
+    let insertTarget = null;
+    
+    // Strategy 1: Find #map-toolbar directly
+    const mapToolbar = pDoc().querySelector('#map-toolbar');
+    if (mapToolbar) {
+        insertTarget = mapToolbar.querySelector('.map-tb-group[style*="margin-left"]') ||
+                       mapToolbar.querySelector('div[style*="margin-left:auto"]');
+        tb = mapToolbar;
+    }
+    
+    // Strategy 2: Legacy selector
+    if (!tb) {
+        tb = pDoc().querySelector('.ch > div[style*="margin-left:auto"]');
+        insertTarget = tb;
+    }
+    
+    if (!tb) { 
+        _toolbarRetryCount++;
+        if (_toolbarRetryCount <= _toolbarMaxRetries) {
+            setTimeout(initUI, 500); 
+        }
+        return; 
+    }
+
+    if (!pDoc().getElementById('prox-tb-btn')) {
+        const btn = pDoc().createElement('button');
+        btn.id = 'prox-tb-btn';
+        btn.className = 'btn btn-sm';
+        btn.title = 'Proximity Pruning Zone';
+        btn.style.cssText = 'display:inline-flex;align-items:center;gap:5px;font-size:9px;';
+        btn.innerHTML = '<i class="fas fa-compress-arrows-alt" style="color:var(--err);"></i> PROXIMITY';
+        btn.addEventListener('click', togglePanel);
+        
+        // Insert into the right-side button group
+        // Try to insert AFTER polar grid button if it exists, otherwise before REFRESH
+        if (insertTarget) {
+            const pgBtn = insertTarget.querySelector('#pg-toolbar-btn');
+            const refBtn = insertTarget.querySelector('button[onclick*="c2ManualRefresh"]') ||
+                          insertTarget.querySelector('button[onclick*="c2FetchAndDrawMap"]');
+            
+            if (pgBtn && pgBtn.nextSibling) {
+                // Insert after Polar Grid button
+                insertTarget.insertBefore(btn, pgBtn.nextSibling);
+            } else if (refBtn) {
+                // Insert before REFRESH button
+                insertTarget.insertBefore(btn, refBtn);
+            } else {
+                // Append to the group
+                insertTarget.appendChild(btn);
+            }
+        } else {
+            tb.appendChild(btn);
+        }
+        console.log('[Proximity Pruner] ✓ Toolbar button injected');
+    }
+}
+
+// Sync config every 5s so manual lat/lon changes from settings page take effect immediately
+setInterval(async function() {
+    try {
+        const res = await fetch(API_BASE + '/config', { credentials: 'include', cache: 'no-store' });
+        if (res.ok) {
+            _cfg = await res.json();
+            // If panel is open and we now have an anchor, clear the no-location error
+            if (_active) updatePreview();
+        }
+    } catch(e) {}
+}, 5000);
+
+// Only activate when the map view is open
+function _waitForMap() {
+    console.log('[Proximity Pruner] _waitForMap called');
+    try {
+        // Wait for parent document and either:
+        // 1. C2MapApp exists (legacy)
+        // 2. #map-toolbar exists (new structure)
+        // 3. meshState exists (app loaded)
+        var hasParent = !!window.parent;
+        var hasDoc = !!(window.parent && window.parent.document);
+        var hasC2Map = !!(window.parent && window.parent.C2MapApp !== undefined);
+        var hasToolbar = !!(window.parent && window.parent.document && window.parent.document.getElementById('map-toolbar'));
+        var hasMeshState = !!(window.parent && window.parent.meshState !== undefined);
+        
+        console.log('[Proximity Pruner] Ready check:', { hasParent, hasDoc, hasC2Map, hasToolbar, hasMeshState });
+        
+        var ready = hasDoc && (hasC2Map || hasToolbar || hasMeshState);
+        
+        if (ready) {
+            console.log('[Proximity Pruner] Parent ready, initializing in 300ms...');
+            // Small delay to let other plugins (like Polar Grid) initialize first
+            setTimeout(function() {
+                console.log('[Proximity Pruner] Fetching config...');
+                fetch(API_BASE + '/config', { credentials: 'include', cache: 'no-store' })
+                    .then(function(r) { 
+                        console.log('[Proximity Pruner] Config response:', r.status);
+                        return r.json(); 
+                    })
+                    .then(function(d) { 
+                        console.log('[Proximity Pruner] Config loaded, calling initUI');
+                        _cfg = d; 
+                        initUI(); 
+                    })
+                    .catch(function(e) { 
+                        console.log('[Proximity Pruner] Config fetch failed, calling initUI anyway:', e);
+                        initUI(); 
+                    });
+            }, 300);
+        } else {
+            setTimeout(_waitForMap, 200);
+        }
+    } catch(e) { 
+        console.error('[Proximity Pruner] _waitForMap error:', e);
+        setTimeout(_waitForMap, 200); 
+    }
+}
+_waitForMap();
+</script>
+</body>
+</html>

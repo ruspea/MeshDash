@@ -52,7 +52,9 @@ _ack_pending: Dict[str, asyncio.Event] = {}
 _ack_lock = asyncio.Lock()
 
 
+# ─────────────────────────────────────────────────────────────
 # Database init
+# ─────────────────────────────────────────────────────────────
 
 def _get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(_DB_PATH, check_same_thread=False)
@@ -185,7 +187,9 @@ def _init_db():
     logger.info("MeshBB DB ready: %s", _DB_PATH)
 
 
+# ─────────────────────────────────────────────────────────────
 # Config helpers
+# ─────────────────────────────────────────────────────────────
 
 def _cfg_get(key: str, default: str = "") -> str:
     with _DB_LOCK:
@@ -235,7 +239,9 @@ def _is_node_blocked(node_id: str, context: str = "all") -> bool:
     return bt == context
 
 
+# ─────────────────────────────────────────────────────────────
 # DB helpers
+# ─────────────────────────────────────────────────────────────
 
 def _db_get_rooms(include_locked=True) -> List[Dict]:
     with _DB_LOCK:
@@ -426,7 +432,9 @@ def _log_conversation(conv_id: str, direction: str, node_id: str, node_name: str
         logger.debug("MeshBB conv log error: %s", e)
 
 
+# ─────────────────────────────────────────────────────────────
 # Node name resolver
+# ─────────────────────────────────────────────────────────────
 
 def _resolve_node_name(node_id: str) -> str:
     try:
@@ -442,7 +450,9 @@ def _resolve_node_name(node_id: str) -> str:
     return node_id
 
 
+# ─────────────────────────────────────────────────────────────
 # Chunking & send engine
+# ─────────────────────────────────────────────────────────────
 
 def _split_to_chunks(text: str, max_bytes: int) -> List[str]:
     """Split text into chunks fitting within max_bytes (UTF-8 safe)."""
@@ -636,7 +646,9 @@ async def _broadcast_to_channel(text: str, channel_index: int, conv_id: str = ""
             await asyncio.sleep(_CHUNK_DELAY_S)
 
 
+# ─────────────────────────────────────────────────────────────
 # Reply router — determine where to send reply
+# ─────────────────────────────────────────────────────────────
 
 async def _reply(
     text: str,
@@ -664,7 +676,9 @@ async def _reply(
             await _send_dm(from_id, text, conv_id, node_name, room_id)
 
 
+# ─────────────────────────────────────────────────────────────
 # Command parser
+# ─────────────────────────────────────────────────────────────
 
 async def _handle_command(
     from_id: str,
@@ -696,6 +710,7 @@ async def _handle_command(
     async def reply(text: str, room_id: str = ""):
         await _reply(text, from_id, is_dm, channel_index, conv_id, node_name, room_id)
 
+    # ── bb help ──────────────────────────────────────────────
     if lower in ("bb", "bb help", "bb ?"):
         resp = (
             "BB CMDS:\n"
@@ -712,6 +727,7 @@ async def _handle_command(
         await reply(resp)
         return
 
+    # ── bb list ──────────────────────────────────────────────
     if lower == "bb list":
         rooms = _db_get_rooms(include_locked=False)
         if not rooms:
@@ -723,6 +739,7 @@ async def _handle_command(
         await reply("\n".join(lines))
         return
 
+    # ── bb status ────────────────────────────────────────────
     if lower == "bb status":
         subs = _db_get_subscriptions(from_id)
         if not subs:
@@ -731,6 +748,7 @@ async def _handle_command(
             await reply("YOUR SUBS:\n" + "\n".join(f" {s}" for s in subs))
         return
 
+    # ── bb popular ───────────────────────────────────────────
     if lower == "bb popular":
         rooms = _db_popular_rooms(3)
         if not rooms:
@@ -742,6 +760,7 @@ async def _handle_command(
         await reply("\n".join(lines))
         return
 
+    # ── bb.<room> <sub-command> ──────────────────────────────
     if lower.startswith("bb."):
         rest = raw[3:]
         parts = rest.split(" ", 2)
@@ -760,6 +779,7 @@ async def _handle_command(
 
         _db_room_touch(room_id)
 
+        # ── bb.ROOM list [page] ───────────────────────────────
         if subcmd == "list":
             try:
                 page = max(1, int(arg)) if arg else 1
@@ -789,6 +809,7 @@ async def _handle_command(
             await reply("\n".join(lines), room_id)
             return
 
+        # ── bb.ROOM read NUM ──────────────────────────────────
         if subcmd == "read":
             try:
                 seq = int(arg)
@@ -816,6 +837,7 @@ async def _handle_command(
             await reply(resp, room_id)
             return
 
+        # ── bb.ROOM post MSG ──────────────────────────────────
         if subcmd == "post":
             if not arg:
                 await reply(f"Usage: bb.{room_id} post YOUR MESSAGE")
@@ -847,6 +869,7 @@ async def _handle_command(
                 ))
             return
 
+        # ── bb.ROOM sub ───────────────────────────────────────
         if subcmd == "sub":
             already = from_id in _db_get_subscribers(room_id)
             if already:
@@ -856,11 +879,13 @@ async def _handle_command(
                 await reply(f"✓ Subscribed to [{room_id}].\nYou'll get new posts as DMs.")
             return
 
+        # ── bb.ROOM unsub ─────────────────────────────────────
         if subcmd == "unsub":
             _db_unsubscribe(from_id, room_id)
             await reply(f"✓ Unsubscribed from [{room_id}].")
             return
 
+        # ── bb.ROOM popular ───────────────────────────────────
         if subcmd == "popular":
             posts = _db_popular_posts(room_id, 3)
             if not posts:
@@ -892,7 +917,9 @@ async def _notify_subscribers(subs: List[str], text: str, room_id: str):
         await _send_dm(sub_id, text, sub_conv, room_id=room_id)
 
 
+# ─────────────────────────────────────────────────────────────
 # pubsub listener
+# ─────────────────────────────────────────────────────────────
 
 def _on_receive(packet, interface=None):
     event_loop = _context.get("event_loop")
@@ -987,7 +1014,9 @@ async def _signal_ack(packet_id: str):
         ev.set()
 
 
+# ─────────────────────────────────────────────────────────────
 # Schedule worker
+# ─────────────────────────────────────────────────────────────
 
 def _calc_next_fire(schedule_type: str, schedule_value: str) -> float:
     """
@@ -1084,7 +1113,9 @@ async def _schedule_worker():
             logger.error("MeshBB schedule worker error: %s", e)
 
 
+# ─────────────────────────────────────────────────────────────
 # TTL worker
+# ─────────────────────────────────────────────────────────────
 
 async def _ttl_worker():
     while True:
@@ -1107,7 +1138,9 @@ async def _ttl_worker():
             logger.error("MeshBB TTL error: %s", e)
 
 
+# ─────────────────────────────────────────────────────────────
 # Watchdog
+# ─────────────────────────────────────────────────────────────
 
 async def _watchdog(context: dict):
     wd = context.get("plugin_watchdog")
@@ -1125,7 +1158,9 @@ async def _watchdog(context: dict):
             pass
 
 
+# ─────────────────────────────────────────────────────────────
 # Plugin lifecycle
+# ─────────────────────────────────────────────────────────────
 
 def init_plugin(context: dict):
     global _context
@@ -1160,7 +1195,9 @@ def init_plugin(context: dict):
     logger.info("Mesh BB v1.0.0 ready")
 
 
+# ─────────────────────────────────────────────────────────────
 # Pydantic models
+# ─────────────────────────────────────────────────────────────
 
 class RoomCreate(BaseModel):
     id: str
@@ -1214,7 +1251,9 @@ class ShareConfig(BaseModel):
     enabled: bool
 
 
+# ─────────────────────────────────────────────────────────────
 # Admin REST API — Rooms
+# ─────────────────────────────────────────────────────────────
 
 @plugin_router.get("/rooms")
 async def list_rooms():
@@ -1355,7 +1394,9 @@ async def remove_subscriber(room_id: str, node_id: str):
     return {"status": "removed"}
 
 
+# ─────────────────────────────────────────────────────────────
 # Channel config API
+# ─────────────────────────────────────────────────────────────
 
 @plugin_router.get("/channels")
 async def get_channels():
@@ -1382,7 +1423,9 @@ async def update_channel(channel_index: int, body: ChannelConfigUpdate):
     return {"status": "updated"}
 
 
+# ─────────────────────────────────────────────────────────────
 # Node blocks API
+# ─────────────────────────────────────────────────────────────
 
 @plugin_router.get("/blocks")
 async def get_blocks():
@@ -1418,7 +1461,9 @@ async def remove_block(node_id: str):
     return {"status": "unblocked"}
 
 
+# ─────────────────────────────────────────────────────────────
 # Conversations API
+# ─────────────────────────────────────────────────────────────
 
 @plugin_router.get("/conversations")
 async def get_conversations(
@@ -1468,7 +1513,9 @@ async def get_conversation_nodes():
     return {"nodes": [dict(r) for r in rows]}
 
 
+# ─────────────────────────────────────────────────────────────
 # Schedules API
+# ─────────────────────────────────────────────────────────────
 
 @plugin_router.get("/schedules")
 async def get_schedules():
@@ -1559,7 +1606,9 @@ async def fire_schedule_now(sid: str):
     return {"status": "fired", "message": msg}
 
 
+# ─────────────────────────────────────────────────────────────
 # Public share API
+# ─────────────────────────────────────────────────────────────
 
 @plugin_router.get("/share/config")
 async def get_share_config():
@@ -1609,7 +1658,9 @@ async def public_view(token: str):
     return {"rooms": result, "generated_at": time.time()}
 
 
+# ─────────────────────────────────────────────────────────────
 # Stats
+# ─────────────────────────────────────────────────────────────
 
 @plugin_router.get("/stats")
 async def get_stats():

@@ -1,0 +1,1987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Mesh Analytics | MeshDash</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+/* ============================================================================
+   Mesh Analytics Plugin — MeshDash Theme Integration
+   Uses MeshDash CSS variables with fallbacks
+   ============================================================================ */
+
+/* Force full height */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg, var(--bg));
+}
+
+
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--mono);
+  color: var(--txt);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  overflow: hidden;
+}
+
+/* Topbar */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--bd2);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  min-height: 46px;
+}
+
+.logo {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--acc);
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.logo-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--acc);
+  box-shadow: 0 0 10px var(--acc);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(1.4); } }
+
+.ctrl {
+  background: var(--bg3);
+  color: var(--txt);
+  border: 1px solid var(--bd2);
+  border-radius: var(--r);
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  min-height: 36px;
+}
+
+@media (min-width: 768px) {
+  .ctrl { padding: 4px 9px; min-height: 28px; font-size: 11px; }
+}
+
+.ctrl:hover, .ctrl:focus { outline: none; border-color: var(--acc); }
+input[type="date"].ctrl { color-scheme: dark; }
+input[type="date"].ctrl::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: var(--bg3);
+  color: var(--txt);
+  border: 1px solid var(--bd2);
+  border-radius: var(--r);
+  padding: 8px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  min-height: 40px;
+  white-space: nowrap;
+  transition: border-color 0.12s, color 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (min-width: 768px) {
+  .btn { padding: 4px 12px; min-height: 28px; font-size: 11px; }
+}
+
+.btn:hover { border-color: var(--acc); color: var(--acc); }
+.btn:active { transform: scale(0.97); }
+.btn-csv { background: rgba(0, 200, 245, 0.08); border-color: rgba(0, 200, 245, 0.3); color: var(--acc); }
+.btn-json { background: rgba(0, 232, 122, 0.08); border-color: rgba(0, 232, 122, 0.3); color: var(--ok); }
+
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(0, 200, 245, 0.3);
+  background: rgba(0, 200, 245, 0.06);
+  color: var(--acc);
+}
+
+.chip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--acc);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Hide elements on mobile */
+@media (max-width: 600px) {
+  .hide-mobile { display: none !important; }
+  .topbar { padding: 6px 10px; }
+  .logo { font-size: 12px; }
+}
+
+/* Main layout */
+.main {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 12px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--bd2);
+  flex-shrink: 0;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab {
+  padding: 10px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  cursor: pointer;
+  color: var(--txt3);
+  border-bottom: 2px solid transparent;
+  transition: color 0.1s, border-color 0.1s;
+  white-space: nowrap;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 600px) {
+  .tab { padding: 10px 8px; font-size: 9px; }
+}
+
+.tab:hover { color: var(--txt2); }
+.tab.on { color: var(--acc); border-bottom-color: var(--acc); }
+
+.pages {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.page {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: 12px;
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 768px) {
+  .page { padding: 16px; gap: 14px; }
+}
+
+.page.on { display: flex; }
+
+/* Grid layouts */
+.row { display: grid; gap: 12px; }
+.row-4 { grid-template-columns: repeat(4, 1fr); }
+.row-3 { grid-template-columns: repeat(3, 1fr); }
+.row-2 { grid-template-columns: repeat(2, 1fr); }
+.row-2-1 { grid-template-columns: 2fr 1fr; }
+.row-1-2 { grid-template-columns: 1fr 2fr; }
+
+@media (max-width: 1200px) {
+  .row-4 { grid-template-columns: repeat(2, 1fr); }
+  .row-3 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 720px) {
+  .row-4, .row-3, .row-2, .row-2-1, .row-1-2 { grid-template-columns: 1fr; }
+}
+
+/* Cards */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--bd2);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .card { padding: 14px 16px; }
+}
+
+.card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+.card.acc::before { background: linear-gradient(90deg, var(--acc), transparent); }
+.card.ok::before { background: linear-gradient(90deg, var(--ok), transparent); }
+.card.warn::before { background: linear-gradient(90deg, var(--warn), transparent); }
+.card.err::before { background: linear-gradient(90deg, var(--err), transparent); }
+.card.pur::before { background: linear-gradient(90deg, var(--pur), transparent); }
+.card.pink::before { background: linear-gradient(90deg, var(--pink), transparent); }
+.card.teal::before { background: linear-gradient(90deg, var(--teal), transparent); }
+
+.card-h {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--txt3);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-h-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+/* Stats */
+.stat-val {
+  font-family: var(--sans);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+@media (min-width: 768px) {
+  .stat-val { font-size: 28px; }
+}
+
+.stat-val.acc { color: var(--acc); }
+.stat-val.ok { color: var(--ok); }
+.stat-val.warn { color: var(--warn); }
+.stat-val.err { color: var(--err); }
+.stat-val.pur { color: var(--pur); }
+.stat-val.teal { color: var(--teal); }
+.stat-lbl { font-size: 10px; color: var(--txt2); }
+.stat-sub { font-size: 9px; color: var(--txt3); margin-top: 3px; }
+
+/* Mini stats */
+.mini-stats {
+  display: flex;
+  gap: 0;
+  margin-top: 10px;
+  border: 1px solid var(--bd);
+  border-radius: var(--r);
+  overflow: hidden;
+  flex-wrap: wrap;
+}
+
+.mini-stat {
+  flex: 1;
+  min-width: 60px;
+  padding: 7px 8px;
+  border-right: 1px solid var(--bd);
+  text-align: center;
+}
+
+.mini-stat:last-child { border-right: none; }
+.mini-stat-v { font-size: 14px; font-weight: 700; font-family: var(--sans); }
+.mini-stat-l { font-size:11px; color: var(--txt3); margin-top: 1px; letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* Charts */
+.chart-wrap { position: relative; width: 100%; overflow: hidden; }
+canvas { display: block; max-width: 100%; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.leg-item { display: flex; align-items: center; gap: 5px; font-size: 9px; color: var(--txt2); }
+.leg-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+/* Donut */
+.donut-wrap { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.donut-canvas-wrap { flex-shrink: 0; width: 140px; height: 140px; position: relative; }
+.donut-labels { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 100px; }
+.donut-row { display: flex; align-items: center; gap: 7px; font-size: 10px; }
+.donut-swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.donut-lbl { flex: 1; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.donut-val { font-weight: 700; color: var(--txt); }
+
+/* Tables */
+.tbl-wrap { overflow-x: auto; margin-top: 6px; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; white-space: nowrap; font-size: 11px; }
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg3);
+  color: var(--txt2);
+  font-size:11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--bd2);
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+thead th:hover { color: var(--acc); }
+thead th.sa::after { content: ' ▲'; color: var(--acc); font-size:10px; }
+thead th.sd::after { content: ' ▼'; color: var(--acc); font-size:10px; }
+thead th:not(.sa):not(.sd)::after { content: ' ⇅'; opacity: 0.2; font-size:10px; }
+tbody tr { cursor: pointer; transition: background 0.06s; }
+tbody tr:hover td { background: rgba(0, 200, 245, 0.05) !important; }
+tbody tr.sel td { background: rgba(0, 200, 245, 0.1) !important; border-left: 2px solid var(--acc); }
+td { padding: 6px 8px; border-bottom: 1px solid var(--bd); color: var(--txt); max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+td.r { text-align: right; }
+
+/* Score bar */
+.sbar { display: inline-flex; align-items: center; gap: 5px; }
+.sbar-bg { width: 44px; height: 4px; background: var(--bd2); border-radius: 2px; overflow: hidden; flex-shrink: 0; }
+.sbar-fill { height: 100%; border-radius: 2px; }
+
+/* Tags */
+.tag { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size:11px; font-weight: 700; line-height: 1.5; letter-spacing: 0.04em; }
+.tag-backbone { background: rgba(0, 200, 245, 0.1); border: 1px solid rgba(0, 200, 245, 0.3); color: var(--acc); }
+.tag-relay { background: rgba(0, 232, 122, 0.1); border: 1px solid rgba(0, 232, 122, 0.3); color: var(--ok); }
+.tag-observer { background: rgba(255, 168, 38, 0.1); border: 1px solid rgba(255, 168, 38, 0.3); color: var(--warn); }
+.tag-isolated { background: rgba(255, 48, 80, 0.1); border: 1px solid rgba(255, 48, 80, 0.3); color: var(--err); }
+.tag-local { background: rgba(0, 232, 122, 0.1); border: 1px solid var(--ok); color: var(--ok); }
+
+/* Side Panel */
+.panel {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 100%;
+  max-width: 560px;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg2);
+  border-left: 1px solid var(--bd2);
+  z-index: 300;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 16px;
+}
+
+@media (min-width: 768px) {
+  .panel { right: -560px; width: 560px; padding: 18px 20px; }
+}
+
+.panel.open { right: 0; }
+
+.panel-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 299;
+}
+
+.panel-overlay.open { display: block; }
+
+.panel-x {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: var(--bg3);
+  border: 1px solid var(--bd2);
+  border-radius: var(--r);
+  color: var(--txt2);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 8px 12px;
+  line-height: 1;
+  min-width: 40px;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-x:hover { color: var(--txt); border-color: var(--acc); }
+
+.pn-title {
+  font-family: var(--sans);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--acc);
+  margin-bottom: 2px;
+  padding-right: 50px;
+  word-break: break-all;
+}
+
+.pn-sub { font-size: 10px; color: var(--txt2); margin-bottom: 16px; }
+.pn-sec { margin-bottom: 14px; }
+.pn-sec-h { font-size:11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--txt3); border-bottom: 1px solid var(--bd); padding-bottom: 3px; margin-bottom: 8px; }
+.kv { display: grid; grid-template-columns: 140px 1fr; gap: 4px 10px; align-items: start; }
+
+@media (max-width: 480px) {
+  .kv { grid-template-columns: 1fr; gap: 2px; }
+  .kv-k { font-weight: 600; color: var(--txt2); }
+}
+
+.kv-k { color: var(--txt3); font-size: 10px; }
+.kv-v { color: var(--txt); font-size: 11px; word-break: break-all; }
+.kv-v.hi { color: var(--acc); }
+.kv-v.ok { color: var(--ok); }
+.kv-v.warn { color: var(--warn); }
+.kv-v.err { color: var(--err); }
+.kv-v.teal { color: var(--teal); }
+
+/* Score grid */
+.score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; }
+
+@media (max-width: 480px) {
+  .score-grid { grid-template-columns: 1fr; }
+}
+
+.score-item { background: var(--bg3); border: 1px solid var(--bd); border-radius: var(--r); padding: 9px 11px; }
+.score-item-lbl { font-size:11px; color: var(--txt3); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
+.score-item-val { font-family: var(--sans); font-size: 20px; font-weight: 700; line-height: 1; }
+.score-bar { height: 3px; background: var(--bd2); border-radius: 2px; overflow: hidden; margin-top: 5px; }
+.score-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+
+/* Neighbour list */
+.nb-list { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
+.nb-row { display: flex; align-items: center; justify-content: space-between; background: var(--bg3); border: 1px solid var(--bd); border-radius: 3px; padding: 6px 10px; font-size: 10px; }
+
+/* Loading */
+.loading { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 11px; color: var(--txt3); letter-spacing: 0.12em; }
+.spin { animation: spin 0.7s linear infinite; display: inline-block; margin-right: 8px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Alerts */
+.alert-list { display: flex; flex-direction: column; gap: 6px; }
+.alert { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: var(--r); border: 1px solid; font-size: 10px; line-height: 1.5; }
+.alert.warn { background: rgba(255, 168, 38, 0.06); border-color: rgba(255, 168, 38, 0.25); }
+.alert.err { background: rgba(255, 48, 80, 0.06); border-color: rgba(255, 48, 80, 0.25); }
+.alert.ok { background: rgba(0, 232, 122, 0.06); border-color: rgba(0, 232, 122, 0.25); }
+.alert.info { background: rgba(0, 200, 245, 0.06); border-color: rgba(0, 200, 245, 0.2); }
+.alert-icon { font-size: 14px; line-height: 1; flex-shrink: 0; margin-top: 1px; }
+.alert-body { flex: 1; min-width: 0; }
+.alert-title { font-weight: 700; margin-bottom: 2px; }
+.alert-msg { color: var(--txt2); word-break: break-word; }
+
+/* Hop bars */
+.hop-bars { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.hop-row { display: flex; align-items: center; gap: 8px; font-size: 10px; }
+.hop-lbl { width: 50px; text-align: right; color: var(--txt2); flex-shrink: 0; }
+.hop-bar-wrap { flex: 1; height: 14px; background: var(--bd); border-radius: 3px; overflow: hidden; position: relative; }
+.hop-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+.hop-cnt { position: absolute; right: 5px; top: 0; line-height: 14px; font-size: 9px; color: var(--txt); }
+
+/* Leader list */
+.leader-list { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.leader-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg3); border: 1px solid var(--bd); border-radius: var(--r); cursor: pointer; transition: border-color 0.1s; min-height: 44px; }
+.leader-row:hover { border-color: var(--acc); }
+.leader-rank { font-family: var(--sans); font-size: 14px; font-weight: 800; color: var(--txt3); width: 20px; text-align: center; flex-shrink: 0; }
+.leader-rank.g1 { color: var(--warn); }
+.leader-rank.g2 { color: var(--txt2); }
+.leader-rank.g3 { color: var(--warn); }
+.leader-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11px; font-weight: 600; }
+.leader-score { font-family: var(--sans); font-size: 15px; font-weight: 700; color: var(--acc); }
+.leader-bar { width: 60px; height: 4px; background: var(--bd2); border-radius: 2px; overflow: hidden; }
+.leader-bar-fill { height: 100%; border-radius: 2px; background: var(--acc); }
+
+/* Bottleneck list */
+.bottle-list { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.bottle-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg3); border: 1px solid var(--bd); border-radius: var(--r); cursor: pointer; transition: border-color 0.1s; min-height: 44px; }
+.bottle-row:hover { border-color: var(--warn); }
+.bottle-name { flex: 1; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+.bottle-relays { font-family: var(--sans); font-size: 15px; font-weight: 700; color: var(--warn); }
+.bottle-nb { font-size: 9px; color: var(--txt3); }
+
+/* Resilience */
+.resil-list { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.resil-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--bg3); border: 1px solid var(--bd); border-radius: var(--r); cursor: pointer; transition: border-color 0.1s; flex-wrap: wrap; min-height: 44px; }
+.resil-row:hover { border-color: var(--err); }
+.resil-name { flex: 1; overflow: hidden; text-overflow: ellipsis; font-size: 11px; min-width: 80px; }
+.resil-impact { font-family: var(--sans); font-size: 14px; font-weight: 700; }
+.resil-sub { font-size: 9px; color: var(--txt3); }
+
+/* Links */
+.link-list { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.link-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: var(--bg3); border: 1px solid var(--bd); border-radius: 3px; font-size: 10px; }
+.link-nodes { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.link-count { font-family: var(--sans); font-size: 13px; font-weight: 700; color: var(--acc); flex-shrink: 0; }
+
+/* Heatmap */
+.heatmap { display: grid; grid-template-columns: repeat(24, 1fr); gap: 2px; margin-top: 6px; }
+.hm-cell { height: 28px; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size:10px; font-weight: 700; }
+
+/* Environment */
+.env-sensor-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px; }
+.env-item { background: var(--bg3); border: 1px solid var(--bd); border-radius: var(--r); padding: 10px 12px; }
+.env-item-val { font-family: var(--sans); font-size: 22px; font-weight: 700; line-height: 1; }
+.env-item-lbl { font-size: 9px; color: var(--txt3); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* Distribution */
+.dist-list { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; }
+.dist-row { display: flex; align-items: center; gap: 8px; font-size: 10px; }
+.dist-lbl { color: var(--txt2); min-width: 100px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+.dist-bar-wrap { flex: 1; height: 10px; background: var(--bd); border-radius: 2px; overflow: hidden; }
+.dist-bar-fill { height: 100%; border-radius: 2px; }
+.dist-cnt { width: 28px; text-align: right; font-size: 9px; color: var(--txt3); }
+
+/* Trend arrows */
+.trend-up { color: var(--ok); }
+.trend-dn { color: var(--err); }
+.trend-fl { color: var(--txt3); }
+.nil { color: var(--txt3); }
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo"><div class="logo-pulse"></div>MESH ANALYTICS</div>
+  <select class="ctrl" id="slot-sel"></select>
+  <button class="btn" id="refresh-btn"><i class="fas fa-sync-alt"></i><span class="hide-mobile"> Refresh</span></button>
+  <div class="topbar-right">
+    <div class="status-chip"><div class="chip-dot"></div><span id="status-txt">—</span></div>
+    <label class="hide-mobile" style="font-size:10px;color:var(--txt2)">SNAPSHOT</label>
+    <input type="date" class="ctrl" id="date-sel">
+    <button class="btn btn-csv hide-mobile" id="csv-btn"><i class="fas fa-download"></i> CSV</button>
+    <button class="btn btn-json hide-mobile" id="json-btn"><i class="fas fa-download"></i> JSON</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="tabs">
+    <div class="tab on" data-tab="overview">Overview</div>
+    <div class="tab" data-tab="rf">RF / Signal</div>
+    <div class="tab" data-tab="traffic">Traffic</div>
+    <div class="tab" data-tab="topology">Topology</div>
+    <div class="tab" data-tab="health">Health</div>
+    <div class="tab" data-tab="environment">Environment</div>
+    <div class="tab" data-tab="patterns">Patterns</div>
+    <div class="tab" data-tab="links">Links</div>
+    <div class="tab" data-tab="nodes">Node Table</div>
+    <div class="tab" data-tab="alerts">Alerts</div>
+  </div>
+
+  <div class="pages">
+
+    <!-- ── OVERVIEW ── -->
+    <div class="page on" id="page-overview">
+      <div class="row row-4">
+        <div class="card acc" id="ov-total"></div>
+        <div class="card ok" id="ov-live"></div>
+        <div class="card pur" id="ov-backbone"></div>
+        <div class="card warn" id="ov-density"></div>
+      </div>
+      <div class="row row-2">
+        <div class="card acc">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--acc)"></span>Node Score Leaderboard</div>
+          <div class="leader-list" id="leaderboard"></div>
+        </div>
+        <div class="card warn">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--warn)"></span>Bottleneck Nodes</div>
+          <div style="font-size:9px;color:var(--txt3);margin-bottom:8px">High relay load relative to neighbour redundancy</div>
+          <div class="bottle-list" id="bottleneck-list"></div>
+        </div>
+      </div>
+      <div class="row row-3">
+        <div class="card ok">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--ok)"></span>RF Quality Distribution</div>
+          <div class="chart-wrap" style="height:140px"><canvas id="rf-donut"></canvas></div>
+          <div class="donut-labels" id="rf-donut-legend"></div>
+        </div>
+        <div class="card warn">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--warn)"></span>Battery Distribution</div>
+          <div class="chart-wrap" style="height:140px"><canvas id="batt-donut"></canvas></div>
+          <div class="donut-labels" id="batt-donut-legend"></div>
+        </div>
+        <div class="card acc">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--acc)"></span>Node Freshness</div>
+          <div class="chart-wrap" style="height:140px"><canvas id="fresh-donut"></canvas></div>
+          <div class="donut-labels" id="fresh-donut-legend"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RF ── -->
+    <div class="page" id="page-rf">
+      <div class="row row-4">
+        <div class="card ok" id="rf-avg-snr"></div>
+        <div class="card acc" id="rf-avg-rssi"></div>
+        <div class="card ok" id="rf-p25-snr"></div>
+        <div class="card err" id="rf-bad-count"></div>
+      </div>
+      <div class="row row-2">
+        <div class="card ok">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--ok)"></span>Average SNR Over Time</div>
+          <div class="chart-wrap"><canvas id="snr-line" height="180"></canvas></div>
+        </div>
+        <div class="card acc">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--acc)"></span>Packet Volume Over Time</div>
+          <div class="chart-wrap"><canvas id="pkt-line" height="180"></canvas></div>
+        </div>
+      </div>
+      <div class="row row-2">
+        <div class="card ok">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--ok)"></span>Hop Count Distribution</div>
+          <div class="hop-bars" id="hop-dist-bars"></div>
+        </div>
+        <div class="card pur">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--pur)"></span>Channel Stress (top 10)</div>
+          <div class="chart-wrap"><canvas id="chan-bar" height="180"></canvas></div>
+        </div>
+      </div>
+      <div class="row row-2">
+        <div class="card teal">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--teal)"></span>SNR Stability — Most Stable Links</div>
+          <div style="font-size:9px;color:var(--txt3);margin-bottom:8px">Low SNR variance = consistent RF link quality</div>
+          <div class="tbl-wrap" id="snr-stability-tbl"></div>
+        </div>
+        <div class="card warn">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--warn)"></span>Most Unstable RF Links</div>
+          <div style="font-size:9px;color:var(--txt3);margin-bottom:8px">High SNR std deviation = poor or fluctuating coverage</div>
+          <div class="tbl-wrap" id="snr-unstable-tbl"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TRAFFIC ── -->
+    <div class="page" id="page-traffic">
+      <div class="row row-4">
+        <div class="card acc" id="tr-total-pkts"></div>
+        <div class="card ok" id="tr-total-bcast"></div>
+        <div class="card pur" id="tr-total-dm"></div>
+        <div class="card warn" id="tr-relay-total"></div>
+      </div>
+      <div class="card ok">
+        <div class="card-h"><span class="card-h-dot" style="color:var(--ok)"></span>Daily Message Traffic</div>
+        <div class="chart-wrap"><canvas id="traffic-bar" height="200"></canvas></div>
+        <div class="chart-legend">
+          <div class="leg-item"><div class="leg-dot" style="background:var(--ok)"></div>Broadcasts</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--acc)"></div>Direct Messages</div>
+        </div>
+      </div>
+      <div class="card acc">
+        <div class="card-h"><span class="card-h-dot" style="color:var(--acc)"></span>Daily Active Nodes</div>
+        <div class="chart-wrap"><canvas id="active-nodes-line" height="160"></canvas></div>
+      </div>
+      <div class="row row-2">
+        <div class="card acc">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--acc)"></span>Top Broadcasters</div>
+          <div class="tbl-wrap" id="top-bcast-tbl"></div>
+        </div>
+        <div class="card pur">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--pur)"></span>Top Relay Nodes</div>
+          <div class="tbl-wrap" id="top-relay-tbl"></div>
+        </div>
+      </div>
+      <div class="card ok">
+        <div class="card-h"><span class="card-h-dot" style="color:var(--ok)"></span>24h vs Prior 24h — Packet Trend per Node</div>
+        <div style="font-size:9px;color:var(--txt3);margin-bottom:8px">Nodes ranked by activity change</div>
+        <div class="tbl-wrap" id="trend-tbl"></div>
+      </div>
+    </div>
+
+    <!-- ── TOPOLOGY ── -->
+    <div class="page" id="page-topology">
+      <div class="row row-3">
+        <div class="card acc" id="topo-backbone-card"></div>
+        <div class="card err" id="topo-isolated-card"></div>
+        <div class="card ok" id="topo-density-card"></div>
+      </div>
+      <div class="row row-2">
+        <div class="card pur">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--pur)"></span>Topology Role Breakdown</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="role-donut"></canvas></div>
+          <div class="donut-labels" id="role-donut-legend"></div>
+        </div>
+        <div class="card acc">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--acc)"></span>Centrality vs RF Health</div>
+          <div class="chart-wrap"><canvas id="scatter-chart" height="200"></canvas></div>
+          <div style="font-size:9px;color:var(--txt3);margin-top:6px">X: Centrality · Y: RF health · Size: relay count</div>
+        </div>
+      </div>
+      <div class="row row-2">
+        <div class="card err">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--err)"></span>Isolated &amp; Offline Nodes</div>
+          <div id="isolated-list" style="display:flex;flex-direction:column;gap:4px;margin-top:4px"></div>
+        </div>
+        <div class="card warn">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--warn)"></span>Hardware Distribution</div>
+          <div class="dist-list" id="hw-dist-list"></div>
+        </div>
+      </div>
+      <div class="card teal">
+        <div class="card-h"><span class="card-h-dot" style="color:var(--teal)"></span>Firmware Version Distribution</div>
+        <div class="dist-list" id="fw-dist-list"></div>
+      </div>
+    </div>
+
+    <!-- ── HEALTH ── -->
+    <div class="page" id="page-health">
+      <div class="row row-4">
+        <div class="card ok" id="health-resilience"></div>
+        <div class="card err" id="health-crit-batt"></div>
+        <div class="card warn" id="health-weak-relay"></div>
+        <div class="card acc" id="health-avg-score"></div>
+      </div>
+      <div class="card err">
+        <div class="card-h"><span class="card-h-dot" style="color:var(--err)"></span>Resilience Risk Analysis — Single Point of Failure Ranking</div>
+        <div style="font-size:9px;color:var(--txt3);margin-bottom:8px">
+          Nodes ranked by: route appearances ÷ available neighbours. High risk = mesh heavily depends on this node with few alternatives.
+        </div>
+        <div class="resil-list" id="resil-list"></div>
+      </div>
+      <div class="row row-2">
+        <div class="card warn">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--warn)"></span>Battery Risk Leaderboard</div>
+          <div style="font-size:9px;color:var(--txt3);margin-bottom:8px">Combined current level + discharge trend score</div>
+          <div class="tbl-wrap" id="batt-risk-tbl"></div>
+        </div>
+        <div class="card pur">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--pur)"></span>Channel Utilisation Risk</div>
+          <div style="font-size:9px;color:var(--txt3);margin-bottom:8px">Nodes approaching congestion thresholds</div>
+          <div class="tbl-wrap" id="chan-risk-tbl"></div>
+        </div>
+      </div>
+      <div class="card ok">
+        <div class="card-h"><span class="card-h-dot" style="color:var(--ok)"></span>Node Score Distribution</div>
+        <div class="chart-wrap"><canvas id="score-hist" height="160"></canvas></div>
+        <div style="font-size:9px;color:var(--txt3);margin-top:6px">Distribution of composite health scores across all nodes</div>
+      </div>
+    </div>
+
+    <!-- ── ENVIRONMENT ── -->
+    <div class="page" id="page-environment">
+      <div class="row row-4">
+        <div class="card teal" id="env-temp-card"></div>
+        <div class="card acc" id="env-humidity-card"></div>
+        <div class="card ok" id="env-pressure-card"></div>
+        <div class="card pur" id="env-iaq-card"></div>
+      </div>
+      <div id="env-no-data" style="display:none" class="card">
+        <div style="color:var(--txt3);font-size:11px;padding:20px;text-align:center">
+          No environmental sensor data found. Nodes with BME280/BME680 sensors will show data here.
+        </div>
+      </div>
+      <div class="card teal" id="env-sensor-nodes-card">
+        <div class="card-h"><span class="card-h-dot" style="color:var(--teal)"></span>Sensor Nodes — Current Readings</div>
+        <div class="tbl-wrap" id="env-node-tbl"></div>
+      </div>
+      <div class="row row-2">
+        <div class="card teal">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--teal)"></span>Temperature Over Time</div>
+          <div class="chart-wrap"><canvas id="env-temp-line" height="180"></canvas></div>
+        </div>
+        <div class="card acc">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--acc)"></span>Humidity Over Time</div>
+          <div class="chart-wrap"><canvas id="env-humidity-line" height="180"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PATTERNS ── -->
+    <div class="page" id="page-patterns">
+      <div class="card acc">
+        <div class="card-h"><span class="card-h-dot" style="color:var(--acc)"></span>Hourly Activity Heatmap — Packets by Hour of Day (last 7 days)</div>
+        <div style="font-size:9px;color:var(--txt3);margin-bottom:10px">Identifies peak activity windows and quiet hours</div>
+        <div style="display:flex;gap:4px;margin-bottom:4px">
+          <div style="width:30px;font-size:11px;color:var(--txt3)"></div>
+          <div style="display:grid;grid-template-columns:repeat(24,1fr);gap:2px;flex:1">
+            <div id="hm-hour-labels" style="display:contents"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:4px">
+          <div style="width:30px;flex-shrink:0"></div>
+          <div class="heatmap" id="heatmap" style="flex:1"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:9px;color:var(--txt3)">
+          <span>Low</span>
+          <div style="display:flex;gap:2px" id="hm-legend"></div>
+          <span>High</span>
+        </div>
+      </div>
+      <div class="card ok">
+        <div class="card-h"><span class="card-h-dot" style="color:var(--ok)"></span>Daily RF + Traffic Combined View</div>
+        <div class="chart-wrap"><canvas id="combined-line" height="200"></canvas></div>
+        <div class="chart-legend">
+          <div class="leg-item"><div class="leg-dot" style="background:var(--ok)"></div>Avg SNR (dB)</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--acc)"></div>RF Packets (÷10)</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--warn)"></div>Messages</div>
+        </div>
+      </div>
+      <div class="card pur">
+        <div class="card-h"><span class="card-h-dot" style="color:var(--pur)"></span>Most Active Nodes — Last 24h vs Prior 24h</div>
+        <div class="chart-wrap"><canvas id="trend-bar" height="220"></canvas></div>
+        <div class="chart-legend">
+          <div class="leg-item"><div class="leg-dot" style="background:var(--acc)"></div>Last 24h</div>
+          <div class="leg-item"><div class="leg-dot" style="background:var(--txt3)"></div>Prior 24h</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── LINKS ── -->
+    <div class="page" id="page-links">
+      <div class="row row-3">
+        <div class="card acc" id="links-total-card"></div>
+        <div class="card ok" id="links-top-card"></div>
+        <div class="card pur" id="links-unique-card"></div>
+      </div>
+      <div class="card acc">
+        <div class="card-h"><span class="card-h-dot" style="color:var(--acc)"></span>Most-Used Route Links</div>
+        <div style="font-size:9px;color:var(--txt3);margin-bottom:8px">
+          Ranked by number of traceroute appearances — these are the critical links in your mesh backbone
+        </div>
+        <div class="link-list" id="link-list"></div>
+      </div>
+      <div class="row row-2">
+        <div class="card ok">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--ok)"></span>Neighbour SNR Matrix</div>
+          <div style="font-size:9px;color:var(--txt3);margin-bottom:8px">All known neighbour pairs with SNR readings</div>
+          <div class="tbl-wrap" id="nb-snr-tbl"></div>
+        </div>
+        <div class="card pur">
+          <div class="card-h"><span class="card-h-dot" style="color:var(--pur)"></span>Link Usage vs SNR Quality</div>
+          <div class="chart-wrap"><canvas id="link-scatter" height="220"></canvas></div>
+          <div style="font-size:9px;color:var(--txt3);margin-top:6px">X: usage count · Y: avg SNR of endpoints</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── NODE TABLE ── -->
+    <div class="page" id="page-nodes">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <input class="ctrl" id="node-search" placeholder="Filter nodes…" style="width:200px;height:28px" autocomplete="off">
+        <select class="ctrl" id="role-filter">
+          <option value="">All Roles</option>
+          <option value="backbone">Backbone</option>
+          <option value="relay">Relay</option>
+          <option value="observer">Observer</option>
+          <option value="isolated">Isolated</option>
+        </select>
+        <span style="font-size:10px;color:var(--txt3)" id="node-count-lbl"></span>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="tbl-wrap" id="node-tbl-wrap" style="max-height:calc(100vh - 200px)">
+          <table>
+            <thead><tr id="nthead"></tr></thead>
+            <tbody id="ntbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ALERTS ── -->
+    <div class="page" id="page-alerts">
+      <div class="card">
+        <div class="card-h"><span class="card-h-dot" style="color:var(--err)"></span>Detected Conditions</div>
+        <div style="font-size:9px;color:var(--txt3);margin-bottom:10px" id="alert-summary"></div>
+        <div class="alert-list" id="alert-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Panel overlay for mobile -->
+<div class="panel-overlay" id="panel-overlay"></div>
+
+<!-- Node detail panel -->
+<div class="panel" id="panel">
+  <button class="panel-x" id="panel-x"><i class="fas fa-times"></i></button>
+  <div id="panel-body"></div>
+</div>
+
+<script>
+const API = "/api/plugins/mesh_analytics";
+let DATA = null;
+let SORT_COL = "node_score", SORT_DIR = -1, SEL = null;
+let NODE_SEARCH = "", NODE_ROLE = "";
+
+// ── Tab routing ─────────────────────────────────────────────────────────
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("on"));
+    document.querySelectorAll(".page").forEach(x => x.classList.remove("on"));
+    t.classList.add("on");
+    document.getElementById("page-" + t.dataset.tab).classList.add("on");
+    // re-render charts when switching tabs (canvas sizing)
+    setTimeout(() => { if (DATA) render(); }, 50);
+  });
+});
+
+// ── Slots ────────────────────────────────────────────────────────────────
+async function loadSlots() {
+  const r = await fetch("/api/slots").then(r => r.json()).catch(() => ({}));
+  const sel = document.getElementById("slot-sel");
+  sel.innerHTML = Object.entries(r).map(([k, v]) =>
+    `<option value="${k}">${v.label || k} (${k})</option>`
+  ).join("");
+}
+async function loadDateRange() {
+  const sid = document.getElementById("slot-sel").value || "node_0";
+  const d = await fetch(`${API}/date_range?slot_id=${sid}`).then(r => r.json()).catch(() => ({}));
+  const di = document.getElementById("date-sel");
+  const today = new Date().toISOString().split("T")[0];
+  di.max = today;
+  if (!di.value) di.value = today;
+  if (d.min_date) di.min = d.min_date;
+}
+
+async function loadData() {
+  const st = document.getElementById("status-txt");
+  st.textContent = "Loading…";
+  try {
+    const sid = document.getElementById("slot-sel").value || "node_0";
+    const ds  = document.getElementById("date-sel").value;
+    let url   = `${API}/analytics?slot_id=${sid}`;
+    if (ds) url += `&date_str=${ds}`;
+    DATA = await fetch(url).then(r => r.json());
+    const today = new Date().toISOString().split("T")[0];
+    const s = DATA.summary;
+    st.textContent = `${s.total_nodes} nodes · ${s.live} live · ${ds === today ? "live" : "snapshot " + ds}`;
+    render();
+  } catch (e) {
+    st.textContent = "Error: " + e.message;
+  }
+}
+
+function render() {
+  if (!DATA) return;
+  renderOverview();
+  renderRF();
+  renderTraffic();
+  renderTopology();
+  renderHealth();
+  renderEnvironment();
+  renderPatterns();
+  renderLinks();
+  renderNodeTable();
+  renderAlerts();
+}
+
+// ── OVERVIEW ────────────────────────────────────────────────────────────
+function statCard(elId, val, label, sub, cls) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = `<div class="stat-val ${cls}">${val}</div><div class="stat-lbl">${label}</div>${sub ? `<div class="stat-sub">${sub}</div>` : ""}`;
+}
+
+function renderOverview() {
+  const s = DATA.summary;
+  const trendArrow = s.snr_trend_slope !== null && s.snr_trend_slope !== undefined
+    ? (s.snr_trend_slope > 0.01 ? ' <span class="trend-up">↑</span>' : s.snr_trend_slope < -0.01 ? ' <span class="trend-dn">↓</span>' : ' <span class="trend-fl">→</span>') : '';
+  statCard("ov-total",    s.total_nodes, "Total Nodes", `${s.live} live · ${s.recent} recent · ${s.stale} stale · ${s.offline} offline`, "acc");
+  statCard("ov-live",     s.live, "Live Nodes", `Active &lt;5min · ${s.offline} offline`, "ok");
+  statCard("ov-backbone", s.backbone_count, "Backbone Nodes", `${s.relay_count} relay · ${s.isolated_count} isolated`, "pur");
+  statCard("ov-density",  (s.mesh_density * 100).toFixed(0) + "%", "Mesh Density", `Avg ${s.avg_neighbor} neighbours/node`, "warn");
+
+  const lb = document.getElementById("leaderboard");
+  lb.innerHTML = (DATA.nodes || []).slice(0, 8).map((n, i) => {
+    const gc = i === 0 ? "g1" : i === 1 ? "g2" : i === 2 ? "g3" : "";
+    return `<div class="leader-row" data-id="${esc(n.node_id)}">
+      <div class="leader-rank ${gc}">${i + 1}</div>
+      <div class="leader-name">${esc(n.name || n.node_id)}</div>
+      <span class="tag tag-${n.inferred_role}">${n.inferred_role.toUpperCase()}</span>
+      <div class="leader-bar"><div class="leader-bar-fill" style="width:${(n.node_score * 100).toFixed(0)}%"></div></div>
+      <div class="leader-score">${(n.node_score * 100).toFixed(0)}</div>
+    </div>`;
+  }).join("");
+  lb.querySelectorAll(".leader-row").forEach(r => r.addEventListener("click", () => openPanel(r.dataset.id)));
+
+  const bl = document.getElementById("bottleneck-list");
+  const bots = DATA.bottlenecks || [];
+  bl.innerHTML = bots.length ? bots.map(b =>
+    `<div class="bottle-row" data-id="${esc(b.node_id)}">
+      <div class="bottle-name">${esc(b.name || b.node_id)}</div>
+      <div class="bottle-nb">${b.neighbors} nb</div>
+      <div class="bottle-relays">${b.relays}×</div>
+    </div>`
+  ).join("") : `<div style="color:var(--txt3);font-size:10px;padding:8px 0">No bottleneck nodes detected.</div>`;
+  bl.querySelectorAll(".bottle-row").forEach(r => r.addEventListener("click", () => openPanel(r.dataset.id)));
+
+  const rf = DATA.rf_distribution;
+  drawDonut("rf-donut","rf-donut-legend",["Good (≥5dB)","OK (0–5dB)","Weak (-5–0)","Poor (<-5dB)"],[rf.good,rf.ok,rf.warn,rf.bad],["#1ae87a","#00c8f0","#f0b429","#f04848"]);
+  const bt = DATA.batt_distribution;
+  drawDonut("batt-donut","batt-donut-legend",["OK (≥60%)","Low (30–60%)","Critical (<30%)"],[bt.ok,bt.warn,bt.crit],["#1ae87a","#f0b429","#f04848"]);
+  const fc = {live:DATA.summary.live,recent:DATA.summary.recent,stale:DATA.summary.stale,offline:DATA.summary.offline};
+  drawDonut("fresh-donut","fresh-donut-legend",["Live (<5m)","Recent (<1h)","Stale (<24h)","Offline"],[fc.live,fc.recent,fc.stale,fc.offline],["#1ae87a","#00c8f0","#f0b429","#5a7a96"]);
+}
+
+// ── RF ──────────────────────────────────────────────────────────────────
+function renderRF() {
+  const s = DATA.summary;
+  const rf = DATA.rf_distribution;
+  const badPct = s.total_nodes > 0 ? ((rf.bad / s.total_nodes) * 100).toFixed(0) : 0;
+  statCard("rf-avg-snr",  s.avg_snr !== null ? s.avg_snr + " dB" : "—", "Avg SNR", `P25: ${s.p25_snr ?? "—"} dB · P75: ${s.p75_snr ?? "—"} dB`, "ok");
+  statCard("rf-avg-rssi", s.avg_rssi !== null ? s.avg_rssi + " dBm" : "—", "Avg RSSI", "", "acc");
+  statCard("rf-p25-snr",  s.p25_snr !== null ? s.p25_snr + " dB" : "—", "25th Pct SNR", "Lower quartile link quality", "ok");
+  statCard("rf-bad-count", rf.bad, "Poor Links", `${badPct}% below -5dB SNR`, "err");
+
+  const dr = DATA.daily_rf || [];
+  drawLine("snr-line", dr.map(d=>d.date), [{label:"Avg SNR (dB)",color:"#1ae87a",data:dr.map(d=>d.avg_snr)}], null, true);
+  drawLine("pkt-line", dr.map(d=>d.date), [{label:"RF Packets",color:"#00c8f0",data:dr.map(d=>d.count)}], null, false);
+
+  const hd = DATA.hop_distribution || {};
+  const maxHopVal = Math.max(1,...Object.values(hd));
+  const hopWrap = document.getElementById("hop-dist-bars");
+  const total_hops = Object.values(hd).reduce((a,b) => a+b, 0);
+  hopWrap.innerHTML = Object.keys(hd).sort((a,b)=>Number(a)-Number(b)).map(k => {
+    const v = hd[k];
+    const pct = (v / maxHopVal * 100).toFixed(0);
+    const lbl = k === "0" ? "Direct" : k + " hop" + (k==="1"?"":"s");
+    const col = k==="0"?"var(--ok)":k<=2?"var(--acc)":k<=4?"var(--warn)":"var(--err)";
+    const share = ((v/total_hops)*100).toFixed(1);
+    return `<div class="hop-row">
+      <div class="hop-lbl">${lbl}</div>
+      <div class="hop-bar-wrap"><div class="hop-bar-fill" style="width:${pct}%;background:${col}"></div><span class="hop-cnt">${v} (${share}%)</span></div>
+    </div>`;
+  }).join("") || `<div style="color:var(--txt3);font-size:10px;padding:8px">No hop data.</div>`;
+
+  const topChan = [...(DATA.nodes||[])].filter(n=>n.score_chan_stress!==null&&n.score_chan_stress!==undefined).sort((a,b)=>(b.score_chan_stress||0)-(a.score_chan_stress||0)).slice(0,10);
+  drawHBar("chan-bar", topChan.map(n=>n.name||n.node_id), topChan.map(n=>((n.score_chan_stress||0)*100).toFixed(1)), "#a78bfa");
+
+  // SNR stability tables
+  const nodes_with_snr = (DATA.nodes||[]).filter(n=>n.snr_stddev!==null&&n.snr_stddev!==undefined&&n.snr_stddev>0);
+  const stable = [...nodes_with_snr].sort((a,b)=>a.snr_stddev-b.snr_stddev).slice(0,10);
+  const unstable = [...nodes_with_snr].sort((a,b)=>b.snr_stddev-a.snr_stddev).slice(0,10);
+  document.getElementById("snr-stability-tbl").innerHTML = miniTable(["Node","Avg SNR","Std Dev","Packets"],
+    stable.map(n=>[`<span style="color:var(--acc)">${esc(n.name||n.node_id)}</span>`,
+      n.avg_snr!==null?fmtSNR(n.avg_snr):"—",
+      `<span style="color:var(--ok)">${n.snr_stddev} dB σ</span>`,
+      n.packet_count]));
+  document.getElementById("snr-unstable-tbl").innerHTML = miniTable(["Node","Avg SNR","Std Dev","Packets"],
+    unstable.map(n=>[`<span style="color:var(--acc)">${esc(n.name||n.node_id)}</span>`,
+      n.avg_snr!==null?fmtSNR(n.avg_snr):"—",
+      `<span style="color:var(--err)">${n.snr_stddev} dB σ</span>`,
+      n.packet_count]));
+}
+
+// ── TRAFFIC ─────────────────────────────────────────────────────────────
+function renderTraffic() {
+  const s = DATA.summary;
+  statCard("tr-total-pkts",  s.total_packets.toLocaleString(), "Total Packets", "All time", "acc");
+  statCard("tr-total-bcast", s.total_bcast.toLocaleString(), "Broadcasts", "Total broadcast messages", "ok");
+  statCard("tr-total-dm",    s.total_dm.toLocaleString(), "Direct Messages", "Total DMs across mesh", "pur");
+  statCard("tr-relay-total", s.total_relay.toLocaleString(), "Relay Appearances", "Total packet relay events", "warn");
+
+  const dt = DATA.daily_traffic || [];
+  drawStackedBar("traffic-bar", dt.map(d=>d.date), [
+    {label:"Broadcasts",color:"#1ae87a",data:dt.map(d=>d.bcast)},
+    {label:"DMs",color:"#00c8f0",data:dt.map(d=>d.dm)}
+  ]);
+
+  const dan = DATA.daily_active_nodes || [];
+  drawLine("active-nodes-line", dan.map(d=>d.date), [{label:"Active Nodes",color:"#a78bfa",data:dan.map(d=>d.count)}], null, true);
+
+  const nodes = DATA.nodes || [];
+  const topBcast = [...nodes].sort((a,b)=>b.msg_broadcast-a.msg_broadcast).slice(0,8);
+  const topRelay = [...nodes].sort((a,b)=>b.relay_count-a.relay_count).slice(0,8);
+  document.getElementById("top-bcast-tbl").innerHTML = miniTable(["Node","Broadcasts","DMs Sent","Role"],
+    topBcast.map(n=>[`<span style="color:var(--acc);cursor:pointer" data-id="${esc(n.node_id)}">${esc(n.name||n.node_id)}</span>`,n.msg_broadcast,n.msg_dm,`<span class="tag tag-${n.inferred_role}">${n.inferred_role.toUpperCase()}</span>`]));
+  document.getElementById("top-relay-tbl").innerHTML = miniTable(["Node","Relays","Route Apps","Neighbours"],
+    topRelay.map(n=>[`<span style="color:var(--acc);cursor:pointer" data-id="${esc(n.node_id)}">${esc(n.name||n.node_id)}</span>`,n.relay_count,n.route_appearances,n.neighbor_count]));
+  document.querySelectorAll("#top-bcast-tbl [data-id], #top-relay-tbl [data-id]").forEach(el=>el.addEventListener("click",()=>openPanel(el.dataset.id)));
+
+  // trend table
+  const trendNodes = [...nodes].filter(n=>n.pkt_last24h>0||n.pkt_prior24h>0)
+    .sort((a,b)=>(b.pkt_last24h-b.pkt_prior24h)-(a.pkt_last24h-a.pkt_prior24h)).slice(0,20);
+  document.getElementById("trend-tbl").innerHTML = miniTable(["Node","Last 24h","Prior 24h","Change","Trend"],
+    trendNodes.map(n=>{
+      const chg = n.pkt_trend_pct!==null?`${n.pkt_trend_pct>0?"+":""}${n.pkt_trend_pct}%`:"—";
+      const tc = n.pkt_trend===1?"trend-up":n.pkt_trend===-1?"trend-dn":"trend-fl";
+      const arr = n.pkt_trend===1?"↑ Growing":n.pkt_trend===-1?"↓ Shrinking":"→ Stable";
+      return [`<span style="color:var(--acc)">${esc(n.name||n.node_id)}</span>`,n.pkt_last24h,n.pkt_prior24h,`<span class="${tc}">${chg}</span>`,`<span class="${tc}">${arr}</span>`];
+    }));
+}
+
+// ── TOPOLOGY ────────────────────────────────────────────────────────────
+function renderTopology() {
+  const s = DATA.summary;
+  statCard("topo-backbone-card", s.backbone_count, "Backbone Nodes", `${s.relay_count} relay nodes`, "acc");
+  statCard("topo-isolated-card", s.isolated_count, "Isolated Nodes", "No neighbours or traffic detected", "err");
+  statCard("topo-density-card",  (s.mesh_density*100).toFixed(0)+"%", "Mesh Density", `${s.avg_neighbor} avg neighbours/node`, "ok");
+
+  const nodes = DATA.nodes || [];
+  const roles = {backbone:0,relay:0,observer:0,isolated:0};
+  nodes.forEach(n => { roles[n.inferred_role]=(roles[n.inferred_role]||0)+1; });
+  drawDonut("role-donut","role-donut-legend",["Backbone","Relay","Observer","Isolated"],[roles.backbone,roles.relay,roles.observer,roles.isolated],["#00c8f0","#1ae87a","#f0b429","#f04848"]);
+  drawScatter("scatter-chart",nodes.map(n=>({x:n.score_central,y:n.score_rf,r:Math.max(3,Math.min(14,3+(n.relay_count||0)*1.5)),label:n.name||n.node_id,id:n.node_id,role:n.inferred_role})));
+
+  const iso = DATA.isolated_nodes||[];
+  document.getElementById("isolated-list").innerHTML = iso.length
+    ? iso.map(n=>`<div class="alert err" data-id="${esc(n.node_id)}" style="cursor:pointer">
+        <div class="alert-icon">⬡</div>
+        <div class="alert-body">
+          <div class="alert-title">${esc(n.name||n.node_id)}</div>
+          <div class="alert-msg">Last seen: ${fmtAge2(n.age)} · No neighbours</div>
+        </div>
+      </div>`).join("")
+    : `<div style="color:var(--txt3);font-size:10px;padding:8px">No isolated nodes.</div>`;
+  document.querySelectorAll("#isolated-list [data-id]").forEach(el=>el.addEventListener("click",()=>openPanel(el.dataset.id)));
+
+  // HW dist
+  const hw = DATA.hw_distribution || {};
+  const hwMax = Math.max(1,...Object.values(hw));
+  document.getElementById("hw-dist-list").innerHTML = Object.entries(hw).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([k,v])=>
+    `<div class="dist-row">
+      <div class="dist-lbl">${esc(k)}</div>
+      <div class="dist-bar-wrap"><div class="dist-bar-fill" style="width:${(v/hwMax*100).toFixed(0)}%;background:var(--warn)"></div></div>
+      <div class="dist-cnt">${v}</div>
+    </div>`
+  ).join("") || `<div style="color:var(--txt3);font-size:10px;padding:8px">No hardware data.</div>`;
+
+  // FW dist
+  const fw = DATA.fw_distribution || {};
+  const fwMax = Math.max(1,...Object.values(fw));
+  document.getElementById("fw-dist-list").innerHTML = Object.entries(fw).sort((a,b)=>b[1]-a[1]).slice(0,15).map(([k,v])=>
+    `<div class="dist-row">
+      <div class="dist-lbl">${esc(k)}</div>
+      <div class="dist-bar-wrap"><div class="dist-bar-fill" style="width:${(v/fwMax*100).toFixed(0)}%;background:var(--teal)"></div></div>
+      <div class="dist-cnt">${v}</div>
+    </div>`
+  ).join("") || `<div style="color:var(--txt3);font-size:10px;padding:8px">No firmware data.</div>`;
+}
+
+// ── HEALTH ──────────────────────────────────────────────────────────────
+function renderHealth() {
+  const s = DATA.summary;
+  const nodes = DATA.nodes || [];
+  const critBatt = nodes.filter(n=>n.battery!==null&&n.battery<20).length;
+  const weakRelay = nodes.filter(n=>n.score_rf<0.25&&n.relay_count>=2).length;
+
+  statCard("health-resilience", (s.mesh_resilience*100).toFixed(0)+"%", "Mesh Resilience", "100% = no single point of failure", s.mesh_resilience>=0.7?"ok":s.mesh_resilience>=0.4?"warn":"err");
+  statCard("health-crit-batt", critBatt, "Critical Batteries", "Nodes below 20% charge", critBatt>0?"err":"ok");
+  statCard("health-weak-relay", weakRelay, "Weak Relay Nodes", "Poor RF but still relaying", weakRelay>0?"warn":"ok");
+  statCard("health-avg-score", (s.median_score*100).toFixed(0)+"%", "Median Node Score", "50th percentile composite health", "acc");
+
+  // resilience risks
+  const rr = DATA.resilience_risks || [];
+  document.getElementById("resil-list").innerHTML = rr.length ? rr.map(r=>{
+    const riskCol = r.risk_score>0.02?"var(--err)":r.risk_score>0.01?"var(--warn)":"var(--ok)";
+    return `<div class="resil-row" data-id="${esc(r.node_id)}">
+      <span class="tag tag-${r.role}">${r.role.toUpperCase()}</span>
+      <div class="resil-name">${esc(r.name||r.node_id)}</div>
+      <div class="resil-sub">${r.neighbor_count} nb</div>
+      <div class="resil-sub">${r.route_appearances} routes</div>
+      <div class="resil-impact" style="color:${riskCol}">${r.impact_pct}% impact</div>
+    </div>`;
+  }).join("") : `<div style="color:var(--ok);font-size:10px;padding:12px">No critical resilience risks detected — good redundancy!</div>`;
+  document.querySelectorAll("#resil-list [data-id]").forEach(el=>el.addEventListener("click",()=>openPanel(el.dataset.id)));
+
+  // battery risk table
+  const battRisk = nodes.filter(n=>n.score_batt_risk!==null&&n.score_batt_risk!==undefined).sort((a,b)=>b.score_batt_risk-a.score_batt_risk).slice(0,10);
+  document.getElementById("batt-risk-tbl").innerHTML = miniTable(["Node","Battery","Batt Min","Risk Score"],
+    battRisk.map(n=>[`<span style="color:var(--acc)">${esc(n.name||n.node_id)}</span>`,
+      n.battery!==null?fmtBatt(n.battery):"—",
+      n.batt_min!==null?fmtBatt(n.batt_min):"—",
+      scoreBar(n.score_batt_risk,"#f0b429")]));
+
+  // channel risk
+  const chanRisk = nodes.filter(n=>n.score_chan_stress!==null).sort((a,b)=>b.score_chan_stress-a.score_chan_stress).slice(0,10);
+  document.getElementById("chan-risk-tbl").innerHTML = miniTable(["Node","Chan Util","Air TX","Stress"],
+    chanRisk.map(n=>[`<span style="color:var(--acc)">${esc(n.name||n.node_id)}</span>`,
+      n.chan_util!==null?`${Number(n.chan_util).toFixed(1)}%`:"—",
+      n.air_util!==null?`${Number(n.air_util).toFixed(1)}%`:"—",
+      scoreBar(n.score_chan_stress,"#a78bfa")]));
+
+  // score histogram
+  drawScoreHistogram("score-hist", nodes.map(n=>n.node_score));
+}
+
+// ── ENVIRONMENT ─────────────────────────────────────────────────────────
+function renderEnvironment() {
+  const env = DATA.env_summary || {};
+  const hasSensors = env.sensor_node_count > 0;
+
+  document.getElementById("env-no-data").style.display = hasSensors ? "none" : "block";
+  document.getElementById("env-sensor-nodes-card").style.display = hasSensors ? "block" : "none";
+
+  if (!hasSensors) {
+    statCard("env-temp-card", "—", "Temperature", "No sensors detected", "teal");
+    statCard("env-humidity-card", "—", "Humidity", "No sensors detected", "acc");
+    statCard("env-pressure-card", "—", "Pressure", "No sensors detected", "ok");
+    statCard("env-iaq-card", "—", "Air Quality (IAQ)", "No sensors detected", "pur");
+    return;
+  }
+
+  statCard("env-temp-card", env.avg_temp!==null?env.avg_temp+"°C":"—", "Avg Temperature", `Range: ${env.min_temp}°C – ${env.max_temp}°C across ${env.sensor_node_count} sensors`, "teal");
+  statCard("env-humidity-card", env.avg_humidity!==null?env.avg_humidity+"%":"—", "Avg Humidity", `${env.sensor_node_count} nodes reporting`, "acc");
+  statCard("env-pressure-card", env.avg_pressure!==null?env.avg_pressure+" hPa":"—", "Avg Pressure", "Barometric pressure", "ok");
+  statCard("env-iaq-card", env.avg_iaq!==null?env.avg_iaq.toFixed(0):"—", "Avg IAQ", "Air quality index (lower=better)", "pur");
+
+  const sensorNodes = (DATA.nodes||[]).filter(n=>n.env_readings>0);
+  document.getElementById("env-node-tbl").innerHTML = miniTable(
+    ["Node","Temp °C","Min/Max","Humidity %","Pressure hPa","IAQ","Readings"],
+    sensorNodes.map(n=>[
+      `<span style="color:var(--teal)">${esc(n.name||n.node_id)}</span>`,
+      n.avg_temp!==null?`<span style="color:var(--teal)">${n.avg_temp}</span>`:"—",
+      (n.min_temp!==null&&n.max_temp!==null)?`${n.min_temp}/${n.max_temp}`:"—",
+      n.avg_humidity!==null?`<span style="color:var(--acc)">${n.avg_humidity}</span>`:"—",
+      n.avg_pressure!==null?n.avg_pressure:"—",
+      n.avg_iaq!==null?`<span style="color:${n.avg_iaq<50?"var(--ok)":n.avg_iaq<100?"var(--warn)":"var(--err)"}">${n.avg_iaq.toFixed(0)}</span>`:"—",
+      n.env_readings
+    ])
+  );
+
+  // env timelines
+  const envTimeline = DATA.env_timeline || {};
+  const envNodes = Object.keys(envTimeline);
+  if (envNodes.length > 0) {
+    // get all unique dates
+    const allDates = [...new Set(envNodes.flatMap(nid=>envTimeline[nid].map(d=>d.date)))].sort();
+    const colors = ["#2dd4bf","#00c8f0","#a78bfa","#f472b6","#1ae87a"];
+    drawLine("env-temp-line", allDates,
+      envNodes.slice(0,5).map((nid,i)=>({
+        label: (DATA.nodes||[]).find(n=>n.node_id===nid)?.name || nid,
+        color: colors[i%colors.length],
+        data: allDates.map(d=>envTimeline[nid].find(r=>r.date===d)?.temp ?? null)
+      })), null, true);
+    drawLine("env-humidity-line", allDates,
+      envNodes.slice(0,5).map((nid,i)=>({
+        label: (DATA.nodes||[]).find(n=>n.node_id===nid)?.name || nid,
+        color: colors[i%colors.length],
+        data: allDates.map(d=>envTimeline[nid].find(r=>r.date===d)?.humidity ?? null)
+      })), null, true);
+  }
+}
+
+// ── PATTERNS ────────────────────────────────────────────────────────────
+function renderPatterns() {
+  const hourly = DATA.hourly_dist || new Array(24).fill(0);
+  const maxH = Math.max(1,...hourly);
+
+  // hour labels
+  const hlContainer = document.getElementById("hm-hour-labels");
+  if (hlContainer) {
+    hlContainer.innerHTML = hourly.map((_,h)=>`<div style="text-align:center;font-size:10px;color:var(--txt3)">${h.toString().padStart(2,"0")}</div>`).join("");
+  }
+
+  // heatmap cells (single row for now — could be extended to per-node rows)
+  const hm = document.getElementById("heatmap");
+  if (hm) {
+    hm.innerHTML = hourly.map((v,h)=>{
+      const intensity = v / maxH;
+      const r = Math.round(0 + intensity * 0);
+      const g = Math.round(200 + intensity * 55);
+      const b = Math.round(240 - intensity * 80);
+      const alpha = 0.1 + intensity * 0.9;
+      const bg = `rgba(0,${Math.round(intensity*200+50)},${Math.round(240-intensity*80)},${alpha})`;
+      return `<div class="hm-cell" style="background:${bg};color:${intensity>0.5?'#000':'var(--txt3)'}">${v>0?v:''}</div>`;
+    }).join("");
+  }
+
+  // legend
+  const legend = document.getElementById("hm-legend");
+  if (legend) {
+    legend.innerHTML = [0,.25,.5,.75,1].map(v=>`<div style="width:16px;height:12px;border-radius:2px;background:rgba(0,${Math.round(v*200+50)},${Math.round(240-v*80)},${0.1+v*0.9})"></div>`).join("");
+  }
+
+  // combined RF + traffic line
+  const dr = DATA.daily_rf || [];
+  const dt = DATA.daily_traffic || [];
+  const allDates = [...new Set([...dr.map(d=>d.date),...dt.map(d=>d.date)])].sort();
+  const dtMap = Object.fromEntries(dt.map(d=>[d.date,d]));
+  const drMap = Object.fromEntries(dr.map(d=>[d.date,d]));
+  drawLine("combined-line", allDates, [
+    {label:"Avg SNR",color:"#1ae87a",data:allDates.map(d=>drMap[d]?.avg_snr??null)},
+    {label:"RF Packets ÷10",color:"#00c8f0",data:allDates.map(d=>drMap[d]?drMap[d].count/10:null)},
+    {label:"Messages",color:"#f0b429",data:allDates.map(d=>dtMap[d]?(dtMap[d].bcast+dtMap[d].dm):null)},
+  ], null, true);
+
+  // trend bar chart: top 10 most active nodes last 24h
+  const nodes = [...(DATA.nodes||[])].filter(n=>n.pkt_last24h>0||n.pkt_prior24h>0).sort((a,b)=>b.pkt_last24h-a.pkt_last24h).slice(0,10);
+  drawGroupedBar("trend-bar", nodes.map(n=>n.short_name||n.name||n.node_id), [
+    {label:"Last 24h",color:"#00c8f0",data:nodes.map(n=>n.pkt_last24h)},
+    {label:"Prior 24h",color:"#2a3d52",data:nodes.map(n=>n.pkt_prior24h)},
+  ]);
+}
+
+// ── LINKS ────────────────────────────────────────────────────────────────
+function renderLinks() {
+  const links = DATA.top_links || [];
+  const nodes = DATA.nodes || [];
+  const nbMap = {};
+  nodes.forEach(n=>{
+    (n.neighbors||[]).forEach(nb=>{
+      const key = `${Math.min(n.node_id,nb.id)}_${Math.max(n.node_id,nb.id)}`;
+      if (!nbMap[key] && nb.snr!==null) nbMap[key] = {snr:nb.snr};
+    });
+  });
+
+  statCard("links-total-card", links.reduce((a,l)=>a+l.count,0).toLocaleString(), "Total Route Traversals", "Sum of all link usages", "acc");
+  statCard("links-top-card", links[0]?`${links[0].a_name} ↔ ${links[0].b_name}`:"—", "Most Used Link", links[0]?`${links[0].count} traversals`:"", "ok");
+  statCard("links-unique-card", links.length, "Unique Links Observed", "From traceroute data", "pur");
+
+  document.getElementById("link-list").innerHTML = links.length ? links.map((l,i)=>{
+    const barPct = ((l.count/links[0].count)*100).toFixed(0);
+    const col = i===0?"var(--warn)":i<3?"var(--acc)":"var(--txt2)";
+    return `<div class="link-row">
+      <div style="width:24px;font-family:var(--sans);font-weight:800;color:${col};flex-shrink:0">${i+1}</div>
+      <div class="link-nodes"><span style="color:var(--acc)">${esc(l.a_name)}</span> <span style="color:var(--txt3)">↔</span> <span style="color:var(--ok)">${esc(l.b_name)}</span></div>
+      <div style="flex:1;height:4px;background:var(--bd2);border-radius:2px;overflow:hidden">
+        <div style="height:100%;width:${barPct}%;background:${col};border-radius:2px"></div>
+      </div>
+      <div class="link-count">${l.count}×</div>
+    </div>`;
+  }).join("") : `<div style="color:var(--txt3);font-size:10px;padding:12px">No traceroute link data available.</div>`;
+
+  // neighbour SNR table
+  const nbRows = [];
+  nodes.forEach(n=>{
+    (n.neighbors||[]).filter(nb=>nb.snr!==null).forEach(nb=>{
+      nbRows.push({a:n.name||n.node_id,a_id:n.node_id,b:nb.id,snr:nb.snr});
+    });
+  });
+  const nameMap = Object.fromEntries(nodes.map(n=>[n.node_id,n.name||n.node_id]));
+  const nbSorted = nbRows.sort((a,b)=>b.snr-a.snr).slice(0,20);
+  document.getElementById("nb-snr-tbl").innerHTML = miniTable(["Node A","Node B","SNR"],
+    nbSorted.map(r=>[`<span style="color:var(--acc)">${esc(r.a)}</span>`,`<span style="color:var(--ok)">${esc(nameMap[r.b]||r.b)}</span>`,fmtSNR(r.snr)]));
+
+  // link scatter: usage vs snr quality
+  const scatterPts = links.map(l=>{
+    const na = nodes.find(n=>n.node_id===l.a);
+    const nb2 = nodes.find(n=>n.node_id===l.b);
+    const avgSNR = ((na?.avg_snr||0)+(nb2?.avg_snr||0))/2;
+    return {x:l.count,y:avgSNR,label:`${l.a_name}↔${l.b_name}`,count:l.count};
+  }).filter(p=>p.y!==0);
+  drawLinkScatter("link-scatter",scatterPts);
+}
+
+// ── NODE TABLE ───────────────────────────────────────────────────────────
+const TCOLS = [
+  {k:"node_score",   l:"Score"},
+  {k:"name",         l:"Name"},
+  {k:"inferred_role",l:"Role"},
+  {k:"packet_count", l:"Pkts"},
+  {k:"pkt_last24h",  l:"24h"},
+  {k:"pkt_trend",    l:"Trend"},
+  {k:"relay_count",  l:"Relays"},
+  {k:"neighbor_count",l:"Nbrs"},
+  {k:"avg_snr",      l:"Avg SNR"},
+  {k:"snr_stddev",   l:"SNR σ"},
+  {k:"avg_rssi",     l:"Avg RSSI"},
+  {k:"battery",      l:"Batt"},
+  {k:"chan_util",    l:"Ch Util"},
+  {k:"avg_temp",     l:"Temp"},
+  {k:"score_rf",     l:"RF"},
+  {k:"score_central",l:"Central"},
+  {k:"age_seconds",  l:"Age"},
+];
+
+function renderNodeTable() {
+  const nodes = DATA.nodes || [];
+  const q = NODE_SEARCH.toLowerCase();
+  const rf = NODE_ROLE;
+  let rows = nodes.filter(n=>{
+    if (rf && n.inferred_role!==rf) return false;
+    if (q) return (n.name||"").toLowerCase().includes(q)||(n.node_id||"").toLowerCase().includes(q);
+    return true;
+  });
+  rows = [...rows].sort((a,b)=>{
+    let av=a[SORT_COL],bv=b[SORT_COL];
+    if (av===null||av===undefined) return SORT_DIR>0?-1:1;
+    if (bv===null||bv===undefined) return SORT_DIR>0?1:-1;
+    if (typeof av==="string") return SORT_DIR*av.localeCompare(bv);
+    return SORT_DIR*(av-bv);
+  });
+  document.getElementById("node-count-lbl").textContent = `${rows.length} nodes`;
+  const thead = document.getElementById("nthead");
+  thead.innerHTML = TCOLS.map(c=>{
+    const cl=c.k===SORT_COL?(SORT_DIR>0?"sa":"sd"):"";
+    return `<th class="${cl}" data-c="${c.k}">${c.l}</th>`;
+  }).join("");
+  thead.querySelectorAll("th").forEach(th=>th.addEventListener("click",()=>{
+    const c=th.dataset.c;
+    if (SORT_COL===c) SORT_DIR*=-1; else {SORT_COL=c;SORT_DIR=-1;}
+    renderNodeTable();
+  }));
+  const tbody = document.getElementById("ntbody");
+  if (!rows.length) { tbody.innerHTML=`<tr><td colspan="${TCOLS.length}" style="padding:40px;text-align:center;color:var(--txt3)">No nodes.</td></tr>`; return; }
+  tbody.innerHTML = rows.map(n=>{
+    const trendStr = n.pkt_trend===1?`<span class="trend-up">↑</span>`:n.pkt_trend===-1?`<span class="trend-dn">↓</span>`:`<span class="trend-fl">→</span>`;
+    return `<tr class="${n.node_id===SEL?"sel":""}" data-id="${esc(n.node_id)}">
+      <td class="r">${scoreBar(n.node_score)}</td>
+      <td><span style="color:var(--acc);font-weight:600">${esc(n.name||n.node_id)}</span>${n.is_local?` <span class="tag tag-local">LOCAL</span>`:""}</td>
+      <td><span class="tag tag-${n.inferred_role}">${n.inferred_role.toUpperCase()}</span></td>
+      <td class="r">${n.packet_count||0}</td>
+      <td class="r">${n.pkt_last24h||0}</td>
+      <td class="r">${trendStr}</td>
+      <td class="r" style="color:${n.relay_count>=5?"var(--warn)":n.relay_count>=2?"var(--acc)":"var(--txt2)"}">${n.relay_count||0}</td>
+      <td class="r">${n.neighbor_count||0}</td>
+      <td class="r">${n.avg_snr!==null&&n.avg_snr!==undefined?fmtSNR(n.avg_snr):`<span class="nil">—</span>`}</td>
+      <td class="r">${n.snr_stddev!==null&&n.snr_stddev!==undefined?`<span style="color:${n.snr_stddev<2?"var(--ok)":n.snr_stddev<5?"var(--warn)":"var(--err)"}">${n.snr_stddev}σ</span>`:`<span class="nil">—</span>`}</td>
+      <td class="r">${n.avg_rssi!==null&&n.avg_rssi!==undefined?fmtRSSI(n.avg_rssi):`<span class="nil">—</span>`}</td>
+      <td class="r">${n.battery!==null&&n.battery!==undefined?fmtBatt(n.battery):`<span class="nil">—</span>`}</td>
+      <td class="r">${n.chan_util!==null&&n.chan_util!==undefined?`<span style="color:${n.chan_util>50?"var(--warn)":"var(--txt2)"}">${Number(n.chan_util).toFixed(1)}%</span>`:`<span class="nil">—</span>`}</td>
+      <td class="r">${n.avg_temp!==null&&n.avg_temp!==undefined?`<span style="color:var(--teal)">${n.avg_temp}°C</span>`:`<span class="nil">—</span>`}</td>
+      <td class="r">${scoreBar(n.score_rf,"#1ae87a")}</td>
+      <td class="r">${scoreBar(n.score_central,"#00c8f0")}</td>
+      <td class="r">${n.age_seconds!==null&&n.age_seconds!==undefined?fmtAge2(n.age_seconds):`<span class="nil">—</span>`}</td>
+    </tr>`;
+  }).join("");
+  tbody.querySelectorAll("tr").forEach(tr=>tr.addEventListener("click",()=>{SEL=tr.dataset.id;renderNodeTable();openPanel(SEL);}));
+}
+
+// ── ALERTS ───────────────────────────────────────────────────────────────
+function renderAlerts() {
+  const nodes = DATA.nodes || [];
+  const s = DATA.summary;
+  const alerts = [];
+
+  // CRITICAL
+  (DATA.isolated_nodes||[]).forEach(n=>alerts.push({cls:"err",sev:"CRITICAL",icon:"⬡",title:`Isolated: ${n.name||n.node_id}`,msg:`No neighbours detected · offline for ${fmtAge2Plain(n.age)}`}));
+  nodes.filter(n=>n.battery!==null&&n.battery<15).forEach(n=>alerts.push({cls:"err",sev:"CRITICAL",icon:"⚡",title:`Battery Near Dead: ${n.name||n.node_id}`,msg:`Only ${n.battery}% remaining — node may drop offline soon`}));
+
+  // HIGH
+  nodes.filter(n=>n.battery!==null&&n.battery>=15&&n.battery<25).forEach(n=>alerts.push({cls:"err",sev:"HIGH",icon:"⚡",title:`Critical Battery: ${n.name||n.node_id}`,msg:`Battery at ${n.battery}% · risk score ${((n.score_batt_risk||0)*100).toFixed(0)}%`}));
+  (DATA.resilience_risks||[]).slice(0,2).filter(r=>r.risk_score>0.02).forEach(r=>alerts.push({cls:"err",sev:"HIGH",icon:"◉",title:`Single Point of Failure: ${r.name||r.node_id}`,msg:`Carries ${r.impact_pct}% of route traffic with only ${r.neighbor_count} alternative neighbours — critical mesh dependency`}));
+
+  // MEDIUM
+  nodes.filter(n=>n.battery!==null&&n.battery>=25&&n.battery<35).forEach(n=>alerts.push({cls:"warn",sev:"MEDIUM",icon:"⚡",title:`Low Battery: ${n.name||n.node_id}`,msg:`Battery at ${n.battery}% — monitor soon`}));
+  (DATA.bottlenecks||[]).slice(0,3).forEach(b=>{
+    const ratio=b.neighbors>0?(b.relays/b.neighbors).toFixed(1):"∞";
+    alerts.push({cls:"warn",sev:"MEDIUM",icon:"◎",title:`Bottleneck Risk: ${b.name||b.node_id}`,msg:`${b.relays} relays with only ${b.neighbors} neighbours (ratio ${ratio}:1) — consider adding a node nearby`});
+  });
+  nodes.filter(n=>n.chan_util!==null&&n.chan_util>60).forEach(n=>alerts.push({cls:"warn",sev:"MEDIUM",icon:"📡",title:`High Channel Utilisation: ${n.name||n.node_id}`,msg:`At ${Number(n.chan_util).toFixed(1)}% channel utilisation — risk of congestion and dropped packets`}));
+  nodes.filter(n=>n.score_rf<0.25&&n.relay_count>=2).forEach(n=>alerts.push({cls:"warn",sev:"MEDIUM",icon:"RF",title:`Weak Relay Node: ${n.name||n.node_id}`,msg:`RF health ${(n.score_rf*100).toFixed(0)}% but relaying ${n.relay_count} routes — poor placement or hardware issue`}));
+
+  // LOW / INFO
+  const hd=DATA.hop_distribution||{};
+  const highHop=Object.entries(hd).filter(([k])=>Number(k)>=5).reduce((a,[,v])=>a+v,0);
+  if (highHop>0) alerts.push({cls:"info",sev:"LOW",icon:"↗",title:`Long Multi-Hop Paths`,msg:`${highHop} packets traversing ≥5 hops — consider adding intermediate relay nodes`});
+  if (s.stale+s.offline>s.live+s.recent&&s.total_nodes>0) alerts.push({cls:"warn",sev:"LOW",icon:"⏱",title:`Majority of Nodes Stale/Offline`,msg:`${s.stale+s.offline} nodes inactive vs ${s.live+s.recent} active — check network coverage`});
+
+  // SNR trend
+  if (s.snr_trend_slope!==null&&s.snr_trend_slope<-0.05) alerts.push({cls:"warn",sev:"LOW",icon:"📉",title:`Declining RF Quality Trend`,msg:`Average SNR declining over last 7 days (slope: ${s.snr_trend_slope} dB/day) — monitor for interference or node movement`});
+  if (s.snr_trend_slope!==null&&s.snr_trend_slope>0.05) alerts.push({cls:"ok",sev:"INFO",icon:"📈",title:`Improving RF Quality`,msg:`Average SNR improving over last 7 days — good sign of network stabilisation`});
+
+  // positive
+  if (s.mesh_resilience>=0.7) alerts.push({cls:"ok",sev:"INFO",icon:"✓",title:"Good Mesh Resilience",msg:`Resilience score ${(s.mesh_resilience*100).toFixed(0)}% — no single node dominates routing`});
+  if (s.mesh_density>=0.3) alerts.push({cls:"ok",sev:"INFO",icon:"✓",title:"Good Mesh Density",msg:`Density ${(s.mesh_density*100).toFixed(0)}% with avg ${s.avg_neighbor} neighbours — reasonable redundancy`});
+
+  const sevOrder = {CRITICAL:0,HIGH:1,MEDIUM:2,LOW:3,INFO:4};
+  alerts.sort((a,b)=>(sevOrder[a.sev]||4)-(sevOrder[b.sev]||4));
+
+  const errCount=alerts.filter(a=>a.cls==="err").length;
+  const warnCount=alerts.filter(a=>a.cls==="warn").length;
+  document.getElementById("alert-summary").textContent = `${alerts.length} total · ${errCount} errors · ${warnCount} warnings`;
+
+  const al=document.getElementById("alert-list");
+  const sevColors={CRITICAL:"#f04848",HIGH:"#f04848",MEDIUM:"#f0b429",LOW:"#00c8f0",INFO:"#1ae87a"};
+  al.innerHTML=alerts.length?alerts.map(a=>`<div class="alert ${a.cls}">
+    <div class="alert-icon">${a.icon}</div>
+    <div class="alert-body">
+      <div class="alert-title"><span style="font-size:11px;padding:1px 5px;border-radius:2px;background:${sevColors[a.sev]}22;color:${sevColors[a.sev]};border:1px solid ${sevColors[a.sev]}44;margin-right:6px">${a.sev}</span>${esc(a.title)}</div>
+      <div class="alert-msg">${esc(a.msg)}</div>
+    </div>
+  </div>`).join("")
+  :`<div class="alert ok"><div class="alert-icon">✓</div><div class="alert-body"><div class="alert-title">No issues detected</div><div class="alert-msg">All checks passed.</div></div></div>`;
+}
+
+// ── NODE DETAIL PANEL ────────────────────────────────────────────────────
+function openPanel(nid) {
+  const n = (DATA.nodes||[]).find(x=>x.node_id===nid);
+  if (!n) return;
+  SEL = nid;
+
+  const sc=(v,col)=>`<div class="score-bar"><div class="score-bar-fill" style="width:${((v||0)*100).toFixed(0)}%;background:${col||"var(--acc)"}"></div></div>`;
+  const kv=(k,v,cls)=>`<div class="kv-k">${k}</div><div class="kv-v ${cls||""}">${v!==null&&v!==undefined&&v!==""?String(v).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"):`<span class="nil">—</span>`}</div>`;
+
+  let h=`<div class="pn-title">${esc(n.name||n.node_id)}</div>`;
+  h+=`<div class="pn-sub">${esc(n.node_id)}${n.short_name?` · ${esc(n.short_name)}`:""}${n.is_local?` · <b style="color:var(--ok)">LOCAL NODE</b>`:""}</div>`;
+
+  // scores
+  h+=`<div class="pn-sec"><div class="pn-sec-h">Composite Scores</div><div class="score-grid">
+    <div class="score-item"><div class="score-item-lbl">Overall Health</div><div class="score-item-val" style="color:var(--acc)">${(n.node_score*100).toFixed(0)}</div>${sc(n.node_score,"var(--acc)")}</div>
+    <div class="score-item"><div class="score-item-lbl">RF Health</div><div class="score-item-val" style="color:var(--ok)">${(n.score_rf*100).toFixed(0)}</div>${sc(n.score_rf,"var(--ok)")}</div>
+    <div class="score-item"><div class="score-item-lbl">Centrality</div><div class="score-item-val" style="color:var(--pur)">${(n.score_central*100).toFixed(0)}</div>${sc(n.score_central,"var(--pur)")}</div>
+    <div class="score-item"><div class="score-item-lbl">Freshness</div><div class="score-item-val" style="color:var(--acc)">${(n.score_fresh*100).toFixed(0)}</div>${sc(n.score_fresh,"var(--acc)")}</div>
+    ${n.score_batt_risk!==null&&n.score_batt_risk!==undefined?`<div class="score-item"><div class="score-item-lbl">Batt Risk</div><div class="score-item-val" style="color:var(--warn)">${(n.score_batt_risk*100).toFixed(0)}</div>${sc(n.score_batt_risk,"var(--warn)")}</div>`:""}
+    ${n.score_chan_stress!==null&&n.score_chan_stress!==undefined?`<div class="score-item"><div class="score-item-lbl">Chan Stress</div><div class="score-item-val" style="color:var(--pur)">${(n.score_chan_stress*100).toFixed(0)}</div>${sc(n.score_chan_stress,"var(--pur)")}</div>`:""}
+    ${n.snr_stability!==null&&n.snr_stability!==undefined?`<div class="score-item"><div class="score-item-lbl">SNR Stability</div><div class="score-item-val" style="color:var(--teal)">${(n.snr_stability*100).toFixed(0)}</div>${sc(n.snr_stability,"var(--teal)")}</div>`:""}
+  </div></div>`;
+
+  // identity
+  h+=`<div class="pn-sec"><div class="pn-sec-h">Identity & Status</div><div class="kv">
+    ${kv("Inferred Role",`<span class="tag tag-${n.inferred_role}">${n.inferred_role.toUpperCase()}</span>`)}
+    ${kv("Stated Role",n.role)}
+    ${kv("Freshness",n.freshness_class)}
+    ${kv("Last Heard",n.age_seconds!==null?fmtAge2(n.age_seconds):null)}
+  </div></div>`;
+
+  // topology
+  h+=`<div class="pn-sec"><div class="pn-sec-h">Topology & Routing</div><div class="kv">
+    ${kv("Relay Count",n.relay_count)}
+    ${kv("Route Appearances",n.route_appearances)}
+    ${kv("Neighbours",n.neighbor_count)}
+    ${kv("Avg Neighbour SNR",n.avg_nb_snr!==null?n.avg_nb_snr+" dB":null)}
+    ${kv("Traceroutes Sent",n.tr_sent)}
+    ${kv("Traceroutes Recv",n.tr_recv)}
+    ${kv("Avg Hop Limit",n.avg_hop!==null?Number(n.avg_hop).toFixed(1):null)}
+    ${kv("Hop Variance",n.hop_variance!==null?n.hop_variance+" σ":null)}
+  </div></div>`;
+
+  // RF
+  const snrCls = n.avg_snr>=5?"ok":n.avg_snr>=0?"hi":n.avg_snr>=-5?"warn":"err";
+  h+=`<div class="pn-sec"><div class="pn-sec-h">RF / Signal Quality</div><div class="kv">
+    ${kv("Avg SNR",n.avg_snr!==null?n.avg_snr+" dB":null,snrCls)}
+    ${kv("Avg RSSI",n.avg_rssi!==null?n.avg_rssi+" dBm":null)}
+    ${kv("SNR Range",n.min_snr!==null&&n.max_snr!==null?`${n.min_snr} → ${n.max_snr} dB`:null)}
+    ${kv("SNR Std Dev",n.snr_stddev!==null?n.snr_stddev+" dB σ (lower=stable)":null)}
+    ${kv("SNR Stability",n.snr_stability!==null?`${(n.snr_stability*100).toFixed(0)}%`:null)}
+    ${kv("Total Packets",n.packet_count)}
+    ${kv("RF / MQTT / Unk",`${n.rf_packets} / ${n.mqtt_packets} / ${(n.packet_count-n.rf_packets-n.mqtt_packets)||0}`)}
+  </div></div>`;
+
+  // traffic
+  h+=`<div class="pn-sec"><div class="pn-sec-h">Traffic Activity</div><div class="kv">
+    ${kv("Packets Last 24h",n.pkt_last24h)}
+    ${kv("Packets Prior 24h",n.pkt_prior24h)}
+    ${kv("24h Trend",n.pkt_trend_pct!==null?(n.pkt_trend===1?"↑ ":n.pkt_trend===-1?"↓ ":"→ ")+n.pkt_trend_pct+"%":n.pkt_trend===0?"→ Stable":"No prior data")}
+    ${kv("Broadcasts",n.msg_broadcast)}
+    ${kv("DMs Sent",n.msg_dm)}
+  </div></div>`;
+
+  // power
+  h+=`<div class="pn-sec"><div class="pn-sec-h">Power & Channel</div><div class="kv">
+    ${kv("Battery",n.battery!==null?n.battery+"%":null,n.battery>=60?"ok":n.battery>=30?"warn":"err")}
+    ${kv("Battery Min Seen",n.batt_min!==null?n.batt_min+"%":null)}
+    ${kv("Voltage",n.voltage!==null?Number(n.voltage).toFixed(2)+"V":null)}
+    ${kv("Max Uptime",n.max_uptime?fmtUptime(n.max_uptime):null)}
+    ${kv("Chan Utilisation",n.chan_util!==null?Number(n.chan_util).toFixed(1)+"%":null)}
+    ${kv("Air TX Utilisation",n.air_util!==null?Number(n.air_util).toFixed(1)+"%":null)}
+  </div></div>`;
+
+  // environment
+  if (n.env_readings > 0) {
+    h+=`<div class="pn-sec"><div class="pn-sec-h">Environmental Sensors</div><div class="kv">
+      ${kv("Avg Temperature",n.avg_temp!==null?n.avg_temp+"°C":null,"teal")}
+      ${kv("Temp Range",n.min_temp!==null&&n.max_temp!==null?`${n.min_temp}°C – ${n.max_temp}°C`:null)}
+      ${kv("Avg Humidity",n.avg_humidity!==null?n.avg_humidity+"%":null)}
+      ${kv("Avg Pressure",n.avg_pressure!==null?n.avg_pressure+" hPa":null)}
+      ${kv("Air Quality (IAQ)",n.avg_iaq!==null?n.avg_iaq.toFixed(0)+" ("+iaqLabel(n.avg_iaq)+")":null)}
+      ${kv("Sensor Readings",n.env_readings)}
+    </div></div>`;
+  }
+
+  // location
+  if (n.lat && n.lon) {
+    h+=`<div class="pn-sec"><div class="pn-sec-h">Position</div><div class="kv">
+      <div class="kv-k">Lat / Lon</div><div class="kv-v hi">${Number(n.lat).toFixed(5)}, ${Number(n.lon).toFixed(5)}</div>
+      <div class="kv-k"></div><div><a href="https://www.openstreetmap.org/?mlat=${n.lat}&mlon=${n.lon}#map=14/${n.lat}/${n.lon}" target="_blank" style="color:var(--acc);font-size:10px">↗ Open in OpenStreetMap</a></div>
+    </div></div>`;
+  }
+
+  // neighbours
+  const nbs = n.neighbors || [];
+  if (nbs.length) {
+    h+=`<div class="pn-sec"><div class="pn-sec-h">Neighbours (${nbs.length})</div>
+      <div class="nb-list">${nbs.sort((a,b)=>(b.snr||0)-(a.snr||0)).map(nb=>{
+        const nameMap = Object.fromEntries((DATA.nodes||[]).map(x=>[x.node_id,x.name||x.node_id]));
+        return `<div class="nb-row"><span style="flex:1;color:var(--acc)">${esc(nameMap[nb.id]||nb.id)}</span><span style="color:${nb.snr>=5?"var(--ok)":nb.snr>=0?"var(--acc)":nb.snr>=-5?"var(--warn)":"var(--err)"}">${nb.snr!==null?nb.snr+" dB":"—"}</span></div>`;
+      }).join("")}</div>
+    </div>`;
+  }
+
+  document.getElementById("panel-body").innerHTML = h;
+  document.getElementById("panel").classList.add("open");
+  document.getElementById("panel-overlay").classList.add("open");
+}
+
+function iaqLabel(v) {
+  if (v<50) return "Excellent";
+  if (v<100) return "Good";
+  if (v<150) return "Lightly Polluted";
+  if (v<200) return "Moderately Polluted";
+  return "Poor";
+}
+
+function fmtUptime(s) {
+  if (!s) return "—";
+  const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60);
+  if (d>0) return `${d}d ${h}h ${m}m`;
+  if (h>0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+// ── CHART HELPERS ────────────────────────────────────────────────────────
+function getCanvas(id, h) {
+  const cv = document.getElementById(id);
+  if (!cv) return null;
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.parentElement.clientWidth || cv.parentElement.offsetWidth || 300;
+  const height = h || 200;
+  cv.width  = w * dpr;
+  cv.height = height * dpr;
+  cv.style.width  = w + "px";
+  cv.style.height = height + "px";
+  const ctx = cv.getContext("2d");
+  ctx.scale(dpr, dpr);
+  return {ctx, w, h: height};
+}
+
+function drawDonut(canvasId, legendId, labels, values, colors) {
+  const cv = document.getElementById(canvasId);
+  if (!cv) return;
+  const dpr = window.devicePixelRatio || 1;
+  const size = 140;
+  cv.width = cv.height = size * dpr;
+  cv.style.width = size + "px";
+  cv.style.height = size + "px";
+  cv.style.display = "block";
+  cv.style.margin = "0 auto";
+  const ctx = cv.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const total = values.reduce((a,b)=>a+b,0);
+  const cx=size/2,cy=size/2,R=55,r=30;
+  let angle=-Math.PI/2;
+  values.forEach((v,i)=>{
+    if (v<=0) return;
+    const sweep=(v/(total||1))*Math.PI*2;
+    ctx.beginPath();ctx.moveTo(cx+Math.cos(angle)*R,cy+Math.sin(angle)*R);
+    ctx.arc(cx,cy,R,angle,angle+sweep);ctx.arc(cx,cy,r,angle+sweep,angle,true);
+    ctx.closePath();ctx.fillStyle=colors[i];ctx.fill();
+    angle+=sweep;
+  });
+  ctx.fillStyle="#ccdae8";ctx.font=`bold 16px Syne,sans-serif`;ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.fillText(total,cx,cy);
+  if (legendId) {
+    document.getElementById(legendId).innerHTML=labels.map((l,i)=>
+      `<div class="donut-row"><div class="donut-swatch" style="background:${colors[i]}"></div><div class="donut-lbl">${esc(l)}</div><div class="donut-val">${values[i]}</div></div>`
+    ).join("");
+  }
+}
+
+function drawLine(canvasId, labels, datasets, maxVal, showGrid) {
+  const r = getCanvas(canvasId); if (!r) return;
+  const {ctx,w,h}=r;
+  const pad={t:8,r:8,b:28,l:38};
+  const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  ctx.clearRect(0,0,w,h);
+  if (!labels.length) return;
+  const allVals=datasets.flatMap(d=>d.data).filter(v=>v!==null&&v!==undefined);
+  if (!allVals.length) return;
+  const mn=maxVal!==null?0:(Math.min(...allVals)*0.9);
+  const mx=maxVal||Math.max(...allVals)*1.1||1;
+  const range=mx-mn||1;
+  const xStep=cw/Math.max(labels.length-1,1);
+  const yAt=v=>pad.t+ch-((v-mn)/range*ch);
+  if (showGrid!==false) {
+    ctx.strokeStyle="#1a2434";ctx.lineWidth=0.5;
+    for (let i=0;i<=4;i++){const y=pad.t+ch-(i/4)*ch;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();ctx.fillStyle="#2a3d52";ctx.font="9px JetBrains Mono";ctx.textAlign="right";ctx.fillText((mn+(range*i/4)).toFixed(1),pad.l-3,y+3);}
+  }
+  const step=Math.max(1,Math.ceil(labels.length/8));
+  ctx.fillStyle="#2a3d52";ctx.font="8px JetBrains Mono";ctx.textAlign="center";
+  labels.forEach((l,i)=>{if(i%step===0){const x=pad.l+i*xStep;ctx.fillText(l.slice(5)||l,x,h-4);}});
+  datasets.forEach(ds=>{
+    ctx.beginPath();ctx.strokeStyle=ds.color;ctx.lineWidth=1.5;
+    let first=true;
+    ds.data.forEach((v,i)=>{
+      if(v===null||v===undefined){first=true;return;}
+      const x=pad.l+i*xStep;const y=yAt(v);
+      first?ctx.moveTo(x,y):ctx.lineTo(x,y);first=false;
+    });
+    ctx.stroke();
+  });
+}
+
+function drawStackedBar(canvasId, labels, datasets) {
+  const r=getCanvas(canvasId);if(!r)return;
+  const{ctx,w,h}=r;const pad={t:8,r:8,b:28,l:38};
+  const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  ctx.clearRect(0,0,w,h);if(!labels.length)return;
+  const totals=labels.map((_,i)=>datasets.reduce((s,d)=>s+(d.data[i]||0),0));
+  const mx=Math.max(...totals)||1;
+  const bw=Math.max(2,(cw/labels.length)*0.7);
+  const gap=cw/labels.length;
+  for(let i=0;i<=4;i++){const y=pad.t+ch-(i/4)*ch;ctx.strokeStyle="#1a2434";ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();ctx.fillStyle="#2a3d52";ctx.font="9px JetBrains Mono";ctx.textAlign="right";ctx.fillText(Math.round(mx*i/4),pad.l-3,y+3);}
+  const step=Math.max(1,Math.ceil(labels.length/8));
+  ctx.fillStyle="#2a3d52";ctx.font="8px JetBrains Mono";ctx.textAlign="center";
+  labels.forEach((l,i)=>{
+    const x=pad.l+i*gap+gap/2-bw/2;let yOff=0;
+    datasets.forEach(ds=>{const v=ds.data[i]||0;const barH=(v/mx)*ch;const y=pad.t+ch-barH-yOff;ctx.fillStyle=ds.color;ctx.fillRect(x,y,bw,barH);yOff+=barH;});
+    if(i%step===0)ctx.fillText(l.slice(5)||l,pad.l+i*gap+gap/2,h-4);
+  });
+}
+
+function drawGroupedBar(canvasId, labels, datasets) {
+  const r=getCanvas(canvasId);if(!r)return;
+  const{ctx,w,h}=r;const pad={t:8,r:8,b:32,l:38};
+  const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  ctx.clearRect(0,0,w,h);if(!labels.length)return;
+  const allVals=datasets.flatMap(d=>d.data);const mx=Math.max(...allVals)||1;
+  const groupW=cw/labels.length;const bw=Math.max(2,groupW/datasets.length*0.8);
+  for(let i=0;i<=4;i++){const y=pad.t+ch-(i/4)*ch;ctx.strokeStyle="#1a2434";ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();ctx.fillStyle="#2a3d52";ctx.font="9px JetBrains Mono";ctx.textAlign="right";ctx.fillText(Math.round(mx*i/4),pad.l-3,y+3);}
+  labels.forEach((l,i)=>{
+    datasets.forEach((ds,di)=>{
+      const v=ds.data[i]||0;const barH=(v/mx)*ch;
+      const x=pad.l+i*groupW+di*bw+(groupW-datasets.length*bw)/2;
+      const y=pad.t+ch-barH;
+      ctx.fillStyle=ds.color;ctx.fillRect(x,y,bw,barH);
+    });
+    ctx.fillStyle="#2a3d52";ctx.font="8px JetBrains Mono";ctx.textAlign="center";
+    ctx.fillText(l.slice(0,8),pad.l+i*groupW+groupW/2,h-4);
+  });
+}
+
+function drawHBar(canvasId, labels, values, color) {
+  const n=labels.length;const rowH=22;const h=n*rowH+16;
+  const cv=document.getElementById(canvasId);if(!cv)return;
+  const dpr=window.devicePixelRatio||1;const w=cv.parentElement.clientWidth||cv.parentElement.offsetWidth||300;
+  cv.width=w*dpr;cv.height=h*dpr;cv.style.width=w+"px";cv.style.height=h+"px";
+  const ctx=cv.getContext("2d");ctx.scale(dpr,dpr);
+  const padL=110,padR=36;const barW=w-padL-padR;const mx=Math.max(...values.map(Number))||1;
+  labels.forEach((l,i)=>{
+    const y=8+i*rowH;const v=parseFloat(values[i]);const bw=(v/mx)*barW;
+    ctx.fillStyle=color+"33";ctx.fillRect(padL,y+4,barW,rowH-8);
+    ctx.fillStyle=color;ctx.fillRect(padL,y+4,bw,rowH-8);
+    ctx.fillStyle="#5a7a96";ctx.font="9px JetBrains Mono";ctx.textAlign="right";ctx.textBaseline="middle";
+    const shortLabel=l.length>14?l.slice(0,13)+"…":l;
+    ctx.fillText(shortLabel,padL-5,y+rowH/2);
+    ctx.fillStyle="#ccdae8";ctx.textAlign="left";ctx.fillText(v+"%",padL+bw+4,y+rowH/2);
+  });
+}
+
+function drawScatter(canvasId, points) {
+  const r=getCanvas(canvasId);if(!r)return;
+  const{ctx,w,h}=r;const pad={t:10,r:10,b:28,l:38};const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  ctx.clearRect(0,0,w,h);
+  const roleColors={backbone:"#00c8f0",relay:"#1ae87a",observer:"#f0b429",isolated:"#f04848"};
+  ctx.strokeStyle="#1a2434";ctx.lineWidth=0.5;
+  for(let i=0;i<=4;i++){
+    const x=pad.l+(i/4)*cw;const y=pad.t+(i/4)*ch;
+    ctx.beginPath();ctx.moveTo(x,pad.t);ctx.lineTo(x,pad.t+ch);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();
+    ctx.fillStyle="#2a3d52";ctx.font="8px JetBrains Mono";ctx.textAlign="center";ctx.fillText((i*25)+"%",pad.l+(i/4)*cw,h-4);
+    ctx.textAlign="right";ctx.fillText((100-i*25)+"%",pad.l-3,pad.t+(i/4)*ch+3);
+  }
+  points.forEach(p=>{
+    const x=pad.l+p.x*cw;const y=pad.t+(1-p.y)*ch;
+    ctx.beginPath();ctx.arc(x,y,p.r,0,Math.PI*2);
+    ctx.fillStyle=(roleColors[p.role]||"#5a7a96")+"99";ctx.fill();
+    ctx.strokeStyle=roleColors[p.role]||"#5a7a96";ctx.lineWidth=1;ctx.stroke();
+  });
+}
+
+function drawLinkScatter(canvasId, points) {
+  const r=getCanvas(canvasId);if(!r)return;
+  const{ctx,w,h}=r;const pad={t:10,r:10,b:28,l:38};const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  ctx.clearRect(0,0,w,h);if(!points.length)return;
+  const xs=points.map(p=>p.x),ys=points.map(p=>p.y);
+  const xmn=Math.min(...xs),xmx=Math.max(...xs)||1;
+  const ymn=Math.min(...ys),ymx=Math.max(...ys)||1;
+  const xRange=xmx-xmn||1,yRange=ymx-ymn||1;
+  ctx.strokeStyle="#1a2434";ctx.lineWidth=0.5;
+  for(let i=0;i<=4;i++){
+    const y=pad.t+(i/4)*ch;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(pad.l+cw,y);ctx.stroke();
+    ctx.fillStyle="#2a3d52";ctx.font="8px JetBrains Mono";ctx.textAlign="right";
+    ctx.fillText((ymx-yRange*i/4).toFixed(0)+" dB",pad.l-3,y+3);
+  }
+  points.forEach(p=>{
+    const x=pad.l+((p.x-xmn)/xRange)*cw;const y=pad.t+((ymx-p.y)/yRange)*ch;
+    const intensity=p.count/Math.max(...xs);
+    ctx.beginPath();ctx.arc(x,y,Math.max(3,intensity*10),0,Math.PI*2);
+    ctx.fillStyle=`rgba(0,200,240,${0.3+intensity*0.6})`;ctx.fill();
+    ctx.strokeStyle="rgba(0,200,240,0.8)";ctx.lineWidth=1;ctx.stroke();
+  });
+}
+
+function drawScoreHistogram(canvasId, scores) {
+  const r=getCanvas(canvasId);if(!r)return;
+  const{ctx,w,h}=r;const pad={t:8,r:8,b:28,l:38};const cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;
+  ctx.clearRect(0,0,w,h);if(!scores.length)return;
+  const bins=10;const binCounts=new Array(bins).fill(0);
+  scores.forEach(s=>{const i=Math.min(bins-1,Math.floor(s*bins));binCounts[i]++;});
+  const mx=Math.max(...binCounts)||1;
+  const bw=cw/bins;
+  binCounts.forEach((v,i)=>{
+    const barH=(v/mx)*ch;const x=pad.l+i*bw+2;const y=pad.t+ch-barH;
+    const score=(i+0.5)/bins;
+    const col=score>=0.7?"#1ae87a":score>=0.4?"#00c8f0":score>=0.2?"#f0b429":"#f04848";
+    ctx.fillStyle=col+"55";ctx.fillRect(x,y,bw-4,barH);
+    ctx.fillStyle=col;ctx.fillRect(x,y,bw-4,3);
+    ctx.fillStyle="#2a3d52";ctx.font="8px JetBrains Mono";ctx.textAlign="center";
+    ctx.fillText(`${Math.round(i*10*10)/10}%`,x+(bw-4)/2,h-4);
+    if(v>0){ctx.fillStyle="#ccdae8";ctx.fillText(v,x+(bw-4)/2,y-3);}
+  });
+}
+
+// ── Utility formatters ────────────────────────────────────────────────
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function fmtAge2(s){
+  if(s===null||s===undefined)return "—";
+  const v=Number(s);
+  if(v<60) return `<span style="color:var(--ok)">${v}s</span>`;
+  if(v<3600) return `<span style="color:var(--acc)">${Math.floor(v/60)}m</span>`;
+  if(v<86400) return `<span style="color:var(--warn)">${Math.floor(v/3600)}h</span>`;
+  return `<span style="color:var(--err)">${Math.floor(v/86400)}d</span>`;
+}
+function fmtAge2Plain(s){
+  if(s===null||s===undefined)return "unknown";
+  const v=Number(s);
+  if(v<60) return v+"s";if(v<3600) return Math.floor(v/60)+"m";
+  if(v<86400) return Math.floor(v/3600)+"h";return Math.floor(v/86400)+"d";
+}
+function fmtSNR(v){const n=Number(v);const c=n>=5?"var(--ok)":n>=0?"var(--acc)":n>=-5?"var(--warn)":"var(--err)";return `<span style="color:${c}">${n.toFixed(1)} dB</span>`;}
+function fmtRSSI(v){const n=Number(v);const c=n>=-80?"var(--ok)":n>=-100?"var(--acc)":"var(--err)";return `<span style="color:${c}">${n} dBm</span>`;}
+function fmtBatt(v){const n=Number(v);const c=n>=60?"var(--ok)":n>=30?"var(--warn)":"var(--err)";return `<span style="color:${c}">${n}%</span>`;}
+function scoreBar(v,col){
+  const pct=Math.round((v||0)*100);
+  const c=col||(pct>=70?"var(--ok)":pct>=40?"var(--acc)":pct>=20?"var(--warn)":"var(--err)");
+  return `<div class="sbar"><div class="sbar-bg"><div class="sbar-fill" style="width:${pct}%;background:${c}"></div></div><span style="color:${c};font-size:10px">${pct}</span></div>`;
+}
+function miniTable(headers, rows) {
+  if(!rows||!rows.length) return `<div style="color:var(--txt3);font-size:10px;padding:8px">No data.</div>`;
+  return `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>
+    ${rows.map(r=>`<tr>${r.map(v=>`<td>${v}</td>`).join("")}</tr>`).join("")}
+  </tbody></table>`;
+}
+
+// ── Events ─────────────────────────────────────────────────────────────
+document.getElementById("refresh-btn").addEventListener("click", loadData);
+document.getElementById("slot-sel").addEventListener("change", async()=>{await loadDateRange();loadData();});
+document.getElementById("date-sel").addEventListener("change", loadData);
+document.getElementById("csv-btn").addEventListener("click",()=>{
+  const sid=document.getElementById("slot-sel").value||"node_0";
+  window.open(`${API}/export_csv?slot_id=${sid}`,"_blank");
+});
+document.getElementById("json-btn").addEventListener("click",()=>{
+  const sid=document.getElementById("slot-sel").value||"node_0";
+  window.open(`${API}/export_json?slot_id=${sid}`,"_blank");
+});
+document.getElementById("panel-x").addEventListener("click",closePanel);
+document.getElementById("panel-overlay").addEventListener("click",closePanel);
+
+function closePanel() {
+  document.getElementById("panel").classList.remove("open");
+  document.getElementById("panel-overlay").classList.remove("open");
+  SEL=null;
+  renderNodeTable();
+}
+
+document.getElementById("node-search").addEventListener("input",e=>{NODE_SEARCH=e.target.value.trim();renderNodeTable();});
+document.getElementById("role-filter").addEventListener("change",e=>{NODE_ROLE=e.target.value;renderNodeTable();});
+
+// Re-render charts on resize to fix canvas sizing
+let _resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => { if (DATA) render(); }, 150);
+});
+
+// ── Init ───────────────────────────────────────────────────────────────
+(async()=>{await loadSlots();await loadDateRange();await loadData();})();
+</script>
+</body>
+</html>

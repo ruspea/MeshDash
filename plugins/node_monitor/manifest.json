@@ -1,9 +1,9 @@
 {
   "id": "node_monitor",
   "name": "Node Monitor",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "MeshDash",
-  "description": "Telemetry-based alerting system. Set thresholds on battery, voltage, SNR, temperature and more. Alerts are sent directly over the mesh to specified nodes or broadcast channels.",
+  "description": "Telemetry-based alerting system. Set thresholds on battery, voltage, SNR, temperature and more. Alerts are sent directly over the mesh to specified nodes or broadcast channels. MeshDash v3.0+ required for full functionality.",
   "watchdog": true,
   "entry_point": "main.py",
   "router_prefix": "/api/plugins/node_monitor",

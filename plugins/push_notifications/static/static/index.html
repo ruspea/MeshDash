@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Push Notifications</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+html,body{height:100%;margin:0;padding:0;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:12px;}
+.shell{min-height:100%;display:flex;flex-direction:column;overflow:hidden;min-width:0;}
+.top{flex-shrink:0;padding:12px 16px;border-bottom:1px solid var(--bd2);background:var(--bg2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;min-width:0;}
+.scroll{flex:1;overflow-y:auto;padding:14px 16px 24px;min-width:0;}
+.scroll::-webkit-scrollbar{width:4px;}.scroll::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px;}
+.ph{display:flex;align-items:center;gap:10px;}
+.ph-ico{font-size:20px;color:var(--ok);text-shadow:0 0 8px rgba(0,232,122,.4);}
+.ph-title{font-size:14px;font-family:var(--mono);font-weight:900;letter-spacing:2px;}
+.ph-sub{font-size:9px;color:var(--txt3);font-family:var(--mono);}
+.pill{font-family:var(--mono);font-size:9px;padding:3px 9px;border-radius:3px;border:1px solid var(--bd2);color:var(--txt3);}
+.pill.on{border-color:var(--ok);color:var(--ok);background:rgba(0,232,122,.07);}
+.pill.quiet{border-color:var(--warn);color:var(--warn);background:rgba(255,168,38,.07);}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:860px){.cols{grid-template-columns:1fr !important;}}
+@media(max-width:480px){
+  .cols{grid-template-columns:1fr !important;gap:8px;}
+  .c{min-width:0;overflow-wrap:break-word;word-wrap:break-word;}
+  .top{padding:10px 12px;}
+  .ph-title{font-size:12px;letter-spacing:1px;}
+  .ph-ico{font-size:18px;}
+  .scroll{padding:10px 12px 16px;min-width:0;}
+  .c{padding:12px;margin-bottom:10px;min-width:0;}
+  .c-hd{font-size:10px;margin-bottom:10px;flex-wrap:wrap;gap:4px;}
+  .row{flex-wrap:wrap;gap:6px;}
+  .lbl{font-size:10px;}
+  .sub{font-size:11px;}
+  .btn-full{padding:8px 10px;font-size:10px;}
+  .inp-txt{padding:6px 8px;font-size:10px;min-width:0;}
+  .inp-num{width:60px;padding:4px 6px;}
+  .inp-time{width:85px;padding:4px 6px;}
+  .tag{font-size:9px;padding:2px 6px;}
+  .log-wrap{height:220px;}
+  .log-row{grid-template-columns:50px 70px 1fr auto;gap:4px;padding:3px 6px;}
+  .log-ts{font-size:11px;}
+  .log-type{font-size:11px;padding:1px 3px;}
+  .log-sum{font-size:9px;}
+  .log-badge{font-size:10px;}
+  table{font-size:9px;}
+  th,td{padding:4px;}
+  .section-title{font-size:11px;padding:2px 0 2px 4px;margin:8px 0 6px;}
+  .hr{margin:10px 0;}
+  .info-box,.warn-box{padding:8px;font-size:10px;}
+  .alert-box{padding:10px;font-size:10px;}
+}
+.c{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);padding:14px;margin-bottom:12px;}
+.c-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-family:var(--mono);font-size:11px;font-weight:bold;color:var(--txt);letter-spacing:1px;}
+.c-hd i{margin-right:6px;color:var(--acc);}
+.row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.lbl{font-family:var(--mono);font-size:11px;font-weight:bold;color:var(--txt);}
+.sub{font-size:9px;color:var(--txt3);font-family:var(--mono);margin-top:2px;line-height:1.4;}
+.tog{position:relative;width:40px;height:22px;flex-shrink:0;}
+.tog input{opacity:0;width:0;height:0;position:absolute;}
+.tog-sl{position:absolute;inset:0;background:var(--bd2);border-radius:11px;cursor:pointer;transition:background .2s;}
+.tog-sl::after{content:'';position:absolute;width:14px;height:14px;left:4px;top:4px;background:var(--txt3);border-radius:50%;transition:all .2s;}
+.tog input:checked+.tog-sl{background:var(--acc);}
+.tog input:checked+.tog-sl::after{transform:translateX(18px);background:#000;}
+@media(max-width:480px){
+  .tog{width:44px;height:24px;}
+  .tog-sl{border-radius:12px;}
+  .tog-sl::after{width:16px;height:16px;left:4px;top:4px;}
+  .tog input:checked+.tog-sl::after{transform:translateX(20px);}
+}
+.inp-txt{background:var(--bg);border:1px solid var(--bd2);color:var(--txt);padding:7px 10px;border-radius:4px;font-family:var(--mono);font-size:11px;width:100%;transition:border-color .15s;}
+.inp-txt:focus{outline:none;border-color:var(--acc);}
+.inp-num{background:var(--bg);border:1px solid var(--bd2);color:var(--txt);padding:5px 8px;border-radius:4px;font-family:var(--mono);font-size:11px;width:72px;}
+.inp-time{background:var(--bg);border:1px solid var(--bd2);color:var(--txt);padding:5px 8px;border-radius:4px;font-family:var(--mono);font-size:11px;width:100px;}
+.tag-row{display:flex;flex-wrap:wrap;gap:4px;margin-top:7px;}
+.tag{background:rgba(0,200,245,.08);border:1px solid var(--acc);color:var(--acc);padding:2px 8px;border-radius:12px;font-family:var(--mono);font-size:10px;display:flex;align-items:center;gap:5px;cursor:default;}
+.tag i{cursor:pointer;opacity:.6;transition:.1s;}.tag i:hover{opacity:1;color:var(--err);}
+.btn-full{background:transparent;border:1px solid var(--acc);color:var(--acc);padding:10px 14px;border-radius:4px;font-family:var(--mono);font-size:11px;font-weight:bold;cursor:pointer;transition:all .15s;width:100%;display:flex;justify-content:center;align-items:center;gap:7px;margin-bottom:7px;min-height:44px;}
+.btn-full:hover{background:rgba(0,200,245,.08);}
+.btn-primary{background:var(--acc);color:#000;}.btn-primary:hover{background:var(--acc);}
+@media(max-width:480px){
+  .btn-full{padding:12px 14px;font-size:12px;min-height:48px;}
+}
+.badge-wrap{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:16px;font-family:var(--mono);font-size:10px;font-weight:bold;border:1px solid transparent;}
+.badge-off{background:rgba(255,48,80,.08);color:var(--err);border-color:var(--err);}
+.badge-on{background:rgba(0,232,122,.08);color:var(--ok);border-color:var(--ok);}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10px;}
+th{color:var(--txt3);padding:6px;font-weight:normal;border-bottom:1px solid var(--bd2);text-align:left;}
+td{padding:6px;border-bottom:1px solid rgba(255,255,255,.03);color:var(--txt2);vertical-align:middle;}
+.btn-del{background:transparent;border:1px solid var(--err);color:var(--err);padding:2px 7px;border-radius:3px;cursor:pointer;font-size:9px;}
+.btn-del:hover{background:var(--err);color:#000;}
+.hr{border:none;border-top:1px solid rgba(255,255,255,.06);margin:12px 0;}
+.alert-box{background:rgba(255,48,80,.08);border:1px solid var(--err);padding:12px;font-size:11px;margin-bottom:12px;border-radius:4px;text-align:center;line-height:1.5;}
+.warn-box{background:rgba(255,168,38,.07);border-left:3px solid var(--warn);padding:10px;font-size:11px;margin-bottom:10px;border-radius:0 4px 4px 0;line-height:1.5;}
+.info-box{background:rgba(0,200,245,.06);border-left:3px solid var(--acc);padding:10px;font-size:11px;margin-bottom:10px;border-radius:0 4px 4px 0;line-height:1.5;}
+.ch-row{display:flex;align-items:center;gap:7px;padding:5px 0;font-family:var(--mono);font-size:10px;color:var(--txt2);}
+.ch-row input[type=checkbox]{accent-color:var(--acc);width:16px;height:16px;cursor:pointer;}
+@media(max-width:480px){
+  .ch-row{padding:8px 0;font-size:11px;}
+  .ch-row input[type=checkbox]{width:20px;height:20px;}
+}
+
+/* ── Live log ── */
+.log-wrap{background:var(--bg);border:1px solid var(--bd2);border-radius:4px;height:280px;overflow-y:auto;font-family:var(--mono);font-size:10px;}
+.log-wrap::-webkit-scrollbar{width:3px;}.log-wrap::-webkit-scrollbar-thumb{background:var(--bd2);}
+.log-row{display:grid;grid-template-columns:60px 90px 1fr auto;gap:6px;align-items:center;padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.03);transition:background .1s;}
+.log-row:hover{background:rgba(0,200,245,.04);}
+.log-ts{color:var(--txt3);font-size:9px;}
+.log-type{font-size:9px;font-weight:bold;padding:1px 5px;border-radius:2px;text-align:center;}
+.log-sum{color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.log-badge{font-size:11px;padding:1px 5px;border-radius:2px;white-space:nowrap;}
+.lb-notif{background:rgba(0,232,122,.1);color:var(--ok);}
+.lb-skip{background:rgba(255,255,255,.04);color:var(--txt3);}
+.lt-Message{background:rgba(0,200,245,.12);color:var(--acc);}
+.lt-Position{background:rgba(0,232,122,.1);color:var(--ok);}
+.lt-Telemetry{background:rgba(255,168,38,.1);color:var(--warn);}
+.lt-NodeInfo,.lt-Node{background:rgba(176,96,255,.1);color:var(--pur);}
+.lt-Traceroute{background:rgba(0,200,245,.08);color:var(--acc);}
+.lt-Ack{background:rgba(255,255,255,.05);color:var(--txt3);}
+.lt-default{background:rgba(255,255,255,.05);color:var(--txt3);}
+.log-empty{text-align:center;padding:30px;color:var(--txt3);}
+
+.spin{animation:pn-sp .7s linear infinite;display:inline-block;}
+@keyframes pn-sp{to{transform:rotate(360deg);}}
+.section-title{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--acc);padding:3px 0 3px 6px;border-left:2px solid var(--acc);background:rgba(0,200,245,.04);margin:10px 0 8px;}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="top">
+  <div class="plugin-header">
+            <span class="ph-ico">🔔</span>
+            <div>
+                <div class="ph-title">PUSH NOTIFICATIONS</div>
+                <div class="ph-sub">by MeshDash</div>
+            </div>
+        </div>
+  </div>
+  <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+    <span id="quiet-pill" class="pill quiet" style="display:none;"><i class="fas fa-moon"></i> QUIET HOURS</span>
+    <span id="engine-pill" class="pill">LOADING...</span>
+  </div>
+  <div class="scroll">
+
+  <div id="dep-error" class="alert-box" style="display:none;">
+    <i class="fas fa-exclamation-triangle" style="color:var(--err);font-size:18px;margin-bottom:6px;"></i>
+    <div style="font-family:var(--mono);font-weight:bold;color:var(--err);margin-bottom:6px;">BACKEND DEPENDENCY MISSING</div>
+    <p>Run on the host: <code style="background:#000;padding:3px 8px;border-radius:3px;color:var(--ok);font-family:var(--mono);">pip install pywebpush cryptography --break-system-packages</code></p>
+  </div>
+  <div id="ssl-warn" class="alert-box" style="display:none;border-color:var(--warn);background:rgba(255,168,38,.07);">
+    <i class="fas fa-lock" style="color:var(--warn);font-size:18px;margin-bottom:6px;"></i>
+    <div style="font-family:var(--mono);font-weight:bold;color:var(--warn);margin-bottom:6px;">HTTPS REQUIRED</div>
+    <p>Web Push requires HTTPS or localhost.</p>
+  </div>
+
+  <div id="main-ui" style="display:none;">
+  <div class="cols">
+
+    <!-- ── Left column ── -->
+    <div>
+      <!-- Browser subscription -->
+      <div class="c">
+        <div class="c-hd"><span><i class="fab fa-chrome"></i>THIS BROWSER</span>
+          <div id="sub-badge" class="badge-wrap badge-off"><i class="fas fa-times-circle"></i> NOT SUBSCRIBED</div>
+        </div>
+        <div id="ios-warn" class="warn-box" style="display:none;">
+          <strong><i class="fab fa-apple"></i> iOS:</strong> Tap Share → Add to Home Screen first.
+        </div>
+        <div id="sub-err" style="display:none;background:rgba(255,48,80,.1);border:1px solid var(--err);padding:8px 10px;border-radius:4px;font-family:var(--mono);font-size:10px;color:var(--err);margin-bottom:8px;line-height:1.5;"></div>
+        <div id="http-warn" class="warn-box" style="display:none;">
+          <strong><i class="fas fa-info-circle"></i> HTTP Mode:</strong> Push subscriptions require HTTPS. Use https://, localhost, or Firefox to subscribe this browser.
+        </div>
+        <button class="btn-full btn-primary" id="btn-sub" onclick="toggleSub()"><i class="fas fa-rss"></i> AUTHORIZE BROWSER</button>
+        <button class="btn-full" id="btn-test" onclick="doTest()" style="display:none;"><i class="fas fa-paper-plane"></i> FIRE TEST NOTIFICATION</button>
+      </div>
+
+      <!-- Authorized devices -->
+      <div class="c">
+        <div class="c-hd"><i class="fas fa-network-wired"></i>AUTHORIZED DEVICES</div>
+        <table>
+          <thead><tr><th>DEVICE</th><th>ADDED</th><th></th></tr></thead>
+          <tbody id="fleet-body"><tr><td colspan="3" style="text-align:center;color:var(--txt3);">Loading...</td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- VAPID contact config -->
+      <div class="c">
+        <div class="c-hd"><i class="fas fa-id-card"></i>VAPID CONTACT</div>
+        <div class="info-box" style="margin-bottom:10px;">
+          <strong>Required for iOS / Apple APNs.</strong> Apple strictly validates this field. Enter your server's HTTPS URL (e.g. <code>https://md.example.com</code>) or a real email (<code>mailto:you@example.com</code>).
+          A fake domain like <code>meshdash.local</code> causes Apple to silently drop all pushes.
+        </div>
+        <div class="row" style="margin-bottom:0;">
+          <input type="text" id="cfg-contact" class="inp-txt" placeholder="https://yourdomain.com or mailto:you@real.com" onchange="save()">
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-top:4px;">
+          Changing this regenerates nothing — just updates the JWT claim sent with each push.
+        </div>
+      </div>
+
+      <!-- Message rules -->
+      <div class="c">
+        <div class="c-hd"><i class="fas fa-comment-alt"></i>MESSAGE RULES</div>
+        <div class="row">
+          <div><div class="lbl">MASTER ENABLE</div><div class="sub">Enable/disable all push notifications.</div></div>
+          <label class="tog"><input type="checkbox" id="cfg-enabled" onchange="save()"><span class="tog-sl"></span></label>
+        </div>
+        <hr class="hr">
+        <div class="row">
+          <div><div class="lbl">DIRECT MESSAGES</div><div class="sub">Addressed to your local node ID.</div></div>
+          <label class="tog"><input type="checkbox" id="cfg-dms" onchange="save()"><span class="tog-sl"></span></label>
+        </div>
+        <div class="row">
+          <div><div class="lbl">ALL BROADCASTS</div><div class="sub">Every mesh message on any channel.</div></div>
+          <label class="tog"><input type="checkbox" id="cfg-bcast" onchange="save()"><span class="tog-sl"></span></label>
+        </div>
+        <div class="section-title">CHANNEL FILTER — checked = receive from those channels</div>
+        <div id="ch-boxes"></div>
+        <hr class="hr">
+        <div class="row">
+          <div><div class="lbl">KEYWORD WATCHLIST</div><div class="sub">Alert on broadcasts containing these words even if broadcasts are off.</div></div>
+          <label class="tog"><input type="checkbox" id="cfg-kwen" onchange="save()"><span class="tog-sl"></span></label>
+        </div>
+        <input type="text" id="kw-in" class="inp-txt" placeholder="Type keyword + Enter…" style="margin-bottom:6px;">
+        <div class="tag-row" id="kw-tags"></div>
+      </div>
+    </div>
+
+    <!-- ── Right column ── -->
+    <div>
+      <!-- Packet type rules -->
+      <div class="c">
+        <div class="c-hd"><i class="fas fa-satellite-dish"></i>PACKET TYPE ALERTS</div>
+
+        <div class="row"><div><div class="lbl">NODE ONLINE</div><div class="sub">New node appears on the mesh for first time this session.</div></div><label class="tog"><input type="checkbox" id="cfg-online" onchange="save()"><span class="tog-sl"></span></label></div>
+        <div class="row"><div><div class="lbl">POSITION UPDATES</div><div class="sub">Any GPS position packet from any node.</div></div><label class="tog"><input type="checkbox" id="cfg-pos" onchange="save()"><span class="tog-sl"></span></label></div>
+        <div class="row"><div><div class="lbl">WAYPOINTS</div><div class="sub">Shared waypoints received from the mesh.</div></div><label class="tog"><input type="checkbox" id="cfg-wp" onchange="save()"><span class="tog-sl"></span></label></div>
+        <div class="row"><div><div class="lbl">DETECTION SENSOR</div><div class="sub">Motion/PIR sensor triggers from remote nodes.</div></div><label class="tog"><input type="checkbox" id="cfg-det" onchange="save()"><span class="tog-sl"></span></label></div>
+        <div class="row"><div><div class="lbl">PAXCOUNTER</div><div class="sub">Device count updates from paxcounter nodes.</div></div><label class="tog"><input type="checkbox" id="cfg-pax" onchange="save()"><span class="tog-sl"></span></label></div>
+        <div class="row"><div><div class="lbl">TRACEROUTE RESULTS</div><div class="sub">Route discovery completions.</div></div><label class="tog"><input type="checkbox" id="cfg-tr" onchange="save()"><span class="tog-sl"></span></label></div>
+
+        <hr class="hr">
+        <div class="section-title">TELEMETRY</div>
+        <div class="row">
+          <div><div class="lbl">TELEMETRY ALERTS</div><div class="sub">Enable telemetry-based notifications.</div></div>
+          <label class="tog"><input type="checkbox" id="cfg-tel" onchange="save()"><span class="tog-sl"></span></label>
+        </div>
+        <div class="row">
+          <div><div class="lbl">EVERY TELEMETRY</div><div class="sub">Alert on every telemetry packet (high volume).</div></div>
+          <label class="tog"><input type="checkbox" id="cfg-telany" onchange="save()"><span class="tog-sl"></span></label>
+        </div>
+        <div class="row">
+          <div><div class="lbl">LOW BATTERY BELOW</div><div class="sub">Alert when battery % drops below threshold.</div></div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <input type="number" id="cfg-bat" class="inp-num" min="0" max="100" value="20" onchange="save()">
+            <span style="font-family:var(--mono);font-size:10px;color:var(--txt3);">%</span>
+          </div>
+        </div>
+
+        <hr class="hr">
+        <div class="section-title">QUIET HOURS (DND)</div>
+        <div class="row">
+          <div><div class="lbl">ENABLE DND</div><div class="sub">Suppress non-critical alerts during window.</div></div>
+          <label class="tog"><input type="checkbox" id="cfg-qhen" onchange="save()"><span class="tog-sl"></span></label>
+        </div>
+        <div style="display:flex;gap:12px;margin-bottom:10px;">
+          <div><div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-bottom:3px;">START</div><input type="time" id="cfg-qhs" class="inp-time" onchange="save()"></div>
+          <div><div style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-bottom:3px;">END</div><input type="time" id="cfg-qhe" class="inp-time" onchange="save()"></div>
+        </div>
+        <div class="row">
+          <div><div class="lbl">DMs BYPASS DND</div><div class="sub">Direct messages still alert during quiet hours.</div></div>
+          <label class="tog"><input type="checkbox" id="cfg-dmq" onchange="save()"><span class="tog-sl"></span></label>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Live packet log — full width ── -->
+  <div class="c">
+    <div class="c-hd">
+      <span><i class="fas fa-stream"></i>LIVE PACKET LOG</span>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span id="log-count" style="font-family:var(--mono);font-size:9px;color:var(--txt3);"></span>
+        <label class="tog" title="Auto-scroll"><input type="checkbox" id="log-autoscroll" checked><span class="tog-sl"></span></label>
+        <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">AUTO</span>
+        <button class="btn btn-sm" onclick="clearLog()" style="font-size:9px;padding:2px 8px;">CLEAR</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+      <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">FILTER:</span>
+      <select id="log-filter" class="inp" style="font-size:9px;padding:2px 6px;width:auto;" onchange="renderLog()">
+        <option value="">ALL TYPES</option>
+        <option value="Message">Messages</option>
+        <option value="Position">Position</option>
+        <option value="Telemetry">Telemetry</option>
+        <option value="Node Info">Node Info</option>
+        <option value="Traceroute">Traceroute</option>
+        <option value="Paxcounter">Paxcounter</option>
+        <option value="Detection">Detection</option>
+        <option value="Waypoint">Waypoint</option>
+      </select>
+      <label style="display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;color:var(--txt3);cursor:pointer;">
+        <input type="checkbox" id="log-notified-only" onchange="renderLog()"> NOTIFIED ONLY
+      </label>
+    </div>
+    <div class="log-wrap" id="log-wrap">
+      <div class="log-empty"><i class="fas fa-satellite-dish" style="font-size:20px;margin-bottom:8px;display:block;opacity:.4;"></i>Waiting for packets…</div>
+    </div>
+  </div>
+
+  </div><!-- /main-ui -->
+</div>
+</div>
+
+<script>
+'use strict';
+var API = '/api/plugins/push_notifications';
+var _vapidKey = null, _isSub = false, _swReg = null;
+var _cfg = { keywords:[], notify_channels:[] };
+var _logEntries = [];
+
+var isSecure     = window.isSecureContext || location.hostname==='localhost' || location.hostname==='127.0.0.1';
+var isIos        = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+var isStandalone = window.navigator.standalone || window.matchMedia('(display-mode:standalone)').matches;
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function fmtTs(ts){return new Date(ts*1000).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+function fmtTime(ts){return new Date(ts*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});}
+function toast(m,t){try{window.parent.triggerToast(m,t||'ok');}catch(e){}}
+
+function urlB64(b64){
+    var pad='='.repeat((4-b64.length%4)%4);
+    var raw=atob((b64+pad).replace(/-/g,'+').replace(/_/g,'/'));
+    var arr=new Uint8Array(raw.length);
+    for(var i=0;i<raw.length;i++)arr[i]=raw.charCodeAt(i);
+    return arr;
+}
+function devName(){
+    var ua=navigator.userAgent;
+    if(/iPad|iPhone|iPod/.test(ua))return'iOS';
+    if(/Android/.test(ua))return'Android';
+    if(/Mac/.test(ua))return'Mac';
+    if(/Windows/.test(ua))return'Windows';
+    return'Browser';
+}
+
+/* ── Config ── */
+async function loadCfg(){
+    try{
+        var r=await fetch(API+'/config',{credentials:'include'});
+        if(r.ok){_cfg=JSON.parse(await r.text());applyToUI();}
+    }catch(e){}
+}
+
+function applyToUI(){
+    var g=function(id){return document.getElementById(id);};
+    var setChk=function(id,v){if(g(id))g(id).checked=!!v;};
+    setChk('cfg-enabled',_cfg.enabled);
+    setChk('cfg-dms',_cfg.notify_dms);
+    setChk('cfg-bcast',_cfg.notify_broadcasts);
+    setChk('cfg-kwen',_cfg.notify_on_keyword);
+    setChk('cfg-online',_cfg.notify_node_online);
+    setChk('cfg-pos',_cfg.notify_position);
+    setChk('cfg-wp',_cfg.notify_waypoint);
+    setChk('cfg-det',_cfg.notify_detection);
+    setChk('cfg-pax',_cfg.notify_paxcounter);
+    setChk('cfg-tr',_cfg.notify_traceroute);
+    setChk('cfg-tel',_cfg.notify_telemetry);
+    setChk('cfg-telany',_cfg.telemetry_any);
+    if(g('cfg-bat'))g('cfg-bat').value=_cfg.telemetry_battery_threshold||20;
+    setChk('cfg-qhen',_cfg.quiet_hours_enabled);
+    if(g('cfg-qhs'))g('cfg-qhs').value=_cfg.quiet_start||'22:00';
+    if(g('cfg-qhe'))g('cfg-qhe').value=_cfg.quiet_end||'08:00';
+    setChk('cfg-dmq',_cfg.dm_override_quiet);
+    if(g('cfg-contact'))g('cfg-contact').value=_cfg.vapid_contact||'';
+    renderKw();renderChannels();
+}
+
+function readFromUI(){
+    var g=function(id){return document.getElementById(id);};
+    var chk=function(id){return g(id)&&g(id).checked;};
+    _cfg.enabled=chk('cfg-enabled');
+    _cfg.notify_dms=chk('cfg-dms');
+    _cfg.notify_broadcasts=chk('cfg-bcast');
+    _cfg.notify_on_keyword=chk('cfg-kwen');
+    _cfg.notify_node_online=chk('cfg-online');
+    _cfg.notify_position=chk('cfg-pos');
+    _cfg.notify_waypoint=chk('cfg-wp');
+    _cfg.notify_detection=chk('cfg-det');
+    _cfg.notify_paxcounter=chk('cfg-pax');
+    _cfg.notify_traceroute=chk('cfg-tr');
+    _cfg.notify_telemetry=chk('cfg-tel');
+    _cfg.telemetry_any=chk('cfg-telany');
+    _cfg.telemetry_battery_threshold=parseInt(g('cfg-bat')&&g('cfg-bat').value)||20;
+    _cfg.quiet_hours_enabled=chk('cfg-qhen');
+    _cfg.quiet_start=g('cfg-qhs')&&g('cfg-qhs').value||'22:00';
+    _cfg.quiet_end=g('cfg-qhe')&&g('cfg-qhe').value||'08:00';
+    _cfg.dm_override_quiet=chk('cfg-dmq');
+    var chs=[];
+    document.querySelectorAll('.ch-cb:checked').forEach(function(cb){chs.push(parseInt(cb.dataset.ch));});
+    _cfg.notify_channels=chs;
+    _cfg.vapid_contact=document.getElementById('cfg-contact')&&document.getElementById('cfg-contact').value.trim()||'https://example.com';
+}
+
+async function save(){
+    readFromUI();
+    try{
+        var r=await fetch(API+'/config',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify(_cfg)});
+        if(r.ok)toast('Settings saved.','ok');
+    }catch(e){toast('Save failed','err');}
+}
+
+/* ── Keywords ── */
+function renderKw(){
+    var c=document.getElementById('kw-tags');
+    if(!c)return;
+    c.innerHTML=(_cfg.keywords||[]).map(function(kw,i){
+        return '<div class="tag">'+esc(kw.toUpperCase())+' <i class="fas fa-times" onclick="rmKw('+i+')"></i></div>';
+    }).join('');
+}
+function rmKw(i){_cfg.keywords.splice(i,1);renderKw();save();}
+document.getElementById('kw-in').addEventListener('keypress',function(e){
+    if(e.key!=='Enter')return;
+    var v=this.value.trim().toLowerCase();
+    if(v&&!(_cfg.keywords||[]).includes(v)){(_cfg.keywords=_cfg.keywords||[]).push(v);renderKw();save();}
+    this.value='';
+});
+
+/* ── Channel checkboxes ── */
+function renderChannels(){
+    var wrap=document.getElementById('ch-boxes');
+    if(!wrap)return;
+    wrap.innerHTML='';
+    for(var ch=0;ch<=7;ch++){
+        var checked=(_cfg.notify_channels||[]).includes(ch);
+        var row=document.createElement('div');
+        row.className='ch-row';
+        row.innerHTML='<input type="checkbox" class="ch-cb" data-ch="'+ch+'"'+(checked?' checked':'')+' onchange="save()">'
+                     +'Ch '+ch+(ch===0?' <span style="color:var(--txt3)">(primary LongFast)</span>':'');
+        wrap.appendChild(row);
+    }
+}
+
+/* ── Subscription ── */
+function updateSubUI(){
+    var badge=document.getElementById('sub-badge');
+    var subBtn=document.getElementById('btn-sub');
+    var testBtn=document.getElementById('btn-test');
+    if(_isSub){
+        badge.className='badge-wrap badge-on';
+        badge.innerHTML='<i class="fas fa-check-circle"></i> ACTIVE';
+        subBtn.innerHTML='<i class="fas fa-bell-slash"></i> REVOKE SUBSCRIPTION';
+        subBtn.className='btn-full';
+        testBtn.style.display='flex';
+    }else{
+        badge.className='badge-wrap badge-off';
+        badge.innerHTML='<i class="fas fa-times-circle"></i> NOT SUBSCRIBED';
+        subBtn.innerHTML='<i class="fas fa-rss"></i> AUTHORIZE BROWSER';
+        subBtn.className='btn-full btn-primary';
+        testBtn.style.display='none';
+    }
+    loadFleet();
+}
+
+async function toggleSub(){
+    if(!_swReg){
+        var errBox=document.getElementById('sub-err');
+        errBox.style.display='block';
+        var isHttps = location.protocol === 'https:';
+        var msg = isHttps
+            ? 'Service Worker not registered. Check the browser console for errors, and try unregistering old service workers in DevTools → Application → Service Workers.'
+            : 'Service Worker registration blocked: browser requires HTTPS for push notifications. Use https://, localhost, or Firefox for testing.';
+        errBox.innerHTML='<i class="fas fa-exclamation-triangle"></i> '+msg;
+        setTimeout(function(){errBox.style.display='none';},12000);
+        return;
+    }
+    if(_isSub){
+        var sub=await _swReg.pushManager.getSubscription();
+        if(sub){await sub.unsubscribe();await fetch(API+'/unsubscribe',{method:'DELETE',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:sub.endpoint})});}
+        _isSub=false;toast('Subscription revoked.','warn');updateSubUI();
+    }else{
+        try{
+            var sub=await _swReg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64(_vapidKey)});
+            await fetch(API+'/subscribe',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:sub.endpoint,keys:sub.toJSON().keys,device_name:devName()})});
+            _isSub=true;toast('Browser subscribed!','ok');updateSubUI();
+        }catch(err){
+            var errBox=document.getElementById('sub-err');
+            errBox.style.display='block';
+            errBox.innerHTML='<i class="fas fa-exclamation-triangle"></i> Subscription failed: '+esc(err.message)+'<br><span style="color:var(--txt3);">Check notification permissions and ensure HTTPS is in use.</span>';
+            setTimeout(function(){errBox.style.display='none';},10000);
+        }
+    }
+}
+
+async function doTest(){
+    toast('Firing test notification…','acc');
+    try{
+        await fetch(API+'/test',{method:'POST',credentials:'include'});
+        // Fetch debug to show result
+        var r=await fetch(API+'/debug',{credentials:'include'});
+        var d=JSON.parse(await r.text());
+        var lp=d.last_push||{};
+        var msg=lp.sent>0
+            ?'✓ Sent to '+lp.sent+'/'+lp.total+' subscriber(s) via '+lp.contact
+            :'✗ Sent to 0/'+lp.total+' subscriber(s). Contact: '+lp.contact
+             +(lp.dead_removed?' ('+lp.dead_removed+' expired removed)':'')
+             +'<br><span style="color:var(--txt3);">Check server logs for push errors. On iOS ensure app is added to Home Screen.</span>';
+        var errBox=document.getElementById('sub-err');
+        errBox.style.display='block';
+        errBox.style.borderColor=lp.sent>0?'var(--ok)':'var(--warn)';
+        errBox.style.background=lp.sent>0?'rgba(0,232,122,.08)':'rgba(255,168,38,.08)';
+        errBox.style.color=lp.sent>0?'var(--ok)':'var(--warn)';
+        errBox.innerHTML='<i class="fas fa-'+(lp.sent>0?'check':'exclamation-triangle')+'"></i> '+msg;
+        setTimeout(function(){errBox.style.display='none';},12000);
+    }catch(e){toast('Test failed: '+e.message,'err');}
+}
+
+async function loadFleet(){
+    try{
+        var r=await fetch(API+'/subscriptions',{credentials:'include'});
+        var subs=JSON.parse(await r.text());
+        var tb=document.getElementById('fleet-body');
+        tb.innerHTML=subs.length?subs.map(function(s){
+            return'<tr><td style="color:var(--txt);font-weight:bold;">'+esc(s.device_name)+'</td><td style="font-size:9px;color:var(--txt3);">'+fmtTs(s.created_at)+'</td><td style="text-align:right;"><button class="btn-del" onclick="delSub(\''+esc(s.endpoint)+'\')"><i class="fas fa-trash"></i></button></td></tr>';
+        }).join(''):'<tr><td colspan="3" style="text-align:center;color:var(--txt3);">No subscriptions</td></tr>';
+    }catch(e){}
+}
+async function delSub(ep){
+    await fetch(API+'/unsubscribe',{method:'DELETE',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:ep})});
+    loadFleet();
+}
+
+/* ── Status pills ── */
+async function refreshPills(){
+    try{
+        var r=await fetch(API+'/status',{credentials:'include'});
+        var d=JSON.parse(await r.text());
+        var ep=document.getElementById('engine-pill');
+        var qp=document.getElementById('quiet-pill');
+        ep.textContent='ENGINE: '+(d.enabled?'ON':'OFF')+' · '+d.subscriptions+' DEVICE'+(d.subscriptions!==1?'S':'');
+        ep.className='pill'+(d.enabled?' on':'');
+        if(qp)qp.style.display=d.quiet_hours_now?'inline-block':'none';
+    }catch(e){}
+}
+
+/* ── Live log ── */
+var _logPoll=null;
+
+async function loadLog(){
+    try{
+        var r=await fetch(API+'/log?limit=200',{credentials:'include'});
+        if(!r.ok)return;
+        var d=JSON.parse(await r.text());
+        _logEntries=d.entries||[];
+        renderLog();
+        var lc=document.getElementById('log-count');
+        if(lc)lc.textContent=_logEntries.length+' packets';
+    }catch(e){}
+}
+
+function renderLog(){
+    var wrap=document.getElementById('log-wrap');
+    if(!wrap)return;
+    var filter=document.getElementById('log-filter').value;
+    var notifiedOnly=document.getElementById('log-notified-only').checked;
+    var rows=_logEntries.filter(function(e){
+        if(filter&&e.packet_type!==filter)return false;
+        if(notifiedOnly&&!e.notified)return false;
+        return true;
+    });
+    if(!rows.length){
+        wrap.innerHTML='<div class="log-empty"><i class="fas fa-satellite-dish" style="font-size:20px;margin-bottom:8px;display:block;opacity:.4;"></i>'+(filter||notifiedOnly?'No matching packets':'Waiting for packets…')+'</div>';
+        return;
+    }
+    wrap.innerHTML=rows.map(function(e){
+        var typeKey=e.packet_type.replace(/\s+/g,'');
+        var typeCls='lt-'+typeKey;
+        // Fallback to default class
+        var knownTypes=['Message','Position','Telemetry','NodeInfo','Traceroute','Ack','Paxcounter','Detection','Waypoint','Node'];
+        if(!knownTypes.includes(typeKey))typeCls='lt-default';
+        return '<div class="log-row">'
+             +'<span class="log-ts">'+fmtTime(e.ts)+'</span>'
+             +'<span class="log-type '+typeCls+'">'+esc(e.packet_type.toUpperCase().slice(0,9))+'</span>'
+             +'<span class="log-sum" title="'+esc(e.summary)+'">'+esc(e.summary||e.from_id||'')+'</span>'
+             +'<span class="log-badge '+(e.notified?'lb-notif':'lb-skip')+'">'
+             +(e.notified?'<i class="fas fa-bell"></i> SENT':'<i class="fas fa-bell-slash"></i> SKIP')
+             +(e.reason?' · '+esc(e.reason):'')+'</span>'
+             +'</div>';
+    }).join('');
+    if(document.getElementById('log-autoscroll').checked){
+        wrap.scrollTop=0; // newest at top since log is appendleft
+    }
+}
+
+async function clearLog(){
+    await fetch(API+'/log',{method:'DELETE',credentials:'include'});
+    _logEntries=[];renderLog();
+}
+
+/* ── Init ── */
+async function init(){
+    try{
+        var r=await fetch(API+'/status',{credentials:'include'});
+        var txt=await r.text();
+        var st=JSON.parse(txt);
+        if(!st.active){document.getElementById('dep-error').style.display='block';return;}
+        if(!isSecure){document.getElementById('ssl-warn').style.display='block';document.getElementById('http-warn').style.display='block';document.getElementById('btn-sub').disabled=true;document.getElementById('btn-sub').style.opacity='.5';}
+        document.getElementById('main-ui').style.display='block';
+        _vapidKey=st.vapid_public;
+        if(isIos&&!isStandalone){document.getElementById('ios-warn').style.display='block';document.getElementById('btn-sub').disabled=true;document.getElementById('btn-sub').style.opacity='.5';}
+        try{
+            if('serviceWorker' in navigator&&'PushManager' in window){
+                _swReg=await navigator.serviceWorker.register('/static/plugins/push_notifications/sw.js',{scope:'/'});
+                var sub=await _swReg.pushManager.getSubscription();
+                _isSub=sub!==null;
+                updateSubUI();
+            }
+        }catch(swErr){console.error('SW registration failed:',swErr);}
+        await loadCfg();
+        refreshPills();
+        loadLog();
+        setInterval(refreshPills,30000);
+        setInterval(loadLog,3000); // poll log every 3s for live feel
+    }catch(e){
+        console.error('Push Notifications init:',e);
+        var errDiv=document.createElement('div');
+        errDiv.style.cssText='position:fixed;top:0;left:0;right:0;background:rgba(255,48,80,.9);color:#fff;padding:12px;font-family:monospace;font-size:12px;z-index:99999;';
+        errDiv.innerHTML='<b>INIT ERROR:</b> '+e.name+': '+e.message+'<br><small>Check console for details</small>';
+        document.body.appendChild(errDiv);
+    }
+}
+
+if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',init);
+}else{
+    init();
+}
+</script>
+</body>
+</html>

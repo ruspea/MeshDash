@@ -78,9 +78,12 @@ _motion_state: Dict[str, dict] = {}      # node_id → {last_lat, last_lon, last
 
 _state_lock = threading.Lock()
 
+# ── Rate-limiting: don't re-fire same trigger within cooldown_secs ────────────
 _last_fired: Dict[str, float] = {}  # "trigger_id:node_id" → unix ts
 
+# ---------------------------------------------------------------------------
 # Haversine geometry
+# ---------------------------------------------------------------------------
 
 def _haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Return distance in metres between two lat/lon points."""
@@ -196,7 +199,9 @@ def _point_in_zone(lat: float, lon: float, zone: dict,
     return False, 0.0
 
 
+# ---------------------------------------------------------------------------
 # DB
+# ---------------------------------------------------------------------------
 
 def _db_init():
     with _DB_LOCK:
@@ -307,7 +312,9 @@ def _save_event(trigger_id, zone_id, node_id, ttype, details):
     return eid
 
 
+# ---------------------------------------------------------------------------
 # Plugin lifecycle
+# ---------------------------------------------------------------------------
 
 def init_plugin(context: dict):
     global _node_registry, _event_loop
@@ -342,7 +349,9 @@ async def _watchdog(context):
             pass
 
 
+# ---------------------------------------------------------------------------
 # Packet listener
+# ---------------------------------------------------------------------------
 
 def _on_receive(packet, interface=None):
     try:
@@ -399,7 +408,9 @@ def _get_all_node_positions(slot_id: str) -> Dict[str, dict]:
     return result
 
 
+# ---------------------------------------------------------------------------
 # Evaluation engine
+# ---------------------------------------------------------------------------
 
 async def _evaluate(node_id: str, lat: float, lon: float,
                     speed_ms, track_deg, slot_id: str):
@@ -408,6 +419,7 @@ async def _evaluate(node_id: str, lat: float, lon: float,
     ref_nodes[node_id] = {"latitude": lat, "longitude": lon}
     now = time.time()
 
+    # ── Per-zone enter/exit/dwell evaluation ────────────────────────────────
     for zid, zone in list(_zones.items()):
         if zone.get("slot_id") != slot_id:
             continue
@@ -449,8 +461,10 @@ async def _evaluate(node_id: str, lat: float, lon: float,
         with _state_lock:
             _node_zone_state[state_key] = state
 
+    # ── Absent zone check (runs periodically for ALL nodes in zone) ──────────
     # Handled in _absent_scanner background task
 
+    # ── Speed trigger ────────────────────────────────────────────────────────
     if speed_ms is not None:
         speed_kmh = speed_ms * 3.6
         for tid, trig in list(_triggers.items()):
@@ -464,6 +478,7 @@ async def _evaluate(node_id: str, lat: float, lon: float,
                 details = {"speed_kmh": round(speed_kmh, 1)}
                 await _fire_trigger(tid, trig, None, node_id, "speed", lat, lon, 0.0, slot_id, ref_nodes, details)
 
+    # ── Heading change trigger ────────────────────────────────────────────────
     if track_deg is not None:
         with _state_lock:
             ms = _motion_state.get(node_id) or {}
@@ -487,6 +502,7 @@ async def _evaluate(node_id: str, lat: float, lon: float,
             _motion_state[node_id] = {**ms, "last_heading": track_deg,
                                        "last_lat": lat, "last_lon": lon, "last_ts": now}
 
+    # ── Proximity triggers (node A near node B) ───────────────────────────────
     for tid, trig in list(_triggers.items()):
         if trig.get("trigger_type") != "proximity":
             continue
@@ -636,7 +652,9 @@ async def _post_webhook(url: str, body: str, headers: dict):
         logger.warning("Webhook %s: %s", url, e)
 
 
+# ---------------------------------------------------------------------------
 # Routes
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("")
 @plugin_router.get("/")
@@ -645,6 +663,7 @@ async def health():
             "zones": len(_zones), "triggers": len(_triggers)}
 
 
+# ── Zones ─────────────────────────────────────────────────────────────────────
 
 class ZoneReq(BaseModel):
     slot_id:     str   = "node_0"
@@ -730,6 +749,7 @@ async def delete_zone(zid: str):
     return {"status": "deleted"}
 
 
+# ── Triggers ──────────────────────────────────────────────────────────────────
 
 class TriggerReq(BaseModel):
     slot_id:         str       = "node_0"
@@ -802,6 +822,7 @@ async def delete_trigger(tid: str):
     return {"status": "deleted"}
 
 
+# ── Events ─────────────────────────────────────────────────────────────────────
 
 @plugin_router.get("/events")
 async def list_events(limit: int = 200, unacked_only: bool = False):
@@ -855,6 +876,7 @@ async def clear_events():
     return {"status": "cleared"}
 
 
+# ── Live node positions ────────────────────────────────────────────────────────
 
 @plugin_router.get("/nodes/{slot_id}")
 async def live_nodes(slot_id: str):
@@ -875,6 +897,7 @@ async def live_nodes(slot_id: str):
     return {"slot_id": slot_id, "nodes": result}
 
 
+# ── Zone state query ──────────────────────────────────────────────────────────
 
 @plugin_router.get("/state/{slot_id}")
 async def zone_state(slot_id: str):

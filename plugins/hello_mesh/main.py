@@ -14,34 +14,27 @@ Designed to be read alongside the HTML companion page.
 """
 
 import asyncio
+import json
 import logging
 import time
 from typing import Optional
 
-import httpx
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
 
+# ---------------------------------------------------------------------------
 # Plugin boilerplate — every plugin MUST expose exactly these two top-level names
+# ---------------------------------------------------------------------------
 # 1. core_context: dict  — populated by init_plugin(), holds all injected objects
 # 2. plugin_router: APIRouter  — all your API routes mount on this
 
 core_context: dict = {}
 plugin_router = APIRouter()
 
-# Shared HTTP client — one connection pool, not a new client per request.
-_http_client: Optional[httpx.AsyncClient] = None
 
-
-async def _get_client() -> httpx.AsyncClient:
-    """Return the shared httpx client, creating it on first use."""
-    global _http_client
-    if _http_client is None or _http_client.is_closed:
-        _http_client = httpx.AsyncClient(timeout=10.0)
-    return _http_client
-
-
+# ===========================================================================
 # WATCHDOG HEARTBEAT
+# ===========================================================================
 # When manifest.json has "watchdog": true, MeshDash core tracks this plugin
 # in _plugin_watchdog. The plugin must write a timestamp into the shared
 # watchdog dict at least once every 120 s, or the core marks it "hung" and
@@ -49,6 +42,7 @@ async def _get_client() -> httpx.AsyncClient:
 #
 # If your manifest has "watchdog": false, you do NOT need this coroutine at
 # all. The core will never monitor your plugin's liveness.
+# ===========================================================================
 
 async def _watchdog_heartbeat():
     """
@@ -77,7 +71,9 @@ async def _watchdog_heartbeat():
             logger.warning(f"⚠️  Watchdog heartbeat error: {e}")
 
 
+# ===========================================================================
 # PLUGIN LIFECYCLE — init_plugin
+# ===========================================================================
 # The MeshDash core calls init_plugin(context) once during startup, inside
 # a threading.Thread (for timeout safety). This means you CANNOT use
 # asyncio.get_event_loop().create_task() here — that returns the wrong loop.
@@ -85,6 +81,7 @@ async def _watchdog_heartbeat():
 # The core passes context["event_loop"] which is the real running uvicorn
 # loop. Always use asyncio.run_coroutine_threadsafe(coro, loop) to schedule
 # background tasks from init_plugin.
+# ===========================================================================
 
 def init_plugin(context: dict):
     """
@@ -112,7 +109,9 @@ def init_plugin(context: dict):
     logger.info("🐕 Hello Mesh watchdog heartbeat started")
 
 
+# ===========================================================================
 # REFERENCE ENDPOINTS
+# ===========================================================================
 # These endpoints are consumed by the hello_mesh HTML page to provide live,
 # working demos for every MeshDash core API.
 #
@@ -128,9 +127,12 @@ def init_plugin(context: dict):
 #
 # Direct access is faster, needs no auth, works without network, and
 # avoids the hard-coded port problem.
+# ===========================================================================
 
 
+# ---------------------------------------------------------------------------
 # /info — plugin context inspection
+# ---------------------------------------------------------------------------
 @plugin_router.get("/info")
 async def plugin_info():
     """Returns metadata about this plugin as seen by the running core."""
@@ -151,7 +153,9 @@ async def plugin_info():
     }
 
 
+# ---------------------------------------------------------------------------
 # /direct_access_demo — shows the direct-access pattern (no HTTP needed)
+# ---------------------------------------------------------------------------
 @plugin_router.get("/direct_access_demo")
 async def direct_access_demo():
     """
@@ -177,10 +181,8 @@ async def direct_access_demo():
     }
 
 
+# ---------------------------------------------------------------------------
 # /proxy/* — HTTP proxies for the HTML demo page
-# The HTML page runs in the browser and can't access core_context directly,
-# so it calls these proxy endpoints which then call the real MeshDash APIs.
-# In your OWN plugin Python code, use core_context directly instead!
 
 def _get_base_url() -> str:
     """Resolve the dashboard's base URL at runtime (avoid hardcoded port)."""
@@ -196,73 +198,90 @@ def _get_base_url() -> str:
         except Exception:
             return "http://127.0.0.1:8181"
 
-
-async def _proxy_get(path: str, params: dict | None = None) -> JSONResponse:
-    """Generic proxy: GET a MeshDash API path and return the response."""
-    client = await _get_client()
-    url = f"{_get_base_url()}{path}"
-    r = await client.get(url, params=params)
-    return JSONResponse(content=r.json(), status_code=r.status_code)
-
-
-# Proxy route table — path, API target, query params to forward.
-# Each entry becomes one endpoint at /proxy/<key> that forwards to the
-# MeshDash API path shown. The route-specific query params (slot_id,
-# limit, etc.) are declared per-endpoint so FastAPI generates correct
-# OpenAPI docs, then forwarded to _proxy_get.
+# The HTML page runs in the browser and can't access core_context directly,
+# so it calls these proxy endpoints which then call the real MeshDash APIs.
+# In your OWN plugin Python code, use core_context directly instead!
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("/proxy/status")
 async def proxy_status(slot_id: str = Query("node_0")):
-    """Proxies GET /api/status"""
-    return await _proxy_get("/api/status", {"slot_id": slot_id})
+    """Proxies GET /api/status?slot_id=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/status?slot_id={slot_id}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/stats")
 async def proxy_stats(slot_id: str = Query("node_0")):
-    """Proxies GET /api/stats"""
-    return await _proxy_get("/api/stats", {"slot_id": slot_id})
+    """Proxies GET /api/stats?slot_id=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/stats?slot_id={slot_id}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/nodes")
 async def proxy_nodes(slot_id: str = Query("node_0")):
-    """Proxies GET /api/nodes"""
-    return await _proxy_get("/api/nodes", {"slot_id": slot_id})
+    """Proxies GET /api/nodes?slot_id=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/nodes?slot_id={slot_id}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/packets")
 async def proxy_packets(limit: int = Query(20, ge=1, le=200), slot_id: str = Query("node_0")):
-    """Proxies GET /api/packets"""
-    return await _proxy_get("/api/packets", {"limit": limit, "slot_id": slot_id})
+    """Proxies GET /api/packets?limit=N&slot_id=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/packets?limit={limit}&slot_id={slot_id}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/packets/history")
 async def proxy_packets_history(limit: int = Query(50, ge=1, le=500)):
-    """Proxies GET /api/packets/history"""
-    return await _proxy_get("/api/packets/history", {"limit": limit})
+    """Proxies GET /api/packets/history?limit=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/packets/history?limit={limit}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/neighbors")
 async def proxy_neighbors():
     """Proxies GET /api/neighbors"""
-    return await _proxy_get("/api/neighbors")
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get("{_get_base_url()}/api/neighbors")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/traceroutes")
 async def proxy_traceroutes(limit: int = Query(20, ge=1, le=100)):
-    """Proxies GET /api/traceroutes"""
-    return await _proxy_get("/api/traceroutes", {"limit": limit})
+    """Proxies GET /api/traceroutes?limit=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/traceroutes?limit={limit}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/waypoints")
 async def proxy_waypoints():
     """Proxies GET /api/waypoints"""
-    return await _proxy_get("/api/waypoints")
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get("{_get_base_url()}/api/waypoints")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/hardware_logs")
 async def proxy_hardware_logs(limit: int = Query(20, ge=1, le=200)):
-    """Proxies GET /api/hardware_logs"""
-    return await _proxy_get("/api/hardware_logs", {"limit": limit})
+    """Proxies GET /api/hardware_logs?limit=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/hardware_logs?limit={limit}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/messages/history")
@@ -271,85 +290,130 @@ async def proxy_messages_history(
     limit:   int = Query(50, ge=1, le=500),
 ):
     """Proxies GET /api/messages/history"""
-    return await _proxy_get("/api/messages/history", {"channel": channel, "limit": limit})
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(
+            f"{_get_base_url()}/api/messages/history"
+            f"?channel={channel}&limit={limit}"
+        )
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/channels")
 async def proxy_channels(slot_id: str = Query("node_0")):
-    """Proxies GET /api/channels"""
-    return await _proxy_get("/api/channels", {"slot_id": slot_id})
+    """Proxies GET /api/channels?slot_id=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/channels?slot_id={slot_id}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/local_node")
 async def proxy_local_node(slot_id: str = Query("node_0")):
-    """Proxies GET /api/local_node/full"""
-    return await _proxy_get("/api/local_node/full", {"slot_id": slot_id})
+    """Proxies GET /api/local_node/full?slot_id=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/local_node/full?slot_id={slot_id}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/metrics")
 async def proxy_metrics(limit: int = Query(100, ge=1, le=1000)):
-    """Proxies GET /api/metrics/averages"""
-    return await _proxy_get("/api/metrics/averages", {"limit": limit})
+    """Proxies GET /api/metrics/averages?limit=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/metrics/averages?limit={limit}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/counts")
 async def proxy_counts():
     """Proxies GET /api/counts/totals"""
-    return await _proxy_get("/api/counts/totals")
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get("{_get_base_url()}/api/counts/totals")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/connection_history")
 async def proxy_connection_history(limit: int = Query(60, ge=1, le=300)):
-    """Proxies GET /api/system/connection_history"""
-    return await _proxy_get("/api/system/connection_history", {"limit": limit})
+    """Proxies GET /api/system/connection_history?limit=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/system/connection_history?limit={limit}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/plugins")
 async def proxy_plugins():
     """Proxies GET /api/system/plugins"""
-    return await _proxy_get("/api/system/plugins")
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get("{_get_base_url()}/api/system/plugins")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/version_status")
 async def proxy_version_status():
     """Proxies GET /api/system/version-status"""
-    return await _proxy_get("/api/system/version-status")
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get("{_get_base_url()}/api/system/version-status")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/c2_status")
 async def proxy_c2_status():
     """Proxies GET /api/c2/status"""
-    return await _proxy_get("/api/c2/status")
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get("{_get_base_url()}/api/c2/status")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/slots")
 async def proxy_slots():
-    """Proxies GET /api/slots"""
-    return await _proxy_get("/api/slots")
+    """Proxies GET /api/slots — the multi-radio slot registry"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get("{_get_base_url()}/api/slots")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/search")
 async def proxy_search(q: str = Query(""), limit: int = Query(50)):
-    """Proxies GET /api/search"""
-    return await _proxy_get("/api/search", {"q": q, "limit": limit})
+    """Proxies GET /api/search?q=...&limit=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/search?q={q}&limit={limit}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/geocode")
 async def proxy_geocode(lat: float = Query(0), lon: float = Query(0)):
-    """Proxies GET /api/geocode"""
-    return await _proxy_get("/api/geocode", {"lat": lat, "lon": lon})
+    """Proxies GET /api/geocode?lat=X&lon=Y"""
+    import httpx
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/geocode?lat={lat}&lon={lon}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/connection_status")
 async def proxy_connection_status():
     """Proxies GET /api/connection/status"""
-    return await _proxy_get("/api/connection/status")
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get("{_get_base_url()}/api/connection/status")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/node/{node_id}")
 async def proxy_single_node(node_id: str, slot_id: str = Query("node_0")):
-    """Proxies GET /api/nodes/{node_id}"""
-    return await _proxy_get(f"/api/nodes/{node_id}", {"slot_id": slot_id})
+    """Proxies GET /api/nodes/{node_id}?slot_id=N"""
+    import httpx
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(f"{_get_base_url()}/api/nodes/{node_id}?slot_id={slot_id}")
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/node_count/{node_id}/{item_type}")
@@ -360,34 +424,44 @@ async def proxy_node_count(
     end:       Optional[float] = Query(None),
 ):
     """Proxies GET /api/nodes/{node_id}/count/{item_type}"""
+    import httpx
+    url = f"{_get_base_url()}/api/nodes/{node_id}/count/{item_type}"
     params = {}
     if start is not None:
         params["start"] = start
     if end is not None:
         params["end"] = end
-    return await _proxy_get(f"/api/nodes/{node_id}/count/{item_type}", params or None)
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(url, params=params)
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
 @plugin_router.get("/proxy/node_history/{node_id}/{table_name}")
 async def proxy_node_history(
     node_id:    str,
     table_name: str,
-    limit:      int             = Query(100, ge=1, le=1000),
+    limit:      int            = Query(100, ge=1, le=1000),
     start:      Optional[float] = Query(None),
     end:        Optional[float] = Query(None),
 ):
     """Proxies GET /api/nodes/{node_id}/history/{table_name}"""
+    import httpx
+    url = f"{_get_base_url()}/api/nodes/{node_id}/history/{table_name}"
     params: dict = {"limit": limit}
     if start is not None:
         params["start"] = start
     if end is not None:
         params["end"] = end
-    return await _proxy_get(f"/api/nodes/{node_id}/history/{table_name}", params)
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        r = await client.get(url, params=params)
+    return JSONResponse(content=r.json(), status_code=r.status_code)
 
 
+# ---------------------------------------------------------------------------
 # Logging reference — plugins get a namespaced logger and a ring buffer
 # The core captures all output from logging.getLogger("plugin.<id>")
 # and makes it available at GET /api/system/plugins/<id>/logs
+# ---------------------------------------------------------------------------
 @plugin_router.get("/log_test")
 async def log_test():
     """

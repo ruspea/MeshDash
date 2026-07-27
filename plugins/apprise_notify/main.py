@@ -100,7 +100,9 @@ def _get_rules_cached() -> List[dict]:
     return _rules_cache
 
 
+# ---------------------------------------------------------------------------
 # DB
+# ---------------------------------------------------------------------------
 
 def _db_init():
     with _DB_LOCK:
@@ -198,7 +200,9 @@ def _load_all(table):
     return rows
 
 
+# ---------------------------------------------------------------------------
 # Plugin lifecycle
+# ---------------------------------------------------------------------------
 
 def init_plugin(context: dict):
     global _node_registry, _event_loop
@@ -271,7 +275,9 @@ async def _offline_scanner():
             logger.debug("offline_scanner: %s", e)
 
 
+# ---------------------------------------------------------------------------
 # Packet listener
+# ---------------------------------------------------------------------------
 
 def _on_receive(packet, interface=None):
     """Called by pubsub for every received packet. Runs in the interface thread."""
@@ -390,7 +396,9 @@ def _build_ctx(node_id, node_dict, slot_id, event_type="packet",
     }
 
 
+# ---------------------------------------------------------------------------
 # Rule evaluation
+# ---------------------------------------------------------------------------
 
 async def _maybe_fire(rule: dict, ctx: dict):
     """Check all filters + DnD + rate limit, then fire."""
@@ -501,7 +509,9 @@ def _passes_rate_limit(rule: dict) -> bool:
     return True
 
 
+# ---------------------------------------------------------------------------
 # Apprise dispatch
+# ---------------------------------------------------------------------------
 
 async def _fire_rule(rule: dict, ctx: dict):
     if not APPRISE_AVAILABLE:
@@ -593,8 +603,11 @@ def _render_tmpl(tmpl: str, ctx: dict) -> str:
             .replace("{slot}",    ctx.get("slot_id", "")))
 
 
+# ---------------------------------------------------------------------------
 # Management API
+# ---------------------------------------------------------------------------
 
+# ── Destinations ─────────────────────────────────────────────────────────────
 
 class DestReq(BaseModel):
     name:    str
@@ -659,6 +672,7 @@ async def test_destination(did: str):
     return {"success": success, "error": error}
 
 
+# ── Rules ─────────────────────────────────────────────────────────────────────
 
 class RuleReq(BaseModel):
     name:                 str
@@ -768,6 +782,7 @@ async def test_rule(rid: str):
     return {"status": "fired"}
 
 
+# ── Delivery log ──────────────────────────────────────────────────────────────
 
 @plugin_router.get("/log")
 async def delivery_log(limit: int = 100):
@@ -789,6 +804,7 @@ async def clear_log():
     return {"status": "cleared"}
 
 
+# ── Status ────────────────────────────────────────────────────────────────────
 
 @plugin_router.get("/status")
 async def status():
@@ -810,6 +826,7 @@ async def status():
     }
 
 
+# ── Nodes (for picker) ────────────────────────────────────────────────────────
 
 @plugin_router.get("/nodes/{slot_id}")
 async def nodes_for_picker(slot_id: str):

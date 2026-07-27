@@ -54,7 +54,9 @@ _event_loop:    Optional[asyncio.AbstractEventLoop] = None
 WIDGET_TYPES = ["map", "stats", "nodelist", "signal", "activity", "nodecard"]
 
 
+# ---------------------------------------------------------------------------
 # DB
+# ---------------------------------------------------------------------------
 
 def _db_init():
     with _DB_LOCK:
@@ -115,7 +117,9 @@ def _bump_view(token: str):
             conn.commit()
 
 
+# ---------------------------------------------------------------------------
 # Node data helpers
+# ---------------------------------------------------------------------------
 
 def _get_nodes(slot_id: str) -> List[dict]:
     """Return all nodes for a slot as list of plain dicts."""
@@ -181,7 +185,9 @@ def _filter_nodes(nodes: List[dict], cfg: dict) -> List[dict]:
     return out[:max_n]
 
 
+# ---------------------------------------------------------------------------
 # Plugin lifecycle
+# ---------------------------------------------------------------------------
 
 def init_plugin(context: dict):
     global _node_registry, _event_loop
@@ -206,7 +212,9 @@ async def _watchdog(context):
             pass
 
 
+# ---------------------------------------------------------------------------
 # Management API (authenticated — normal plugin routes)
+# ---------------------------------------------------------------------------
 
 class WidgetCreateReq(BaseModel):
     slot_id: str = "node_0"
@@ -360,8 +368,10 @@ def _build_data_payload(wtype: str, nodes: List[dict], cfg: dict) -> dict:
     return {"type": wtype, "nodes": nodes, "ts": int(now)}
 
 
+# ---------------------------------------------------------------------------
 # PUBLIC widget render — NO AUTH
 # These routes serve complete standalone HTML pages.
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("/w/{token}", response_class=HTMLResponse, include_in_schema=False)
 async def render_widget(token: str, request: Request):
@@ -405,7 +415,9 @@ async def widget_data_api(token: str):
     return _build_data_payload(w["type"], filtered, w["config"])
 
 
+# ---------------------------------------------------------------------------
 # Widget HTML renderers
+# ---------------------------------------------------------------------------
 
 _DARK_VARS = """
     --bg:#060b12; --bg1:#0b1320; --bg2:#0d1a2d;
@@ -541,6 +553,7 @@ def _snr_color(v) -> str:
     return "var(--ok)"
 
 
+# ── MAP widget ─────────────────────────────────────────────────────────────
 
 def _render_widget_html(wtype, data, cfg, title, theme, refresh_s, data_url, token):
     if wtype == "map":
@@ -698,6 +711,7 @@ def _render_map(data, cfg, title, theme, refresh_s, data_url, token):
     return _base_html(title, theme, body, head_extra, 0, data_url)
 
 
+# ── STATS widget ───────────────────────────────────────────────────────────
 
 def _render_stats(data, cfg, title, theme, refresh_s, data_url):
     total   = data.get("total",   0)
@@ -756,6 +770,7 @@ def _stat_tile(label, value, color, icon, sub=""):
 </div>"""
 
 
+# ── NODELIST widget ────────────────────────────────────────────────────────
 
 def _render_nodelist(data, cfg, title, theme, refresh_s, data_url):
     nodes   = data.get("nodes", [])
@@ -851,6 +866,7 @@ def _nodelist_row(n: dict) -> str:
     </tr>"""
 
 
+# ── SIGNAL widget ──────────────────────────────────────────────────────────
 
 def _render_signal(data, cfg, title, theme, refresh_s, data_url):
     nodes = data.get("nodes", [])[:20]
@@ -918,6 +934,7 @@ def _signal_bar(n: dict) -> str:
 </div>"""
 
 
+# ── ACTIVITY widget ────────────────────────────────────────────────────────
 
 def _render_activity(data, cfg, title, theme, refresh_s, data_url):
     nodes = data.get("nodes", [])
@@ -986,6 +1003,7 @@ def _activity_row(n: dict) -> str:
 </div>"""
 
 
+# ── NODECARD widget ────────────────────────────────────────────────────────
 
 def _render_nodecard(data, cfg, title, theme, refresh_s, data_url):
     n = data.get("node")
@@ -1060,8 +1078,10 @@ window._widgetUpdate = function(d) {{
     return _base_html(title, theme, body, "", refresh_s, data_url)
 
 
+# ---------------------------------------------------------------------------
 # Preview-HTML endpoint — returns a full rendered widget page for the builder
 # iframe to display, using current form config without saving to DB.
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("/preview-html/{slot_id}", response_class=HTMLResponse, include_in_schema=False)
 async def preview_html(slot_id: str, type: str = "stats", config: str = "{}"):
@@ -1082,7 +1102,9 @@ async def preview_html(slot_id: str, type: str = "stats", config: str = "{}"):
     return HTMLResponse(html)
 
 
+# ---------------------------------------------------------------------------
 # Nodes endpoint (used by index.html nodecard picker)
+# ---------------------------------------------------------------------------
 
 @plugin_router.get("/nodes/{slot_id}")
 async def nodes_for_picker(slot_id: str):

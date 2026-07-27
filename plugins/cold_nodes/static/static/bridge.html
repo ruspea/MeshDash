@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><title>Cold Nodes Bridge</title>
+<style>body{margin:0;padding:0;background:transparent;}</style>
+</head>
+<body>
+<script>
+'use strict';
+const PLUGIN_ID='cold_nodes',CONFIG_URL='/api/plugins/cold_nodes/config',DELETE_URL='/api/plugins/cold_nodes/delete',BADGE_ID='cn_stale',TAB_ID='cn_cold_tab';
+var _cfg={enabled:false,threshold_hours:24},_badgedNodes=new Set(),_evaluating=false,_tabReg=false,_tbReg=false,_modalDelWired=false;
+
+function _waitForBridge(cb){if(window.parent&&typeof window.parent.PluginBridge==='object'){cb(window.parent.PluginBridge);}else{setTimeout(function(){_waitForBridge(cb);},150);}}
+
+async function _fetchConfig(){try{var r=await fetch(CONFIG_URL,{credentials:'include',cache:'no-store'});if(!r.ok)return;var d=await r.json();_cfg.enabled=!!d.enabled;_cfg.threshold_hours=parseFloat(d.threshold_hours)||24;}catch(e){}}
+async function _saveConfig(){try{await fetch(CONFIG_URL,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:_cfg.enabled,threshold_hours:_cfg.threshold_hours})});}catch(e){}}
+
+function _ageDiff(lh){return!lh?Infinity:Math.floor(Date.now()/1000-lh);}
+function _ageLabel(lh){
+    if(!lh)return'NEVER';
+    var diff=_ageDiff(lh);
+    if(diff<60)   return diff+'s';
+    if(diff<3600) return Math.floor(diff/60)+'m';
+    if(diff<86400)return Math.floor(diff/3600)+'h';
+    return        Math.floor(diff/86400)+'d';
+}
+function _isStale(node){var lh=node.lastHeard||node.last_heard||0;if(!lh)return true;var diff=_ageDiff(lh);return diff===Infinity||diff>(_cfg.threshold_hours*3600);}
+function _ribbonCls(lh){
+    if(!lh)return'pb-ribbon pb-ribbon-pur';
+    var diff=_ageDiff(lh);
+    if(diff>=604800)return'pb-ribbon pb-ribbon-err';   // >=7d
+    if(diff>=172800)return'pb-ribbon pb-ribbon-warn';  // >=2d
+    return'pb-ribbon pb-ribbon-acc';                   // <2d
+}
+
+function _badgeHtml(node){
+    var lh=node.lastHeard||node.last_heard||0;
+    var label='STALE \xb7 '+_ageLabel(lh);
+    var cls=_ribbonCls(lh);
+    var tip='Cold node \u2014 last heard '+(lh?new Date(lh*1000).toLocaleString():'never')+'. Click to manage.';
+    return '<span class="'+cls+'" title="'+tip+'">'+label+'</span>';
+}
+
+function _buildModalHtml(nodeId,PB){
+    var node=PB.getNode(nodeId);
+    var esc=window.parent.escapeHtml||function(s){return String(s||'');};
+    if(!node){return'<div style="color:var(--txt3);font-family:var(--mono);padding:12px;font-size:11px;">Node <strong>'+esc(nodeId)+'</strong> not in live state \u2014 may already be deleted.</div>';}
+    var lh=node.lastHeard||node.last_heard||0,stale=_isStale(node),user=node.user||{};
+    var rows=[
+        ['NODE ID',esc(nodeId)],
+        ['SHORT NAME',esc(user.shortName||node.short_name||'\u2014')],
+        ['LONG NAME',esc(user.longName||node.long_name||'\u2014')],
+        ['HW MODEL',esc(user.hwModel||node.hw_model||'\u2014')],
+        ['LAST HEARD',lh?new Date(lh*1000).toLocaleString():'Never'],
+        ['AGE',stale?'<span style="color:var(--warn);font-weight:bold;">'+_ageLabel(lh)+' AGO (STALE)</span>':'<span style="color:var(--ok);">'+_ageLabel(lh)+' AGO (ACTIVE)</span>'],
+        ['THRESHOLD',_cfg.threshold_hours+'h'],
+        ['HEARD VIA',esc(node.heard_by_slot||'node_0')],
+        ['BATTERY',(node.deviceMetrics&&node.deviceMetrics.batteryLevel!=null)?node.deviceMetrics.batteryLevel+'%':'\u2014'],
+        ['SNR',node.snr!=null?node.snr+'dB':'\u2014'],
+    ];
+    var grid=rows.map(function(r){return'<div style="background:var(--bg3);border:1px solid var(--bd);border-radius:4px;padding:7px 10px;"><div style="font-size:8px;color:var(--txt3);font-family:var(--mono);letter-spacing:.5px;margin-bottom:3px;">'+r[0]+'</div><div style="font-size:11px;color:var(--txt);font-family:var(--mono);font-weight:bold;">'+r[1]+'</div></div>';}).join('');
+    var banner=stale
+        ?'<div style="padding:9px 12px;border-radius:5px;border:1px solid var(--warn);background:rgba(255,168,38,.07);font-family:var(--mono);font-size:11px;color:var(--warn);margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="fas fa-snowflake" style="color:var(--acc);font-size:14px;flex-shrink:0;"></i><div><div style="font-weight:bold;">COLD NODE \u2014 '+_ageLabel(lh)+' SINCE LAST CONTACT</div><div style="font-size:9px;opacity:.7;margin-top:2px;">Threshold: '+_cfg.threshold_hours+'h \xb7 Use DELETE below to remove permanently</div></div></div>'
+        :'<div style="padding:9px 12px;border-radius:5px;border:1px solid var(--ok);background:rgba(0,232,122,.07);font-family:var(--mono);font-size:11px;color:var(--ok);margin-bottom:12px;"><i class="fas fa-check-circle" style="margin-right:6px;"></i>ACTIVE \u2014 within threshold</div>';
+    var delRow=stale
+        ?'<div style="border-top:1px solid var(--bd2);padding-top:12px;margin-top:4px;display:flex;gap:10px;align-items:center;"><button class="btn btn-err btn-sm" data-cn-modal-del="'+esc(nodeId)+'" style="font-size:10px;"><i class="fas fa-trash"></i> DELETE NODE</button><span style="font-size:9px;color:var(--txt3);font-family:var(--mono);line-height:1.4;">Removes from DB and live state.<br>Reappears if it transmits again.</span></div>'
+        :'';
+    return'<div style="display:flex;flex-direction:column;">'+banner+'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px;">'+grid+'</div>'+delRow+'</div>';
+}
+
+function _wireModalDelete(PB){
+    if(_modalDelWired)return;_modalDelWired=true;
+    window.parent.document.addEventListener('click',async function(e){
+        var btn=e.target.closest('[data-cn-modal-del]');if(!btn)return;
+        var nid=btn.getAttribute('data-cn-modal-del');if(!nid)return;
+        var node=PB.getNode(nid),name=(node&&node.user&&node.user.shortName)||nid;
+        if(!window.parent.confirm('Delete "'+name+'" ('+nid+') permanently?\n\nThis removes it from the database and live state.\nIt will reappear if it transmits again.'))return;
+        btn.disabled=true;btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> DELETING...';
+        try{
+            var r=await fetch(DELETE_URL,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({node_ids:[nid],slot_id:'node_0'})});
+            var data=await r.json();
+            if(data.deleted>0){
+                try{delete window.parent.meshState.nodes[nid];}catch(_){}
+                _badgedNodes.delete(nid);PB.removeNodeBadge(nid,BADGE_ID);
+                PB.toast('Node "'+name+'" deleted.','ok');
+                try{window.parent.closeModal();}catch(_){}
+                try{window.parent.c2RenderNodes(false);}catch(_){}
+            }else{PB.toast('Delete failed \u2014 not found in DB.','warn');btn.disabled=false;btn.innerHTML='<i class="fas fa-trash"></i> DELETE NODE';}
+        }catch(err){PB.toast('Delete error: '+err.message,'err');btn.disabled=false;btn.innerHTML='<i class="fas fa-trash"></i> DELETE NODE';}
+    });
+}
+
+function _registerTab(PB){
+    if(_tabReg)return;_tabReg=true;
+    PB.addModalTab({id:TAB_ID,pluginId:PLUGIN_ID,label:'\u2744 COLD NODE',render:function(nodeId){return _buildModalHtml(nodeId,PB);}});
+}
+
+function _registerToolbar(PB){
+    if(_tbReg)return;_tbReg=true;
+    var render=function(){return'<button id="cn-tb-btn" class="btn btn-sm'+(_cfg.enabled?' btn-acc':'')+'" style="font-size:9px;display:inline-flex;align-items:center;gap:5px;" title="Toggle Cold Nodes stale badge overlay"><i class="fas fa-snowflake"></i> '+(_cfg.enabled?'COLD NODES ON':'COLD NODES')+'</button>';};
+    PB.addOverviewToolbarItem({id:'cn_toolbar',pluginId:PLUGIN_ID,render:render});
+    window.parent.document.addEventListener('click',function(e){
+        if(!e.target.closest('#cn-tb-btn'))return;
+        _cfg.enabled=!_cfg.enabled;_saveConfig();
+        PB.removeOverviewToolbarItem('cn_toolbar');_tbReg=false;_registerToolbar(PB);
+        _cfg.enabled?_evaluate(PB):_clearAll(PB);
+        PB.toast('Cold Nodes '+(_cfg.enabled?'ON':'OFF'),_cfg.enabled?'acc':'warn');
+    });
+}
+
+function _clearAll(PB){_badgedNodes.forEach(function(nid){try{PB.removeNodeBadge(nid,BADGE_ID);}catch(_){}});_badgedNodes.clear();}
+
+async function _evaluate(PB){
+    if(_evaluating)return;_evaluating=true;
+    try{
+        if(!_cfg.enabled){_clearAll(PB);return;}
+        var localId=PB.getLocalNodeId(),nowStale=new Set();
+        PB.getNodes().forEach(function(entry){
+            var nid=entry[0],node=entry[1];
+            if(nid===localId||node.isLocal||node.is_local)return;
+            if(!_isStale(node))return;
+            nowStale.add(nid);
+            PB.addNodeBadge(nid,{id:BADGE_ID,pluginId:PLUGIN_ID,tabId:TAB_ID,html:_badgeHtml(node)});
+        });
+        _badgedNodes.forEach(function(nid){if(!nowStale.has(nid)){try{PB.removeNodeBadge(nid,BADGE_ID);}catch(_){}}});
+        _badgedNodes=nowStale;
+    }finally{_evaluating=false;}
+}
+
+_waitForBridge(function(PB){
+    _fetchConfig().then(function(){_registerTab(PB);_registerToolbar(PB);_wireModalDelete(PB);_evaluate(PB);});
+    PB.onNodesUpdated(function(){_evaluate(PB);});
+    PB.onPacket(function(pkt){
+        if(!_cfg.enabled)return;
+        var from=pkt&&(pkt.fromId||pkt.from_id);
+        if(!from||!_badgedNodes.has(from))return;
+        var node=PB.getNode(from);
+        if(node&&!_isStale(node)){try{PB.removeNodeBadge(from,BADGE_ID);}catch(_){}  _badgedNodes.delete(from);}
+    });
+    setInterval(function(){_fetchConfig().then(function(){if(_cfg.enabled)_evaluate(PB);});},15000);
+    console.log('[Cold Nodes Bridge] v2.2 ready.');
+});
+</script>
+</body>
+</html>

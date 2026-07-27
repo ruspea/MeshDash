@@ -1,0 +1,94 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body><script>
+'use strict';
+var API = '/api/plugins/channel_vault';
+var _tabReg = false;
+
+function _waitBridge(cb) {
+  if (window.parent && typeof window.parent.PluginBridge === 'object') {
+    cb(window.parent.PluginBridge);
+  } else {
+    setTimeout(function () { _waitBridge(cb); }, 150);
+  }
+}
+
+// Poll for unknown-channel alerts and show a subtle banner on the overview
+var _lastAlertCount = 0;
+function _pollAlerts() {
+  fetch(API + '/alerts').then(function(r){return r.json();}).then(function(d){
+    var alerts = (d.alerts || []);
+    if (alerts.length > _lastAlertCount) {
+      _lastAlertCount = alerts.length;
+      // Show toast in parent if available
+      if (window.parent && window.parent.triggerToast) {
+        window.parent.triggerToast(
+          alerts.length + ' unknown encrypted channel' + (alerts.length>1?'s':'') + ' detected — Channel Vault',
+          'warn'
+        );
+      }
+    }
+  }).catch(function(){});
+  setTimeout(_pollAlerts, 30000);
+}
+
+// Modal tab on node cards — shows quick PSK add for that node's packets
+function _registerTab(PB) {
+  if (_tabReg) return;
+  _tabReg = true;
+  PB.addModalTab({
+    id: 'channel_vault-psk',
+    label: '🔑 CHANNEL VAULT',
+    pluginId: 'channel_vault',
+    render: function (nodeId) {
+      var esc = window.parent.escapeHtml || function(s){return String(s||'');};
+      return '<div style="padding:6px 0;">'
+        + '<div style="font-family:var(--mono);font-size:9px;color:var(--txt2);line-height:1.8;margin-bottom:14px;">'
+        + 'Add a PSK for any encrypted channel this node transmits on.<br>'
+        + 'Server-side decryption runs on all stored PSKs automatically.'
+        + '</div>'
+        + '<div style="font-family:var(--mono);font-size:8px;color:var(--txt3);letter-spacing:.5px;margin-bottom:5px;">CHANNEL NAME</div>'
+        + '<input id="cv-name" style="width:100%;font-family:var(--mono);font-size:10px;padding:6px 9px;background:var(--bg);border:1px solid var(--bd2);border-radius:4px;color:var(--txt);margin-bottom:10px;" placeholder="e.g. Hampshire Emergency Net">'
+        + '<div style="font-family:var(--mono);font-size:8px;color:var(--txt3);letter-spacing:.5px;margin-bottom:5px;">PSK (base64)</div>'
+        + '<input id="cv-psk" style="width:100%;font-family:var(--mono);font-size:10px;padding:6px 9px;background:var(--bg);border:1px solid var(--bd2);border-radius:4px;color:var(--txt);margin-bottom:10px;" placeholder="base64 AES key">'
+        + '<button onclick="_cvAddPSK()" style="width:100%;padding:9px;background:rgba(176,96,255,.15);border:1px solid rgba(176,96,255,.4);border-radius:4px;color:var(--pur);font-family:var(--mono);font-size:10px;font-weight:900;cursor:pointer;">'
+        + '<i class="fas fa-key" style="margin-right:5px;"></i>ADD TO VAULT'
+        + '</button>'
+        + '<div id="cv-result" style="margin-top:8px;"></div>'
+        + '<div style="text-align:center;margin-top:14px;">'
+        + '<a href="/static/plugins/channel_vault/index.html" target="_blank" style="font-family:var(--mono);font-size:9px;color:var(--pur);text-decoration:none;border:1px solid rgba(176,96,255,.3);padding:5px 14px;border-radius:3px;display:inline-block;">'
+        + '<i class="fas fa-external-link-alt" style="margin-right:5px;"></i>OPEN CHANNEL VAULT'
+        + '</a>'
+        + '</div>'
+      + '</div>';
+    },
+  });
+}
+
+window._cvAddPSK = function () {
+  var name = document.getElementById('cv-name');
+  var psk  = document.getElementById('cv-psk');
+  var res  = document.getElementById('cv-result');
+  if (!name || !psk || !name.value || !psk.value) {
+    if (res) res.innerHTML = '<div style="color:var(--warn);font-family:var(--mono);font-size:9px;">Name and PSK required.</div>';
+    return;
+  }
+  if (res) res.innerHTML = '<div style="color:var(--acc);font-family:var(--mono);font-size:9px;"><i class="fas fa-circle-notch fa-spin"></i> Adding…</div>';
+  fetch(API + '/vault', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: name.value.trim(), psk_b64: psk.value.trim(), notes: 'Added from node modal' }),
+  })
+    .then(function (r) { return r.json(); })
+    .then(function () {
+      if (res) res.innerHTML = '<div style="background:rgba(0,232,122,.08);border:1px solid rgba(0,232,122,.3);border-radius:4px;padding:8px;font-family:var(--mono);font-size:9px;color:var(--ok);"><i class="fas fa-check" style="margin-right:5px;"></i>Added to vault. Retroactive decrypt started.</div>';
+      name.value = ''; psk.value = '';
+    })
+    .catch(function (e) {
+      if (res) res.innerHTML = '<div style="color:var(--err);font-family:var(--mono);font-size:9px;">Failed: ' + e.message + '</div>';
+    });
+};
+
+_waitBridge(function (PB) {
+  _registerTab(PB);
+  setTimeout(_pollAlerts, 5000);
+});
+</script></body></html>

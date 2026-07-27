@@ -26,12 +26,16 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Body, HTTPException, Query
 from pydantic import BaseModel, Field
 
+# ---------------------------------------------------------------------------
 # Plugin directory and database
+# ---------------------------------------------------------------------------
 PLUGIN_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(PLUGIN_DIR, "welcome_history.db")
 CONFIG_PATH = os.path.join(PLUGIN_DIR, "config.json")
 
+# ---------------------------------------------------------------------------
 # Module-level context references (set by init_plugin)
+# ---------------------------------------------------------------------------
 _logger = None
 _m_data = None
 _c_mgr = None
@@ -43,11 +47,13 @@ _watchdog_dict = None
 _watchdog_task: Optional[asyncio.Task] = None
 _worker_task: Optional[asyncio.Task] = None
 
+# ---------------------------------------------------------------------------
 # Default configuration
+# ---------------------------------------------------------------------------
 _DEFAULT_CONFIG = {
     "enabled": True,
     "message": (
-        "Welcome to the mesh!\n"
+        "Welcome to the mesh! 🦀\n"
         "This node runs MeshDash — here's what's available:\n"
         "• Send 'ping' for a response\n"
         "• Send 'weather' for current conditions\n"
@@ -61,6 +67,8 @@ _DEFAULT_CONFIG = {
     "include_position": False,    # Include position info in welcome message
     "welcome_self": False,        # Whether to welcome the local node
     "ignore_local": True,         # Don't welcome nodes with isLocal=True
+    "test_mode": False,           # When True, only send to test_node_id
+    "test_node_id": "",           # Node ID to send to in test mode (e.g. "!a1b2c3d4")
 }
 
 _config: Dict[str, Any] = {}
@@ -108,7 +116,9 @@ def get_config() -> Dict[str, Any]:
         return _config.copy()
 
 
+# ---------------------------------------------------------------------------
 # Database — welcome history
+# ---------------------------------------------------------------------------
 _db_local = threading.local()
 
 
@@ -180,7 +190,9 @@ def _db_clear_history():
     conn.commit()
 
 
+# ---------------------------------------------------------------------------
 # Message template rendering
+# ---------------------------------------------------------------------------
 _TEMPLATE_VARS = {
     "{node_id}": "The node's unique ID (e.g. !a1b2c3d4)",
     "{short_name}": "Node's short name (e.g. CLAW)",
@@ -218,7 +230,9 @@ def _render_message(template: str, node_info: dict) -> str:
     return msg
 
 
+# ---------------------------------------------------------------------------
 # Core logic — detect new nodes and send welcome
+# ---------------------------------------------------------------------------
 _MAX_NODES = 500  # Cap in-memory dicts to prevent unbounded growth
 _known_nodes: Dict[str, float] = {}  # node_id -> first_seen timestamp (in-memory fast check)
 _welcomed_nodes: Dict[str, float] = {}  # node_id -> last_welcomed timestamp (in-memory)
@@ -334,7 +348,9 @@ async def _send_welcome(node_id: str, node_info: dict, slot_id: str = "node_0"):
             _logger.error("❌ WELCOME: failed to send to %s: %s", node_id, e)
 
 
+# ---------------------------------------------------------------------------
 # Background worker — scans for new nodes
+# ---------------------------------------------------------------------------
 async def _welcome_worker():
     """Periodically scan meshtastic_data.nodes for newly discovered nodes."""
     if _logger:
@@ -374,6 +390,18 @@ async def _welcome_worker():
                 if not node_info.get("user"):
                     continue
 
+                # Test mode: only welcome the specified node
+                if config.get("test_mode", False):
+                    test_id = config.get("test_node_id", "")
+                    if not test_id:
+                        continue
+                    if nid != test_id:
+                        if _logger:
+                            _logger.debug("WELCOME: test mode — skipping %s (want %s)", nid, test_id)
+                        continue
+                    if _logger:
+                        _logger.info("🧪 WELCOME: test mode — sending to %s", nid)
+
                 if _logger:
                     sn = (node_info.get("user") or {}).get("shortName", nid)
                     _logger.info("👋 WELCOME: new node discovered — %s (%s)", sn, nid)
@@ -389,7 +417,9 @@ async def _welcome_worker():
                 _logger.error("WELCOME worker error: %s", e, exc_info=True)
 
 
+# ---------------------------------------------------------------------------
 # Watchdog heartbeat
+# ---------------------------------------------------------------------------
 async def _watchdog_heartbeat():
     while True:
         try:
@@ -402,7 +432,9 @@ async def _watchdog_heartbeat():
             pass
 
 
+# ---------------------------------------------------------------------------
 # Pydantic models
+# ---------------------------------------------------------------------------
 class ConfigUpdate(BaseModel):
     enabled: Optional[bool] = None
     message: Optional[str] = None
@@ -413,6 +445,8 @@ class ConfigUpdate(BaseModel):
     include_position: Optional[bool] = None
     welcome_self: Optional[bool] = None
     ignore_local: Optional[bool] = None
+    test_mode: Optional[bool] = None
+    test_node_id: Optional[str] = None
 
 
 class ManualWelcome(BaseModel):
@@ -420,7 +454,9 @@ class ManualWelcome(BaseModel):
     slot_id: str = "node_0"
 
 
+# ---------------------------------------------------------------------------
 # Plugin router
+# ---------------------------------------------------------------------------
 plugin_router = APIRouter()
 
 
@@ -572,15 +608,19 @@ async def api_status():
         "state": "ready",
         "ready": True,
         "plugin": "welcome_new",
-        "version": "1.0.0",
+        "version": "1.1.0",
         "enabled": config.get("enabled", True),
         "known_nodes": known,
         "welcomed_nodes": welcomed,
         "total_welcomes_sent": len(rows),
+        "test_mode": config.get("test_mode", False),
+        "test_node_id": config.get("test_node_id", ""),
     }
 
 
+# ---------------------------------------------------------------------------
 # Plugin lifecycle
+# ---------------------------------------------------------------------------
 def init_plugin(context: dict):
     global _logger, _m_data, _c_mgr, _event_loop, _plugin_id
     global _node_registry, _watchdog_dict

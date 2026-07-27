@@ -1,0 +1,1422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Node Admin</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:12px;}
+.shell{height:100%;display:flex;flex-direction:column;overflow:hidden;}
+
+/* topbar */
+.topbar{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd2);background:var(--bg2);}
+.topbar-title{font-family:var(--mono);font-size:13px;font-weight:900;letter-spacing:1px;color:var(--acc);}
+.topbar-sub{font-size:9px;color:var(--txt3);font-family:var(--mono);}
+
+/* main grid */
+.main{flex:1;display:grid;grid-template-columns:260px 1fr;overflow:hidden;}
+
+/* sidebar */
+.sidebar{border-right:1px solid var(--bd2);display:flex;flex-direction:column;overflow:hidden;background:var(--bg);}
+.sb-section{padding:10px 12px;border-bottom:1px solid var(--bd2);}
+.sb-lbl{font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:1px;margin-bottom:6px;}
+.slot-sel{width:100%;font-family:var(--mono);font-size:10px;padding:5px 8px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;color:var(--txt);}
+.slot-sel:focus{border-color:var(--acc);outline:none;}
+.filter-inp{width:100%;font-family:var(--mono);font-size:10px;padding:5px 8px;background:var(--bg2);border:1px solid var(--bd2);border-radius:4px;color:var(--txt);}
+.filter-inp:focus{border-color:var(--acc);outline:none;}
+.node-list{flex:1;overflow-y:auto;}
+.node-list::-webkit-scrollbar{width:3px;}
+.node-list::-webkit-scrollbar-thumb{background:var(--bd2);}
+
+.ni{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s;}
+.ni:hover{background:rgba(255,255,255,.03);}
+.ni.active{background:rgba(0,200,245,.07);border-left:2px solid var(--acc);padding-left:10px;}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.dot.online{background:var(--ok);box-shadow:0 0 5px var(--ok);}
+.dot.offline{background:var(--bd2);}
+.dot.local{background:var(--acc);box-shadow:0 0 5px var(--acc);}
+.ni-name{font-size:11px;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ni-id{font-size:9px;color:var(--txt3);font-family:var(--mono);}
+.ni-badge{font-size:11px;padding:1px 5px;border-radius:3px;font-family:var(--mono);font-weight:bold;flex-shrink:0;}
+.badge-local{background:rgba(0,200,245,.15);border:1px solid rgba(0,200,245,.3);color:var(--acc);}
+.badge-remote{background:rgba(176,96,255,.12);border:1px solid rgba(176,96,255,.3);color:var(--pur);}
+
+/* content */
+.content{display:flex;flex-direction:column;overflow:hidden;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;color:var(--txt3);font-family:var(--mono);text-align:center;padding:40px;gap:12px;}
+.empty-state i{font-size:36px;opacity:.2;}
+
+/* node header */
+.node-hdr{flex-shrink:0;display:flex;align-items:center;gap:12px;padding:11px 14px;border-bottom:1px solid var(--bd2);background:var(--bg2);}
+.nh-av{width:36px;height:36px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:900;color:var(--bg);flex-shrink:0;}
+.nh-name{font-size:13px;font-weight:bold;}
+.nh-id{font-size:10px;color:var(--txt3);font-family:var(--mono);}
+.nh-pill{font-size:11px;padding:2px 7px;border-radius:3px;font-family:var(--mono);font-weight:bold;}
+.pill-local{background:rgba(0,200,245,.15);border:1px solid rgba(0,200,245,.3);color:var(--acc);}
+.pill-remote{background:rgba(176,96,255,.12);border:1px solid rgba(176,96,255,.3);color:var(--pur);}
+.pill-warn{background:rgba(255,168,38,.1);border:1px solid rgba(255,168,38,.25);color:var(--warn);font-size:9px;font-weight:normal;}
+
+/* tab nav */
+.tab-nav{flex-shrink:0;display:flex;border-bottom:1px solid var(--bd2);background:var(--bg2);overflow-x:auto;}
+.tab-nav::-webkit-scrollbar{height:2px;}
+.tab-btn{padding:10px 14px;font-family:var(--mono);font-size:10px;font-weight:bold;letter-spacing:.5px;color:var(--txt3);border:none;background:none;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:.1s;}
+.tab-btn:hover{color:var(--txt);}
+.tab-btn.active{color:var(--acc);border-bottom-color:var(--acc);}
+
+.tab-panels{flex:1;overflow-y:auto;}
+.tab-panels::-webkit-scrollbar{width:4px;}
+.tab-panels::-webkit-scrollbar-thumb{background:var(--bd2);}
+.tab-panel{display:none;padding:16px;}
+.tab-panel.active{display:block;}
+
+/* cards / sections */
+.card-s{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);margin-bottom:14px;}
+.card-s:last-child{margin-bottom:0;}
+.card-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--bd2);}
+.card-head i{color:var(--acc);width:14px;text-align:center;}
+.card-title{font-family:var(--mono);font-size:10px;font-weight:bold;letter-spacing:.5px;color:var(--acc);}
+.card-sub{font-size:9px;color:var(--txt3);margin-left:auto;}
+.card-body{padding:14px;}
+
+/* form */
+.frow{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}
+.frow:last-child{margin-bottom:0;}
+.flbl{font-family:var(--mono);font-size:9px;color:var(--txt3);letter-spacing:.5px;}
+.finp{width:100%;background:var(--bg);border:1px solid var(--bd2);border-radius:4px;color:var(--txt);font-family:var(--mono);font-size:11px;padding:7px 10px;}
+.finp:focus{border-color:var(--acc);outline:none;}
+.fhint{font-size:9px;color:var(--txt3);line-height:1.5;}
+.fg2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+
+/* toggles */
+.tog-row{display:flex;align-items:center;gap:10px;padding:6px 0;}
+.tog{position:relative;width:36px;height:18px;flex-shrink:0;}
+.tog input{opacity:0;width:0;height:0;position:absolute;}
+.tog-sl{position:absolute;inset:0;background:var(--bd2);border-radius:9px;cursor:pointer;transition:.2s;}
+.tog-sl::after{content:'';position:absolute;width:12px;height:12px;left:3px;top:3px;background:var(--txt3);border-radius:50%;transition:.2s;}
+.tog input:checked+.tog-sl{background:var(--acc);}
+.tog input:checked+.tog-sl::after{transform:translateX(18px);background:#000;}
+.tog-lbl{font-family:var(--mono);font-size:10px;color:var(--txt2);}
+
+/* role grid */
+.role-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;}
+.role-card{background:var(--bg);border:1px solid var(--bd2);border-radius:4px;padding:8px 10px;cursor:pointer;transition:.1s;}
+.role-card:hover{border-color:var(--bd3);}
+.role-card.sel{border-color:var(--acc);background:rgba(0,200,245,.06);}
+.role-card.danger.sel{border-color:var(--err);background:rgba(255,48,80,.06);}
+.role-card.danger{border-color:rgba(255,48,80,.3);}
+.role-name{font-family:var(--mono);font-size:10px;font-weight:bold;margin-bottom:3px;}
+.role-desc{font-size:9px;color:var(--txt3);line-height:1.4;}
+
+/* preset pills */
+.preset-row{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;}
+.preset-pill{padding:4px 10px;border:1px solid var(--bd2);border-radius:4px;font-family:var(--mono);font-size:9px;background:var(--bg);color:var(--txt3);cursor:pointer;transition:.1s;}
+.preset-pill:hover{border-color:var(--bd3);color:var(--txt);}
+.preset-pill.sel{border-color:var(--acc);color:var(--acc);background:rgba(0,200,245,.06);}
+
+/* action row */
+.action-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding-top:12px;border-top:1px dashed var(--bd2);margin-top:12px;}
+.sp{font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:3px;display:none;}
+.sp.ok{display:inline-block;background:rgba(0,232,122,.1);border:1px solid rgba(0,232,122,.3);color:var(--ok);}
+.sp.err{display:inline-block;background:rgba(255,48,80,.1);border:1px solid rgba(255,48,80,.3);color:var(--err);}
+.sp.pend{display:inline-block;background:rgba(255,168,38,.1);border:1px solid rgba(255,168,38,.3);color:var(--warn);}
+
+/* banners */
+.banner{padding:10px 14px;border-radius:var(--r);margin-bottom:14px;font-family:var(--mono);font-size:10px;line-height:1.7;}
+.banner-warn{border:1px solid rgba(255,168,38,.3);background:rgba(255,168,38,.06);color:var(--warn);}
+.banner-err{border:1px solid rgba(255,48,80,.3);background:rgba(255,48,80,.05);color:var(--err);}
+.banner-info{border:1px solid rgba(0,200,245,.25);background:rgba(0,200,245,.05);color:var(--acc);}
+.banner-ok{border:1px solid rgba(0,232,122,.25);background:rgba(0,232,122,.05);color:var(--ok);}
+
+/* danger zone */
+.danger-card .card-head i{color:var(--err);}
+.danger-card .card-title{color:var(--err);}
+.danger-card{border-color:rgba(255,48,80,.2);}
+.danger-input{border-color:rgba(255,48,80,.3)!important;}
+
+/* setup steps */
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--acc);color:#000;font-family:var(--mono);font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.step-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:14px;}
+.step-body{flex:1;}
+.step-title{font-family:var(--mono);font-size:11px;font-weight:bold;color:var(--txt);margin-bottom:4px;}
+.step-desc{font-size:10px;color:var(--txt2);line-height:1.7;}
+.code-box{background:var(--bg);border:1px solid var(--bd2);border-radius:4px;padding:8px 12px;font-family:var(--mono);font-size:10px;color:var(--warn);margin-top:6px;word-break:break-all;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.copy-btn{font-size:9px;padding:3px 8px;flex-shrink:0;}
+
+/* channel table */
+.ch-tbl{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:10px;}
+.ch-tbl th{text-align:left;color:var(--txt3);padding:7px 10px;border-bottom:1px solid var(--bd2);font-weight:normal;font-size:9px;letter-spacing:.5px;}
+.ch-tbl td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle;}
+.ch-tbl tr:hover td{background:rgba(255,255,255,.02);}
+
+/* op log */
+.log-entry{display:flex;gap:10px;padding:6px 14px;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:10px;align-items:flex-start;}
+.log-ts{color:var(--txt3);font-size:9px;white-space:nowrap;flex-shrink:0;}
+.log-node{color:var(--acc);flex-shrink:0;}
+.log-op{color:var(--txt2);flex-shrink:0;}
+.log-status{flex-shrink:0;}
+.log-detail{color:var(--txt3);font-size:9px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.st-ok{color:var(--ok);}
+.st-err{color:var(--err);}
+.st-pend{color:var(--warn);}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+
+<div class="topbar">
+  <i class="fas fa-sliders" style="color:var(--acc);font-size:16px;"></i>
+  <div>
+    <div class="topbar-title">NODE ADMIN</div>
+    <div class="topbar-sub">REMOTE NODE MANAGEMENT · LOCAL & OVER-MESH CONFIGURATION</div>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px;">
+    <span id="conn-pill" style="font-family:var(--mono);font-size:9px;color:var(--txt3);">LOADING...</span>
+    <button class="btn btn-sm btn-acc" onclick="App.refresh()" title="Refresh"><i class="fas fa-sync"></i></button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-section">
+      <div class="sb-lbl">RADIO SLOT</div>
+      <select id="slot-sel" class="slot-sel" onchange="App.onSlotChange()"><option>Loading...</option></select>
+    </div>
+    <div class="sb-section" style="padding:8px 12px;">
+      <input type="text" id="nf" class="filter-inp" placeholder="Filter nodes..." oninput="App.renderList()">
+    </div>
+    <div class="node-list" id="node-list">
+      <div style="padding:20px;text-align:center;color:var(--txt3);font-family:var(--mono);font-size:10px;">SCANNING MESH...</div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content" id="content">
+    <div class="empty-state" id="no-sel">
+      <i class="fas fa-sliders"></i>
+      <div style="font-size:12px;">SELECT A NODE</div>
+      <div style="font-size:10px;">Pick a radio slot and target node from the sidebar.</div>
+    </div>
+
+    <div id="admin-wrap" style="display:none;flex-direction:column;overflow:hidden;height:100%;">
+      <div class="node-hdr" id="node-hdr"></div>
+      <div class="tab-nav" id="tab-nav">
+        <button class="tab-btn active" onclick="App.tab('setup')">⚙ SETUP</button>
+        <button class="tab-btn" onclick="App.tab('identity')">IDENTITY</button>
+        <button class="tab-btn" onclick="App.tab('device')">DEVICE</button>
+        <button class="tab-btn" onclick="App.tab('lora')">LORA</button>
+        <button class="tab-btn" onclick="App.tab('position')">POSITION</button>
+        <button class="tab-btn" onclick="App.tab('display')">DISPLAY</button>
+        <button class="tab-btn" onclick="App.tab('power')">POWER</button>
+        <button class="tab-btn" onclick="App.tab('bluetooth')">BT</button>
+        <button class="tab-btn" onclick="App.tab('mqtt')">MQTT</button>
+        <button class="tab-btn" onclick="App.tab('telemetry')">TELEMETRY</button>
+        <button class="tab-btn" onclick="App.tab('channels')">CHANNELS</button>
+        <button class="tab-btn" onclick="App.tab('danger')"><span style="color:var(--err);">⚠ DANGER</span></button>
+        <button class="tab-btn" onclick="App.tab('log')">OP LOG</button>
+      </div>
+      <div class="tab-panels" id="tab-panels">
+
+        <!-- ══ SETUP GUIDE ══ -->
+        <div class="tab-panel active" id="tab-setup">
+
+          <!-- LOCAL NODE -->
+          <div id="setup-local" style="display:none;">
+            <div class="banner banner-ok" style="margin-bottom:14px;">
+              <i class="fas fa-check-circle" style="margin-right:6px;"></i>
+              <strong>LOCAL NODE</strong> — Directly connected. All tabs work now, no setup needed.
+            </div>
+            <div class="card-s">
+              <div class="card-head"><i class="fas fa-key"></i><span class="card-title">YOUR RADIO'S ADMIN KEY</span><span class="card-sub">Paste this into any remote node you want to manage</span></div>
+              <div class="card-body">
+                <div style="font-size:10px;color:var(--txt2);margin-bottom:10px;">
+                  To remotely administer other nodes, physically connect to each one and paste this key into
+                  <strong style="color:var(--txt);">Settings → Radio Config → Security → Admin Key</strong>.
+                  One-time setup — then all tabs work wirelessly.
+                </div>
+                <div class="code-box" id="pub-key-box">
+                  <span id="pub-key-val" style="word-break:break-all;flex:1;">Reading...</span>
+                  <button class="btn btn-sm copy-btn" onclick="App.copyKey()"><i class="fas fa-copy"></i> COPY KEY</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- REMOTE NODE -->
+          <div id="setup-remote">
+            <div class="card-s">
+              <div class="card-head"><i class="fas fa-key"></i><span class="card-title">ADMIN KEY REQUIRED</span><span class="card-sub">One-time physical setup on the remote node</span></div>
+              <div class="card-body">
+
+                <div class="banner banner-warn" style="margin-bottom:14px;">
+                  <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
+                  Before you can configure this node remotely, you need to add your local radio's public key to it <strong>once</strong> via physical access (USB/BLE/WiFi). After that, all tabs work wirelessly — no further access needed.
+                </div>
+
+                <div style="font-size:10px;font-family:var(--mono);color:var(--txt3);letter-spacing:.5px;margin-bottom:6px;">STEP 1 — YOUR LOCAL RADIO'S KEY (copy this)</div>
+                <div class="code-box" style="margin-bottom:16px;">
+                  <span id="setup-pub-key-val" style="word-break:break-all;flex:1;color:var(--ok);">Loading...</span>
+                  <button class="btn btn-sm copy-btn" onclick="App.copyKey()" id="setup-copy-btn"><i class="fas fa-copy"></i> COPY</button>
+                </div>
+
+                <div style="font-size:10px;font-family:var(--mono);color:var(--txt3);letter-spacing:.5px;margin-bottom:6px;">STEP 2 — PASTE IT INTO THE REMOTE NODE</div>
+                <div style="font-size:10px;color:var(--txt2);line-height:1.8;">
+                  Physically connect to <strong style="color:var(--txt);" id="setup-remote-name">the remote node</strong>, then go to:<br>
+                  <strong style="color:var(--acc);">Settings → Radio Config → Security → Admin Key</strong><br>
+                  Paste the key above. Save. Reboot. Done — come back here and use the other tabs.
+                </div>
+
+              </div>
+            </div>
+
+            <div class="card-s">
+              <div class="card-head"><i class="fas fa-info-circle"></i><span class="card-title">THINGS TO KNOW</span></div>
+              <div class="card-body" style="display:flex;flex-direction:column;gap:8px;font-size:10px;color:var(--txt2);line-height:1.6;">
+                <div><i class="fas fa-check" style="color:var(--ok);margin-right:6px;width:12px;"></i>Requires firmware 2.5+ on both radios.</div>
+                <div><i class="fas fa-check" style="color:var(--ok);margin-right:6px;width:12px;"></i>Commands are sent — not confirmed. Verify changes after the node reboots.</div>
+                <div><i class="fas fa-check" style="color:var(--ok);margin-right:6px;width:12px;"></i>Most changes need a reboot — use the Reboot button in the Danger tab.</div>
+                <div><i class="fas fa-exclamation-triangle" style="color:var(--warn);margin-right:6px;width:12px;"></i>Wrong LoRa settings on a remote node can make it unreachable. Test locally first.</div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /tab-setup -->
+
+        <!-- ══ IDENTITY ══ -->
+        <div class="tab-panel" id="tab-identity">
+          <div class="banner banner-warn" id="rwarn-identity" style="display:none;">
+            <i class="fas fa-satellite-dish" style="margin-right:6px;"></i><strong>REMOTE NODE</strong> — Command sent over the mesh. No direct confirmation. Requires reboot to take effect. Ensure admin key is configured (see Setup Guide tab).
+          </div>
+          <div class="card-s">
+            <div class="card-head"><i class="fas fa-id-card"></i><span class="card-title">NODE IDENTITY</span><span class="card-sub">Broadcast to mesh on change · Max 39 / 4 chars</span></div>
+            <div class="card-body">
+              <div class="fg2">
+                <div class="frow">
+                  <label class="flbl">LONG NAME</label>
+                  <input id="f-ln" class="finp" type="text" maxlength="39" placeholder="My Node Name">
+                  <div class="fhint">Full display name shown in node lists and messages. Max 39 characters.</div>
+                </div>
+                <div class="frow">
+                  <label class="flbl">SHORT NAME</label>
+                  <input id="f-sn" class="finp" type="text" maxlength="4" placeholder="NODE">
+                  <div class="fhint">4-character abbreviation for compact displays and screen overlays.</div>
+                </div>
+              </div>
+              <div class="action-row">
+                <button class="btn btn-acc" style="font-size:10px;" onclick="App.saveOwner()"><i class="fas fa-save"></i> SAVE IDENTITY</button>
+                <span id="sp-identity" class="sp"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ DEVICE ROLE ══ -->
+        <div class="tab-panel" id="tab-device">
+          <div class="banner banner-warn" id="rwarn-device" style="display:none;">
+            <i class="fas fa-satellite-dish" style="margin-right:6px;"></i><strong>REMOTE NODE</strong> — Role change sent over mesh. Requires reboot. Role affects relay behaviour and power consumption.
+          </div>
+          <div class="card-s">
+            <div class="card-head"><i class="fas fa-microchip"></i><span class="card-title">DEVICE ROLE</span></div>
+            <div class="card-body">
+              <div class="role-grid" id="role-grid"></div>
+              <input type="hidden" id="f-role" value="CLIENT">
+              <div class="frow" style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--bd2);">
+                <label class="flbl">NODE INFO BROADCAST INTERVAL (seconds, min 3600)</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <input id="f-ni-interval" class="finp" type="number" min="3600" max="86400" value="3600" style="width:100px;">
+                  <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">3600 = 1 hour · 86400 = 24 hours</span>
+                </div>
+              </div>
+              <div class="action-row">
+                <button class="btn btn-acc" style="font-size:10px;" onclick="App.saveDevice()"><i class="fas fa-save"></i> SAVE ROLE</button>
+                <span id="sp-device" class="sp"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ LORA ══ -->
+        <div class="tab-panel" id="tab-lora">
+          <div class="banner banner-err" style="margin-bottom:14px;">
+            <i class="fas fa-exclamation-triangle" style="margin-right:6px;"></i>
+            <strong>CAUTION — LORA CONFIG CAN MAKE REMOTE NODES UNREACHABLE.</strong>
+            Changing region, bandwidth or spread factor to incompatible values on a remote node will prevent it from communicating with your mesh. Test LoRa changes on a local node first. Note the current working settings before making any change.
+          </div>
+          <div class="banner banner-warn" id="rwarn-lora" style="display:none;">
+            <i class="fas fa-satellite-dish" style="margin-right:6px;"></i><strong>REMOTE NODE</strong> — LoRa config sent over mesh. Requires reboot.
+          </div>
+          <div class="card-s">
+            <div class="card-head"><i class="fas fa-broadcast-tower"></i><span class="card-title">LORA RADIO CONFIGURATION</span></div>
+            <div class="card-body">
+              <div class="tog-row" style="margin-bottom:12px;">
+                <label class="tog"><input type="checkbox" id="f-use-preset" checked onchange="App.toggleLoraMode()"><span class="tog-sl"></span></label>
+                <span class="tog-lbl">Use modem preset (recommended — safe defaults per use case)</span>
+              </div>
+              <div id="lora-preset-wrap">
+                <div class="frow">
+                  <label class="flbl">MODEM PRESET</label>
+                  <div class="preset-row" id="preset-row"></div>
+                  <input type="hidden" id="f-preset" value="LONG_FAST">
+                  <div class="fhint">Long Fast = default for most deployments. Very Long Slow = maximum range, very low throughput.</div>
+                </div>
+              </div>
+              <div id="lora-manual-wrap" style="display:none;">
+                <div class="fg3">
+                  <div class="frow"><label class="flbl">BANDWIDTH (kHz)</label>
+                    <select id="f-bw" class="finp"><option value="125">125</option><option value="250">250</option><option value="500">500</option></select></div>
+                  <div class="frow"><label class="flbl">SPREAD FACTOR</label>
+                    <select id="f-sf" class="finp">
+                      <option value="7">SF7</option><option value="8">SF8</option><option value="9">SF9</option>
+                      <option value="10">SF10</option><option value="11">SF11</option><option value="12" selected>SF12</option>
+                    </select></div>
+                  <div class="frow"><label class="flbl">CODING RATE</label>
+                    <select id="f-cr" class="finp">
+                      <option value="5">4/5</option><option value="6">4/6</option><option value="7">4/7</option><option value="8">4/8</option>
+                    </select></div>
+                </div>
+              </div>
+              <hr style="border:none;border-top:1px dashed var(--bd2);margin:14px 0;">
+              <div class="fg3">
+                <div class="frow"><label class="flbl">REGION</label>
+                  <select id="f-region" class="finp">
+                    <option value="US">US</option><option value="EU_433">EU 433</option>
+                    <option value="EU_868" selected>EU 868</option><option value="CN">CN</option>
+                    <option value="JP">JP</option><option value="ANZ">ANZ</option>
+                    <option value="KR">KR</option><option value="TW">TW</option>
+                    <option value="RU">RU</option><option value="IN">IN</option>
+                    <option value="NZ_865">NZ 865</option><option value="TH">TH</option>
+                    <option value="LORA_24">2.4GHz</option><option value="UA_433">UA 433</option>
+                    <option value="UA_868">UA 868</option><option value="MY_433">MY 433</option>
+                    <option value="MY_919">MY 919</option><option value="SG_923">SG 923</option>
+                  </select></div>
+                <div class="frow"><label class="flbl">HOP LIMIT (1-7)</label>
+                  <input id="f-hops" class="finp" type="number" min="1" max="7" value="3">
+                  <div class="fhint">Default 3. Max 7. More hops = more range but more airtime.</div>
+                </div>
+                <div class="frow"><label class="flbl">TX POWER dBm (0=auto)</label>
+                  <input id="f-txpwr" class="finp" type="number" min="0" max="30" value="0"></div>
+              </div>
+              <div class="action-row">
+                <button class="btn btn-acc" style="font-size:10px;" onclick="App.saveLora()"><i class="fas fa-save"></i> SAVE LORA CONFIG</button>
+                <span id="sp-lora" class="sp"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ POSITION ══ -->
+        <div class="tab-panel" id="tab-position">
+          <div class="banner banner-warn" id="rwarn-position" style="display:none;">
+            <i class="fas fa-satellite-dish" style="margin-right:6px;"></i><strong>REMOTE NODE</strong> — Position config sent over mesh. Requires reboot.
+          </div>
+          <div class="card-s">
+            <div class="card-head"><i class="fas fa-map-marker-alt"></i><span class="card-title">POSITION CONFIGURATION</span></div>
+            <div class="card-body">
+              <div class="frow" style="margin-bottom:14px;">
+                <label class="flbl">BROADCAST INTERVAL (seconds, min 32)</label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <input id="f-pos-int" class="finp" type="number" min="32" value="900" style="width:100px;">
+                  <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">900 = 15 min · 3600 = 1 hr</span>
+                </div>
+                <div class="fhint">How often the node broadcasts its GPS position. Higher = less airtime.</div>
+              </div>
+              <div class="tog-row">
+                <label class="tog"><input type="checkbox" id="f-smart-pos" checked><span class="tog-sl"></span></label>
+                <span class="tog-lbl">Smart position — reduce broadcasts when the node is stationary</span>
+              </div>
+              <div class="tog-row" style="margin-bottom:12px;">
+                <label class="tog"><input type="checkbox" id="f-fixed-pos" onchange="App.toggleFixed()"><span class="tog-sl"></span></label>
+                <span class="tog-lbl">Fixed position — override GPS with a hardcoded location</span>
+              </div>
+              <div id="fixed-wrap" style="display:none;padding:12px;background:rgba(0,200,245,.04);border:1px solid rgba(0,200,245,.15);border-radius:4px;margin-bottom:12px;">
+                <div class="fg3">
+                  <div class="frow"><label class="flbl">LATITUDE</label><input id="f-flat" class="finp" type="number" step="0.00001" placeholder="51.50853"></div>
+                  <div class="frow"><label class="flbl">LONGITUDE</label><input id="f-flon" class="finp" type="number" step="0.00001" placeholder="-0.12574"></div>
+                  <div class="frow"><label class="flbl">ALTITUDE (metres)</label><input id="f-falt" class="finp" type="number" value="0"></div>
+                </div>
+              </div>
+              <div class="action-row">
+                <button class="btn btn-acc" style="font-size:10px;" onclick="App.savePosition()"><i class="fas fa-save"></i> SAVE POSITION CONFIG</button>
+                <span id="sp-position" class="sp"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ MQTT ══ -->
+        <div class="tab-panel" id="tab-mqtt">
+          <div class="banner banner-warn" id="rwarn-mqtt" style="display:none;">
+            <i class="fas fa-satellite-dish" style="margin-right:6px;"></i><strong>REMOTE NODE</strong> — MQTT config sent over mesh. Requires reboot. This configures MQTT <em>on the node itself</em>, not MeshDash's MQTT connection.
+          </div>
+          <div class="card-s">
+            <div class="card-head"><i class="fas fa-cloud"></i><span class="card-title">MQTT CONFIGURATION</span><span class="card-sub">Configures MQTT on the target radio node</span></div>
+            <div class="card-body">
+              <div class="banner banner-info" style="margin-bottom:14px;">
+                <i class="fas fa-info-circle" style="margin-right:6px;"></i>
+                This configures the <strong>radio node's own MQTT</strong> — the node will push packets to your broker directly over WiFi/Internet. This is separate from MeshDash's MQTT connection used for receiving packets.
+              </div>
+              <div class="tog-row" style="margin-bottom:14px;">
+                <label class="tog"><input type="checkbox" id="f-mqtt-en"><span class="tog-sl"></span></label>
+                <span class="tog-lbl">Enable MQTT on this node</span>
+              </div>
+              <div class="fg2">
+                <div class="frow" style="grid-column:1/-1;">
+                  <label class="flbl">BROKER ADDRESS (host or host:port)</label>
+                  <input id="f-mqtt-addr" class="finp" type="text" placeholder="mqtt.meshtastic.org:1883">
+                </div>
+                <div class="frow"><label class="flbl">USERNAME</label><input id="f-mqtt-user" class="finp" type="text" placeholder="meshdev"></div>
+                <div class="frow"><label class="flbl">PASSWORD</label><input id="f-mqtt-pass" class="finp" type="password" placeholder="••••••••"></div>
+                <div class="frow" style="grid-column:1/-1;"><label class="flbl">ROOT TOPIC (optional)</label><input id="f-mqtt-root" class="finp" type="text" placeholder="msh/EU_868"></div>
+              </div>
+              <div class="tog-row">
+                <label class="tog"><input type="checkbox" id="f-mqtt-tls" checked><span class="tog-sl"></span></label>
+                <span class="tog-lbl">TLS encryption (recommended)</span>
+              </div>
+              <div class="tog-row">
+                <label class="tog"><input type="checkbox" id="f-mqtt-json"><span class="tog-sl"></span></label>
+                <span class="tog-lbl">JSON output mode (instead of protobuf)</span>
+              </div>
+              <div class="action-row">
+                <button class="btn btn-acc" style="font-size:10px;" onclick="App.saveMqtt()"><i class="fas fa-save"></i> SAVE MQTT CONFIG</button>
+                <span id="sp-mqtt" class="sp"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ DISPLAY ══ -->
+        <div class="tab-panel" id="tab-display">
+          <div class="banner banner-warn" id="rwarn-display" style="display:none;"><i class="fas fa-satellite-dish" style="margin-right:6px;"></i><strong>REMOTE NODE</strong> — Sent over mesh. Requires reboot.</div>
+          <div class="card-s">
+            <div class="card-head"><i class="fas fa-display"></i><span class="card-title">DISPLAY SETTINGS</span></div>
+            <div class="card-body">
+              <div class="fg2">
+                <div class="frow">
+                  <label class="flbl">SCREEN ON (seconds, 0 = always on)</label>
+                  <input id="f-disp-screen-on" class="finp" type="number" min="0" max="86400" value="0">
+                </div>
+                <div class="frow">
+                  <label class="flbl">UNITS</label>
+                  <select id="f-disp-units" class="finp"><option value="0">Metric</option><option value="1">Imperial</option></select>
+                </div>
+                <div class="frow">
+                  <label class="flbl">GPS COORDINATE FORMAT</label>
+                  <select id="f-disp-gps-fmt" class="finp">
+                    <option value="0">Decimal (DEC)</option><option value="1">DMS</option>
+                    <option value="2">UTM</option><option value="3">MGRS</option>
+                    <option value="4">OLC (Plus Codes)</option><option value="5">OSGR (UK)</option>
+                  </select>
+                </div>
+                <div class="frow">
+                  <label class="flbl">OLED TYPE</label>
+                  <select id="f-disp-oled" class="finp">
+                    <option value="0">Auto detect</option><option value="1">SSD1306</option>
+                    <option value="2">SH1106</option><option value="3">SH1107</option>
+                  </select>
+                </div>
+              </div>
+              <div class="tog-row"><label class="tog"><input type="checkbox" id="f-disp-flip"><span class="tog-sl"></span></label><span class="tog-lbl">Flip screen 180°</span></div>
+              <div class="action-row">
+                <button class="btn btn-acc" style="font-size:10px;" onclick="App.saveDisplay()"><i class="fas fa-save"></i> SAVE DISPLAY CONFIG</button>
+                <span id="sp-display" class="sp"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ POWER ══ -->
+        <div class="tab-panel" id="tab-power">
+          <div class="banner banner-warn" id="rwarn-power" style="display:none;"><i class="fas fa-satellite-dish" style="margin-right:6px;"></i><strong>REMOTE NODE</strong> — Sent over mesh. Requires reboot.</div>
+          <div class="card-s">
+            <div class="card-head"><i class="fas fa-battery-three-quarters"></i><span class="card-title">POWER MANAGEMENT</span><span class="card-sub">ESP32 sleep settings — not all fields apply to all hardware</span></div>
+            <div class="card-body">
+              <div class="fg2">
+                <div class="frow">
+                  <label class="flbl">LIGHT SLEEP (ls_secs)</label>
+                  <input id="f-pwr-ls" class="finp" type="number" min="0" max="86400" value="300">
+                  <div class="fhint">Seconds before entering light sleep. 0 = disabled.</div>
+                </div>
+                <div class="frow">
+                  <label class="flbl">SUPER DEEP SLEEP (sds_secs)</label>
+                  <input id="f-pwr-sds" class="finp" type="number" min="0" value="0">
+                  <div class="fhint">Seconds before super deep sleep. 0 = disabled.</div>
+                </div>
+                <div class="frow">
+                  <label class="flbl">MIN WAKE TIME (min_wake_secs)</label>
+                  <input id="f-pwr-minwake" class="finp" type="number" min="0" max="3600" value="10">
+                </div>
+                <div class="frow">
+                  <label class="flbl">WAIT FOR BLUETOOTH (secs)</label>
+                  <input id="f-pwr-bt" class="finp" type="number" min="0" max="3600" value="60">
+                  <div class="fhint">Wait for BT connection before sleeping.</div>
+                </div>
+              </div>
+              <div class="action-row">
+                <button class="btn btn-acc" style="font-size:10px;" onclick="App.savePower()"><i class="fas fa-save"></i> SAVE POWER CONFIG</button>
+                <span id="sp-power" class="sp"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ BLUETOOTH ══ -->
+        <div class="tab-panel" id="tab-bluetooth">
+          <div class="banner banner-warn" id="rwarn-bluetooth" style="display:none;"><i class="fas fa-satellite-dish" style="margin-right:6px;"></i><strong>REMOTE NODE</strong> — Sent over mesh. Requires reboot. Disabling BT on a remote node may make it harder to manage physically.</div>
+          <div class="card-s">
+            <div class="card-head"><i class="fab fa-bluetooth-b"></i><span class="card-title">BLUETOOTH CONFIG</span></div>
+            <div class="card-body">
+              <div class="tog-row" style="margin-bottom:14px;"><label class="tog"><input type="checkbox" id="f-bt-enabled" checked><span class="tog-sl"></span></label><span class="tog-lbl">Bluetooth enabled</span></div>
+              <div class="fg2">
+                <div class="frow">
+                  <label class="flbl">PAIRING MODE</label>
+                  <select id="f-bt-mode" class="finp">
+                    <option value="0">Random PIN (new PIN each boot)</option>
+                    <option value="1">Fixed PIN</option>
+                    <option value="2">No PIN (open pairing)</option>
+                  </select>
+                </div>
+                <div class="frow">
+                  <label class="flbl">FIXED PIN (used when mode = Fixed PIN)</label>
+                  <input id="f-bt-pin" class="finp" type="number" min="0" max="999999" value="123456">
+                </div>
+              </div>
+              <div class="action-row">
+                <button class="btn btn-acc" style="font-size:10px;" onclick="App.saveBluetooth()"><i class="fas fa-save"></i> SAVE BLUETOOTH CONFIG</button>
+                <span id="sp-bluetooth" class="sp"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ TELEMETRY ══ -->
+        <div class="tab-panel" id="tab-telemetry">
+          <div class="banner banner-warn" id="rwarn-telemetry" style="display:none;"><i class="fas fa-satellite-dish" style="margin-right:6px;"></i><strong>REMOTE NODE</strong> — Sent over mesh. Requires reboot.</div>
+          <div class="card-s">
+            <div class="card-head"><i class="fas fa-chart-line"></i><span class="card-title">TELEMETRY CONFIG</span><span class="card-sub">Environmental/sensor fields only active if hardware present</span></div>
+            <div class="card-body">
+              <div class="fg2">
+                <div class="frow">
+                  <label class="flbl">DEVICE METRICS INTERVAL (seconds)</label>
+                  <input id="f-tel-device" class="finp" type="number" min="0" max="86400" value="3600">
+                  <div class="fhint">Battery, voltage, channel utilisation, air util. 0 = default.</div>
+                </div>
+                <div class="frow">
+                  <label class="flbl">ENVIRONMENT METRICS INTERVAL (seconds)</label>
+                  <input id="f-tel-env" class="finp" type="number" min="0" max="86400" value="0">
+                  <div class="fhint">Temperature, humidity, pressure. Requires sensor hardware. 0 = disabled.</div>
+                </div>
+                <div class="frow">
+                  <label class="flbl">AIR QUALITY INTERVAL (seconds)</label>
+                  <input id="f-tel-aq" class="finp" type="number" min="0" max="86400" value="0">
+                  <div class="fhint">Requires PM2.5/PM10 sensor. 0 = disabled.</div>
+                </div>
+              </div>
+              <div class="tog-row"><label class="tog"><input type="checkbox" id="f-tel-env-en"><span class="tog-sl"></span></label><span class="tog-lbl">Enable environment measurement</span></div>
+              <div class="tog-row"><label class="tog"><input type="checkbox" id="f-tel-aq-en"><span class="tog-sl"></span></label><span class="tog-lbl">Enable air quality monitoring</span></div>
+              <div class="action-row">
+                <button class="btn btn-acc" style="font-size:10px;" onclick="App.saveTelemetry()"><i class="fas fa-save"></i> SAVE TELEMETRY CONFIG</button>
+                <span id="sp-telemetry" class="sp"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ CHANNELS ══ -->
+        <div class="tab-panel" id="tab-channels">
+          <div class="banner banner-warn" id="rwarn-channels" style="display:none;">
+            <i class="fas fa-satellite-dish" style="margin-right:6px;"></i><strong>REMOTE NODE</strong> — Channel data from remote nodes may be stale. Click Load again after 5 seconds. Wrong PSK will break encrypted communication.
+          </div>
+          <div class="card-s">
+            <div class="card-head"><i class="fas fa-layer-group"></i><span class="card-title">CHANNEL MANAGEMENT</span>
+              <button class="btn btn-sm btn-acc" style="font-size:9px;margin-left:auto;" onclick="App.loadChannels()"><i class="fas fa-sync"></i> LOAD CHANNELS</button>
+            </div>
+            <div id="ch-body" style="padding:14px;color:var(--txt3);font-family:var(--mono);font-size:10px;text-align:center;">
+              Click LOAD CHANNELS to read from the node.
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ DANGER ══ -->
+        <div class="tab-panel" id="tab-danger">
+          <div class="banner banner-err">
+            <i class="fas fa-skull-crossbones" style="margin-right:6px;"></i>
+            <strong>DANGER ZONE</strong> — Operations here are destructive and some cannot be undone. All require typed confirmation to prevent accidents. Ensure you know what you are doing before proceeding.
+          </div>
+
+          <!-- Reboot -->
+          <div class="card-s">
+            <div class="card-head"><i class="fas fa-power-off" style="color:var(--warn);"></i><span class="card-title" style="color:var(--warn);">REBOOT</span><span class="card-sub">Device disconnects and reconnects</span></div>
+            <div class="card-body">
+              <p style="font-size:10px;color:var(--txt2);line-height:1.7;margin-bottom:12px;">
+                Sends a reboot command. Configuration changes that require a reboot will take effect after restart. The device will disconnect briefly then rejoin the mesh. Reboot after saving config changes.
+              </p>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <label class="flbl">DELAY</label>
+                  <input id="f-reboot-delay" class="finp" type="number" min="0" max="60" value="5" style="width:65px;">
+                  <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">seconds (0-60)</span>
+                </div>
+                <button class="btn" style="background:rgba(255,168,38,.12);border-color:rgba(255,168,38,.3);color:var(--warn);font-size:9px;" onclick="App.doReboot()">
+                  <i class="fas fa-power-off"></i> REBOOT
+                </button>
+                <span id="sp-reboot" class="sp"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Shutdown -->
+          <div class="card-s">
+            <div class="card-head"><i class="fas fa-moon" style="color:var(--acc);"></i><span class="card-title" style="color:var(--acc);">SHUTDOWN</span><span class="card-sub">Power off — requires physical restart</span></div>
+            <div class="card-body">
+              <p style="font-size:10px;color:var(--txt2);line-height:1.7;margin-bottom:12px;">Sends a shutdown command. The device will power off completely. It will only restart if physically power-cycled. Only use on devices with a reliable power source reset (e.g. solar nodes).</p>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                  <label class="flbl">DELAY</label>
+                  <input id="f-shutdown-delay" class="finp" type="number" min="0" max="60" value="5" style="width:65px;">
+                  <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);">seconds</span>
+                </div>
+                <button class="btn" style="background:rgba(0,200,245,.1);border-color:rgba(0,200,245,.3);color:var(--acc);font-size:9px;" onclick="App.doShutdown()">
+                  <i class="fas fa-moon"></i> SHUTDOWN
+                </button>
+                <span id="sp-shutdown" class="sp"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Factory Reset -->
+          <div class="card-s danger-card">            <div class="card-head"><i class="fas fa-trash-alt"></i><span class="card-title">FACTORY RESET</span><span class="card-sub">⚠ IRREVERSIBLE — All config erased</span></div>
+            <div class="card-body">
+              <p style="font-size:10px;color:var(--txt2);line-height:1.7;margin-bottom:12px;">
+                <strong style="color:var(--err);">Permanently erases ALL settings</strong> on this device: all channel configurations, owner identity, LoRa settings, position config, MQTT config, security keys. The device must be configured from scratch using physical access. <strong>This cannot be undone.</strong>
+              </p>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <input id="f-factory-confirm" class="finp danger-input" type="text" placeholder="Type FACTORY RESET to confirm" style="width:280px;">
+                <button class="btn" style="background:rgba(255,48,80,.12);border-color:rgba(255,48,80,.3);color:var(--err);font-size:9px;" onclick="App.doFactoryReset()">
+                  <i class="fas fa-skull-crossbones"></i> FACTORY RESET
+                </button>
+                <span id="sp-factory" class="sp"></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Purge node DB -->
+          <div class="card-s danger-card">
+            <div class="card-head"><i class="fas fa-database"></i><span class="card-title">PURGE NODE DATABASE</span><span class="card-sub">⚠ IRREVERSIBLE — All node history erased</span></div>
+            <div class="card-body">
+              <p style="font-size:10px;color:var(--txt2);line-height:1.7;margin-bottom:12px;">
+                Removes all stored node information from this device's internal database. The device will need to rediscover all nodes through normal mesh operation. Channel settings and device configuration are <strong>preserved</strong> — only node records are cleared.
+              </p>
+              <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <input id="f-purge-confirm" class="finp danger-input" type="text" placeholder="Type PURGE DATABASE to confirm" style="width:280px;">
+                <button class="btn" style="background:rgba(255,48,80,.12);border-color:rgba(255,48,80,.3);color:var(--err);font-size:9px;" onclick="App.doPurge()">
+                  <i class="fas fa-database"></i> PURGE DATABASE
+                </button>
+                <span id="sp-purge" class="sp"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ══ LOG ══ -->
+        <div class="tab-panel" id="tab-log">
+          <div class="card-s">
+            <div class="card-head">
+              <i class="fas fa-history"></i><span class="card-title">OPERATION LOG</span>
+              <button class="btn btn-sm" style="font-size:9px;margin-left:auto;" onclick="App.refreshLog()"><i class="fas fa-sync"></i></button>
+            </div>
+            <div id="log-body" style="padding:4px 0;">
+              <div style="padding:20px;text-align:center;color:var(--txt3);font-family:var(--mono);font-size:10px;">No operations yet.</div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /tab-panels -->
+    </div><!-- /admin-wrap -->
+  </div><!-- /content -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- Channel edit modal -->
+<div id="ch-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:var(--bg2);border:1px solid var(--acc);border-radius:var(--r);padding:0;min-width:440px;max-width:500px;box-shadow:0 20px 50px rgba(0,0,0,.8);">
+    <div style="padding:13px 18px;border-bottom:1px solid var(--bd2);display:flex;align-items:center;gap:8px;">
+      <i class="fas fa-layer-group" style="color:var(--acc);"></i>
+      <span id="ch-modal-title" style="font-family:var(--mono);font-size:11px;font-weight:bold;color:var(--acc);">EDIT CHANNEL</span>
+      <button onclick="App.closeChModal()" style="margin-left:auto;background:none;border:none;color:var(--txt3);cursor:pointer;font-size:14px;">✕</button>
+    </div>
+    <div style="padding:18px;">
+      <input type="hidden" id="ch-idx">
+      <div class="fg2" style="margin-bottom:14px;">
+        <div class="frow"><label class="flbl">CHANNEL NAME</label><input id="ch-name" class="finp" type="text" placeholder="e.g. MeshDash"></div>
+        <div class="frow"><label class="flbl">ROLE</label>
+          <select id="ch-role" class="finp"><option value="PRIMARY">PRIMARY</option><option value="SECONDARY" selected>SECONDARY</option><option value="DISABLED">DISABLED</option></select>
+        </div>
+      </div>
+      <div class="frow" style="margin-bottom:14px;">
+        <label class="flbl">PSK (Base64 — leave empty to keep existing key unchanged)</label>
+        <input id="ch-psk" class="finp" type="text" placeholder="Leave empty to keep current PSK">
+        <div class="fhint">Default LongFast PSK: AQ== · For no encryption: enter a single space then clear it (leave blank)</div>
+      </div>
+      <div style="display:flex;gap:20px;margin-bottom:14px;">
+        <div class="tog-row"><label class="tog"><input type="checkbox" id="ch-up" checked><span class="tog-sl"></span></label><span class="tog-lbl">Uplink (node sends to MQTT)</span></div>
+        <div class="tog-row"><label class="tog"><input type="checkbox" id="ch-dn" checked><span class="tog-sl"></span></label><span class="tog-lbl">Downlink (node receives from MQTT)</span></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:12px;border-top:1px solid var(--bd2);">
+        <button class="btn" onclick="App.closeChModal()">CANCEL</button>
+        <button class="btn btn-acc" onclick="App.saveChannel()"><i class="fas fa-save"></i> SAVE CHANNEL</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const API = '/api/plugins/node_admin';
+
+const ROLES = [
+  {id:'CLIENT',       label:'CLIENT',       desc:'Standard device. Relays packets when needed.',       danger:false},
+  {id:'CLIENT_MUTE',  label:'CLIENT MUTE',  desc:'Receives only. Does not relay for others.',          danger:false},
+  {id:'ROUTER',       label:'ROUTER',       desc:'Always relays all packets. Very high power use.',     danger:true },
+  {id:'ROUTER_CLIENT',label:'ROUTER+CLIENT',desc:'Routes traffic AND used by owner.',                  danger:true },
+  {id:'REPEATER',     label:'REPEATER',     desc:'Dedicated relay. Extremely high airtime.',           danger:true },
+  {id:'TRACKER',      label:'TRACKER',      desc:'GPS tracker. Prioritises position packets.',          danger:false},
+  {id:'SENSOR',       label:'SENSOR',       desc:'Sensor node. Prioritises telemetry packets.',         danger:false},
+  {id:'TAK',          label:'TAK',          desc:'ATAK system integration.',                            danger:false},
+  {id:'CLIENT_HIDDEN',label:'CLIENT HIDDEN',desc:'Minimal broadcasts. Maximum power saving.',           danger:false},
+  {id:'LOST_AND_FOUND',label:'LOST & FOUND',desc:'Frequent location broadcasts for device recovery.',  danger:false},
+];
+
+const PRESETS = [
+  {id:'LONG_FAST',label:'Long Fast'},{id:'LONG_SLOW',label:'Long Slow'},
+  {id:'VERY_LONG_SLOW',label:'Very Long Slow'},{id:'MEDIUM_SLOW',label:'Medium Slow'},
+  {id:'MEDIUM_FAST',label:'Medium Fast'},{id:'SHORT_SLOW',label:'Short Slow'},
+  {id:'SHORT_FAST',label:'Short Fast'},{id:'LONG_MODERATE',label:'Long Moderate'},
+];
+
+const PALETTE = ['var(--acc)','var(--ok)','var(--warn)','var(--pur)','var(--err)','#46f0f0'];
+
+const App = {
+  slots: [], nodes: [], slot: null, nodeId: null, curTab: 'setup', pubKey: null,
+
+  async init() {
+    this._buildRoles();
+    this._buildPresets();
+    await this.loadSlots();
+    const qs = new URL(location.href).searchParams.get('node');
+    if (qs && this.slot) await this.selectNode(qs);
+    await this.refreshLog();
+  },
+
+  _esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); },
+
+  _buildRoles(){
+    const g = document.getElementById('role-grid');
+    g.innerHTML = ROLES.map(r=>`
+      <div class="role-card ${r.danger?'danger':''}" id="rc-${r.id}" onclick="App.pickRole('${r.id}')">
+        <div class="role-name">${r.label}</div>
+        <div class="role-desc">${r.desc}</div>
+      </div>`).join('');
+  },
+  pickRole(id){
+    document.querySelectorAll('.role-card').forEach(c=>c.classList.remove('sel'));
+    const el=document.getElementById('rc-'+id); if(el) el.classList.add('sel');
+    document.getElementById('f-role').value=id;
+  },
+
+  _buildPresets(){
+    const row=document.getElementById('preset-row');
+    row.innerHTML=PRESETS.map(p=>`
+      <div class="preset-pill ${p.id==='LONG_FAST'?'sel':''}" id="pp-${p.id}" onclick="App.pickPreset('${p.id}')">${p.label}</div>`).join('');
+  },
+  pickPreset(id){
+    document.querySelectorAll('.preset-pill').forEach(p=>p.classList.remove('sel'));
+    const el=document.getElementById('pp-'+id); if(el) el.classList.add('sel');
+    document.getElementById('f-preset').value=id;
+  },
+
+  toggleLoraMode(){
+    const on=document.getElementById('f-use-preset').checked;
+    document.getElementById('lora-preset-wrap').style.display = on?'block':'none';
+    document.getElementById('lora-manual-wrap').style.display = on?'none':'block';
+  },
+  toggleFixed(){
+    document.getElementById('fixed-wrap').style.display =
+      document.getElementById('f-fixed-pos').checked?'block':'none';
+  },
+
+  async loadSlots(){
+    try{
+      const r=await fetch(`${API}/slots`), d=await r.json();
+      this.slots=d.slots||[];
+      const sel=document.getElementById('slot-sel');
+      sel.innerHTML=this.slots.map(s=>
+        `<option value="${s.slot_id}"${!s.admin_supported?' disabled':''}>${this._esc(s.label||s.slot_id)}${!s.admin_supported?' [not supported]':''} (${s.node_count} nodes)</option>`
+      ).join('');
+      const first=this.slots.find(s=>s.admin_supported);
+      if(first){ sel.value=first.slot_id; this.slot=first.slot_id; await this.refreshNodes(); }
+      document.getElementById('conn-pill').textContent=this.slots.length+' slot(s)';
+    }catch(e){
+      document.getElementById('conn-pill').textContent='ERROR';
+    }
+  },
+
+  async onSlotChange(){
+    this.slot=document.getElementById('slot-sel').value;
+    this.nodeId=null;
+    document.getElementById('no-sel').style.display='flex';
+    document.getElementById('admin-wrap').style.display='none';
+    await this.refreshNodes();
+  },
+
+  async refreshNodes(){
+    if(!this.slot) return;
+    try{
+      const r=await fetch(`${API}/nodes/${this.slot}`), d=await r.json();
+      this.nodes=d.nodes||[];
+      this.renderList();
+    }catch(e){ console.error('refreshNodes',e); }
+  },
+
+  renderList(){
+    const f=(document.getElementById('nf').value||'').toLowerCase();
+    const now=Date.now()/1000;
+    const items=this.nodes.filter(n=>
+      !f||(n.long_name||'').toLowerCase().includes(f)||
+      (n.short_name||'').toLowerCase().includes(f)||
+      (n.node_id||'').toLowerCase().includes(f)
+    );
+    const list=document.getElementById('node-list');
+    if(!items.length){list.innerHTML='<div style="padding:20px;text-align:center;color:var(--txt3);font-family:var(--mono);font-size:10px;">NO NODES</div>';return;}
+    list.innerHTML=items.map(n=>{
+      const online=n.last_heard&&(now-n.last_heard)<3600;
+      const dc=n.is_local?'local':online?'online':'offline';
+      const badge=n.is_local?'<span class="ni-badge badge-local">LOCAL</span>':
+                  n.hops_away!=null?`<span class="ni-badge badge-remote">${n.hops_away}H</span>`:'';
+      const active=n.node_id===this.nodeId;
+      return`<div class="ni${active?' active':''}" onclick="App.selectNode('${n.node_id}')">
+        <div class="dot ${dc}"></div>
+        <div style="flex:1;min-width:0;">
+          <div class="ni-name">${this._esc(n.long_name||n.node_id)}</div>
+          <div class="ni-id">${n.node_id}${n.hw_model?' · '+n.hw_model:''}</div>
+        </div>
+        ${badge}
+      </div>`;
+    }).join('');
+  },
+
+  async selectNode(nodeId){
+    this.nodeId=nodeId;
+    this.renderList();
+    const n=this.nodes.find(x=>x.node_id===nodeId);
+    const isLocal=n?n.is_local:false;
+
+    // Show panel
+    document.getElementById('no-sel').style.display='none';
+    document.getElementById('admin-wrap').style.display='flex';
+
+    // Header
+    const sn=n?(n.short_name||'?'):'?';
+    const ln=n?(n.long_name||nodeId):nodeId;
+    const hw=n?(n.hw_model||''):'';
+    let h=0; for(let i=0;i<nodeId.length;i++) h=(Math.imul(31,h)+nodeId.charCodeAt(i))|0;
+    const color=PALETTE[Math.abs(h)%PALETTE.length];
+    document.getElementById('node-hdr').innerHTML=`
+      <div class="nh-av" style="background:${color};">${this._esc(sn.substring(0,2).toUpperCase())}</div>
+      <div>
+        <div class="nh-name">${this._esc(ln)}</div>
+        <div class="nh-id">${this._esc(nodeId)}${hw?' · '+this._esc(hw):''}</div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        ${isLocal
+          ?'<span class="nh-pill pill-local"><i class="fas fa-radio" style="margin-right:4px;"></i>LOCAL RADIO</span>'
+          :'<span class="nh-pill pill-remote"><i class="fas fa-satellite-dish" style="margin-right:4px;"></i>REMOTE</span>'
+        }
+        ${!isLocal?'<span class="nh-pill pill-warn">Admin key required · Commands over mesh · Reboot needed</span>':''}
+      </div>`;
+
+    // Remote warning banners
+    ['identity','device','lora','position','mqtt','channels'].forEach(t=>{
+      const el=document.getElementById(`rwarn-${t}`);
+      if(el) el.style.display=isLocal?'none':'block';
+    });
+
+    // Pre-fill identity
+    if(n){ document.getElementById('f-ln').value=ln!==nodeId?ln:''; document.getElementById('f-sn').value=sn!=='?'?sn:''; }
+
+    // Get public key for this slot (for the setup guide)
+    await this.loadPubKey();
+
+    // Show setup tab appropriate content
+    document.getElementById('setup-local').style.display = isLocal?'block':'none';
+    document.getElementById('setup-remote').style.display= isLocal?'none':'block';
+    // Show the target node name in the setup remote instructions
+    const rname = document.getElementById('setup-remote-name');
+    if (rname) rname.textContent = ln !== nodeId ? ln : nodeId;
+
+    this.tab(this.curTab);
+    await this.refreshLog();
+  },
+
+  async loadPubKey(){
+    if(!this.slot) return;
+    try{
+      const r=await fetch(`${API}/public_key/${this.slot}`), d=await r.json();
+      this.pubKey=d.public_key||null;
+      const display=this.pubKey||'Not available — check firmware ≥2.5 and radio connected';
+      document.getElementById('pub-key-val').textContent=display;
+      document.getElementById('setup-pub-key-val').textContent=this.pubKey||'Select local radio node first, then check your slot is connected and running firmware 2.5+';
+      const copyBtn=document.getElementById('setup-copy-btn');
+      if(copyBtn) copyBtn.disabled=!this.pubKey;
+    }catch(e){ console.debug('pubkey',e); }
+  },
+
+  async copyKey(){
+    const k=this.pubKey;
+    if(!k){ this._toast('Public key not available','warn'); return; }
+    try{ await navigator.clipboard.writeText(k); this._toast('Public key copied!','ok'); }
+    catch(e){ prompt('Copy this key:',k); }
+  },
+
+  tab(name){
+    this.curTab=name;
+    document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+      const tabs=['setup','identity','device','lora','position','mqtt','channels','danger','log'];
+      b.classList.toggle('active',tabs[i]===name);
+    });
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    const p=document.getElementById('tab-'+name);
+    if(p) p.classList.add('active');
+    if(name==='log') this.refreshLog();
+  },
+
+  // ── Status helpers ───────────────────────────────────────────────────────
+  //
+  // Backend returns { status, ack: { ack, msg }, detail }
+  // ack values: "local" "ok" "implicit" "nak" "timeout"
+  // "nak"      = remote node rejected — admin key not configured
+  // "timeout"  = no response — node unreachable or out of range
+  // "implicit" = local radio confirmed packet sent, can't confirm remote receipt
+  // "ok"       = explicit ACK from remote node
+  // "local"    = local node synchronous write
+  //
+  _ackLabel(r){
+    if(!r||!r.ack) return null;
+    const a=r.ack;
+    if(a.ack==='nak'){
+      const reason = a.reason || '';
+      const prefix = reason ? `🚫 ${reason}` : '🚫 NAK';
+      return {type:'err', msg:`${prefix} — ${a.msg}`, reason};
+    }
+    if(a.ack==='timeout')  return {type:'warn', msg:'⏱ TIMEOUT — '+a.msg};
+    if(a.ack==='sent')     return {type:'ok',   msg:'✅ Sent — reboot node to apply'};
+    if(a.ack==='implicit') return {type:'ok',   msg:'✅ Sent (implicit ACK) — reboot to apply'};
+    if(a.ack==='ok')       return {type:'ok',   msg:'✅ ACK — reboot to apply'};
+    if(a.ack==='local')    return {type:'ok',   msg:'✅ Written — reboot to apply'};
+    return null;
+  },
+
+  _sp(id,type,msg){
+    const el=document.getElementById('sp-'+id); if(!el) return;
+    el.className='sp '+type; el.textContent=msg;
+    if(type==='ok') setTimeout(()=>{el.className='sp';},7000);
+    // err/warn stay visible until next action
+  },
+
+  // Apply ACK/NAK result to a status pill and toast appropriately
+  _spResult(id,r){
+    const l=this._ackLabel(r);
+    if(l) this._sp(id,l.type,l.msg);
+    else  this._sp(id,'ok','✅ Sent — reboot to apply');
+    if(r&&r.ack){
+      const a=r.ack;
+      if(a.ack==='nak'){
+        // Give specific toast based on reason code
+        const reason = a.reason||'';
+        if(reason==='PKI_UNKNOWN_PUBKEY'){
+          this._toast('🚫 Admin key not recognised — add this radio\'s key to the remote node (Setup tab)','err');
+        } else if(reason==='NO_CHANNEL'){
+          this._toast('🚫 NO_CHANNEL — try: pip install --upgrade meshtastic','err');
+        } else {
+          this._toast(`🚫 NAK: ${reason||'rejected'} — check admin key setup`,'err');
+        }
+      } else if(a.ack==='timeout'){
+        this._toast('⏱ No response — node may be out of range or offline','warn');
+      }
+    }
+  },
+
+  _toast(msg,type){
+    if(window.parent&&typeof window.parent.triggerToast==='function') window.parent.triggerToast(msg,type);
+    else console.log('[NodeAdmin]',type,msg);
+  },
+
+  async _post(ep,body){
+    const r=await fetch(`${API}/${ep}`,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({slot_id:this.slot,node_id:this.nodeId,...body})});
+    const d=await r.json().catch(()=>({}));
+    // Only throw on hard HTTP errors (not nak/timeout which are valid business states)
+    if(!r.ok){ throw new Error(d.detail||`HTTP ${r.status}`); }
+    return d;
+  },
+
+  // ── Saves ────────────────────────────────────────────────────────────────
+  async saveOwner(){
+    const ln=document.getElementById('f-ln').value.trim(), sn=document.getElementById('f-sn').value.trim();
+    if(!ln||!sn){this._sp('identity','err','Long name and short name required'); return;}
+    this._sp('identity','pend','⏳ Sending...');
+    try{ const r=await this._post('set_owner',{long_name:ln,short_name:sn}); this._spResult('identity',r); }
+    catch(e){ this._sp('identity','err','❌ '+e.message); }
+  },
+
+  async saveDevice(){
+    this._sp('device','pend','⏳ Sending...');
+    try{
+      const r=await this._post('set_device_config',{
+        role:document.getElementById('f-role').value||'CLIENT',
+        node_info_broadcast_secs:parseInt(document.getElementById('f-ni-interval').value)||3600,
+      });
+      this._spResult('device',r);
+    }catch(e){ this._sp('device','err','❌ '+e.message); }
+  },
+
+  async saveLora(){
+    this._sp('lora','pend','⏳ Sending...');
+    const usePreset=document.getElementById('f-use-preset').checked;
+    const body={
+      use_preset:usePreset,
+      region:document.getElementById('f-region').value,
+      hop_limit:parseInt(document.getElementById('f-hops').value)||3,
+      tx_power:parseInt(document.getElementById('f-txpwr').value)||0,
+    };
+    if(usePreset) body.modem_preset=document.getElementById('f-preset').value;
+    else{
+      body.bandwidth    =parseInt(document.getElementById('f-bw').value);
+      body.spread_factor=parseInt(document.getElementById('f-sf').value);
+      body.coding_rate  =parseInt(document.getElementById('f-cr').value);
+    }
+    try{ const r=await this._post('set_lora_config',body); this._spResult('lora',r); }
+    catch(e){ this._sp('lora','err','❌ '+e.message); }
+  },
+
+  async savePosition(){
+    this._sp('position','pend','⏳ Sending...');
+    const fixed=document.getElementById('f-fixed-pos').checked;
+    const body={
+      position_broadcast_secs:parseInt(document.getElementById('f-pos-int').value)||900,
+      smart_position:document.getElementById('f-smart-pos').checked,
+      fixed_position:fixed,
+    };
+    if(fixed){
+      body.fixed_lat=parseFloat(document.getElementById('f-flat').value)||null;
+      body.fixed_lon=parseFloat(document.getElementById('f-flon').value)||null;
+      body.fixed_alt=parseInt(document.getElementById('f-falt').value)||0;
+    }
+    try{ const r=await this._post('set_position_config',body); this._spResult('position',r); }
+    catch(e){ this._sp('position','err','❌ '+e.message); }
+  },
+
+  async saveMqtt(){
+    this._sp('mqtt','pend','⏳ Sending...');
+    try{
+      const r=await this._post('set_mqtt_config',{
+        enabled:document.getElementById('f-mqtt-en').checked,
+        address:document.getElementById('f-mqtt-addr').value.trim(),
+        username:document.getElementById('f-mqtt-user').value.trim(),
+        password:document.getElementById('f-mqtt-pass').value,
+        encryption_enabled:document.getElementById('f-mqtt-tls').checked,
+        json_enabled:document.getElementById('f-mqtt-json').checked,
+        root:document.getElementById('f-mqtt-root').value.trim(),
+      });
+      this._spResult('mqtt',r);
+    }catch(e){ this._sp('mqtt','err','❌ '+e.message); }
+  },
+
+  async saveDisplay(){
+    this._sp('display','pend','⏳ Sending...');
+    try{
+      const r=await this._post('set_display_config',{
+        screen_on_secs: parseInt(document.getElementById('f-disp-screen-on').value)||0,
+        units:          parseInt(document.getElementById('f-disp-units').value)||0,
+        gps_format:     parseInt(document.getElementById('f-disp-gps-fmt').value)||0,
+        oled:           parseInt(document.getElementById('f-disp-oled').value)||0,
+        flip_screen:    document.getElementById('f-disp-flip').checked,
+      });
+      this._spResult('display',r);
+    }catch(e){ this._sp('display','err','❌ '+e.message); }
+  },
+
+  async savePower(){
+    this._sp('power','pend','⏳ Sending...');
+    try{
+      const r=await this._post('set_power_config',{
+        ls_secs:             parseInt(document.getElementById('f-pwr-ls').value)||300,
+        sds_secs:            parseInt(document.getElementById('f-pwr-sds').value)||0,
+        min_wake_secs:       parseInt(document.getElementById('f-pwr-minwake').value)||10,
+        wait_bluetooth_secs: parseInt(document.getElementById('f-pwr-bt').value)||60,
+      });
+      this._spResult('power',r);
+    }catch(e){ this._sp('power','err','❌ '+e.message); }
+  },
+
+  async saveBluetooth(){
+    this._sp('bluetooth','pend','⏳ Sending...');
+    try{
+      const r=await this._post('set_bluetooth_config',{
+        enabled:   document.getElementById('f-bt-enabled').checked,
+        mode:      parseInt(document.getElementById('f-bt-mode').value)||0,
+        fixed_pin: parseInt(document.getElementById('f-bt-pin').value)||123456,
+      });
+      this._spResult('bluetooth',r);
+    }catch(e){ this._sp('bluetooth','err','❌ '+e.message); }
+  },
+
+  async saveTelemetry(){
+    this._sp('telemetry','pend','⏳ Sending...');
+    try{
+      const r=await this._post('set_telemetry_config',{
+        device_update_interval:          parseInt(document.getElementById('f-tel-device').value)||3600,
+        environment_update_interval:     parseInt(document.getElementById('f-tel-env').value)||0,
+        environment_measurement_enabled: document.getElementById('f-tel-env-en').checked,
+        air_quality_enabled:             document.getElementById('f-tel-aq-en').checked,
+        air_quality_interval:            parseInt(document.getElementById('f-tel-aq').value)||0,
+      });
+      this._spResult('telemetry',r);
+    }catch(e){ this._sp('telemetry','err','❌ '+e.message); }
+  },
+
+  // ── Tab navigation ───────────────────────────────────────────────────────
+  tab(name){
+    this.curTab=name;
+    document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+      const tabs=['setup','identity','device','lora','position','display','power','bluetooth','mqtt','telemetry','channels','danger','log'];
+      b.classList.toggle('active',tabs[i]===name);
+    });
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    const p=document.getElementById('tab-'+name);
+    if(p) p.classList.add('active');
+    if(name==='log') this.refreshLog();
+  },
+
+  // ── Channels ─────────────────────────────────────────────────────────────
+  async loadChannels(){
+    const b=document.getElementById('ch-body');
+    b.innerHTML='<div style="padding:20px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--warn);"><i class="fas fa-circle-notch fa-spin"></i> Loading...</div>';
+    try{
+      const r=await this._post('read_channels',{});
+      const chs=r.channels||[];
+      if(!chs.length){b.innerHTML='<div style="padding:20px;text-align:center;color:var(--txt3);font-family:var(--mono);font-size:10px;">No channel data returned.</div>';return;}
+      const rc={PRIMARY:'var(--acc)',SECONDARY:'var(--ok)',DISABLED:'var(--txt3)'};
+      b.innerHTML=`
+        ${r.note?`<div style="padding:8px 14px;font-family:var(--mono);font-size:9px;color:var(--warn);border-bottom:1px solid var(--bd2);">${this._esc(r.note)}</div>`:''}
+        <table class="ch-tbl">
+          <thead><tr><th>SLOT</th><th>NAME</th><th>ROLE</th><th>PSK</th><th>UL/DL</th><th style="text-align:right;">EDIT</th></tr></thead>
+          <tbody>
+            ${chs.map(ch=>`<tr>
+              <td style="color:var(--txt3);">#${ch.index}</td>
+              <td style="font-weight:bold;">${this._esc(ch.name||'—')}</td>
+              <td><span style="color:${rc[ch.role]||'var(--txt)'};">${ch.role}</span></td>
+              <td>${ch.psk_set?'<span style="color:var(--ok);">🔒 SET</span>':'<span style="color:var(--txt3);">OPEN</span>'}</td>
+              <td style="color:var(--txt3);">${ch.uplink?'↑':''}${ch.downlink?'↓':''}</td>
+              <td style="text-align:right;">
+                <button class="btn btn-sm btn-acc" style="font-size:9px;" onclick="App.openChModal(${ch.index},'${this._esc(ch.name||'')}','${ch.role}',${ch.uplink},${ch.downlink})">EDIT</button>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+    }catch(e){
+      b.innerHTML=`<div style="padding:20px;text-align:center;font-family:var(--mono);font-size:10px;color:var(--err);">❌ ${this._esc(e.message)}</div>`;
+    }
+  },
+
+  openChModal(idx,name,role,up,dn){
+    document.getElementById('ch-idx').value=idx;
+    document.getElementById('ch-name').value=name||'';
+    document.getElementById('ch-role').value=role||'SECONDARY';
+    document.getElementById('ch-up').checked=!!up;
+    document.getElementById('ch-dn').checked=!!dn;
+    document.getElementById('ch-psk').value='';
+    document.getElementById('ch-modal-title').textContent=`EDIT CHANNEL ${idx}`;
+    document.getElementById('ch-modal').style.display='flex';
+  },
+  closeChModal(){ document.getElementById('ch-modal').style.display='none'; },
+
+  async saveChannel(){
+    try{
+      const r=await this._post('set_channel',{
+        channel_index:parseInt(document.getElementById('ch-idx').value),
+        name:document.getElementById('ch-name').value.trim(),
+        role:document.getElementById('ch-role').value,
+        psk_b64:document.getElementById('ch-psk').value.trim(),
+        uplink:document.getElementById('ch-up').checked,
+        downlink:document.getElementById('ch-dn').checked,
+      });
+      this.closeChModal();
+      await this.loadChannels();
+      const l=this._ackLabel(r);
+      this._toast(l?l.msg:'✅ Channel saved — reboot to apply', l&&l.type==='err'?'err':'ok');
+    }catch(e){ this._toast('❌ '+e.message,'err'); }
+  },
+
+  // ── Danger zone ───────────────────────────────────────────────────────────
+  async doReboot(){
+    const d=parseInt(document.getElementById('f-reboot-delay').value)||5;
+    const n=this.nodes.find(x=>x.node_id===this.nodeId);
+    if(!confirm(`Reboot "${n?n.long_name:this.nodeId}" with ${d}s delay?\nDevice will disconnect and reconnect.`)) return;
+    this._sp('reboot','pend','⏳ Sending...');
+    try{ const r=await this._post('reboot',{delay_seconds:d}); this._spResult('reboot',r); }
+    catch(e){ this._sp('reboot','err','❌ '+e.message); }
+  },
+
+  async doShutdown(){
+    const d=parseInt(document.getElementById('f-shutdown-delay').value)||5;
+    const n=this.nodes.find(x=>x.node_id===this.nodeId);
+    if(!confirm(`Shutdown "${n?n.long_name:this.nodeId}" with ${d}s delay?\n\nThe device will power off completely. It will only restart on physical power cycle.`)) return;
+    this._sp('shutdown','pend','⏳ Sending...');
+    try{ const r=await this._post('shutdown',{delay_seconds:d}); this._spResult('shutdown',r); }
+    catch(e){ this._sp('shutdown','err','❌ '+e.message); }
+  },
+
+  async doFactoryReset(){
+    if(document.getElementById('f-factory-confirm').value.trim()!=='FACTORY RESET'){
+      this._sp('factory','err','Type FACTORY RESET exactly'); return;
+    }
+    this._sp('factory','pend','⏳ Sending...');
+    try{
+      const r=await this._post('factory_reset',{confirm:'FACTORY RESET',full_device_reset:false});
+      this._spResult('factory',r);
+      document.getElementById('f-factory-confirm').value='';
+    }catch(e){ this._sp('factory','err','❌ '+e.message); }
+  },
+
+  async doPurge(){
+    if(document.getElementById('f-purge-confirm').value.trim()!=='PURGE DATABASE'){
+      this._sp('purge','err','Type PURGE DATABASE exactly'); return;
+    }
+    this._sp('purge','pend','⏳ Sending...');
+    try{
+      const r=await this._post('purge_node_db',{confirm:'PURGE DATABASE'});
+      this._spResult('purge',r);
+      document.getElementById('f-purge-confirm').value='';
+    }catch(e){ this._sp('purge','err','❌ '+e.message); }
+  },
+
+  // ── Op log ────────────────────────────────────────────────────────────────
+  async refreshLog(){
+    const b=document.getElementById('log-body');
+    try{
+      const r=await fetch(`${API}/log?limit=60`), d=await r.json();
+      const es=d.log||[];
+      if(!es.length){b.innerHTML='<div style="padding:20px;text-align:center;color:var(--txt3);font-family:var(--mono);font-size:10px;">No operations logged yet.</div>';return;}
+      b.innerHTML=es.map(e=>{
+        const t=new Date(e.ts*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+        const sc = e.status==='nak'?'st-err': e.status==='timeout'?'st-pend': e.status==='ok'?'st-ok': e.status==='error'?'st-err':'st-pend';
+        // NAK gets a red badge with the specific reason — this is the most actionable info
+        const badge = e.status==='nak'
+          ? `<span style="color:var(--err);font-size:11px;background:rgba(255,48,80,.15);padding:1px 5px;border-radius:3px;border:1px solid rgba(255,48,80,.3);">🚫 ${e.nak_reason||'NAK'}</span>`
+          : e.status==='timeout'
+          ? '<span style="color:var(--warn);font-size:11px;background:rgba(255,168,38,.1);padding:1px 5px;border-radius:3px;border:1px solid rgba(255,168,38,.25);">⏱ TIMEOUT</span>'
+          : '';
+        return`<div class="log-entry">
+          <div class="log-ts">${t}</div>
+          <div class="log-node">${this._esc(e.target)}</div>
+          <div class="log-op">${this._esc(e.op)}</div>
+          <div class="log-status ${sc}">${badge||e.status}</div>
+          <div class="log-detail">${this._esc(e.detail)}</div>
+        </div>`;
+      }).join('');
+    }catch(e){ b.innerHTML='<div style="padding:20px;text-align:center;color:var(--err);font-family:var(--mono);font-size:10px;">Failed to load log.</div>'; }
+  },
+
+  async refresh(){ await this.loadSlots(); if(this.nodeId) await this.selectNode(this.nodeId); },
+};
+
+document.addEventListener('DOMContentLoaded', ()=>App.init());
+</script>
+</body>
+</html>

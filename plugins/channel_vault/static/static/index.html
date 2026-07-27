@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Channel Vault</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-size:12px}
+.shell{height:100%;display:flex;flex-direction:column}
+.topbar{flex-shrink:0;display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--bd2);background:var(--bg2)}
+.logo{width:32px;height:32px;background:linear-gradient(135deg,var(--pur),var(--acc));border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.tp-title{font-family:var(--mono);font-size:13px;font-weight:900;letter-spacing:1.5px;color:var(--pur)}
+.tp-sub{font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:.5px;margin-top:1px}
+.main-tabs{flex-shrink:0;display:flex;border-bottom:1px solid var(--bd2);background:var(--bg2)}
+.mt{padding:10px 16px;font-family:var(--mono);font-size:9px;font-weight:bold;letter-spacing:.5px;color:var(--txt3);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;display:flex;align-items:center;gap:6px}
+.mt.on{color:var(--pur);border-bottom-color:var(--pur)}
+.mt .bdg{background:var(--pur);color:var(--txt);border-radius:8px;font-size:10px;font-weight:900;padding:1px 5px;min-width:14px;text-align:center;display:none}
+.mt .bdg.show{display:inline-block}
+.views{flex:1;overflow:hidden;position:relative}
+.view{position:absolute;inset:0;display:none;overflow:hidden;flex-direction:column}
+.view.on{display:flex}
+
+/* ── vault view ── */
+.vault-layout{flex:1;display:grid;grid-template-columns:340px 1fr;overflow:hidden}
+.vault-left{border-right:1px solid var(--bd2);display:flex;flex-direction:column;overflow:hidden;background:var(--bg2)}
+.vault-left-scroll{flex:1;overflow-y:auto;padding:12px}
+.vault-left-scroll::-webkit-scrollbar{width:3px}.vault-left-scroll::-webkit-scrollbar-thumb{background:var(--bd2)}
+.vault-right{flex:1;overflow-y:auto;padding:12px}
+.vault-right::-webkit-scrollbar{width:4px}.vault-right::-webkit-scrollbar-thumb{background:var(--bd2)}
+
+/* form */
+.fhdr{font-family:var(--mono);font-size:11px;color:var(--pur);letter-spacing:1px;font-weight:bold;padding:0 0 7px;border-bottom:1px solid rgba(176,96,255,.2);margin-bottom:10px;display:flex;align-items:center;gap:5px}
+.fhdr i{width:12px;text-align:center}
+.fg{margin-bottom:10px}
+.flbl{font-family:var(--mono);font-size:11px;color:var(--txt3);letter-spacing:.3px;margin-bottom:4px;display:block}
+.fi{width:100%;font-family:var(--mono);font-size:10px;padding:6px 9px;background:var(--bg);border:1px solid var(--bd2);border-radius:4px;color:var(--txt);transition:border-color .15s}
+.fi:focus{outline:none;border-color:var(--pur)}
+.fi::placeholder{color:var(--txt3)}
+.fi-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.add-btn{width:100%;padding:10px;background:linear-gradient(135deg,rgba(176,96,255,.15),rgba(0,200,245,.08));border:1px solid rgba(176,96,255,.4);border-radius:5px;color:var(--pur);font-family:var(--mono);font-size:11px;font-weight:900;letter-spacing:1px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px}
+.add-btn:hover{background:linear-gradient(135deg,rgba(176,96,255,.25),rgba(0,200,245,.15));box-shadow:0 0 18px rgba(176,96,255,.2)}
+.add-btn:disabled{opacity:.4;cursor:not-allowed}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.toggle-lbl{font-family:var(--mono);font-size:9px;color:var(--txt2)}
+.tog{position:relative;width:32px;height:18px;cursor:pointer;flex-shrink:0}
+.tog input{opacity:0;width:0;height:0}
+.tog-t{position:absolute;inset:0;background:var(--bd2);border-radius:9px;transition:background .2s}
+.tog input:checked~.tog-t{background:var(--pur)}
+.tog-th{position:absolute;top:3px;left:3px;width:12px;height:12px;background:#fff;border-radius:50%;transition:transform .2s;pointer-events:none}
+.tog input:checked~.tog-th{transform:translateX(14px)}
+
+/* vault channel cards */
+.vc{background:var(--bg);border:1px solid var(--bd2);border-radius:5px;margin-bottom:6px;overflow:hidden;transition:border-color .2s}
+.vc:hover{border-color:rgba(176,96,255,.3)}
+.vc-head{display:flex;align-items:center;gap:8px;padding:9px 12px}
+.vc-icon{width:28px;height:28px;border-radius:4px;background:rgba(176,96,255,.12);border:1px solid rgba(176,96,255,.25);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--pur);flex-shrink:0}
+.vc-name{font-family:var(--mono);font-size:10px;font-weight:900;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vc-src{font-family:var(--mono);font-size:10px;padding:1px 5px;border-radius:2px;flex-shrink:0}
+.vc-src.manual{background:rgba(0,200,245,.1);border:1px solid rgba(0,200,245,.25);color:var(--acc)}
+.vc-src.backup{background:rgba(0,232,122,.08);border:1px solid rgba(0,232,122,.2);color:var(--ok)}
+.vc-actions{display:flex;gap:4px;flex-shrink:0}
+.vc-btn{font-family:var(--mono);font-size:11px;padding:3px 7px;border-radius:3px;border:1px solid var(--bd2);background:var(--bg2);color:var(--txt3);cursor:pointer;transition:all .15s;white-space:nowrap}
+.vc-btn:hover{border-color:var(--pur);color:var(--pur)}
+.vc-btn.danger:hover{border-color:var(--err);color:var(--err)}
+.vc-btn.hotswap-btn{border-color:rgba(176,96,255,.4);color:var(--pur);background:rgba(176,96,255,.08)}
+.vc-btn.hotswap-btn:hover{background:rgba(176,96,255,.2)}
+.vc-meta{padding:0 12px 9px;font-family:var(--mono);font-size:11px;color:var(--txt3);display:flex;gap:12px}
+
+/* alerts */
+.alert-card{background:rgba(255,168,38,.06);border:1px solid rgba(255,168,38,.3);border-radius:5px;padding:10px 13px;margin-bottom:8px;display:flex;align-items:flex-start;gap:10px;animation:fadein .2s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.alert-icon{font-size:14px;color:var(--warn);flex-shrink:0;margin-top:1px}
+.alert-body{flex:1;font-family:var(--mono);font-size:9px;line-height:1.7}
+.alert-title{font-size:10px;font-weight:bold;color:var(--warn);margin-bottom:2px}
+.alert-actions{display:flex;gap:5px;margin-top:6px}
+.al-btn{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:3px;border:1px solid var(--bd2);background:var(--bg2);color:var(--txt3);cursor:pointer;transition:all .15s}
+.al-btn.primary{border-color:rgba(176,96,255,.4);color:var(--pur);background:rgba(176,96,255,.08)}
+.al-btn.primary:hover{background:rgba(176,96,255,.2)}
+.al-btn:hover{border-color:var(--acc);color:var(--acc)}
+
+/* hotswap modal */
+.hs-modal{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center;animation:fadein .15s ease}
+.hs-box{background:var(--bg2);border:1px solid rgba(176,96,255,.4);border-radius:8px;width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.8)}
+.hs-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--bd2)}
+.hs-title{font-family:var(--mono);font-size:12px;font-weight:900;letter-spacing:.5px;color:var(--pur);flex:1}
+.hs-close{background:none;border:none;color:var(--txt3);cursor:pointer;font-size:16px;padding:2px 5px}
+.hs-body{padding:16px}
+.step-row{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.step-num{width:22px;height:22px;border-radius:50%;background:rgba(176,96,255,.15);border:1px solid rgba(176,96,255,.3);display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;font-weight:900;color:var(--pur);flex-shrink:0}
+.step-lbl{font-family:var(--mono);font-size:9px;font-weight:bold;color:var(--txt);letter-spacing:.3px}
+.slot-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px}
+.slot-cell{padding:8px 4px;background:var(--bg);border:1px solid var(--bd2);border-radius:4px;text-align:center;cursor:pointer;transition:all .15s}
+.slot-cell:hover{border-color:var(--pur)}
+.slot-cell.selected{border-color:var(--pur);background:rgba(176,96,255,.12)}
+.slot-cell.primary{border-color:rgba(255,168,38,.4);background:rgba(255,168,38,.06)}
+.slot-cell.occupied{border-color:var(--bd)}
+.slot-idx{font-family:var(--mono);font-size:9px;font-weight:bold;color:var(--txt3);margin-bottom:2px}
+.slot-name{font-family:var(--mono);font-size:11px;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slot-role{font-family:var(--mono);font-size:10px;margin-top:2px}
+.slot-role.primary{color:var(--warn)}
+.slot-role.secondary{color:var(--acc)}
+.slot-role.disabled{color:var(--txt3)}
+.warn-box{background:rgba(255,168,38,.07);border:1px solid rgba(255,168,38,.3);border-radius:4px;padding:9px 12px;font-family:var(--mono);font-size:9px;color:var(--warn);line-height:1.6;margin-bottom:12px}
+.warn-box i{margin-right:5px}
+.hs-confirm-btn{width:100%;padding:11px;background:linear-gradient(135deg,rgba(176,96,255,.2),rgba(0,200,245,.1));border:1px solid rgba(176,96,255,.5);border-radius:5px;color:var(--pur);font-family:var(--mono);font-size:11px;font-weight:900;letter-spacing:1px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+.hs-confirm-btn:hover{background:linear-gradient(135deg,rgba(176,96,255,.35),rgba(0,200,245,.18))}
+.hs-confirm-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* backup section */
+.backup-card{background:var(--bg2);border:1px solid var(--bd2);border-radius:5px;margin-bottom:8px;overflow:hidden}
+.bc-head{display:flex;align-items:center;gap:8px;padding:9px 12px}
+.bc-label{font-family:var(--mono);font-size:10px;font-weight:bold;flex:1}
+.bc-meta{font-family:var(--mono);font-size:11px;color:var(--txt3)}
+.bc-channels{padding:0 12px 10px;display:flex;gap:5px;flex-wrap:wrap}
+.ch-pill{font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:3px;background:var(--bg);border:1px solid var(--bd2)}
+.ch-pill.primary{border-color:rgba(255,168,38,.4);color:var(--warn)}
+.ch-pill.secondary{border-color:rgba(0,200,245,.3);color:var(--acc)}
+.ch-pill.disabled{color:var(--txt3)}
+
+/* decrypted */
+.dec-row{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.03);font-family:var(--mono);font-size:9px;animation:fadein .2s ease}
+.dec-row:hover{background:rgba(255,255,255,.02)}
+.dec-portnum{color:var(--pur);font-weight:bold}
+.dec-text{color:var(--ok);font-style:italic}
+
+/* stats banner */
+.stats-banner{display:flex;gap:1px;background:var(--bd);border-radius:5px;overflow:hidden;margin-bottom:12px}
+.sb-cell{flex:1;background:var(--bg);padding:8px;text-align:center}
+.sb-v{font-family:var(--mono);font-size:16px;font-weight:900;line-height:1}
+.sb-l{font-family:var(--mono);font-size:10px;color:var(--txt3);letter-spacing:.5px;margin-top:2px}
+
+/* empty */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:160px;gap:10px;color:var(--txt3);font-family:var(--mono)}
+.empty i{font-size:28px;opacity:.1}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+
+<div class="topbar">
+  <div class="logo"><i class="fas fa-key" style="color:var(--txt);"></i></div>
+  <div>
+    <div class="tp-title">CHANNEL VAULT</div>
+    <div class="tp-sub">SERVER-SIDE PSK DECRYPTION · UNLIMITED CHANNELS · HOTSWAP · BACKUP &amp; RESTORE</div>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:8px;">
+    <div id="crypto-badge" style="font-family:var(--mono);font-size:11px;display:flex;align-items:center;gap:5px;"></div>
+  </div>
+</div>
+
+<div class="main-tabs">
+  <button class="mt on" onclick="App.tab('vault')" id="mt-vault"><i class="fas fa-key"></i>VAULT <span class="bdg" id="b-vault">0</span></button>
+  <button class="mt" onclick="App.tab('alerts')" id="mt-alerts"><i class="fas fa-bell"></i>ALERTS <span class="bdg" id="b-alerts">0</span></button>
+  <button class="mt" onclick="App.tab('decrypted')" id="mt-decrypted"><i class="fas fa-unlock"></i>DECRYPTED <span class="bdg" id="b-decrypted">0</span></button>
+  <button class="mt" onclick="App.tab('backup')" id="mt-backup"><i class="fas fa-box-archive"></i>BACKUP &amp; RESTORE</button>
+  <button class="mt" onclick="App.tab('hotswap')" id="mt-hotswap"><i class="fas fa-bolt"></i>HOTSWAP</button>
+</div>
+
+<div class="views">
+
+<!-- VAULT TAB -->
+<div class="view on" id="view-vault">
+  <div class="vault-layout">
+    <div class="vault-left">
+      <div class="vault-left-scroll">
+        <div class="fhdr"><i class="fas fa-plus"></i>ADD CHANNEL PSK</div>
+        <div class="fg">
+          <label class="flbl">CHANNEL NAME</label>
+          <input class="fi" id="add-name" placeholder="e.g. Hampshire Emergency Net">
+        </div>
+        <div class="fg">
+          <label class="flbl">PSK (base64)</label>
+          <input class="fi" id="add-psk" placeholder="base64-encoded AES key">
+          <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);margin-top:4px;">
+            1 byte ("AQ=="), 16 bytes (AES-128), or 32 bytes (AES-256)
+          </div>
+        </div>
+        <div class="fg">
+          <label class="flbl">NOTES (optional)</label>
+          <input class="fi" id="add-notes" placeholder="Description, source, contact…">
+        </div>
+        <div class="fg">
+          <div class="fi-row">
+            <div>
+              <label class="flbl">PRIORITY</label>
+              <input class="fi" id="add-priority" type="number" value="100" min="0" max="999">
+            </div>
+            <div>
+              <label class="flbl">SLOT HINT</label>
+              <select class="fi" id="add-slot-hint">
+                <option value="-1">None</option>
+                <option value="0">Slot 0 (Primary)</option>
+                <option value="1">Slot 1</option><option value="2">Slot 2</option>
+                <option value="3">Slot 3</option><option value="4">Slot 4</option>
+                <option value="5">Slot 5</option><option value="6">Slot 6</option>
+                <option value="7">Slot 7</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-lbl">Uplink enabled</span>
+          <label class="tog"><input type="checkbox" id="add-uplink" checked><div class="tog-t"></div><div class="tog-th"></div></label>
+        </div>
+        <div class="toggle-row">
+          <span class="toggle-lbl">Downlink enabled</span>
+          <label class="tog"><input type="checkbox" id="add-downlink" checked><div class="tog-t"></div><div class="tog-th"></div></label>
+        </div>
+        <div class="fg" style="margin-top:4px;">
+          <label class="flbl">RADIO SLOT (for retroactive decrypt)</label>
+          <div id="rs-pills" class="sp-wrap" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
+        </div>
+        <button class="add-btn" id="add-btn" onclick="App.addChannel()">
+          <i class="fas fa-plus-circle"></i>ADD TO VAULT
+        </button>
+      </div>
+    </div>
+    <div class="vault-right">
+      <div class="stats-banner" id="stats-banner"></div>
+      <div id="vault-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ALERTS TAB -->
+<div class="view" id="view-alerts" style="overflow-y:auto;padding:12px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+    <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);">ENCRYPTED PACKETS FROM UNKNOWN CHANNELS — click to add PSK or hotswap</div>
+    <button class="btn btn-sm" onclick="App.dismissAllAlerts()" style="font-size:9px;">Dismiss All</button>
+  </div>
+  <div id="alerts-list"></div>
+</div>
+
+<!-- DECRYPTED TAB -->
+<div class="view" id="view-decrypted" style="overflow:hidden;flex-direction:column;">
+  <div style="flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid var(--bd2);background:var(--bg2);">
+    <div style="font-family:var(--mono);font-size:9px;color:var(--txt3);">SERVER-SIDE DECRYPTED PACKETS — packets the radio couldn't decode</div>
+    <button class="btn btn-sm" onclick="App.loadDecrypted()" style="font-size:9px;">Refresh</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:10px;" id="decrypted-list"></div>
+</div>
+
+<!-- BACKUP & RESTORE TAB -->
+<div class="view" id="view-backup" style="overflow-y:auto;padding:12px;">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+    <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:5px;padding:14px;">
+      <div class="fhdr"><i class="fas fa-camera"></i>SNAPSHOT RADIO CHANNELS</div>
+      <p style="font-family:var(--mono);font-size:9px;color:var(--txt2);line-height:1.7;margin-bottom:10px;">
+        Read all 8 channel slots from the connected radio and save them to the vault database. 
+        Includes channel names, PSKs, and settings. Use before hotswapping to preserve the current state.
+      </p>
+      <div class="fg">
+        <label class="flbl">RADIO SLOT</label>
+        <div id="backup-slot-pills" class="sp-wrap" style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;"></div>
+      </div>
+      <div class="fg">
+        <label class="flbl">LABEL (optional)</label>
+        <input class="fi" id="backup-label" placeholder="e.g. Pre-hotswap backup 28 Mar">
+      </div>
+      <button class="btn btn-sm" style="width:100%;margin-top:4px;background:rgba(0,200,245,.1);border-color:rgba(0,200,245,.3);color:var(--acc);" onclick="App.takeBackup()">
+        <i class="fas fa-camera" style="margin-right:5px;"></i>SNAPSHOT NOW
+      </button>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:5px;padding:14px;">
+      <div class="fhdr" style="color:var(--ok);border-bottom-color:rgba(0,232,122,.2);"><i class="fas fa-circle-info"></i>HOW BACKUP WORKS</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--txt2);line-height:1.9;">
+        <span style="color:var(--ok);">① SNAPSHOT</span> — reads current radio channels into vault DB.<br>
+        <span style="color:var(--acc);">② IMPORT TO VAULT</span> — copies channel PSKs from backup into the server-side decryption vault.<br>
+        <span style="color:var(--pur);">③ HOTSWAP</span> — writes any vaulted channel to a specific radio slot, then optionally reboots.<br>
+        <span style="color:var(--warn);">④ RESTORE</span> — hotswap each backup channel back to its original slot to undo changes.
+      </div>
+    </div>
+  </div>
+  <div class="fhdr" style="margin-bottom:10px;"><i class="fas fa-box-archive"></i>SAVED BACKUPS</div>
+  <div id="backups-list"></div>
+</div>
+
+<!-- HOTSWAP TAB -->
+<div class="view" id="view-hotswap" style="overflow-y:auto;padding:12px;">
+  <div style="max-width:640px;margin:0 auto;">
+    <div style="background:rgba(176,96,255,.06);border:1px solid rgba(176,96,255,.2);border-radius:5px;padding:12px 14px;margin-bottom:14px;font-family:var(--mono);font-size:9px;color:var(--txt2);line-height:1.9;">
+      <strong style="color:var(--pur);font-size:10px;">Channel Hotswap</strong><br>
+      Write any vaulted channel directly to one of the radio's 8 slots and reboot.
+      The radio must reboot for the new channel config to take effect on the mesh.
+      <strong style="color:var(--warn);">Always snapshot first</strong> so you can restore if needed.
+    </div>
+
+    <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:5px;padding:14px;margin-bottom:10px;">
+      <div class="fhdr"><i class="fas fa-1"></i>SELECT VAULT CHANNEL</div>
+      <select class="fi" id="hs-vault-select" style="margin-bottom:0;" onchange="App.hsVaultChanged()">
+        <option value="">— Select a vaulted channel —</option>
+      </select>
+      <div id="hs-vault-preview" style="margin-top:8px;"></div>
+    </div>
+
+    <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:5px;padding:14px;margin-bottom:10px;">
+      <div class="fhdr"><i class="fas fa-2"></i>SELECT RADIO SLOT</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);margin-bottom:8px;">Current radio channel map — click a slot to target it</div>
+      <div class="slot-grid" id="hs-slot-grid"></div>
+      <div id="hs-collision-warn" style="display:none"></div>
+    </div>
+
+    <div style="background:var(--bg2);border:1px solid var(--bd2);border-radius:5px;padding:14px;margin-bottom:10px;">
+      <div class="fhdr"><i class="fas fa-3"></i>OPTIONS</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div>
+          <label class="flbl">ROLE</label>
+          <select class="fi" id="hs-role">
+            <option value="SECONDARY">Secondary</option>
+            <option value="PRIMARY">Primary</option>
+            <option value="DISABLED">Disabled</option>
+          </select>
+        </div>
+        <div>
+          <label class="flbl">REBOOT DELAY (seconds)</label>
+          <input class="fi" type="number" id="hs-delay" value="5" min="3" max="30">
+        </div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-lbl">Reboot radio after write</span>
+        <label class="tog"><input type="checkbox" id="hs-reboot" checked><div class="tog-t"></div><div class="tog-th"></div></label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-lbl">Uplink enabled</span>
+        <label class="tog"><input type="checkbox" id="hs-uplink" checked><div class="tog-t"></div><div class="tog-th"></div></label>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-lbl">Downlink enabled</span>
+        <label class="tog"><input type="checkbox" id="hs-downlink" checked><div class="tog-t"></div><div class="tog-th"></div></label>
+      </div>
+    </div>
+
+    <div id="hs-confirm-area" style="display:none;background:rgba(176,96,255,.07);border:1px solid rgba(176,96,255,.3);border-radius:5px;padding:14px;margin-bottom:10px;">
+      <div id="hs-confirm-summary" style="font-family:var(--mono);font-size:10px;line-height:2;margin-bottom:12px;"></div>
+      <button class="hs-confirm-btn" id="hs-go-btn" onclick="App.doHotswap()">
+        <i class="fas fa-bolt"></i>WRITE CHANNEL + REBOOT
+      </button>
+    </div>
+    <div id="hs-result" style="margin-top:8px;"></div>
+
+    <button class="add-btn" id="hs-preview-btn" onclick="App.hsPreview()" style="margin-top:0;">
+      <i class="fas fa-eye"></i>PREVIEW HOTSWAP
+    </button>
+  </div>
+</div>
+
+</div>
+</div>
+
+<!-- Hotswap quick-launch modal (from bridge) -->
+<div id="hs-modal" class="hs-modal" style="display:none;"></div>
+
+<script>
+'use strict';
+const API='/api/plugins/channel_vault';
+const $=id=>document.getElementById(id);
+let _tab='vault', _slot='node_0', _slots=[], _vaultChs=[], _alerts=[], _radioChs=[], _hsSlot=null;
+let _hsVaultId=null, _hsRadioSlot=null;
+
+function _esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function _ago(ts){const s=Math.floor(Date.now()/1000-ts);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+function _b64valid(s){try{const b=atob(s.trim());return [1,16,32].includes(b.length);}catch(e){return false;}}
+
+const App={
+  tab(name){
+    _tab=name;
+    ['vault','alerts','decrypted','backup','hotswap'].forEach(t=>{
+      $('mt-'+t).classList.toggle('on',t===name);
+      $('view-'+t).classList.toggle('on',t===name);
+    });
+    if(name==='decrypted')this.loadDecrypted();
+    if(name==='backup')this.loadBackups();
+    if(name==='hotswap')this.loadHotswap();
+  },
+
+  async init(){
+    await this.loadSlots();
+    await this.loadVault();
+    this.loadAlerts();
+    setInterval(()=>this.loadAlerts(),10000);
+    setInterval(()=>this.loadVault(),30000);
+    // Load health for crypto badge
+    try{
+      const r=await fetch(`${API}/`);
+      if(!r.ok)return;
+      const d=await r.json();
+      const cb=$('crypto-badge');
+      if(d.crypto){
+        cb.innerHTML='<i class="fas fa-shield-halved" style="color:var(--ok);font-size:10px;"></i><span style="font-family:var(--mono);font-size:11px;color:var(--ok);">AES-CTR DECRYPT ACTIVE</span>';
+      } else {
+        cb.innerHTML='<i class="fas fa-shield-exclamation" style="color:var(--warn);font-size:10px;"></i><span style="font-family:var(--mono);font-size:11px;color:var(--warn);">CRYPTO UNAVAILABLE</span>';
+      }
+    }catch(e){}
+  },
+
+  async loadSlots(){
+    try{
+      const r=await fetch('/api/slots');if(!r.ok)return;
+      const d=await r.json();_slots=d.slots||[];
+      const pills=s=>`<div class="spl" style="font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:3px;border:1px solid var(--bd2);background:var(--bg);cursor:pointer;transition:all .15s;color:var(--txt3);" data-slot="${s.slot_id}" onclick="App.setSlot('${s.slot_id}',this)">${_esc(s.label||s.slot_id)}</div>`;
+      ['rs-pills','backup-slot-pills'].forEach(id=>{
+        const el=$(id);if(!el)return;
+        el.innerHTML=_slots.map(pills).join('');
+        const first=el.firstElementChild;
+        if(first){first.style.borderColor='var(--pur)';first.style.color='var(--pur)';first.style.background='rgba(176,96,255,.1)';}
+      });
+    }catch(e){}
+  },
+
+  setSlot(sid,el){
+    _slot=sid;
+    // Update all pill groups
+    document.querySelectorAll('.spl[data-slot]').forEach(p=>{
+      const on=p.dataset.slot===sid;
+      p.style.borderColor=on?'var(--pur)':'';
+      p.style.color=on?'var(--pur)':'';
+      p.style.background=on?'rgba(176,96,255,.1)':'';
+    });
+  },
+
+  async loadVault(){
+    try{
+      const r=await fetch(`${API}/vault`);if(!r.ok)return;
+      const d=await r.json();
+      _vaultChs=d.channels||[];
+      this.renderVault(d.stats||{});
+    }catch(e){}
+  },
+
+  renderVault(stats){
+    // Stats banner
+    $('stats-banner').innerHTML=`
+      <div class="sb-cell"><div class="sb-v" style="color:var(--pur)">${_vaultChs.length}</div><div class="sb-l">VAULT CHANNELS</div></div>
+      <div class="sb-cell"><div class="sb-v" style="color:var(--acc)">${stats.attempted||0}</div><div class="sb-l">DECRYPT ATTEMPTS</div></div>
+      <div class="sb-cell"><div class="sb-v" style="color:var(--ok)">${stats.succeeded||0}</div><div class="sb-l">DECRYPTED</div></div>
+      <div class="sb-cell"><div class="sb-v" style="color:${(stats.failed||0)>0?'var(--err)':'var(--txt3)'}">${stats.failed||0}</div><div class="sb-l">FAILED</div></div>`;
+
+    // Badge
+    $('b-vault').textContent=_vaultChs.length;
+    $('b-vault').classList.toggle('show',_vaultChs.length>0);
+
+    const el=$('vault-list');
+    if(!_vaultChs.length){
+      el.innerHTML='<div class="empty"><i class="fas fa-key"></i><span>No channels in vault yet</span><span>Add a PSK to enable server-side decryption</span></div>';
+      return;
+    }
+    el.innerHTML=_vaultChs.map(ch=>{
+      const src=ch.source==='backup'?'<span class="vc-src backup">BACKUP</span>':'<span class="vc-src manual">MANUAL</span>';
+      return `<div class="vc" id="vc-${ch.id}">
+        <div class="vc-head">
+          <div class="vc-icon"><i class="fas fa-key"></i></div>
+          <div>
+            <div class="vc-name">${_esc(ch.name)}</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--txt3);">Priority ${ch.priority}${ch.slot_hint>=0?' · hint slot '+ch.slot_hint:''}</div>
+          </div>
+          ${src}
+          <div class="vc-actions">
+            <button class="vc-btn hotswap-btn" onclick="App.quickHotswap('${ch.id}')"><i class="fas fa-bolt" style="margin-right:3px;font-size:11px;"></i>HOTSWAP</button>
+            <button class="vc-btn danger" onclick="App.deleteVault('${ch.id}','${_esc(ch.name)}')"><i class="fas fa-trash" style="font-size:11px;"></i></button>
+          </div>
+        </div>
+        <div class="vc-meta">
+          <span><i class="fas fa-key" style="font-size:11px;margin-right:3px;"></i>${ch.psk_b64.slice(0,16)}…</span>
+          <span>${ch.uplink?'↑UP':''}${ch.uplink&&ch.downlink?' · ':''}${ch.downlink?'↓DOWN':''}</span>
+          <span>${ch.notes?_esc(ch.notes.slice(0,40)):''}</span>
+          <span style="margin-left:auto;color:var(--txt3);">${ch.created_at?_ago(ch.created_at):''}</span>
+        </div>
+      </div>`;
+    }).join('');
+
+    // Update hotswap dropdown
+    const sel=$('hs-vault-select');
+    if(sel){
+      const prev=sel.value;
+      sel.innerHTML='<option value="">— Select a vaulted channel —</option>'
+        +_vaultChs.map(c=>`<option value="${c.id}">${_esc(c.name)}</option>`).join('');
+      sel.value=prev;
+    }
+  },
+
+  async addChannel(){
+    const name=$('add-name').value.trim();
+    const psk=$('add-psk').value.trim();
+    if(!name||!psk){if(window.triggerToast)triggerToast('Name and PSK required','warn');return;}
+    if(!_b64valid(psk)){if(window.triggerToast)triggerToast('PSK must be valid base64 of 1, 16 or 32 bytes','err');return;}
+    const btn=$('add-btn');btn.disabled=true;
+    try{
+      const r=await fetch(`${API}/vault`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({name,psk_b64:psk,notes:$('add-notes').value,priority:parseInt($('add-priority').value)||100,uplink:$('add-uplink').checked,downlink:$('add-downlink').checked,slot_id:_slot})});
+      if(!r.ok)throw new Error(await r.text());
+      $('add-name').value='';$('add-psk').value='';$('add-notes').value='';
+      await this.loadVault();
+      if(window.triggerToast)triggerToast('Channel added to vault — retroactive decrypt started','ok');
+    }catch(e){if(window.triggerToast)triggerToast('Failed: '+e.message,'err');}
+    finally{btn.disabled=false;}
+  },
+
+  async deleteVault(vid,name){
+    if(!confirm(`Delete "${name}" from vault?`))return;
+    await fetch(`${API}/vault/${vid}`,{method:'DELETE',credentials:'include'});
+    this.loadVault();
+    if(window.triggerToast)triggerToast('Channel removed from vault','ok');
+  },
+
+  // ── Alerts ──────────────────────────────────────────────────────────────
+  async loadAlerts(){
+    try{
+      const r=await fetch(`${API}/alerts`);if(!r.ok)return;
+      const d=await r.json();_alerts=d.alerts||[];
+      $('b-alerts').textContent=_alerts.length;
+      $('b-alerts').classList.toggle('show',_alerts.length>0);
+      if(_tab==='alerts')this.renderAlerts();
+    }catch(e){}
+  },
+
+  renderAlerts(){
+    const el=$('alerts-list');
+    if(!_alerts.length){
+      el.innerHTML='<div class="empty"><i class="fas fa-bell-slash"></i><span>No unknown channel alerts</span><span>All encrypted packets are on monitored channels</span></div>';
+      return;
+    }
+    el.innerHTML=_alerts.map(a=>`<div class="alert-card" id="al-${a.id}">
+      <i class="fas fa-triangle-exclamation alert-icon"></i>
+      <div class="alert-body">
+        <div class="alert-title">ENCRYPTED PACKET ON UNKNOWN CHANNEL ${a.ch_idx} [${a.slot_id}]</div>
+        From: <strong style="color:var(--txt);">${_esc(a.from_id)}</strong> · ${_ago(a.ts)}<br>
+        The radio received an encrypted packet on channel index <strong>${a.ch_idx}</strong> that it could not decrypt.
+        Add the PSK to the vault to enable server-side decryption, or hotswap this channel index onto the radio.
+        <div class="alert-actions">
+          <button class="al-btn primary" onclick="App.alertAddPSK(${a.ch_idx})"><i class="fas fa-key" style="margin-right:4px;font-size:11px;"></i>ADD PSK TO VAULT</button>
+          <button class="al-btn primary" onclick="App.alertHotswap(${a.ch_idx})"><i class="fas fa-bolt" style="margin-right:4px;font-size:11px;"></i>HOTSWAP CHANNEL ${a.ch_idx}</button>
+          <button class="al-btn" onclick="App.dismissAlert('${a.id}')">DISMISS</button>
+        </div>
+      </div>
+    </div>`).join('');
+  },
+
+  alertAddPSK(chIdx){
+    this.tab('vault');
+    $('add-notes').value=`Channel index ${chIdx} — unknown encrypted channel`;
+    $('add-name').focus();
+    if(window.triggerToast)triggerToast('Fill in the channel name and PSK','info');
+  },
+
+  alertHotswap(chIdx){
+    this.tab('hotswap');
+    $('hs-slot-grid').scrollIntoView?.({behavior:'smooth'});
+    if(window.triggerToast)triggerToast(`Select a vault channel, then target slot ${chIdx}`,'info');
+  },
+
+  async dismissAlert(aid){
+    await fetch(`${API}/alerts/${aid}/dismiss`,{method:'POST',credentials:'include'});
+    this.loadAlerts();
+  },
+
+  async dismissAllAlerts(){
+    await Promise.all(_alerts.map(a=>fetch(`${API}/alerts/${a.id}/dismiss`,{method:'POST',credentials:'include'})));
+    this.loadAlerts();
+  },
+
+  // ── Decrypted ────────────────────────────────────────────────────────────
+  async loadDecrypted(){
+    try{
+      const r=await fetch(`${API}/decrypted?limit=200`);if(!r.ok)return;
+      const d=await r.json();
+      const rows=d.results||[];
+      $('b-decrypted').textContent=rows.length;
+      $('b-decrypted').classList.toggle('show',rows.length>0);
+      const el=$('decrypted-list');
+      if(!rows.length){
+        el.innerHTML='<div class="empty"><i class="fas fa-unlock"></i><span>No decrypted packets yet</span><span>Add a PSK to the vault to start decryption</span></div>';
+        return;
+      }
+      el.innerHTML=rows.map(r=>{
+        let payload='';
+        try{const p=JSON.parse(r.payload_json||'{}');if(p.text)payload=`<span class="dec-text">"${_esc(p.text.slice(0,100))}"</span>`;}catch(e){}
+        return `<div class="dec-row">
+          <span style="color:var(--txt3);font-size:11px;">${new Date((r.decrypted_at||0)*1000).toLocaleTimeString()}</span>
+          <span style="margin-left:10px;" class="dec-portnum">${_esc(r.portnum||'?')}</span>
+          ${payload?'<span style="margin-left:8px;">'+payload+'</span>':''}
+          <span style="margin-left:8px;color:var(--txt3);">via <strong style="color:var(--pur);">${_esc(r.vault_name||r.vault_id)}</strong></span>
+          <span style="margin-left:auto;font-size:11px;color:var(--txt3);">${_esc(r.packet_event_id?.slice(0,16)||'')}</span>
+        </div>`;
+      }).join('');
+    }catch(e){}
+  },
+
+  // ── Backup & Restore ─────────────────────────────────────────────────────
+  async takeBackup(){
+    const label=$('backup-label').value.trim();
+    try{
+      const r=await fetch(`${API}/backup?slot_id=${_slot}${label?'&label='+encodeURIComponent(label):''}`,{method:'POST',credentials:'include'});
+      if(!r.ok)throw new Error(await r.text());
+      $('backup-label').value='';
+      await this.loadBackups();
+      if(window.triggerToast)triggerToast('Radio channels backed up','ok');
+    }catch(e){if(window.triggerToast)triggerToast('Backup failed: '+e.message,'err');}
+  },
+
+  async loadBackups(){
+    try{
+      const r=await fetch(`${API}/backups`);if(!r.ok)return;
+      const d=await r.json();
+      const el=$('backups-list');
+      if(!(d.backups||[]).length){
+        el.innerHTML='<div class="empty"><i class="fas fa-box-archive"></i><span>No backups yet</span><span>Snapshot your radio channels before any hotswap</span></div>';
+        return;
+      }
+      el.innerHTML=d.backups.map(b=>`<div class="backup-card">
+        <div class="bc-head">
+          <i class="fas fa-box-archive" style="color:var(--ok);font-size:11px;"></i>
+          <div class="bc-label">${_esc(b.label)}</div>
+          <div class="bc-meta">${_esc(b.slot_id)} · ${_ago(b.created_at)}</div>
+          <div class="vc-actions" style="margin-left:8px;">
+            <button class="vc-btn" onclick="App.viewBackup('${b.id}')">VIEW</button>
+            <button class="vc-btn" onclick="App.importBackup('${b.id}','${_esc(b.label)}')">→ VAULT</button>
+            <button class="vc-btn danger" onclick="App.deleteBackup('${b.id}','${_esc(b.label)}')"><i class="fas fa-trash" style="font-size:11px;"></i></button>
+          </div>
+        </div>
+        <div class="bc-channels" id="bc-ch-${b.id}"></div>
+      </div>`).join('');
+      // Load channel details for each backup
+      d.backups.forEach(b=>{
+        fetch(`${API}/backups/${b.id}`).then(r=>r.json()).then(bd=>{
+          const el=$('bc-ch-'+b.id);if(!el)return;
+          el.innerHTML=(bd.channels||[]).map(ch=>{
+            const rc=ch.role?.toLowerCase()||'disabled';
+            return `<span class="ch-pill ${rc}">${_esc(ch.name||'—')} [${ch.index}]</span>`;
+          }).join('');
+        }).catch(()=>{});
+      });
+    }catch(e){}
+  },
+
+  async viewBackup(bid){
+    try{
+      const r=await fetch(`${API}/backups/${bid}`);if(!r.ok)return;
+      const d=await r.json();
+      const chs=(d.channels||[]).map(ch=>`Slot ${ch.index}: ${ch.name||'(unnamed)'} [${ch.role}] PSK:${ch.psk_b64?.slice(0,12)||'(none)'}…`).join('\n');
+      alert(`${d.label}\n\n${chs}`);
+    }catch(e){}
+  },
+
+  async importBackup(bid,label){
+    if(!confirm(`Import channels from "${label}" into the vault for server-side decryption?`))return;
+    try{
+      const r=await fetch(`${API}/import_backup/${bid}`,{method:'POST',credentials:'include'});
+      if(!r.ok)throw new Error(await r.text());
+      const d=await r.json();
+      await this.loadVault();
+      if(window.triggerToast)triggerToast(`Imported ${d.imported} channel(s) into vault`,'ok');
+    }catch(e){if(window.triggerToast)triggerToast('Import failed: '+e.message,'err');}
+  },
+
+  async deleteBackup(bid,label){
+    if(!confirm(`Delete backup "${label}"?`))return;
+    await fetch(`${API}/backups/${bid}`,{method:'DELETE',credentials:'include'});
+    this.loadBackups();
+  },
+
+  // ── Hotswap ──────────────────────────────────────────────────────────────
+  async loadHotswap(){
+    await this.loadVault();
+    await this.loadRadioChannels();
+  },
+
+  async loadRadioChannels(){
+    try{
+      const r=await fetch(`${API}/radio/${_slot}`);if(!r.ok)return;
+      const d=await r.json();_radioChs=d.channels||[];
+      this.renderSlotGrid();
+    }catch(e){
+      $('hs-slot-grid').innerHTML='<div style="font-family:var(--mono);font-size:9px;color:var(--err);grid-column:1/-1;">Radio not connected — connect and reload</div>';
+    }
+  },
+
+  renderSlotGrid(){
+    const g=$('hs-slot-grid');if(!g)return;
+    g.innerHTML=_radioChs.map(ch=>{
+      const role=ch.role?.toLowerCase()||'disabled';
+      const isSelected=_hsRadioSlot===ch.index;
+      return `<div class="slot-cell${isSelected?' selected':''}${role==='primary'?' primary':role==='disabled'?' occupied':''}" onclick="App.selectSlot(${ch.index})">
+        <div class="slot-idx">SLOT ${ch.index}</div>
+        <div class="slot-name">${_esc(ch.name||'(empty)')}</div>
+        <div class="slot-role ${role}">${role.toUpperCase()}</div>
+      </div>`;
+    }).join('');
+  },
+
+  selectSlot(idx){
+    _hsRadioSlot=idx;
+    this.renderSlotGrid();
+    // Collision warning
+    const ch=_radioChs.find(c=>c.index===idx);
+    const warn=$('hs-collision-warn');
+    if(ch&&ch.role!=='DISABLED'&&ch.name){
+      warn.style.display='block';
+      warn.innerHTML=`<div class="warn-box" style="margin-top:8px;"><i class="fas fa-triangle-exclamation"></i>Slot ${idx} currently has <strong>${_esc(ch.name)}</strong> [${ch.role}]. Writing here will overwrite it. <strong>Snapshot first</strong> if you need to preserve it.</div>`;
+    } else {
+      warn.style.display='none';warn.innerHTML='';
+    }
+  },
+
+  hsVaultChanged(){
+    _hsVaultId=$('hs-vault-select').value;
+    const ch=_vaultChs.find(c=>c.id===_hsVaultId);
+    $('hs-vault-preview').innerHTML=ch
+      ?`<div style="background:var(--bg);border:1px solid rgba(176,96,255,.25);border-radius:4px;padding:8px 10px;font-family:var(--mono);font-size:9px;color:var(--txt2);">`
+       +`<strong style="color:var(--pur);">${_esc(ch.name)}</strong> · PSK: ${ch.psk_b64.slice(0,20)}…`
+       +`${ch.notes?'<br>'+_esc(ch.notes):''}</div>`
+      :'';
+  },
+
+  hsPreview(){
+    if(!_hsVaultId){if(window.triggerToast)triggerToast('Select a vault channel first','warn');return;}
+    if(_hsRadioSlot===null){if(window.triggerToast)triggerToast('Select a target radio slot','warn');return;}
+    const vault=_vaultChs.find(c=>c.id===_hsVaultId);
+    const radio=_radioChs.find(c=>c.index===_hsRadioSlot);
+    const reboot=$('hs-reboot').checked;
+    const delay=$('hs-delay').value;
+    const confirm=$('hs-confirm-area');
+    const summary=$('hs-confirm-summary');
+    summary.innerHTML=`
+      <strong style="color:var(--pur);">VAULT CHANNEL:</strong> ${_esc(vault?.name||'?')}<br>
+      <strong style="color:var(--acc);">RADIO SLOT:</strong> ${_hsRadioSlot} (currently: ${_esc(radio?.name||'empty')} [${radio?.role||'DISABLED'}])<br>
+      <strong style="color:var(--txt);">ROLE:</strong> ${$('hs-role').value}<br>
+      <strong style="color:var(--txt);">REBOOT:</strong> ${reboot?`Yes — in ${delay}s`:'No (manual reboot required)'}`;
+    const btn=$('hs-go-btn');
+    btn.innerHTML=reboot
+      ?`<i class="fas fa-bolt"></i>WRITE CHANNEL TO SLOT ${_hsRadioSlot} + REBOOT IN ${delay}s`
+      :`<i class="fas fa-bolt"></i>WRITE CHANNEL TO SLOT ${_hsRadioSlot} (NO REBOOT)`;
+    confirm.style.display='block';
+  },
+
+  async doHotswap(){
+    const btn=$('hs-go-btn');
+    btn.disabled=true;btn.innerHTML='<i class="fas fa-circle-notch fa-spin"></i> Writing…';
+    try{
+      const r=await fetch(`${API}/hotswap`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({vault_id:_hsVaultId,slot_id:_slot,radio_slot:_hsRadioSlot,role:$('hs-role').value,uplink:$('hs-uplink').checked,downlink:$('hs-downlink').checked,reboot_after:$('hs-reboot').checked,reboot_delay:parseInt($('hs-delay').value)||5})});
+      if(!r.ok)throw new Error(await r.text());
+      const d=await r.json();
+      $('hs-result').innerHTML=`<div style="background:rgba(0,232,122,.08);border:1px solid rgba(0,232,122,.3);border-radius:4px;padding:12px;font-family:var(--mono);font-size:10px;color:var(--ok);">
+        <i class="fas fa-check" style="margin-right:6px;"></i>
+        <strong>${_esc(d.vault_name)}</strong> written to slot ${d.radio_slot}.
+        ${d.reboot_in?`Node will reboot in ${d.reboot_in}s — it will re-join the mesh with the new channel config.`:'Write complete — remember to reboot the radio manually for changes to take effect.'}
+      </div>`;
+      $('hs-confirm-area').style.display='none';
+      _hsVaultId=null;_hsRadioSlot=null;
+      setTimeout(()=>this.loadRadioChannels(),8000);
+    }catch(e){
+      $('hs-result').innerHTML=`<div style="color:var(--err);font-family:var(--mono);font-size:10px;padding:10px;"><i class="fas fa-times" style="margin-right:5px;"></i>${_esc(e.message)}</div>`;
+    }finally{btn.disabled=false;btn.innerHTML='<i class="fas fa-bolt"></i>WRITE CHANNEL + REBOOT';}
+  },
+
+  quickHotswap(vid){
+    this.tab('hotswap');
+    _hsVaultId=vid;
+    const sel=$('hs-vault-select');if(sel)sel.value=vid;
+    this.hsVaultChanged();
+    this.loadRadioChannels();
+    if(window.triggerToast)triggerToast('Select a target radio slot to hotswap','info');
+  },
+};
+
+(async function boot(){
+  await App.init();
+})();
+</script>
+</body>
+</html>

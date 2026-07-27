@@ -40,9 +40,11 @@ DB_PATH   = os.path.join(os.path.dirname(__file__), "push_config.db")
 _db_lock  = threading.Lock()
 _node_registry: Dict[str, Any] = {}
 
+# ── In-memory live log (ring buffer, no DB needed) ──────────────────────────
 _live_log: deque = deque(maxlen=200)
 _live_log_lock   = threading.Lock()
 
+# ── Default config ───────────────────────────────────────────────────────────
 _config: Dict[str, Any] = {
     # Master switch
     "enabled": True,
@@ -81,6 +83,7 @@ _config_lock = threading.Lock()
 _last_push_result: dict = {}
 
 
+# ── DB helpers ────────────────────────────────────────────────────────────────
 def _get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
@@ -156,6 +159,7 @@ def _is_quiet_hours() -> bool:
         return False
 
 
+# ── Push dispatch ─────────────────────────────────────────────────────────────
 def _dispatch(payload: dict) -> int:
     if not HAS_WEBPUSH:
         return 0
@@ -215,6 +219,7 @@ def _dispatch(payload: dict) -> int:
     return sent
 
 
+# ── Watchdog heartbeat ────────────────────────────────────────────────────────
 async def _watchdog_heartbeat(context: dict) -> None:
     """
     Pings the MeshDash core watchdog every 30 s.
@@ -235,6 +240,7 @@ async def _watchdog_heartbeat(context: dict) -> None:
             logger.warning("Push Notifications watchdog error: %s", e)
 
 
+# ── init_plugin ───────────────────────────────────────────────────────────────
 def init_plugin(context: dict) -> None:
     global _node_registry
     _node_registry = context.get("node_registry", {})
@@ -255,6 +261,7 @@ def init_plugin(context: dict) -> None:
         logger.error("Push Notifications: could not start watchdog heartbeat: %s", e)
 
 
+# ── Pydantic models ───────────────────────────────────────────────────────────
 class ConfigModel(BaseModel):
     enabled:              bool       = True
     notify_dms:           bool       = True
@@ -307,6 +314,7 @@ class LogEntry(BaseModel):
     reason:      str  = ""   # why notified or why skipped
 
 
+# ── Endpoints ─────────────────────────────────────────────────────────────────
 @plugin_router.get("/status")
 async def get_status():
     pub, _ = _vapid_pair()

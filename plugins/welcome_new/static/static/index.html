@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome New Nodes</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.4/css/all.css">
+    <link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--txt);font-family:var(--sans);height:100%;}
+
+.page{display:flex;gap:14px;padding:14px;min-height:100%;align-items:flex-start;}
+
+.panel{
+    background:var(--bg2);border:1px solid var(--bd);border-radius:10px;
+    box-shadow:0 4px 24px rgba(0,0,0,.5);overflow:hidden;
+}
+.panel-left{width:440px;flex-shrink:0;display:flex;flex-direction:column;}
+.panel-right{flex:1;min-width:0;display:flex;flex-direction:column;}
+
+.panel-header{
+    padding:14px 18px;border-bottom:1px solid var(--bd);
+    display:flex;align-items:center;gap:10px;flex-shrink:0;
+}
+.panel-header h2{color:var(--acc);font-size:1.2rem;font-weight:700;display:flex;align-items:center;gap:8px;margin:0;}
+.panel-body{padding:18px;overflow-y:auto;flex:1;}
+
+/* Status badge */
+.status-badge{
+    display:inline-flex;align-items:center;gap:5px;
+    padding:3px 10px;border-radius:20px;font-size:0.68rem;
+    font-family:var(--mono);font-weight:600;
+}
+.status-badge.on{background:rgba(0,230,118,.12);color:var(--ok);border:1px solid rgba(0,230,118,.3);}
+.status-badge.off{background:rgba(255,82,82,.12);color:var(--err);border:1px solid rgba(255,82,82,.3);}
+
+/* Toggle switch */
+.toggle-wrap{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.toggle-label{font-family:var(--mono);font-size:0.75rem;color:var(--txt2);}
+.toggle{
+    position:relative;width:44px;height:22px;cursor:pointer;
+}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{
+    position:absolute;top:0;left:0;right:0;bottom:0;
+    background:var(--bd2);border-radius:22px;transition:.2s;
+}
+.toggle-slider:before{
+    content:'';position:absolute;width:18px;height:18px;
+    left:2px;bottom:2px;background:var(--txt3);border-radius:50%;transition:.2s;
+}
+.toggle input:checked+.toggle-slider{background:var(--acc);}
+.toggle input:checked+.toggle-slider:before{transform:translateX(22px);background:var(--bg);}
+
+/* Form elements */
+label{display:block;margin:12px 0 4px;font-family:var(--mono);font-size:0.67rem;
+    font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.5px;}
+input,select,textarea{
+    width:100%;padding:8px 10px;
+    background:var(--bg1);border:1px solid var(--bd2);border-radius:6px;
+    color:var(--txt);font-family:var(--mono);font-size:0.82rem;outline:none;
+    transition:border-color .15s;
+}
+textarea{resize:vertical;min-height:100px;line-height:1.5;}
+input:focus,select:focus,textarea:focus{border-color:var(--acc);}
+select option{background:var(--bg1);}
+
+.section-label{
+    font-family:var(--mono);font-size:0.62rem;color:var(--txt3);
+    text-transform:uppercase;letter-spacing:1px;margin:18px 0 8px;
+    display:flex;align-items:center;gap:8px;
+}
+.section-label::after{content:'';flex:1;height:1px;background:var(--bd);}
+
+.action-btn{
+    width:100%;background:linear-gradient(135deg,var(--acc),var(--acc));
+    color:var(--bg);border:none;padding:10px 16px;border-radius:6px;
+    font-weight:700;font-size:0.86rem;cursor:pointer;margin-top:14px;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:opacity .2s,transform .1s;font-family:var(--sans);
+}
+.action-btn:hover:not(:disabled){opacity:.9;transform:translateY(-1px);}
+.action-btn:active{transform:translateY(0);}
+.action-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.action-btn.secondary{background:var(--bg3);color:var(--txt);border:1px solid var(--bd2);}
+.action-btn.secondary:hover{border-color:var(--acc);color:var(--acc);}
+.action-btn.danger{background:var(--err);color:#fff;}
+.action-btn.danger:hover{opacity:.9;}
+
+.btn-sm{
+    padding:5px 10px;background:var(--bg3);border:1px solid var(--bd2);border-radius:5px;
+    color:var(--txt2);font-family:var(--mono);font-size:0.68rem;cursor:pointer;
+    transition:all .15s;display:inline-flex;align-items:center;gap:4px;
+}
+.btn-sm:hover:not(:disabled){border-color:var(--acc);color:var(--acc);}
+.btn-sm.danger:hover{border-color:var(--err);color:var(--err);}
+
+/* Target toggle */
+.target-toggle{display:flex;border:1px solid var(--bd2);border-radius:6px;overflow:hidden;}
+.target-toggle button{
+    flex:1;padding:7px 8px;background:var(--bg1);border:none;
+    color:var(--txt2);font-family:var(--mono);font-size:0.7rem;
+    cursor:pointer;transition:all .15s;margin:0;width:auto;border-radius:0;
+}
+.target-toggle button.active{background:var(--bg3);color:var(--acc);border-bottom:2px solid var(--acc);}
+.target-toggle button:hover:not(.active){background:var(--bg2);color:var(--txt);}
+
+/* Template vars */
+.var-list{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+.var-chip{
+    padding:2px 7px;border:1px solid var(--bd2);border-radius:4px;
+    font-family:var(--mono);font-size:0.62rem;color:var(--txt3);
+    cursor:pointer;transition:all .15s;user-select:none;
+}
+.var-chip:hover{border-color:var(--acc);color:var(--txt);background:var(--bg3);}
+
+/* History table */
+.history-list{display:flex;flex-direction:column;gap:6px;}
+.history-card{
+    background:var(--bg1);border:1px solid var(--bd2);border-radius:8px;
+    padding:10px 12px;transition:border-color .15s;
+}
+.history-card:hover{border-color:var(--bd);}
+.history-meta{
+    font-family:var(--mono);font-size:0.67rem;color:var(--txt3);
+    display:flex;flex-wrap:wrap;gap:4px 14px;margin-bottom:4px;
+}
+.history-meta span{display:flex;align-items:center;gap:4px;}
+.history-msg{
+    font-family:var(--mono);font-size:0.72rem;color:var(--txt2);
+    white-space:pre-wrap;word-break:break-word;
+    background:var(--bg);border-radius:4px;padding:6px 8px;
+    max-height:80px;overflow-y:auto;
+}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;margin-right:2px;}
+.status-dot.sent{background:var(--ok);box-shadow:0 0 5px var(--ok);}
+.status-dot.failed{background:var(--err);box-shadow:0 0 5px var(--err);}
+
+.empty-state{
+    text-align:center;padding:30px 20px;
+    font-family:var(--mono);font-size:0.75rem;color:var(--txt3);
+}
+.empty-state i{font-size:2rem;display:block;margin-bottom:10px;color:var(--txt3);}
+
+/* Node picker for manual send */
+.node-search-wrap{position:relative;margin-bottom:6px;}
+.node-search-wrap i{position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--txt3);font-size:0.75rem;}
+.node-search-wrap input{padding-left:28px;}
+#node-list{
+    max-height:140px;overflow-y:auto;
+    border:1px solid var(--bd2);border-radius:6px;background:var(--bg1);
+}
+.node-item{
+    display:flex;align-items:center;gap:8px;padding:7px 10px;
+    cursor:pointer;border-bottom:1px solid var(--bd);
+    transition:background .1s;font-family:var(--mono);font-size:0.74rem;
+}
+.node-item:last-child{border-bottom:none;}
+.node-item:hover{background:var(--bg2);}
+.node-item.selected{background:var(--bg3);color:var(--acc);}
+.nid{color:var(--txt3);font-size:0.63rem;}
+
+/* Toast */
+.toast{
+    position:fixed;top:20px;right:20px;padding:10px 16px;border-radius:6px;
+    font-family:var(--mono);font-size:0.78rem;z-index:9999;
+    transform:translateX(120%);transition:transform .3s;
+}
+.toast.show{transform:translateX(0);}
+.toast.ok{background:var(--ok);color:var(--bg);}
+.toast.err{background:var(--err);color:#fff;}
+.toast.warn{background:var(--warn);color:var(--bg);}
+</style>
+</head>
+<body>
+<div class="page">
+    <!-- Left: Config + Manual Send -->
+    <div class="panel panel-left">
+        <div class="panel-header">
+            <h2><i class="fas fa-hand-wave"></i> Welcome New Nodes</h2>
+            <span class="status-badge" id="status-badge"><span class="status-dot"></span> <span id="status-text">loading…</span></span>
+        </div>
+        <div class="panel-body">
+            <!-- Enable toggle -->
+            <div class="toggle-wrap">
+                <label class="toggle">
+                    <input type="checkbox" id="cfg-enabled" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label" id="enabled-label">Plugin enabled</span>
+            </div>
+
+            <!-- Delivery mode -->
+            <label>Delivery Mode</label>
+            <div class="target-toggle" id="dest-toggle">
+                <button class="active" data-mode="direct" onclick="setDestMode('direct')"><i class="fas fa-envelope"></i> DM</button>
+                <button data-mode="broadcast" onclick="setDestMode('broadcast')"><i class="fas fa-broadcast-tower"></i> Broadcast</button>
+            </div>
+
+            <div id="channel-section" style="display:none;">
+                <label>Channel</label>
+                <input type="number" id="cfg-channel" value="0" min="0" max="7" step="1">
+            </div>
+
+            <!-- Message template -->
+            <label>Welcome Message</label>
+            <textarea id="cfg-message" placeholder="Welcome to the mesh!…"></textarea>
+
+            <div class="section-label"><i class="fas fa-code"></i> Template Variables</div>
+            <div class="var-list" id="var-list"></div>
+
+            <!-- Cooldown -->
+            <label>Cooldown (hours)</label>
+            <input type="number" id="cfg-cooldown" value="24" min="0" step="1" style="width:120px;">
+            <div style="font-family:var(--mono);font-size:0.62rem;color:var(--txt3);margin-top:2px;">
+                Don't re-welcome same node within this many hours
+            </div>
+
+            <!-- Telemetry / Position toggles -->
+            <div style="display:flex;gap:20px;margin-top:14px;">
+                <div class="toggle-wrap" style="margin-bottom:0;">
+                    <label class="toggle">
+                        <input type="checkbox" id="cfg-telemetry">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Include telemetry</span>
+                </div>
+                <div class="toggle-wrap" style="margin-bottom:0;">
+                    <label class="toggle">
+                        <input type="checkbox" id="cfg-position">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Include position</span>
+                </div>
+            </div>
+
+            <div style="display:flex;gap:8px;margin-top:14px;">
+                <button class="action-btn" onclick="saveConfig()"><i class="fas fa-save"></i> Save Config</button>
+                <button class="action-btn secondary" onclick="resetConfig()"><i class="fas fa-undo"></i> Reset</button>
+            </div>
+
+            <!-- Manual send -->
+            <div class="section-label"><i class="fas fa-paper-plane"></i> Manual Send</div>
+            <div class="node-search-wrap">
+                <i class="fas fa-search"></i>
+                <input type="text" id="node-search" class="inp mono" placeholder="Search nodes…" oninput="filterNodes()">
+            </div>
+            <div id="node-list"><div class="node-loading">Loading nodes…</div></div>
+            <button class="action-btn" id="btn-send" onclick="manualSend()" disabled><i class="fas fa-paper-plane"></i> Send Welcome Now</button>
+        </div>
+    </div>
+
+    <!-- Right: History -->
+    <div class="panel panel-right">
+        <div class="panel-header">
+            <h2><i class="fas fa-history"></i> Welcome History</h2>
+            <button class="btn-sm danger" onclick="clearHistory()"><i class="fas fa-trash"></i> Clear</button>
+        </div>
+        <div class="panel-body" id="history-body">
+            <div class="empty-state"><i class="fas fa-inbox"></i>No welcomes sent yet</div>
+        </div>
+    </div>
+</div>
+
+<script>
+let _nodes = [];
+let _selectedNode = null;
+let _destMode = 'direct';
+
+async function loadStatus() {
+    try {
+        const r = await fetch('/api/plugins/welcome_new/status');
+        const d = await r.json();
+        const badge = document.getElementById('status-badge');
+        const dot = badge.querySelector('.status-dot');
+        const txt = document.getElementById('status-text');
+        if (d.enabled) {
+            badge.className = 'status-badge on';
+            dot.className = 'status-dot sent';
+            txt.textContent = `Active (${d.welcomed_nodes} welcomed)`;
+        } else {
+            badge.className = 'status-badge off';
+            dot.className = 'status-dot failed';
+            txt.textContent = 'Disabled';
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function loadConfig() {
+    try {
+        const r = await fetch('/api/plugins/welcome_new/config');
+        const c = await r.json();
+        document.getElementById('cfg-enabled').checked = c.enabled !== false;
+        document.getElementById('enabled-label').textContent = c.enabled !== false ? 'Plugin enabled' : 'Plugin disabled';
+        document.getElementById('cfg-message').value = c.message || '';
+        document.getElementById('cfg-cooldown').value = c.cooldown_hours ?? 24;
+        document.getElementById('cfg-telemetry').checked = !!c.include_telemetry;
+        document.getElementById('cfg-position').checked = !!c.include_position;
+        setDestMode(c.dest_type || 'direct');
+        document.getElementById('cfg-channel').value = c.channel ?? 0;
+    } catch(e) { console.error(e); }
+}
+
+async function loadTemplateVars() {
+    try {
+        const r = await fetch('/api/plugins/welcome_new/template_vars');
+        const d = await r.json();
+        const list = document.getElementById('var-list');
+        list.innerHTML = '';
+        for (const [k, v] of Object.entries(d.variables)) {
+            const chip = document.createElement('span');
+            chip.className = 'var-chip';
+            chip.textContent = k;
+            chip.title = v;
+            chip.onclick = () => {
+                const ta = document.getElementById('cfg-message');
+                const start = ta.selectionStart;
+                ta.value = ta.value.substring(0, start) + k + ta.value.substring(ta.selectionEnd);
+                ta.focus();
+                ta.setSelectionRange(start + k.length, start + k.length);
+            };
+            list.appendChild(chip);
+        }
+    } catch(e) { console.error(e); }
+}
+
+function setDestMode(mode) {
+    _destMode = mode;
+    document.querySelectorAll('#dest-toggle button').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === mode);
+    });
+    document.getElementById('channel-section').style.display = mode === 'broadcast' ? 'block' : 'none';
+}
+
+async function saveConfig() {
+    const cfg = {
+        enabled: document.getElementById('cfg-enabled').checked,
+        message: document.getElementById('cfg-message').value,
+        dest_type: _destMode,
+        channel: parseInt(document.getElementById('cfg-channel').value) || 0,
+        cooldown_hours: parseFloat(document.getElementById('cfg-cooldown').value) || 24,
+        include_telemetry: document.getElementById('cfg-telemetry').checked,
+        include_position: document.getElementById('cfg-position').checked,
+        ignore_local: true,
+    };
+    try {
+        const r = await fetch('/api/plugins/welcome_new/config', {
+            method: 'PATCH',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(cfg)
+        });
+        if (r.ok) { showToast('Config saved', 'ok'); }
+        else { showToast('Save failed: ' + (await r.json()).detail, 'err'); }
+    } catch(e) { showToast('Save error: ' + e.message, 'err'); }
+    loadStatus();
+}
+
+async function resetConfig() {
+    if (!confirm('Reset all settings to defaults?')) return;
+    try {
+        const r = await fetch('/api/plugins/welcome_new/config/reset', {method: 'POST'});
+        if (r.ok) { showToast('Config reset to defaults', 'ok'); loadConfig(); }
+        else { showToast('Reset failed', 'err'); }
+    } catch(e) { showToast('Reset error: ' + e.message, 'err'); }
+}
+
+async function loadNodes() {
+    try {
+        const r = await fetch('/api/plugins/welcome_new/nodes');
+        const d = await r.json();
+        _nodes = d.nodes || [];
+        renderNodes();
+    } catch(e) { console.error(e); }
+}
+
+function renderNodes(filter='') {
+    const list = document.getElementById('node-list');
+    const f = (filter || '').toLowerCase();
+    const filtered = _nodes.filter(n => !n.is_local && (
+        (n.short_name || '').toLowerCase().includes(f) ||
+        (n.long_name || '').toLowerCase().includes(f) ||
+        n.node_id.toLowerCase().includes(f)
+    ));
+    if (!filtered.length) {
+        list.innerHTML = '<div class="node-loading">No nodes found</div>';
+        return;
+    }
+    list.innerHTML = filtered.map(n => `
+        <div class="node-item${_selectedNode===n.node_id?' selected':''}" onclick="selectNode('${n.node_id}')">
+            <span>${n.short_name || '???'}</span>
+            <span class="nid">${n.node_id}</span>
+        </div>
+    `).join('');
+}
+
+function filterNodes() {
+    renderNodes(document.getElementById('node-search').value);
+}
+
+function selectNode(id) {
+    _selectedNode = id;
+    document.getElementById('btn-send').disabled = false;
+    renderNodes(document.getElementById('node-search').value);
+}
+
+async function manualSend() {
+    if (!_selectedNode) return;
+    document.getElementById('btn-send').disabled = true;
+    try {
+        const r = await fetch('/api/plugins/welcome_new/send', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({node_id: _selectedNode, slot_id: 'node_0'})
+        });
+        const d = await r.json();
+        if (r.ok) { showToast('Welcome sent!', 'ok'); }
+        else { showToast('Send failed: ' + d.detail, 'err'); }
+    } catch(e) { showToast('Error: ' + e.message, 'err'); }
+    document.getElementById('btn-send').disabled = false;
+    loadHistory();
+}
+
+async function loadHistory() {
+    try {
+        const r = await fetch('/api/plugins/welcome_new/history?limit=50');
+        const d = await r.json();
+        renderHistory(d.history || []);
+    } catch(e) { console.error(e); }
+}
+
+function renderHistory(items) {
+    const body = document.getElementById('history-body');
+    if (!items.length) {
+        body.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i>No welcomes sent yet</div>';
+        return;
+    }
+    body.innerHTML = '<div class="history-list">' + items.map(h => {
+        const ts = h.sent_at_iso ? new Date(h.sent_at).toLocaleString() : new Date(h.sent_at * 1000).toLocaleString();
+        const statusCls = h.status === 'sent' ? 'sent' : 'failed';
+        return `<div class="history-card">
+            <div class="history-meta">
+                <span><span class="status-dot ${statusCls}"></span>${h.status.toUpperCase()}</span>
+                <span><i class="fas fa-user"></i> ${h.short_name || h.node_id}</span>
+                <span><i class="fas fa-clock"></i> ${ts}</span>
+                <span><i class="fas fa-${h.dest_type==='direct'?'envelope':'broadcast-tower'}"></i> ${h.dest_type}</span>
+            </div>
+            <div class="history-msg">${escapeHtml(h.message)}</div>
+        </div>`;
+    }).join('') + '</div>';
+}
+
+function escapeHtml(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+async function clearHistory() {
+    if (!confirm('Clear all welcome history?')) return;
+    try {
+        await fetch('/api/plugins/welcome_new/history', {method: 'DELETE'});
+        showToast('History cleared', 'ok');
+        loadHistory();
+    } catch(e) { showToast('Error: ' + e.message, 'err'); }
+}
+
+function showToast(msg, type='ok') {
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    requestAnimationFrame(() => t.classList.add('show'));
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2500);
+}
+
+// Init
+async function init() {
+    await Promise.all([loadConfig(), loadTemplateVars(), loadNodes(), loadHistory(), loadStatus()]);
+    document.getElementById('cfg-enabled').addEventListener('change', function() {
+        document.getElementById('enabled-label').textContent = this.checked ? 'Plugin enabled' : 'Plugin disabled';
+    });
+}
+init();
+</script>
+</body>
+</html>

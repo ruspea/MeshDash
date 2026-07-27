@@ -52,7 +52,7 @@ logger        = logging.getLogger("plugin.tcp_proxy")
 DEFAULTS = {
     "enabled":           True,
     "port":              4403,
-    "bind_host":         "127.0.0.1",
+    "bind_host":         "0.0.0.0",
     "slot_id":           "node_0",
     "max_clients":       8,
     "session_ttl_secs":  7200,  # how long to keep offline sessions (2h)
@@ -94,7 +94,9 @@ _forwarded_packet_ids: Dict[int, float] = {}
 _ECHO_SUPPRESS_TTL: float = 30.0  # seconds to keep IDs in the echo filter
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Session — persists across reconnects, keyed by IP
+# ══════════════════════════════════════════════════════════════════════════════
 
 class Session:
     """
@@ -221,7 +223,9 @@ def _expire_sessions():
         del _sessions[ip]
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Config
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _load_config() -> dict:
     cfg = DEFAULTS.copy()
@@ -239,7 +243,9 @@ def _save_config(cfg: dict):
         json.dump(cfg, f, indent=2)
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Logging
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _dbg(level: str, cid: str, direction: str, msg: str, detail: str = ""):
     _debug_log.appendleft({
@@ -256,7 +262,9 @@ def _dbg(level: str, cid: str, direction: str, msg: str, detail: str = ""):
     fn("[%s] %s %s %s", cid, direction, msg, detail[:120] if detail else "")
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Wire framing
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _frame(proto_bytes: bytes) -> bytes:
     length = len(proto_bytes)
@@ -308,7 +316,9 @@ async def _read_frame(reader: asyncio.StreamReader,
     return await asyncio.wait_for(reader.readexactly(length), timeout=30.0)
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Protobuf builders — config & module config
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _build_my_info(interface) -> bytes:
     """Build FromRadio{my_info}."""
@@ -520,7 +530,9 @@ def _build_module_config_section(iface, field_name: str) -> bytes:
     return fr.SerializeToString()
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Protobuf builders — channels
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _build_channel(index: int, is_primary: bool = False,
                    real_channel=None) -> bytes:
@@ -545,7 +557,9 @@ def _build_channel(index: int, is_primary: bool = False,
     return fr.SerializeToString()
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Protobuf builders — node info
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _build_node_info(node: dict) -> Optional[bytes]:
     try:
@@ -625,7 +639,9 @@ def _build_node_info(node: dict) -> Optional[bytes]:
         return None
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Protobuf builders — incoming mesh packets
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _build_from_radio_frame(packet: dict) -> Optional[bytes]:
     """
@@ -722,7 +738,9 @@ def _port_name(portnum: int) -> str:
         return str(portnum)
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Active clients
+# ══════════════════════════════════════════════════════════════════════════════
 
 class ProxyClient:
     __slots__ = ("cid", "peer_ip", "peer_port", "writer",
@@ -764,7 +782,9 @@ class ProxyClient:
 _active_clients: Dict[str, ProxyClient] = {}
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Handshake — exact match of firmware PhoneAPI STATE machine
+# ══════════════════════════════════════════════════════════════════════════════
 
 # Full LocalConfig section order — matches firmware STATE_SEND_CONFIG exactly
 _CONFIG_SECTIONS = [
@@ -805,13 +825,16 @@ async def _send_handshake(writer: asyncio.StreamWriter,
     _dbg("INFO", cid, "tx", "HANDSHAKE START",
          f"config_id={config_id} nodes={len(nodes)} queued={len(session.msg_queue)}")
 
+    # ── 1. MyInfo ────────────────────────────────────────────────────────────
     await _write_frame(writer, _build_my_info(iface), cid,
                        "FromRadio{my_info}", tx)
 
+    # ── 2. Device metadata ───────────────────────────────────────────────────
     b = _build_metadata(iface, md)
     if b:
         await _write_frame(writer, b, cid, "FromRadio{metadata}", tx)
 
+    # ── 3. Channels (all 8 slots) ─────────────────────────────────────────────
     #    Firmware sends channels BEFORE LocalConfig sections.
     real_channels = None
     try:
@@ -848,20 +871,24 @@ async def _send_handshake(writer: asyncio.StreamWriter,
             lbl = f"FromRadio{{channel[{i}] {'PRIMARY' if i == 0 else 'DISABLED'}}}"
             await _write_frame(writer, b, cid, lbl, tx)
 
+    # ── 4. LocalConfig sections (8 sections) ──────────────────────────────────
     for section in _CONFIG_SECTIONS:
         b = _build_config_section(iface, section, md_data=md)
         await _write_frame(writer, b, cid, f"FromRadio{{config{{{section}}}}}", tx)
 
+    # ── 5. SessionKey config ──────────────────────────────────────────────────
     #    Firmware sends this after security config.
     #    Required for state-changing admin ops (traceroute, remote config, etc.)
     b = _build_session_key_config(iface)
     await _write_frame(writer, b, cid, "FromRadio{config{sessionkey}}", tx)
 
+    # ── 6. ModuleConfig sections (13 sections) ────────────────────────────────
     for label, field in _MODULE_CONFIG_SECTIONS:
         b = _build_module_config_section(iface, field)
         await _write_frame(writer, b, cid,
                            f"FromRadio{{moduleConfig{{{label}}}}}", tx)
 
+    # ── 7. All node infos ────────────────────────────────────────────────────
     node_count = 0
     for node in nodes:
         b = _build_node_info(node)
@@ -870,6 +897,7 @@ async def _send_handshake(writer: asyncio.StreamWriter,
                                f"FromRadio{{node_info {node.get('node_id', '?')}}}", tx)
             node_count += 1
 
+    # ── 8. Replay queued messages for this session ───────────────────────────
     queued = session.drain_queue()
     if queued:
         _dbg("INFO", cid, "tx", f"REPLAYING {len(queued)} queued messages",
@@ -881,6 +909,7 @@ async def _send_handshake(writer: asyncio.StreamWriter,
             _stats["msgs_replayed"] += 1
             client.pkts_tx += 1
 
+    # ── 9. ConfigComplete ────────────────────────────────────────────────────
     fr = mesh_pb2.FromRadio()
     fr.config_complete_id = config_id
     await _write_frame(writer, fr.SerializeToString(), cid,
@@ -895,7 +924,9 @@ async def _send_handshake(writer: asyncio.StreamWriter,
          f"nodes={node_count} replayed={len(queued)} config_id={config_id}")
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Client handler
+# ══════════════════════════════════════════════════════════════════════════════
 
 async def _handle_client(reader: asyncio.StreamReader,
                          writer: asyncio.StreamWriter):
@@ -1161,7 +1192,9 @@ async def _handle_client(reader: asyncio.StreamReader,
              f"queued_for_replay={len(session.msg_queue)}")
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Broadcast to all connected clients (incoming packets from the mesh)
+# ══════════════════════════════════════════════════════════════════════════════
 
 def _get_portnum(packet_dict: dict) -> int:
     """Return integer portnum from a packet dict."""
@@ -1343,11 +1376,13 @@ def _on_receive(packet, interface=None):
     from_id  = packet.get("fromId") or ""
     to_id    = packet.get("toId")   or ""
 
+    # ── Echo suppression ──────────────────────────────────────────────────────
     if pkt_id and pkt_id in _forwarded_packet_ids:
         logger.debug("_on_receive: suppressed echo pkt_id=%d port=%s",
                      pkt_id, _port_name(portnum))
         return
 
+    # ── ROUTING_APP self-ACK filter ───────────────────────────────────────────
     # portnum 5 = ROUTING_APP. Self-addressed routing packets (from==local) are
     # ACKs/NAKs the radio generated for admin packets we proxied via _sendToRadio.
     # The app never sent those packets over LoRa so it does not expect these ACKs.
@@ -1358,6 +1393,7 @@ def _on_receive(packet, interface=None):
                          from_id, to_id)
             return
 
+    # ── Admin request echo filter ─────────────────────────────────────────────
     # ADMIN_APP (portnum 6) packets with no reply_id are outbound requests we
     # forwarded, not responses from the radio. Drop them.
     if portnum == 6:  # ADMIN_APP
@@ -1369,6 +1405,7 @@ def _on_receive(packet, interface=None):
                          from_id)
             return
 
+    # ── Purge stale echo suppression entries ──────────────────────────────────
     if len(_forwarded_packet_ids) > 50:
         cutoff = now - _ECHO_SUPPRESS_TTL
         stale  = [k for k, ts in list(_forwarded_packet_ids.items()) if ts < cutoff]
@@ -1382,12 +1419,14 @@ def _on_receive(packet, interface=None):
 
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # Server lifecycle
+# ══════════════════════════════════════════════════════════════════════════════
 
 async def _server_main():
     global _server
     cfg  = _load_config()
-    host = cfg.get("bind_host", "127.0.0.1")
+    host = cfg.get("bind_host", "0.0.0.0")
     port = int(cfg.get("port", 4403))
     try:
         _server = await asyncio.start_server(_handle_client, host, port)
@@ -1517,7 +1556,9 @@ def init_plugin(context: dict):
          f"slot={cfg.get('slot_id', 'node_0')}")
 
 
+# ══════════════════════════════════════════════════════════════════════════════
 # API
+# ══════════════════════════════════════════════════════════════════════════════
 
 @plugin_router.get("/status")
 async def get_status():
@@ -1527,7 +1568,7 @@ async def get_status():
         "version":           "1.4.0",
         "enabled":           cfg.get("enabled", True),
         "port":              cfg.get("port", 4403),
-        "bind_host":         cfg.get("bind_host", "127.0.0.1"),
+        "bind_host":         cfg.get("bind_host", "0.0.0.0"),
         "slot_id":           cfg.get("slot_id", "node_0"),
         "max_clients":       cfg.get("max_clients", 8),
         "session_ttl_secs":  cfg.get("session_ttl_secs", 7200),

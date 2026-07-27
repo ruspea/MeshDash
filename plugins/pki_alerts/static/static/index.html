@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PKI Alerts SOC</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg,var(--bg));color:var(--txt,var(--txt));font-family:var(--sans,system-ui,-apple-system,sans-serif);font-size:12px;}
+.shell{height:100%;display:flex;flex-direction:column;overflow:hidden;}
+.top{flex-shrink:0;padding:16px 20px;border-bottom:1px solid var(--bd2);background:var(--bg2);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+.scroll{flex:1;overflow-y:auto;padding:20px;background:var(--bg,var(--bg));}
+
+.ph{display:flex;align-items:center;gap:12px;}
+.ph-ico{font-size:24px;color:var(--warn);text-shadow:0 0 10px rgba(255,168,38,0.5);}
+.ph-title{font-size:16px;font-family:var(--mono,monospace);font-weight:900;letter-spacing:2px;color:var(--txt);}
+.ph-sub{font-size:10px;color:var(--txt3,var(--txt3));font-family:var(--mono,monospace);letter-spacing:1px;}
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+.kpi-card { background: var(--bg2); border: 1px solid var(--bd2); border-radius: 6px; padding: 15px; position: relative; overflow: hidden; }
+.kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background: var(--acc,var(--acc)); }
+.kpi-card.alert::before { background: var(--err); box-shadow: 0 0 10px var(--err); }
+.kpi-card.safe::before { background: var(--ok); }
+.kpi-card.warn::before { background: var(--warn); }
+.kpi-val { font-size: 28px; font-weight: 900; font-family: var(--mono); color: var(--txt); margin-top: 5px; }
+.kpi-lbl { font-size: 9px; color: var(--txt3); font-family: var(--mono); letter-spacing: 1px; text-transform: uppercase; }
+
+.chart-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 15px; margin-bottom: 20px; }
+.chart-card { background: var(--bg2); border: 1px solid var(--bd2); border-radius: 6px; padding: 15px; display: flex; flex-direction: column; min-height: 260px; }
+.chart-wrap { flex: 1; position: relative; min-height: 200px; margin-top: 10px; width: 100%; }
+
+.table-toolbar { display: flex; gap: 10px; background: var(--bg); padding: 10px 15px; border-bottom: 1px solid var(--bd2); align-items: center; flex-wrap: wrap; }
+.soc-search { flex: 1; min-width: 200px; background: var(--bg2); border: 1px solid var(--bd2); color: var(--txt); padding: 8px 12px; border-radius: 4px; font-family: var(--mono); font-size: 11px; }
+.soc-search:focus { outline: none; border-color: var(--acc); box-shadow: 0 0 5px rgba(0,200,245,0.3); }
+.soc-select { background: var(--bg2); border: 1px solid var(--bd2); color: var(--txt); padding: 8px 12px; border-radius: 4px; font-family: var(--mono); font-size: 11px; cursor: pointer; min-width: 120px; }
+
+.table-section { background: var(--bg2); border: 1px solid var(--bd2); border-radius: 6px; overflow: hidden; margin-bottom: 20px; }
+.table-responsive { width: 100%; overflow-x: auto; max-height: 400px; }
+.section-title { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--txt); padding: 10px 15px; border-bottom: 1px solid var(--bd2); background: rgba(255,255,255,0.02); display: flex; justify-content: space-between; align-items: center; }
+.section-desc { font-family: var(--sans); font-size: 11px; color: var(--txt3); padding: 10px 15px; background: var(--bg); border-bottom: 1px solid var(--bd2); line-height: 1.5; }
+table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 10px; text-align: left; min-width: 600px; }
+th { color: var(--txt3); padding: 8px 15px; font-weight: normal; border-bottom: 1px solid var(--bd2); background: var(--bg2); position: sticky; top: 0; z-index: 10; }
+td { padding: 8px 15px; border-bottom: 1px solid rgba(255,255,255,0.03); color: var(--txt2); vertical-align: top; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+.ctx-grid { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.ctx-strip { display: flex; gap: 6px; font-size: 9px; color: var(--txt3); flex-wrap: wrap; }
+.ctx-chip { background: var(--bg); padding: 3px 6px; border-radius: 4px; border: 1px solid var(--bd2); display: flex; align-items: center; gap: 5px; }
+.ctx-chip i { color: var(--txt3); }
+.ctx-chip.high-risk { border-color: var(--err); color: var(--err); font-weight: bold; background: rgba(255,48,80,0.1); }
+.ctx-chip.low-risk { border-color: var(--warn); color: var(--warn); font-weight: bold; background: rgba(255,168,38,0.1); }
+.ctx-chip.err { border-color: var(--err); color: var(--err); }
+.ctx-chip.ok { border-color: var(--ok); color: var(--ok); }
+.ctx-legacy { font-size:11px; font-family: var(--mono); opacity: 0.5; color: var(--txt3); letter-spacing: 1px; margin-top: 4px; }
+
+.trust-bar-bg { background: var(--bg); border: 1px solid var(--bd2); border-radius: 3px; height: 6px; width: 100px; overflow: hidden; margin-top: 4px; }
+.trust-bar-fill { height: 100%; background: var(--ok); transition: width 0.3s ease, background 0.3s ease; }
+
+details.soc-accordion { background: var(--bg2); border: 1px solid var(--bd2); border-radius: 6px; margin-bottom: 20px; overflow: hidden; }
+details.soc-accordion summary { padding: 12px 15px; font-family: var(--mono); font-size: 11px; color: var(--txt); cursor: pointer; outline: none; font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; }
+details.soc-accordion summary:hover { background: rgba(255,255,255,0.02); }
+details.soc-accordion > div { border-top: 1px solid var(--bd2); background: var(--bg); }
+
+.badge { padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 9px; letter-spacing: 0.5px; white-space: nowrap; }
+.b-new { background: rgba(0,200,245,0.1); color: var(--acc); border: 1px solid rgba(0,200,245,0.3); }
+.b-mismatch { background: rgba(255,48,80,0.15); color: var(--err); border: 1px solid rgba(255,48,80,0.5); box-shadow: 0 0 8px rgba(255,48,80,0.2); }
+.b-reset { background: rgba(255,168,38,0.1); color: var(--warn); border: 1px solid rgba(255,168,38,0.3); }
+
+.btn-accpt { background: rgba(0,232,122,0.1); border: 1px solid var(--ok); color: var(--ok); padding: 6px 12px; border-radius: 4px; font-family: var(--mono); font-size: 9px; font-weight: bold; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.btn-accpt:hover { background: var(--ok); color: #000; box-shadow: 0 0 10px rgba(0,232,122,0.4); }
+.btn-revoke { background: transparent; border: 1px solid var(--txt3); color: var(--txt3); padding: 4px 10px; border-radius: 4px; font-family: var(--mono); font-size: 9px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.btn-revoke:hover { border-color: var(--err); color: var(--err); background: rgba(255,48,80,0.1); }
+.btn-nuke { background: transparent; border: 1px solid var(--err); color: var(--err); padding: 6px 12px; border-radius: 4px; font-family: var(--mono); font-size: 10px; font-weight: bold; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.btn-nuke:hover { background: rgba(255,48,80,0.2); box-shadow: 0 0 10px rgba(255,48,80,0.4); }
+
+.tog{position:relative;width:40px;height:20px;flex-shrink:0;}
+.tog input{opacity:0;width:0;height:0;position:absolute;}
+.tog-sl{position:absolute;inset:0;background:var(--bd2);border-radius:10px;cursor:pointer;transition:background .2s;}
+.tog-sl::after{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:var(--txt3);border-radius:50%;transition:all .2s;}
+.tog input:checked+.tog-sl{background:var(--warn);}
+.tog input:checked+.tog-sl::after{transform:translateX(20px);background:#000;}
+
+.empty-state { text-align: center; padding: 40px 20px; color: var(--txt3); font-family: var(--mono); font-size: 11px; }
+.empty-state i { font-size: 32px; color: var(--ok); margin-bottom: 10px; opacity: 0.8; }
+
+@media (max-width: 800px) {
+    .chart-grid { grid-template-columns: 1fr; }
+    .chart-card { min-height: 300px; }
+    .table-toolbar { flex-direction: column; align-items: stretch; }
+    .top { flex-direction: column; align-items: flex-start; }
+}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="top">
+  <div class="plugin-header">
+            <span class="ph-ico">🛡️</span>
+            <div>
+                <div class="ph-title">PKI ALERTS</div>
+                <div class="ph-sub">by MeshDash</div>
+            </div>
+        </div>
+  <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-family:var(--mono); font-size:10px; color:var(--txt3);">ACTIVE DEFENSE</span>
+          <label class="tog"><input type="checkbox" id="pki-enabled" checked><span class="tog-sl"></span></label>
+      </div>
+      <button class="btn-nuke" onclick="wipeDatabase()"><i class="fas fa-skull"></i> WIPE & RE-INDEX</button>
+  </div>
+  </div>
+
+<div class="scroll">
+    <div class="kpi-grid">
+        <div class="kpi-card alert">
+            <div class="kpi-lbl"><i class="fas fa-exclamation-triangle"></i> Nodes at Risk</div>
+            <div class="kpi-val" id="kpi-conflicts" style="color:var(--err);">0</div>
+        </div>
+        <div class="kpi-card" id="kpi-trust-card">
+            <div class="kpi-lbl"><i class="fas fa-heartbeat"></i> Avg Network Trust</div>
+            <div class="kpi-val" id="kpi-trust">100%</div>
+        </div>
+        <div class="kpi-card safe">
+            <div class="kpi-lbl"><i class="fas fa-shield-alt"></i> Baselined Nodes</div>
+            <div class="kpi-val" id="kpi-keys">0</div>
+        </div>
+        <div class="kpi-card warn">
+            <div class="kpi-lbl"><i class="fas fa-search-location"></i> Suspicious Pings (7d)</div>
+            <div class="kpi-val" id="kpi-suspects" style="color:var(--warn);">0</div>
+        </div>
+        <div class="kpi-card alert" id="kpi-dup-card" style="border-color:rgba(180,0,255,0.4);">
+            <div class="kpi-lbl"><i class="fas fa-copy" style="color:var(--pur);"></i> Cloned Key Groups</div>
+            <div class="kpi-val" id="kpi-dups" style="color:var(--pur);">0</div>
+            <div style="font-size:11px;color:var(--txt3);margin-top:4px;font-family:var(--mono);" id="kpi-dup-sub">LAST SCAN: NEVER</div>
+        </div>
+    </div>
+
+    <div class="table-section" id="dup-panel" style="border-color:rgba(180,0,255,0.5);box-shadow:0 0 15px rgba(180,0,255,0.08);display:none;">
+        <div class="section-title" style="border-color:rgba(180,0,255,0.3);">
+            <span><i class="fas fa-copy" style="color:var(--pur);"></i> DUPLICATE KEY DETECTION — CLONED IDENTITY GROUPS</span>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <span id="dup-scan-status" style="font-size:9px;color:var(--txt3);"></span>
+                <button class="btn-revoke" style="border-color:var(--pur);color:var(--pur);" onclick="triggerDupScan()"><i class="fas fa-sync-alt"></i> FORCE RESCAN</button>
+                <span id="dup-count" style="color:var(--pur);font-weight:bold;">0</span>
+            </div>
+        </div>
+        <div class="section-desc" style="border-color:rgba(180,0,255,0.2);">
+            Nodes sharing an identical public key — a definitive indicator of device cloning, firmware key reuse, or mesh misconfiguration. Each group represents nodes that are cryptographically indistinguishable. Hardware and MAC divergence within a group indicates physical cloning. Scans run every 24 hours automatically.
+        </div>
+        <div id="dup-tbody-wrap">
+            <div class="empty-state" style="color:var(--pur);opacity:0.7;"><i class="fas fa-spinner fa-spin"></i><br>Scanning...</div>
+        </div>
+    </div>
+
+    <div class="table-section" style="border-color: rgba(255,48,80,0.5); box-shadow: 0 0 15px rgba(255,48,80,0.1);">
+        <div class="section-title">
+            <span><i class="fas fa-radiation" style="color:var(--err);"></i> THREAT DETECTION: ACTIVE CONFLICTS</span> 
+            <span id="conflict-count" style="color:var(--err); font-weight:bold;">0</span>
+        </div>
+        <div class="section-desc">
+            Nodes actively broadcasting a key that conflicts with their baselined identity. The RF Anomaly Engine evaluates the incoming signal against the mathematical average to flag physical cloning attempts.
+        </div>
+        <div class="table-responsive">
+            <table>
+                <thead><tr><th>TIMESTAMP</th><th>NODE ID</th><th>FORENSICS & DETAILS</th><th>ACTION</th></tr></thead>
+                <tbody id="conflicts-tbody"><tr><td colspan="4" style="text-align:center;">Loading threats...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="chart-card">
+            <div class="kpi-lbl">Conflict Timeline (Last 7 Days)</div>
+            <div class="chart-wrap"><canvas id="timelineChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="kpi-lbl">Fleet Trust Health</div>
+            <div class="chart-wrap"><canvas id="distChart"></canvas></div>
+        </div>
+    </div>
+
+    <div class="table-section">
+        <div class="section-title">
+            <span><i class="fas fa-history"></i> HISTORICAL AUDIT LOG</span> 
+            <span id="log-count" style="color:var(--acc);">0</span>
+        </div>
+        <div class="table-toolbar">
+            <i class="fas fa-search" style="color:var(--txt3);"></i>
+            <input type="text" id="soc-search" class="soc-search" placeholder="Search events, hardware, telemetry..." oninput="applyFilters()">
+            <select id="soc-time" class="soc-select" onchange="applyFilters()">
+                <option value="all">All Time</option>
+                <option value="24h">Last 24 Hours</option>
+                <option value="7d">Last 7 Days</option>
+            </select>
+        </div>
+        <div class="table-responsive">
+            <table>
+                <thead><tr><th>TIMESTAMP</th><th>NODE ID</th><th>EVENT TYPE</th><th>FORENSICS & CONTEXT</th></tr></thead>
+                <tbody id="logs-tbody"><tr><td colspan="4" style="text-align:center;">Loading telemetry...</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+
+    <details class="soc-accordion">
+        <summary><i class="fas fa-lock"></i> TRUSTED KEYRING REFERENCE (<span id="key-count">0</span>)</summary>
+        <div>
+            <div class="table-responsive">
+                <table>
+                    <thead><tr><th>NODE ID</th><th>IDENTITY</th><th>HARDWARE</th><th>TRUST SCORE</th><th>AVG SNR</th><th>AVG RSSI</th><th>ACTION</th></tr></thead>
+                    <tbody id="keys-tbody"><tr><td colspan="7" style="text-align:center;">Loading keyring...</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </details>
+</div>
+</div>
+
+<script>
+const API_BASE = '/api/plugins/pki_alerts';
+let timelineChart = null;
+let distChart = null;
+let _allKeys = [];
+let _allLogs = [];
+let _dupData = null;
+
+function fmtTime(ts) {
+    return new Date(ts * 1000).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+function fmtTimeAgo(ts) {
+    if (!ts) return 'Never';
+    const s = Math.floor(Date.now()/1000 - ts);
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.floor(s/60)}m ago`;
+    if (s < 86400) return `${Math.floor(s/3600)}h ago`;
+    return `${Math.floor(s/86400)}d ago`;
+}
+
+function buildContextChips(ctxStr, isConflict = false) {
+    if (!ctxStr || ctxStr === '{}') {
+        return `<div class="ctx-legacy">[LEGACY RECORD - NO RF DATA CAPTURED]</div>`;
+    }
+    try {
+        const ctx = JSON.parse(ctxStr);
+        if (!ctx.hw && ctx.snr == null && ctx.rssi == null) {
+             return `<div class="ctx-legacy">[LEGACY RECORD - NO RF DATA CAPTURED]</div>`;
+        }
+
+        let riskChip = '';
+        let dataChips = '';
+        
+        if (isConflict) {
+            if (ctx.risk === 'HIGH') {
+                riskChip = `<span class="ctx-chip high-risk" title="Physical signature mismatch"><i class="fas fa-skull-crossbones"></i> CLONE SUSPECTED</span>`;
+            } else if (ctx.risk === 'LOW') {
+                riskChip = `<span class="ctx-chip low-risk" title="RF profile matches baseline"><i class="fas fa-exclamation-triangle"></i> LIKELY RE-FLASH</span>`;
+            }
+        }
+
+        let hwClass = (ctx.hw !== ctx.baseline_hw && ctx.baseline_hw && ctx.baseline_hw !== 'Unknown') ? 'err' : '';
+        if (ctx.hw && ctx.hw !== 'Unknown') {
+            dataChips += `<span class="ctx-chip ${hwClass}"><i class="fas fa-microchip"></i> ${ctx.hw} ${hwClass ? `(Avg: ${ctx.baseline_hw})` : ''}</span>`;
+        }
+        
+        let snrClass = '';
+        let bSnr = '';
+        if (ctx.snr != null) {
+            if (ctx.baseline_snr != null) {
+                bSnr = ` (Avg: ${ctx.baseline_snr})`;
+                if (Math.abs(ctx.snr - ctx.baseline_snr) >= 6) snrClass = 'err';
+            }
+            dataChips += `<span class="ctx-chip ${snrClass}"><i class="fas fa-signal"></i> ${ctx.snr}dB${bSnr}</span>`;
+        }
+
+        let rssiClass = '';
+        let bRssi = '';
+        if (ctx.rssi != null) {
+            if (ctx.baseline_rssi != null) {
+                bRssi = ` (Avg: ${ctx.baseline_rssi})`;
+                if (Math.abs(ctx.rssi - ctx.baseline_rssi) >= 15) rssiClass = 'err';
+            }
+            dataChips += `<span class="ctx-chip ${rssiClass}"><i class="fas fa-wifi"></i> ${ctx.rssi}dBm${bRssi}</span>`;
+        }
+
+        if (ctx.bat != null) dataChips += `<span class="ctx-chip"><i class="fas fa-battery-half"></i> ${ctx.bat}%</span>`;
+        
+        return `<div class="ctx-grid">
+            ${riskChip ? `<div class="ctx-strip">${riskChip}</div>` : ''}
+            <div class="ctx-strip">${dataChips}</div>
+        </div>`;
+    } catch(e) { return `<div class="ctx-legacy">[LEGACY RECORD - NO RF DATA CAPTURED]</div>`; }
+}
+
+function getTrustColor(score) {
+    if (score >= 90) return 'var(--ok)';
+    if (score >= 50) return 'var(--warn)';
+    return 'var(--err)';
+}
+
+async function wipeDatabase() {
+    if (!confirm('🚨 DANGER: WIPE DATABASE 🚨\n\nAre you absolutely sure you want to delete all historical logs and trust baselines?\n\nThis will clear the entire SOC and force the system to rebuild its keyring from scratch using the nodes currently on the mesh.')) return;
+    
+    try {
+        const res = await fetch(`${API_BASE}/wipe`, { method: 'POST' });
+        if (res.ok) {
+            window.parent.PluginBridge.toast('Database wiped successfully. Re-indexing...', 'ok');
+            setTimeout(loadData, 1000);
+        } else {
+            window.parent.PluginBridge.toast('Failed to wipe the database.', 'err');
+        }
+    } catch(e) {
+        window.parent.PluginBridge.toast('Network error while wiping database.', 'err');
+    }
+}
+
+async function loadData() {
+    try {
+        const [keysRes, logsRes, confRes, dupRes] = await Promise.all([
+            fetch(`${API_BASE}/keys`), fetch(`${API_BASE}/logs?limit=2000`), fetch(`${API_BASE}/config`),
+            fetch(`${API_BASE}/duplicates`)
+        ]);
+        if (confRes.ok) document.getElementById('pki-enabled').checked = (await confRes.json()).enabled;
+        if (keysRes.ok) _allKeys = await keysRes.json();
+        if (logsRes.ok) _allLogs = await logsRes.json();
+        if (dupRes.ok) _dupData = await dupRes.json();
+
+        const avgTrust = _allKeys.length 
+            ? Math.round(_allKeys.reduce((acc, k) => acc + (k.trust_score != null ? k.trust_score : 100), 0) / _allKeys.length) 
+            : 100;
+        
+        const trustEl = document.getElementById('kpi-trust');
+        const trustCard = document.getElementById('kpi-trust-card');
+        if (trustEl) trustEl.textContent = `${avgTrust}%`;
+        if (trustEl) trustEl.style.color = getTrustColor(avgTrust);
+        if (trustCard) trustCard.className = 'kpi-card ' + (avgTrust >= 90 ? 'safe' : avgTrust >= 50 ? 'warn' : 'alert');
+
+        renderDuplicates();
+        renderCharts();
+        applyFilters(); 
+    } catch(e) { console.error('Load failed', e); }
+}
+
+function renderDuplicates() {
+    if (!_dupData) return;
+
+    const groups = _dupData.duplicates || [];
+    const dupPanel = document.getElementById('dup-panel');
+    const dupKpi = document.getElementById('kpi-dups');
+    const dupCard = document.getElementById('kpi-dup-card');
+    const dupSub = document.getElementById('kpi-dup-sub');
+    const dupCount = document.getElementById('dup-count');
+    const dupStatus = document.getElementById('dup-scan-status');
+    const dupWrap = document.getElementById('dup-tbody-wrap');
+
+    if (dupKpi) dupKpi.textContent = groups.length;
+    if (dupSub) dupSub.textContent = `LAST SCAN: ${fmtTimeAgo(_dupData.last_scan).toUpperCase()}`;
+    if (dupStatus) dupStatus.textContent = `Last scan: ${fmtTimeAgo(_dupData.last_scan)} · ${_dupData.total_affected_nodes || 0} nodes affected`;
+    if (dupCount) dupCount.textContent = groups.length;
+    if (dupCard) dupCard.style.display = '';
+
+    if (dupPanel) dupPanel.style.display = groups.length ? '' : 'none';
+
+    if (!dupWrap) return;
+    if (!groups.length) {
+        dupWrap.innerHTML = `<div class="empty-state"><i class="fas fa-check-circle" style="color:var(--ok);"></i><br>NO DUPLICATE KEYS DETECTED<br><span style="font-size:9px;opacity:0.7;">All ${_allKeys.length} baselined nodes have unique public keys.</span></div>`;
+        return;
+    }
+
+    const rows = groups.map(g => {
+        const riskColor = g.risk === 'CRITICAL' ? '#b400ff' : 'var(--err)';
+        const riskIcon = g.risk === 'CRITICAL' ? 'fa-skull-crossbones' : 'fa-exclamation-triangle';
+        const hwConflict = g.hw_conflict ? `<span class="ctx-chip err"><i class="fas fa-microchip"></i> HW DIVERGENCE: ${g.hw_models.join(' vs ')}</span>` : '';
+        const macConflict = g.mac_conflict ? `<span class="ctx-chip err"><i class="fas fa-network-wired"></i> MAC DIVERGENCE</span>` : '';
+        const keyDisplay = g.public_key_prefix;
+
+        const nodeRows = (g.nodes || g.node_ids.map(id => ({node_id: id}))).map(n => {
+            const trustScore = n.trust_score != null ? n.trust_score : 100;
+            const trustCol = getTrustColor(trustScore);
+            const hw = n.hardware_model || 'Unknown';
+            const name = n.long_name || n.short_name || n.node_id;
+            const lastSeen = n.last_event_ts ? fmtTimeAgo(n.last_event_ts) : '—';
+            const snr = n.avg_snr ? n.avg_snr.toFixed(1) + 'dB' : '—';
+            const rssi = n.avg_rssi ? n.avg_rssi.toFixed(0) + 'dBm' : '—';
+            const pings = n.ping_count || 0;
+            return `<tr style="background:rgba(180,0,255,0.03);">
+                <td style="padding-left:30px;color:var(--acc);font-weight:bold;white-space:nowrap;">↳ ${n.node_id}</td>
+                <td style="color:var(--txt);white-space:nowrap;">${name}<div style="font-size:11px;color:var(--txt3);">[${n.short_name||'?'}]</div></td>
+                <td style="color:var(--txt2);">${hw}</td>
+                <td><span style="color:${trustCol};font-weight:bold;">${trustScore}%</span></td>
+                <td style="color:var(--txt3);">${snr} / ${rssi}</td>
+                <td style="color:var(--txt3);">${pings} pings</td>
+                <td style="color:var(--txt3);font-size:9px;">${lastSeen}</td>
+                <td><button class="btn-revoke" style="border-color:var(--pur);color:var(--pur);" onclick="revokeKey('${n.node_id}')"><i class="fas fa-times"></i></button></td>
+            </tr>`;
+        }).join('');
+
+        return `
+        <tr style="background:rgba(180,0,255,0.06); border-top:1px solid rgba(180,0,255,0.3);">
+            <td colspan="8" style="padding:12px 15px;">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <span style="color:${riskColor};font-weight:900;font-size:11px;letter-spacing:1px;"><i class="fas ${riskIcon}"></i> ${g.risk} RISK — ${g.node_count} NODES SHARING KEY</span>
+                    <span style="font-family:var(--mono);font-size:9px;color:var(--txt3);background:var(--bg);padding:3px 8px;border-radius:4px;border:1px solid var(--bd2);">🔑 ${keyDisplay}</span>
+                    ${hwConflict}${macConflict}
+                    ${(!g.hw_conflict && !g.mac_conflict) ? '<span class="ctx-chip" style="border-color:var(--warn);color:var(--warn);"><i class="fas fa-info-circle"></i> Identical RF profile — likely key reuse or firmware duplication</span>' : ''}
+                </div>
+            </td>
+        </tr>
+        ${nodeRows}`;
+    }).join('');
+
+    dupWrap.innerHTML = `<div class="table-responsive"><table>
+        <thead><tr><th>NODE ID</th><th>IDENTITY</th><th>HARDWARE</th><th>TRUST</th><th>SNR / RSSI</th><th>PINGS</th><th>LAST SEEN</th><th>ACTION</th></tr></thead>
+        <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
+async function triggerDupScan() {
+    const btn = document.querySelector('[onclick="triggerDupScan()"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> SCANNING...'; }
+    try {
+        const res = await fetch(`${API_BASE}/duplicates/scan`, { method: 'POST' });
+        if (res.ok) _dupData = await res.json();
+        renderDuplicates();
+    } catch(e) { console.error(e); }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt"></i> FORCE RESCAN'; }
+}
+
+function renderCharts() {
+    const tCounts = { perfect: 0, degraded: 0, critical: 0 };
+    _allKeys.forEach(k => {
+        const s = k.trust_score != null ? k.trust_score : 100;
+        if (s >= 90) tCounts.perfect++;
+        else if (s >= 50) tCounts.degraded++;
+        else tCounts.critical++;
+    });
+    
+    if (distChart) distChart.destroy();
+    const distCanvas = document.getElementById('distChart');
+    if (distCanvas) {
+        distChart = new Chart(distCanvas.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['100% Trusted', 'Degraded (50-89%)', 'Critical (<50%)'],
+                datasets: [{
+                    data: [tCounts.perfect, tCounts.degraded, tCounts.critical],
+                    backgroundColor: ['rgba(0, 232, 122, 0.7)', 'rgba(255, 168, 38, 0.8)', 'rgba(255, 48, 80, 0.7)'],
+                    borderColor: '#1e3048', borderWidth: 2
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#b8c8d8' } } } }
+        });
+    }
+
+    let recentSpoofs = 0;
+    const now = Date.now() / 1000;
+    const timelineData = Array(7).fill(0);
+    const timelineLabels = [];
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date((now - i * 86400) * 1000);
+        timelineLabels.push(`${d.getMonth()+1}/${d.getDate()}`);
+    }
+    _allLogs.forEach(l => {
+        if (l.event_type === 'SPOOF_DETECTED') {
+            if ((now - l.timestamp) <= 604800) recentSpoofs++;
+            const diffDays = Math.floor((now - l.timestamp) / 86400);
+            if (diffDays < 7 && diffDays >= 0) timelineData[6 - diffDays]++;
+        }
+    });
+
+    const suspectEl = document.getElementById('kpi-suspects');
+    if (suspectEl) suspectEl.textContent = recentSpoofs;
+
+    if (timelineChart) timelineChart.destroy();
+    const tlCanvas = document.getElementById('timelineChart');
+    if (tlCanvas) {
+        timelineChart = new Chart(tlCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: timelineLabels,
+                datasets: [{ label: 'Conflicts', data: timelineData, backgroundColor: 'rgba(255, 48, 80, 0.3)', borderColor: '#f04848', borderWidth: 1, borderRadius: 3 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1, color:'#b8c8d8' } }, x: { grid: { display: false }, ticks: {color:'#b8c8d8'} } } }
+        });
+    }
+}
+
+function applyFilters() {
+    const searchEl = document.getElementById('soc-search');
+    const term = searchEl ? searchEl.value.toLowerCase() : '';
+    const timeEl = document.getElementById('soc-time');
+    const timeFilter = timeEl ? timeEl.value : 'all';
+    const now = Date.now() / 1000;
+
+    const filteredLogs = _allLogs.filter(l => {
+        let displayType = l.event_type === 'SPOOF_DETECTED' ? 'KEY MISMATCH' : l.event_type;
+        const textMatch = `${l.node_id} ${displayType} ${l.details} ${l.context||''}`.toLowerCase().includes(term);
+        let timeMatch = true;
+        if (timeFilter === '24h') timeMatch = (now - l.timestamp) <= 86400;
+        if (timeFilter === '7d') timeMatch = (now - l.timestamp) <= 604800;
+        return textMatch && timeMatch;
+    });
+
+    const latestEvents = {};
+    _allLogs.forEach(l => { if (!latestEvents[l.node_id]) latestEvents[l.node_id] = l; });
+    const activeConflicts = Object.values(latestEvents).filter(l => {
+        if (l.event_type !== 'SPOOF_DETECTED') return false;
+        const textMatch = `${l.node_id} KEY MISMATCH ${l.details} ${l.context||''}`.toLowerCase().includes(term);
+        let timeMatch = true;
+        if (timeFilter === '24h') timeMatch = (now - l.timestamp) <= 86400;
+        if (timeFilter === '7d') timeMatch = (now - l.timestamp) <= 604800;
+        return textMatch && timeMatch;
+    });
+
+    const elKeys = document.getElementById('kpi-keys'); if(elKeys) elKeys.textContent = _allKeys.length;
+    const elEvents = document.getElementById('kpi-events'); if(elEvents) elEvents.textContent = _allLogs.length;
+    const elConflicts = document.getElementById('kpi-conflicts'); if(elConflicts) elConflicts.textContent = activeConflicts.length;
+
+    const conflictsTbody = document.getElementById('conflicts-tbody');
+    if (conflictsTbody) {
+        if (!activeConflicts.length) {
+            conflictsTbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><i class="fas fa-check-circle"></i><br>NO ACTIVE CONFLICTS<br><span style="font-size:9px;opacity:0.7;">All connected nodes match their trusted baseline.</span></div></td></tr>`;
+        } else {
+            conflictsTbody.innerHTML = activeConflicts.map(l => {
+                let risk = 'LOW';
+                try { risk = JSON.parse(l.context||'{}').risk; } catch(e){}
+                return `
+                <tr>
+                    <td style="white-space:nowrap; color:var(--txt3);">${fmtTime(l.timestamp)}</td>
+                    <td style="color:var(--err); font-weight:bold; font-size:12px;">${l.node_id}</td>
+                    <td><div style="color:var(--txt);">${l.details}</div>${buildContextChips(l.context, true)}</td>
+                    <td><button class="btn-accpt" onclick="forgiveKey('${l.node_id}', '${risk}')"><i class="fas fa-check"></i> ACCEPT NEW KEY</button></td>
+                </tr>`;
+            }).join('');
+        }
+    }
+    
+    const cc = document.getElementById('conflict-count'); if(cc) cc.textContent = activeConflicts.length;
+
+    const logsTbody = document.getElementById('logs-tbody');
+    if (logsTbody) {
+        if (!filteredLogs.length) {
+            logsTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No matching events.</td></tr>';
+        } else {
+            logsTbody.innerHTML = filteredLogs.map(l => {
+                let badge = 'badge';
+                let displayType = l.event_type;
+                if (l.event_type === 'SPOOF_DETECTED') { badge += ' b-mismatch'; displayType = 'KEY MISMATCH'; }
+                else if (l.event_type === 'NEW_NODE') { badge += ' b-new'; displayType = 'NEW TRUST'; }
+                else if (l.event_type === 'KEY_RESET') { badge += ' b-reset'; displayType = 'TRUST RESET'; }
+                else if (l.event_type === 'DUPLICATE_KEY') { badge += ' b-mismatch'; displayType = 'CLONE GROUP'; }
+                
+                return `<tr>
+                    <td style="white-space:nowrap; color:var(--txt3);">${fmtTime(l.timestamp)}</td>
+                    <td style="color:var(--acc); font-weight:bold;">${l.node_id}</td>
+                    <td><span class="${badge}">${displayType}</span></td>
+                    <td><div style="color:var(--txt2);">${l.details}</div>${buildContextChips(l.context, false)}</td>
+                </tr>`;
+            }).join('');
+        }
+    }
+    const lc = document.getElementById('log-count'); if(lc) lc.textContent = filteredLogs.length;
+
+    const filteredKeys = _allKeys.filter(k => `${k.node_id} ${k.short_name} ${k.long_name} ${k.public_key} ${k.hardware_model}`.toLowerCase().includes(term));
+    const keysTbody = document.getElementById('keys-tbody');
+    if (keysTbody) {
+        if (!filteredKeys.length) {
+            keysTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">No matching keys.</td></tr>';
+        } else {
+            keysTbody.innerHTML = filteredKeys.map(k => {
+                const score = k.trust_score != null ? k.trust_score : 100;
+                const scoreCol = getTrustColor(score);
+                return `
+                <tr>
+                    <td style="color:var(--acc);font-weight:bold;white-space:nowrap;">${k.node_id}</td>
+                    <td>
+                        <div style="color:var(--txt);white-space:nowrap;">${k.long_name || k.short_name || 'Unknown'}</div>
+                        <div style="font-size:11px;color:var(--txt3); margin-top:2px;">[${k.short_name || '?'}]</div>
+                    </td>
+                    <td style="color:var(--txt2);white-space:nowrap;">${k.hardware_model || 'Unknown'}</td>
+                    <td>
+                        <div style="color:${scoreCol}; font-weight:bold; font-size:11px;">${score}%</div>
+                        <div class="trust-bar-bg"><div class="trust-bar-fill" style="width:${score}%; background:${scoreCol};"></div></div>
+                    </td>
+                    <td style="color:${k.avg_snr > 0 ? 'var(--ok)' : 'var(--txt2)'}">${k.avg_snr ? k.avg_snr.toFixed(1) + 'dB' : '—'}</td>
+                    <td style="color:${k.avg_rssi > -100 ? 'var(--txt2)' : 'var(--err)'}">${k.avg_rssi ? k.avg_rssi.toFixed(0) + 'dBm' : '—'}</td>
+                    <td><button class="btn-revoke" onclick="revokeKey('${k.node_id}')"><i class="fas fa-times"></i> REVOKE</button></td>
+                </tr>
+            `}).join('');
+        }
+    }
+    const kc = document.getElementById('key-count'); if(kc) kc.textContent = filteredKeys.length;
+}
+
+async function forgiveKey(nodeId, risk) {
+    let msg = `ACCEPT NEW KEY:\n\nAre you sure you want to trust the new key for ${nodeId}?\n\nThis will clear the conflict and lock in the new key as the trusted baseline.`;
+    if (risk === 'HIGH') {
+        msg = `⚠️ HIGH RISK SECURITY OVERRIDE ⚠️\n\nThe RF Anomaly Engine strongly suspects this is a cloned radio (Physical signature mismatch).\n\nAre you absolutely sure you want to trust this key?`;
+    }
+    if (!confirm(msg)) return;
+    
+    try { await fetch(`${API_BASE}/forgive/${encodeURIComponent(nodeId)}`, { method: 'POST' }); loadData(); } 
+    catch(e) { window.parent.PluginBridge.toast('Failed to process key override.', 'err'); }
+}
+
+async function revokeKey(nodeId) {
+    if (!confirm(`REVOKE TRUST:\n\nAre you sure you want to revoke trust for ${nodeId}?\n\nThe next time this node is seen, its key will be re-evaluated and baselined.`)) return;
+    try { await fetch(`${API_BASE}/forgive/${encodeURIComponent(nodeId)}`, { method: 'POST' }); loadData(); } 
+    catch(e) { window.parent.PluginBridge.toast('Failed to revoke key.', 'err'); }
+}
+
+const pkiCheck = document.getElementById('pki-enabled');
+if (pkiCheck) {
+    pkiCheck.addEventListener('change', async (e) => {
+        await fetch(`${API_BASE}/config`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: e.target.checked }) });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => { loadData(); setInterval(loadData, 10000); });
+</script>
+</body>
+</html>

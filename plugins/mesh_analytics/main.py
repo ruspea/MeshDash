@@ -49,6 +49,7 @@ def init_plugin(context: dict):
         pass
 
 
+# ── helpers ────────────────────────────────────────────────────────────────
 
 def _snr_score(snr):
     if snr is None: return 0.0
@@ -110,6 +111,7 @@ def _linear_trend(vals):
     return round(num / den, 4) if den else None
 
 
+# ── analytics computation ──────────────────────────────────────────────────
 
 async def _compute_analytics(db, target_ts: float) -> dict:
     def _run():
@@ -117,6 +119,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
         T    = target_ts
         now  = time.time()
 
+        # ── raw node rows ────────────────────────────────────────────────
         nodes_raw = conn.execute("""
             SELECT node_id,long_name,short_name,role,is_local,last_heard,
                    battery_level,voltage,channel_utilization,air_util_tx,
@@ -124,6 +127,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             FROM nodes
         """).fetchall()
 
+        # ── packet stats ────────────────────────────────────────────────
         pkt_total = dict(conn.execute(
             "SELECT from_id,COUNT(*) FROM packets WHERE timestamp<=? GROUP BY from_id",(T,)
         ).fetchall())
@@ -134,6 +138,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
         ).fetchall():
             rf_stats[r[0]] = {"avg_snr":r[1],"min_snr":r[2],"max_snr":r[3],"avg_rssi":r[4],"rf_count":r[5]}
 
+        # ── SNR standard deviation per node ─────────────────────────────
         snr_raw_per_node = {}
         for r in conn.execute(
             "SELECT from_id,rx_snr FROM packets WHERE rx_snr IS NOT NULL AND timestamp<=?",(T,)
@@ -165,6 +170,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             if nid in hop_stats and len(vals) >= 2:
                 hop_stats[nid]["std"] = _stddev(vals)
 
+        # ── packet trend per node (last 24h vs prior 24h) ────────────────
         cutoff_24 = T - 86400
         cutoff_48 = T - 172800
         pkt_last24 = dict(conn.execute(
@@ -174,6 +180,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             "SELECT from_id,COUNT(*) FROM packets WHERE timestamp>? AND timestamp<=? GROUP BY from_id",(cutoff_48,cutoff_24)
         ).fetchall())
 
+        # ── hourly packet distribution (last 7d) ────────────────────────
         hourly_dist = [0] * 24
         for r in conn.execute(
             "SELECT CAST(strftime('%H', datetime(timestamp,'unixepoch')) AS INTEGER),COUNT(*) "
@@ -182,6 +189,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             if 0 <= r[0] < 24:
                 hourly_dist[r[0]] = r[1]
 
+        # ── daily packet + message traffic (last 30d) ────────────────────
         daily_traffic = []
         for r in conn.execute(
             "SELECT date(timestamp,'unixepoch') d,"
@@ -192,6 +200,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             if r[0]:
                 daily_traffic.append({"date":r[0],"bcast":r[1] or 0,"dm":r[2] or 0})
 
+        # ── daily RF history (last 30d) ──────────────────────────────────
         daily_rf = []
         for r in conn.execute(
             "SELECT date(timestamp,'unixepoch') d,"
@@ -201,6 +210,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             if r[0]:
                 daily_rf.append({"date":r[0],"avg_snr":r[1],"avg_rssi":r[2],"count":r[3]})
 
+        # ── daily active node count ──────────────────────────────────────
         daily_active_nodes = []
         for r in conn.execute(
             "SELECT date(timestamp,'unixepoch') d, COUNT(DISTINCT from_id) "
@@ -209,12 +219,14 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             if r[0]:
                 daily_active_nodes.append({"date":r[0],"count":r[1]})
 
+        # ── hop distribution ─────────────────────────────────────────────
         hop_dist = {}
         for r in conn.execute(
             "SELECT hop_limit,COUNT(*) FROM packets WHERE timestamp<=? AND hop_limit IS NOT NULL GROUP BY hop_limit",(T,)
         ).fetchall():
             hop_dist[r[0]] = r[1]
 
+        # ── traceroutes / relay counts ───────────────────────────────────
         relay_cnt = {}
         route_appearances = {}
         link_usage = {}   # (a,b) sorted tuple -> count
@@ -245,6 +257,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             "SELECT to_id,COUNT(*) FROM traceroutes WHERE timestamp<=? GROUP BY to_id",(T,)
         ).fetchall())
 
+        # ── neighbor graph ───────────────────────────────────────────────
         nb_all = {}
         nb_snr_sum = {}
         for r in conn.execute("SELECT node_id,neighbor_id,snr FROM neighbors").fetchall():
@@ -253,6 +266,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             if r[2] is not None:
                 nb_snr_sum[r[0]].append(float(r[2]))
 
+        # ── messages ────────────────────────────────────────────────────
         msg_bcast = dict(conn.execute(
             "SELECT from_id,COUNT(*) FROM messages WHERE to_id='^all' AND timestamp<=? GROUP BY from_id",(T,)
         ).fetchall())
@@ -260,6 +274,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             "SELECT from_id,COUNT(*) FROM messages WHERE to_id!='^all' AND to_id IS NOT NULL AND timestamp<=? GROUP BY from_id",(T,)
         ).fetchall())
 
+        # ── telemetry ────────────────────────────────────────────────────
         tlm_stats = {}
         for r in conn.execute(
             "SELECT node_id,MIN(battery_level),ROUND(AVG(battery_level),1),"
@@ -269,6 +284,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             tlm_stats[r[0]] = {"batt_min":r[1],"batt_avg":r[2],"volt_min":r[3],"volt_avg":r[4],
                                 "avg_chan":r[5],"avg_air":r[6]}
 
+        # ── environmental sensors ────────────────────────────────────────
         env_data = {}
         for r in conn.execute(
             "SELECT node_id,"
@@ -296,6 +312,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
                 "date":r[1],"temp":r[2],"humidity":r[3],"pressure":r[4]
             })
 
+        # ── firmware / hardware distribution ─────────────────────────────
         fw_dist = {}
         hw_dist = {}
         for r in conn.execute("SELECT firmware_version,hw_model FROM nodes WHERE firmware_version IS NOT NULL").fetchall():
@@ -306,6 +323,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             if hw not in ("None","Unknown",""):
                 hw_dist[hw] = hw_dist.get(hw,0) + 1
 
+        # ── uptime stats ─────────────────────────────────────────────────
         uptime_data = {}
         for r in conn.execute(
             "SELECT node_id,MAX(uptime_seconds),ROUND(AVG(uptime_seconds),0) "
@@ -313,6 +331,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
         ).fetchall():
             uptime_data[r[0]] = {"max_uptime":r[1],"avg_uptime":r[2]}
 
+        # ── assemble per-node scored data ────────────────────────────────
         total_pkts = sum(pkt_total.values()) or 1
         nodes_out  = []
 
@@ -337,6 +356,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             eff_chan  = ts.get("avg_chan",  chan)
             eff_air  = ts.get("avg_air",   air)
 
+            # ── composite scores ─────────────────────────────────────────
             rf_health    = round((_snr_score(eff_snr) * 0.6 + _rssi_score(eff_rssi) * 0.4), 3)
             centrality   = round(_centrality_score(rc, nb_c, pkts, total_pkts), 3)
             freshness    = round(_age_score(lh), 3)
@@ -503,6 +523,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
         avg_nb  = (sum(nb_counts)/len(nb_counts)) if nb_counts else 0
         density = round(min(1.0, avg_nb / max(n_total-1,1)), 3)
 
+        # ── network resilience analysis ──────────────────────────────────
         # Score: how much relay traffic does each backbone/relay node carry?
         # If a node fails, what % of relay paths are broken?
         total_relay_appearances = sum(route_appearances.values()) or 1
@@ -530,6 +551,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
         else:
             mesh_resilience = 1.0
 
+        # ── most-used links ──────────────────────────────────────────────
         top_links = sorted(
             [{"a": k[0], "b": k[1], "count": v} for k,v in link_usage.items()],
             key=lambda x: x["count"], reverse=True
@@ -541,10 +563,12 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             lk["a_name"] = name_map.get(lk["a"], lk["a"])
             lk["b_name"] = name_map.get(lk["b"], lk["b"])
 
+        # ── SNR daily trend (slope over last 7d) ─────────────────────────
         snr_trend_slope = None
         if len(daily_rf) >= 3:
             snr_trend_slope = _linear_trend([d["avg_snr"] for d in daily_rf[-7:]])
 
+        # ── top 5 contributors ───────────────────────────────────────────
         top5  = [{"node_id":n["node_id"],"name":n["name"],"score":n["node_score"],"role":n["inferred_role"]} for n in nodes_out[:5]]
         bottlenecks = sorted(
             [n for n in nodes_out if n["relay_count"] >= 3],
@@ -552,6 +576,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
             reverse=True
         )[:5]
 
+        # ── environmental summary ────────────────────────────────────────
         sensor_nodes = [n for n in nodes_out if n["env_readings"] > 0]
         env_summary = {}
         if sensor_nodes:
@@ -617,6 +642,7 @@ async def _compute_analytics(db, target_ts: float) -> dict:
     return await asyncio.to_thread(_run)
 
 
+# ── routes ─────────────────────────────────────────────────────────────────
 
 @plugin_router.get("/status")
 async def get_status():

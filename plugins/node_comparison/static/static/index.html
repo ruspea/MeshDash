@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Node Comparison</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+    
+    body {
+        font-family: var(--mono);
+        background: var(--bg);
+        color: var(--txt);
+        margin: 0;
+        padding: 16px;
+    }
+    .comp-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; background: var(--bg2); padding: 12px; border-radius: var(--r); border: 1px solid var(--bd2); flex-wrap: wrap; }
+    .node-picker { display: flex; gap: 8px; flex: 1; align-items: center; }
+    .pick-slot { display: flex; align-items: center; gap: 8px; padding: 6px 16px; border-radius: 4px; border: 1px dashed var(--txt3); font-size: 10px; color: var(--txt3); cursor: pointer; transition: all 0.2s; min-width: 140px; background: var(--bg); }
+    .pick-slot:hover { border-color: var(--acc); color: var(--acc); background: rgba(0, 200, 245, 0.05); }
+    .pick-slot.filled { border-style: solid; color: var(--txt); background: var(--bg2); }
+    .pick-slot .remove { margin-left: auto; cursor: pointer; color: var(--txt3); padding: 0 4px; }
+    .pick-slot .remove:hover { color: var(--err); }
+    .node-dropdown { position: absolute; z-index: 100; background: var(--bg2); border: 1px solid var(--bd); border-radius: var(--r); max-height: 350px; overflow-y: auto; min-width: 250px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); display: none; }
+    .node-dropdown.open { display: block; }
+    .dd-item { padding: 10px 16px; cursor: pointer; font-size: 11px; color: var(--txt); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--bd); }
+    .dd-item:hover { background: var(--bg); color: var(--acc); }
+    .dd-item.disabled { opacity: 0.3; pointer-events: none; }
+    .c2-time-btn { background: var(--bg); border: 1px solid var(--bd); color: var(--txt3); padding: 6px 16px; border-radius: 4px; font-size: 10px; cursor: pointer; transition: all 0.2s; }
+    .c2-time-btn.active { background: var(--acc); color: var(--bg); border-color: var(--acc); font-weight: bold; }
+    .comp-grid { display: grid; gap: 16px; padding-bottom: 40px; }
+    .node-col-header { text-align: center; font-size: 12px; font-weight: 800; padding: 12px; background: var(--bg2); border: 1px solid var(--bd); border-radius: var(--r); margin-bottom: 8px; letter-spacing: 1px; }
+    .comp-card { background: var(--bg); border: 1px solid var(--bd); border-radius: var(--r); padding: 16px; min-height: 250px; display: flex; flex-direction: column; }
+    .comp-title { font-size: 10px; color: var(--txt3); margin-bottom: 12px; border-bottom: 1px dashed var(--bd); padding-bottom: 8px; text-transform: uppercase; }
+    .comp-chart { flex: 1; position: relative; min-height: 200px; }
+    .comp-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 100px 20px; color: var(--txt3); text-align: center; font-size: 12px; }
+    input { color: var(--txt); background: var(--bg); outline: none; }
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="vs" style="min-height: 100%; display: flex; flex-direction: column; overflow-y:auto; padding-right:4px;">
+    
+    <div class="comp-toolbar">
+        <div style="font-size:10px; color:var(--acc); font-weight:bold; letter-spacing:1px; margin-right:12px;">TARGETS:</div>
+        <div class="node-picker" id="comp-picker">
+            <div class="pick-slot" id="c-slot-0" onclick="window.C2CompareApp.openPicker(0, this)"><i class="fas fa-plus"></i> NODE ALPHA</div>
+            <div class="pick-slot" id="c-slot-1" onclick="window.C2CompareApp.openPicker(1, this)"><i class="fas fa-plus"></i> NODE BETA</div>
+            <div class="pick-slot" id="c-slot-2" onclick="window.C2CompareApp.openPicker(2, this)"><i class="fas fa-plus"></i> NODE GAMMA</div>
+            <div class="pick-slot" id="c-slot-3" onclick="window.C2CompareApp.openPicker(3, this)"><i class="fas fa-plus"></i> NODE DELTA</div>
+        </div>
+        
+        <div style="margin-left:auto; display:flex; gap:8px;">
+            <button class="c2-time-btn active" data-hours="24">24H</button>
+            <button class="c2-time-btn" data-hours="72">3D</button>
+            <button class="c2-time-btn" data-hours="168">7D</button>
+            <button class="c2-time-btn" data-hours="720">30D</button>
+        </div>
+    </div>
+
+    <div class="node-dropdown" id="comp-dropdown">
+        <input type="text" class="inp mono" id="c-dd-search" placeholder="Filter node ID/name..." style="width:100%; border:none; border-bottom:1px solid var(--bd2); border-radius:0; padding:12px;">
+        <div id="c-dd-list"></div>
+    </div>
+
+    <div id="comp-empty" class="comp-empty">
+        <i class="fas fa-columns fa-3x" style="margin-bottom: 16px; opacity:0.5;"></i>
+        <div>SELECT UP TO 4 NODES FROM THE TOP BAR TO INITIATE CROSS-ANALYSIS</div>
+    </div>
+
+    <div class="comp-grid" id="comp-grid" style="display:none;"></div>
+</div>
+
+<script>
+if (!window.escapeHtml) {
+    window.escapeHtml = function(str) {
+        if(!str) return '';
+        return String(str).replace(/[&<>'"]/g, match => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+        }[match]));
+    };
+}
+
+window.C2CompareApp = {
+    selected: [null, null, null, null],
+    data: [{}, {}, {}, {}], 
+    charts: {},
+    timeHours: 24,
+    pickerIdx: null,
+    nodeCache: {},
+    COLORS: ['#00e87a', '#00c8f5', '#ffa826', '#b060ff'],
+
+    async init() {
+        this.selected = [null, null, null, null];
+        this.data = [{}, {}, {}, {}];
+        await this.fetchNodes();
+        this.setupListeners();
+        this.updateSlots();
+    },
+
+    async fetchNodes() {
+        try {
+            const res = await fetch('/api/nodes');
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                data.forEach(n => this.nodeCache[n.node_id] = n);
+            } else if (typeof data === 'object') {
+                Object.values(data).forEach(n => this.nodeCache[n.node_id] = n);
+            }
+        } catch (e) {
+            if (window.parent?.meshState?.nodes) this.nodeCache = window.parent.meshState.nodes;
+            else if (window.meshState?.nodes) this.nodeCache = window.meshState.nodes;
+        }
+    },
+
+    setupListeners() {
+        const ddSearch = document.getElementById('c-dd-search');
+        if(ddSearch) ddSearch.oninput = (e) => this.renderDropdown(e.target.value);
+
+        document.addEventListener('click', e => {
+            const dd = document.getElementById('comp-dropdown');
+            if (dd && !dd.contains(e.target) && !e.target.closest('.pick-slot')) {
+                dd.classList.remove('open');
+            }
+        });
+
+        const timeBtns = document.querySelectorAll('.c2-time-btn');
+        timeBtns.forEach(btn => {
+            btn.onclick = (e) => {
+                timeBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                this.timeHours = parseInt(e.target.dataset.hours);
+                this.loadAll();
+            };
+        });
+    },
+
+    openPicker(idx, el) {
+        this.pickerIdx = idx;
+        const dd = document.getElementById('comp-dropdown');
+        const rect = el.getBoundingClientRect();
+        
+        dd.style.top = (rect.bottom + 8) + 'px';
+        dd.style.left = rect.left + 'px';
+        dd.classList.add('open');
+        
+        document.getElementById('c-dd-search').value = '';
+        this.renderDropdown('');
+        document.getElementById('c-dd-search').focus();
+    },
+
+    renderDropdown(filter) {
+        const list = document.getElementById('c-dd-list');
+        const f = filter.toLowerCase();
+        
+        const nodes = Object.values(this.nodeCache);
+        nodes.sort((a, b) => (b.lastHeard || 0) - (a.lastHeard || 0));
+        
+        const alreadyPicked = new Set(this.selected.filter(Boolean));
+
+        let html = nodes.filter(n => {
+            const name = (n.user?.longName || n.user?.shortName || n.longName || n.shortName || n.node_id || '').toLowerCase();
+            return !f || name.includes(f) || (n.node_id || '').toLowerCase().includes(f);
+        }).slice(0, 50).map(n => {
+            const name = n.user?.longName || n.user?.shortName || n.longName || n.shortName || n.node_id;
+            const dis = alreadyPicked.has(n.node_id) ? 'disabled' : '';
+            return `<div class="dd-item ${dis}" onclick="window.C2CompareApp.pick('${n.node_id}')">
+                        <span style="font-weight:bold;">${window.escapeHtml(name)}</span> 
+                        <span style="color:var(--txt3);">${n.node_id}</span>
+                    </div>`;
+        }).join('');
+
+        list.innerHTML = html || '<div class="dd-item disabled" style="text-align:center;">NO MATCHES</div>';
+    },
+
+    pick(nodeId) {
+        if (this.pickerIdx == null) return;
+        this.selected[this.pickerIdx] = nodeId;
+        document.getElementById('comp-dropdown').classList.remove('open');
+        this.updateSlots();
+        this.loadAll();
+    },
+
+    remove(idx) {
+        this.selected[idx] = null;
+        this.data[idx] = {};
+        this.updateSlots();
+        this.loadAll();
+    },
+
+    updateSlots() {
+        const labels = ['ALPHA', 'BETA', 'GAMMA', 'DELTA'];
+        
+        for (let i = 0; i < 4; i++) {
+            const slot = document.getElementById(`c-slot-${i}`);
+            if(!slot) continue;
+
+            const nid = this.selected[i];
+            if (nid) {
+                const n = this.nodeCache[nid];
+                const name = n?.user?.shortName || n?.user?.longName || n?.shortName || n?.longName || nid;
+                
+                slot.style.borderColor = this.COLORS[i];
+                slot.classList.add('filled');
+                slot.innerHTML = `
+                    <span style="color:${this.COLORS[i]}; font-weight:bold;">●</span> 
+                    <span style="font-weight:bold;">${window.escapeHtml(name)}</span> 
+                    <span class="remove" onclick="event.stopPropagation(); window.C2CompareApp.remove(${i})">✕</span>
+                `;
+            } else {
+                slot.style.borderColor = '';
+                slot.classList.remove('filled');
+                slot.innerHTML = `<i class="fas fa-plus"></i> NODE ${labels[i]}`;
+            }
+        }
+    },
+
+    async loadAll() {
+        const active = this.selected.filter(Boolean);
+        const emptyState = document.getElementById('comp-empty');
+        const grid = document.getElementById('comp-grid');
+
+        if (active.length < 1) {
+            emptyState.style.display = 'flex';
+            grid.style.display = 'none';
+            return;
+        }
+        
+        emptyState.style.display = 'none';
+        grid.style.display = 'grid';
+
+        let q = 'limit=3000';
+        if (this.timeHours > 0) q += `&start=${(Date.now() / 1000) - (this.timeHours * 3600)}`;
+
+        await Promise.all(this.selected.map(async (nid, i) => {
+            if (!nid) { this.data[i] = {}; return; }
+            try {
+                const [t, p, k] = await Promise.all([
+                    fetch(`/api/nodes/${nid}/history/telemetry?${q}`).then(r => r.json()),
+                    fetch(`/api/nodes/${nid}/history/positions?${q}`).then(r => r.json()),
+                    fetch(`/api/nodes/${nid}/history/packets?${q}`).then(r => r.json())
+                ]);
+                this.data[i] = { 
+                    t: Array.isArray(t) ? t.reverse() : [], 
+                    p: Array.isArray(p) ? p.reverse() : [], 
+                    k: Array.isArray(k) ? k.reverse() : [] 
+                };
+            } catch { this.data[i] = { t: [], p: [], k: [] }; }
+        }));
+
+        this.renderCharts();
+    },
+
+    renderCharts() {
+        const tText = '#b8c8d8';
+        const tGrid = '#284058';
+        Chart.defaults.color = tText;
+
+        const grid = document.getElementById('comp-grid');
+        const activeIdxs = [0, 1, 2, 3].filter(i => this.selected[i]);
+        
+        grid.style.gridTemplateColumns = `repeat(${activeIdxs.length}, 1fr)`;
+        
+        Object.values(this.charts).forEach(c => c.destroy());
+        this.charts = {};
+
+        const metrics = [
+            { id: 'bat', title: 'BATTERY LEVEL (%)', icon: 'fa-battery-full', type: 't', key: 'battery_level', label: '%' },
+            { id: 'volt', title: 'VOLTAGE (V)', icon: 'fa-bolt', type: 't', key: 'voltage', label: 'Volts' },
+            { id: 'snr', title: 'SIGNAL NOISE RATIO (DB)', icon: 'fa-signal', type: 'k', key: 'rx_snr', label: 'SNR' },
+            { id: 'rssi', title: 'RSSI (DBM)', icon: 'fa-wave-square', type: 'k', key: 'rx_rssi', label: 'RSSI', filter: p => p.rx_rssi !== 0 },
+            { id: 'util', title: 'CHANNEL UTILIZATION (%)', icon: 'fa-network-wired', type: 't', key: 'channel_utilization', label: '%' },
+            { id: 'temp', title: 'TEMPERATURE (°C)', icon: 'fa-temperature-high', type: 't', key: 'temperature', label: '°C' },
+            { id: 'alt', title: 'ALTITUDE (METRES)', icon: 'fa-mountain', type: 'p', key: 'altitude', label: 'Metres' }
+        ];
+
+        let html = '';
+
+        activeIdxs.forEach(i => {
+            const n = this.nodeCache[this.selected[i]];
+            const name = n?.user?.longName || n?.user?.shortName || n?.longName || n?.shortName || this.selected[i];
+            html += `<div class="node-col-header" style="color:${this.COLORS[i]}; border-color:${this.COLORS[i]}">${window.escapeHtml(name).toUpperCase()}</div>`;
+        });
+
+        metrics.forEach(m => {
+            let gMin = Infinity;
+            let gMax = -Infinity;
+            let hasAnyData = false;
+
+            m.datasets = activeIdxs.map(i => {
+                const rawData = this.data[i]?.[m.type];
+                if (!rawData || !Array.isArray(rawData)) return null;
+
+                let filtered = rawData.filter(r => r[m.key] != null);
+                if (m.filter) filtered = filtered.filter(m.filter);
+
+                const parsedData = filtered.map(r => {
+                    const y = r[m.key];
+                    if (y < gMin) gMin = y;
+                    if (y > gMax) gMax = y;
+                    return { x: r.timestamp * 1000, y };
+                });
+
+                if (parsedData.length > 0) hasAnyData = true;
+                return { origIdx: i, data: parsedData };
+            });
+
+            m.hasAnyData = hasAnyData;
+
+            if (m.id === 'bat') { gMin = 0; gMax = 100; }
+            else if (m.id === 'util') { gMin = 0; gMax = Math.max(100, gMax); }
+            else if (gMin !== Infinity) {
+                const diff = gMax - gMin;
+                const pad = diff === 0 ? 1 : diff * 0.1;
+                gMin -= pad; gMax += pad;
+            }
+            m.yMin = gMin;
+            m.yMax = gMax;
+
+            if (hasAnyData) {
+                activeIdxs.forEach(i => {
+                    html += `<div class="comp-card">
+                                <div class="comp-title"><i class="fas ${m.icon}"></i> ${m.title}</div>
+                                <div class="comp-chart"><canvas id="c-chart-${m.id}-${i}"></canvas></div>
+                             </div>`;
+                });
+            }
+        });
+
+        grid.innerHTML = html;
+
+        metrics.forEach(m => {
+            if (!m.hasAnyData) return;
+            
+            m.datasets.forEach(dsInfo => {
+                if (!dsInfo) return;
+                const canvasId = `c-chart-${m.id}-${dsInfo.origIdx}`;
+                const ctxElement = document.getElementById(canvasId);
+                if (!ctxElement) return;
+
+                const ds = {
+                    label: m.label,
+                    data: dsInfo.data,
+                    borderColor: this.COLORS[dsInfo.origIdx],
+                    backgroundColor: this.COLORS[dsInfo.origIdx] + '18',
+                    borderWidth: 2, pointRadius: 0, pointHitRadius: 8, tension: 0.3
+                };
+
+                this.charts[canvasId] = new Chart(ctxElement.getContext('2d'), {
+                    type: 'line',
+                    data: { datasets: [ds] },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        plugins: { legend: { display: false } }, 
+                        scales: {
+                            x: { type: 'time', grid: { color: tGrid }, ticks: { color: tText, font: { size: 9 } } },
+                            y: {
+                                grid: { color: tGrid },
+                                ticks: { color: tText },
+                                min: m.yMin, max: m.yMax
+                            }
+                        }
+                    }
+                });
+            });
+        });
+    }
+};
+
+window.C2CompareApp.init();
+</script>
+</body>
+</html>

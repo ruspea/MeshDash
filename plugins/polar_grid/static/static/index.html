@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Polar Grid Settings</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<link rel="stylesheet" href="/static/css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:12px;}
+.shell{height:100%;display:flex;flex-direction:column;overflow:hidden;}
+.top{flex-shrink:0;padding:12px 14px 10px;border-bottom:1px solid var(--bd2);background:var(--bg);}
+.scroll{flex:1;overflow-y:auto;padding:12px 14px 20px;}
+.scroll::-webkit-scrollbar{width:4px;}
+.scroll::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px;}
+
+.ph{display:flex;align-items:center;gap:10px;margin-bottom:0;}
+.ph-ico{font-size:18px;color:var(--acc);}
+.ph-title{font-size:14px;font-family:var(--mono);letter-spacing:1px;}
+.ph-sub{font-size:9px;color:var(--txt3);font-family:var(--mono);}
+
+.section{margin-bottom:14px;}
+.section-title{font-family:var(--mono);font-size:9px;letter-spacing:2px;color:var(--acc);padding:4px 0 4px 6px;border-left:2px solid var(--acc);background:rgba(0,200,245,.04);margin-bottom:8px;}
+
+.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;}
+.lbl{font-family:var(--mono);font-size:10px;color:var(--txt3);min-width:120px;letter-spacing:.4px;}
+.hlp{font-size:9px;color:var(--txt3);font-family:var(--mono);margin-top:3px;}
+
+/* Toggle */
+.tog{position:relative;width:36px;height:18px;flex-shrink:0;}
+.tog input{opacity:0;width:0;height:0;position:absolute;}
+.tog-sl{position:absolute;inset:0;background:var(--bd2);border-radius:9px;cursor:pointer;transition:background .2s;}
+.tog-sl::after{content:'';position:absolute;width:12px;height:12px;left:3px;top:3px;background:var(--txt3);border-radius:50%;transition:all .2s;}
+.tog input:checked+.tog-sl{background:var(--acc);}
+.tog input:checked+.tog-sl::after{transform:translateX(18px);background:#000;}
+.tog-lbl{font-family:var(--mono);font-size:10px;font-weight:bold;min-width:22px;}
+
+/* Segment control */
+.seg{display:flex;gap:0;border:1px solid var(--bd2);border-radius:4px;overflow:hidden;}
+.seg-btn{flex:1;padding:4px 10px;font-family:var(--mono);font-size:9px;color:var(--txt3);background:var(--bg3);border:none;cursor:pointer;transition:.12s;text-align:center;}
+.seg-btn:hover{color:var(--txt);}
+.seg-btn.active{background:var(--acc);color:#000;font-weight:bold;}
+
+/* Ring chips */
+.ring-chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+.ring-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;background:var(--bg3);border:1px solid var(--bd2);border-radius:3px;font-family:var(--mono);font-size:10px;color:var(--txt2);}
+.ring-chip button{background:none;border:none;color:var(--txt3);cursor:pointer;font-size:10px;padding:0;line-height:1;}
+.ring-chip button:hover{color:var(--err);}
+.ring-add{display:flex;gap:6px;align-items:center;margin-top:6px;}
+.ring-add input{width:80px;padding:3px 7px;font-size:10px;font-family:var(--mono);}
+
+/* Colour input */
+.color-wrap{display:flex;align-items:center;gap:8px;}
+.color-wrap input[type=color]{width:34px;height:28px;padding:2px;border:1px solid var(--bd2);border-radius:4px;background:var(--bg3);cursor:pointer;}
+.color-wrap .color-hex{width:80px;font-size:10px;font-family:var(--mono);}
+
+/* Slider */
+.slider-wrap{display:flex;align-items:center;gap:8px;}
+input[type=range]{-webkit-appearance:none;height:4px;background:var(--bd2);border-radius:2px;outline:none;cursor:pointer;flex:1;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;background:var(--acc);border-radius:50%;cursor:pointer;}
+.slider-val{font-family:var(--mono);font-size:10px;color:var(--txt2);min-width:32px;text-align:right;}
+
+/* Preview */
+#preview-wrap{position:relative;height:180px;background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);overflow:hidden;margin-bottom:12px;}
+#preview-canvas{position:absolute;inset:0;}
+
+/* Status badge */
+.status-pill{font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:3px;margin-left:auto;}
+.status-on{background:rgba(0,200,245,.1);border:1px solid var(--acc);color:var(--acc);}
+.status-off{background:var(--bg3);border:1px solid var(--bd2);color:var(--txt3);}
+
+.spin{animation:pg-spin .7s linear infinite;display:inline-block;}
+@keyframes pg-spin{to{transform:rotate(360deg);}}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+<div class="shell">
+<div class="top">
+  <div class="plugin-header">
+            <span class="ph-ico">⊙</span>
+            <div>
+                <div class="ph-title">POLAR GRID</div>
+                <div class="ph-sub">by MeshDash</div>
+            </div>
+        </div>
+    <span id="status-pill" class="status-pill status-off">DISABLED</span>
+  </div>
+
+<div class="scroll">
+
+<div class="section">
+  <div class="section-title">OVERLAY CONTROL</div>
+  <div class="row">
+    <span class="lbl">ENABLE OVERLAY</span>
+    <label class="tog"><input type="checkbox" id="pg-enabled"><span class="tog-sl"></span></label>
+    <span class="tog-lbl" id="pg-enabled-lbl" style="color:var(--txt3);">OFF</span>
+    <span style="font-size:9px;color:var(--txt3);font-family:var(--mono);">Toggle from the Map view toolbar button or here</span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">LOCATION FALLBACK</div>
+  <div class="hlp" style="margin-bottom:8px;">If your radio lacks a GPS fix, the grid will centre on these coordinates.</div>
+  
+  <div class="row">
+    <span class="lbl">LATITUDE</span>
+    <input type="number" id="manual-lat" class="inp" placeholder="e.g. 51.5074" step="any" style="width:140px;font-family:var(--mono);font-size:10px;padding:3px 7px;">
+  </div>
+  <div class="row">
+    <span class="lbl">LONGITUDE</span>
+    <input type="number" id="manual-lon" class="inp" placeholder="e.g. -0.1278" step="any" style="width:140px;font-family:var(--mono);font-size:10px;padding:3px 7px;">
+  </div>
+  <div class="row" style="margin-top:8px;">
+    <button class="btn btn-sm" id="detect-loc-btn"><i class="fas fa-map-marker-alt" style="color:var(--acc);"></i> DETECT BROWSER LOCATION</button>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">UNITS &amp; RINGS</div>
+  <div class="row">
+    <span class="lbl">DISTANCE UNIT</span>
+    <div class="seg" id="unit-seg">
+      <button class="seg-btn active" data-val="km">KM</button>
+      <button class="seg-btn" data-val="mi">MI</button>
+      <button class="seg-btn" data-val="nm">NM</button>
+    </div>
+    <span style="font-size:9px;color:var(--txt3);font-family:var(--mono);">km · statute miles · nautical miles</span>
+  </div>
+
+  <div class="row" style="flex-direction:column;align-items:flex-start;">
+    <span class="lbl" style="margin-bottom:6px;">RING DISTANCES</span>
+    <div class="ring-chips" id="ring-chips"></div>
+    <div class="ring-add">
+      <input type="number" id="ring-add-val" class="inp" placeholder="Add distance" min="0.1" step="0.1">
+      <span style="font-size:10px;color:var(--txt3);font-family:var(--mono);" id="ring-add-unit">km</span>
+      <button class="btn btn-sm btn-acc" id="ring-add-btn"><i class="fas fa-plus"></i> ADD</button>
+    </div>
+    <div class="hlp">Click × on a ring to remove it. Rings are sorted automatically.</div>
+  </div>
+
+  <div class="row">
+    <span class="lbl">AZIMUTH LINES</span>
+    <div class="seg" id="az-seg">
+      <button class="seg-btn" data-val="0">NONE</button>
+      <button class="seg-btn" data-val="4">4 (90°)</button>
+      <button class="seg-btn active" data-val="12">12 (30°)</button>
+      <button class="seg-btn" data-val="36">36 (10°)</button>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">STYLE</div>
+
+  <div class="row">
+    <span class="lbl">RING COLOUR</span>
+    <div class="color-wrap">
+      <input type="color" id="ring-color" value="var(--acc)">
+      <input type="text"  id="ring-color-hex" class="inp color-hex" value="var(--acc)" maxlength="7">
+    </div>
+  </div>
+
+  <div class="row">
+    <span class="lbl">RING OPACITY</span>
+    <div class="slider-wrap" style="flex:1;max-width:260px;">
+      <input type="range" id="ring-opacity" min="0.05" max="1" step="0.05" value="0.45">
+      <span class="slider-val" id="ring-opacity-val">0.45</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <span class="lbl">RING WIDTH</span>
+    <div class="slider-wrap" style="flex:1;max-width:260px;">
+      <input type="range" id="ring-weight" min="0.5" max="6" step="0.5" value="1.5">
+      <span class="slider-val" id="ring-weight-val">1.5 px</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <span class="lbl">AZIMUTH COLOUR</span>
+    <div class="color-wrap">
+      <input type="color" id="az-color" value="var(--warn)">
+      <input type="text"  id="az-color-hex" class="inp color-hex" value="var(--warn)" maxlength="7">
+    </div>
+  </div>
+
+  <div class="row">
+    <span class="lbl">AZIMUTH OPACITY</span>
+    <div class="slider-wrap" style="flex:1;max-width:260px;">
+      <input type="range" id="az-opacity" min="0.05" max="1" step="0.05" value="0.35">
+      <span class="slider-val" id="az-opacity-val">0.35</span>
+    </div>
+  </div>
+
+  <div class="row">
+    <span class="lbl">AZIMUTH WIDTH</span>
+    <div class="slider-wrap" style="flex:1;max-width:260px;">
+      <input type="range" id="az-weight" min="0.5" max="4" step="0.5" value="1.0">
+      <span class="slider-val" id="az-weight-val">1.0 px</span>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">OPTIONS</div>
+  <div class="row">
+    <span class="lbl">LABEL RINGS</span>
+    <label class="tog"><input type="checkbox" id="pg-label-rings" checked><span class="tog-sl"></span></label>
+    <span style="font-size:9px;color:var(--txt3);font-family:var(--mono);">Show distance at top of each ring</span>
+  </div>
+  <div class="row">
+    <span class="lbl">FILL BANDS</span>
+    <label class="tog"><input type="checkbox" id="pg-fill-bands" checked><span class="tog-sl"></span></label>
+    <span style="font-size:9px;color:var(--txt3);font-family:var(--mono);">Alternating subtle fill between rings</span>
+  </div>
+  <div class="row">
+    <span class="lbl">CARDINAL LABELS</span>
+    <label class="tog"><input type="checkbox" id="pg-show-cardinal" checked><span class="tog-sl"></span></label>
+    <span style="font-size:9px;color:var(--txt3);font-family:var(--mono);">N / NE / E / SE etc. beyond outermost ring</span>
+  </div>
+  <div class="row">
+    <span class="lbl">MINIMISE NODES</span>
+    <label class="tog"><input type="checkbox" id="pg-mini-nodes"><span class="tog-sl"></span></label>
+    <span style="font-size:9px;color:var(--txt3);font-family:var(--mono);">Shrink map markers to declutter the grid</span>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-title">PREVIEW</div>
+  <div id="preview-wrap">
+    <canvas id="preview-canvas"></canvas>
+  </div>
+  <div class="hlp" style="margin-top:-6px;">Live preview of current style settings</div>
+</div>
+
+<div style="display:flex;gap:10px;align-items:center;padding-top:4px;">
+  <button class="btn btn-acc" id="save-btn"><i class="fas fa-save"></i> SAVE &amp; APPLY</button>
+  <button class="btn btn-sm" id="reset-btn"><i class="fas fa-undo"></i> RESET DEFAULTS</button>
+  <span id="save-msg" style="font-family:var(--mono);font-size:9px;color:var(--txt3);margin-left:4px;"></span>
+</div>
+
+</div>
+</div>
+
+<script>
+'use strict';
+
+var CONFIG_URL = '/api/plugins/polar_grid/config';
+
+var _cfg = {
+    enabled: false, unit: 'km',
+    rings: [1, 2, 5, 10, 25, 50], azimuths: 12,
+    ring_color: 'var(--acc)', azimuth_color: 'var(--warn)',
+    ring_opacity: 0.45, azimuth_opacity: 0.35,
+    ring_weight: 1.5, azimuth_weight: 1.0,
+    label_rings: true, fill_bands: true, show_cardinal: true,
+    manual_lat: null, manual_lon: null, minimise_nodes: false
+};
+
+var DEFAULTS = JSON.parse(JSON.stringify(_cfg));
+
+/* ── Load config ── */
+async function loadConfig() {
+    try {
+        var r = await fetch(CONFIG_URL, { credentials: 'include', cache: 'no-store' });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        var d = await r.json();
+        Object.assign(_cfg, d);
+        applyToUI();
+    } catch(e) {
+        document.getElementById('save-msg').textContent = 'Load failed: ' + e.message;
+        document.getElementById('save-msg').style.color = 'var(--err)';
+    }
+}
+
+/* ── Save config ── */
+async function saveConfig() {
+    readFromUI();
+    var btn = document.getElementById('save-btn');
+    var msg = document.getElementById('save-msg');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-circle-notch spin"></i> SAVING...';
+    try {
+        var r = await fetch(CONFIG_URL, {
+            method: 'POST', credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(_cfg),
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        msg.textContent = '✓ Saved';
+        msg.style.color = 'var(--ok)';
+        toast('Polar Grid settings saved.', 'ok');
+        setTimeout(function() { msg.textContent = ''; }, 3000);
+    } catch(e) {
+        msg.textContent = '✗ ' + e.message;
+        msg.style.color = 'var(--err)';
+        toast('Save failed: ' + e.message, 'err');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save"></i> SAVE &amp; APPLY';
+    }
+}
+
+function toast(msg, type) {
+    try { window.parent.triggerToast(msg, type || 'acc'); } catch(e) {}
+}
+
+/* ── Apply config → UI ── */
+function applyToUI() {
+    setToggle('pg-enabled',       _cfg.enabled);
+    setToggle('pg-label-rings',   _cfg.label_rings);
+    setToggle('pg-fill-bands',    _cfg.fill_bands);
+    setToggle('pg-show-cardinal', _cfg.show_cardinal);
+    setToggle('pg-mini-nodes',    _cfg.minimise_nodes);
+    setSegment('unit-seg',  _cfg.unit);
+    setSegment('az-seg',    String(_cfg.azimuths));
+    setColor('ring-color', 'ring-color-hex', _cfg.ring_color);
+    setColor('az-color',   'az-color-hex',   _cfg.azimuth_color);
+    setSlider('ring-opacity', 'ring-opacity-val', _cfg.ring_opacity, function(v){ return v; });
+    setSlider('ring-weight',  'ring-weight-val',  _cfg.ring_weight,  function(v){ return v + ' px'; });
+    setSlider('az-opacity',   'az-opacity-val',   _cfg.azimuth_opacity, function(v){ return v; });
+    setSlider('az-weight',    'az-weight-val',    _cfg.azimuth_weight,  function(v){ return v + ' px'; });
+    
+    document.getElementById('manual-lat').value = _cfg.manual_lat != null ? _cfg.manual_lat : '';
+    document.getElementById('manual-lon').value = _cfg.manual_lon != null ? _cfg.manual_lon : '';
+    
+    renderRingChips();
+    updateUnitLabels();
+    updateStatusPill();
+    drawPreview();
+}
+
+/* ── Read UI → config ── */
+function readFromUI() {
+    _cfg.enabled         = document.getElementById('pg-enabled').checked;
+    _cfg.label_rings     = document.getElementById('pg-label-rings').checked;
+    _cfg.fill_bands      = document.getElementById('pg-fill-bands').checked;
+    _cfg.show_cardinal   = document.getElementById('pg-show-cardinal').checked;
+    _cfg.minimise_nodes  = document.getElementById('pg-mini-nodes').checked;
+    _cfg.ring_color      = document.getElementById('ring-color-hex').value;
+    _cfg.azimuth_color   = document.getElementById('az-color-hex').value;
+    _cfg.ring_opacity    = parseFloat(document.getElementById('ring-opacity').value);
+    _cfg.azimuth_opacity = parseFloat(document.getElementById('az-opacity').value);
+    _cfg.ring_weight     = parseFloat(document.getElementById('ring-weight').value);
+    _cfg.azimuth_weight  = parseFloat(document.getElementById('az-weight').value);
+    
+    var mLat = document.getElementById('manual-lat').value;
+    var mLon = document.getElementById('manual-lon').value;
+    _cfg.manual_lat = mLat !== '' ? parseFloat(mLat) : null;
+    _cfg.manual_lon = mLon !== '' ? parseFloat(mLon) : null;
+    
+    _cfg.rings = _cfg.rings.slice().sort(function(a,b){return a-b;});
+}
+
+/* ── Browser Geolocation ── */
+function detectLocation() {
+    var btn = document.getElementById('detect-loc-btn');
+    btn.innerHTML = '<i class="fas fa-circle-notch spin"></i> DETECTING...';
+    btn.disabled = true;
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            function(pos) {
+                document.getElementById('manual-lat').value = pos.coords.latitude.toFixed(6);
+                document.getElementById('manual-lon').value = pos.coords.longitude.toFixed(6);
+                btn.innerHTML = '<i class="fas fa-check"></i> LOCATION ACQUIRED';
+                setTimeout(function() { 
+                    btn.innerHTML = '<i class="fas fa-map-marker-alt" style="color:var(--acc);"></i> DETECT BROWSER LOCATION'; 
+                    btn.disabled = false; 
+                }, 2000);
+            },
+            function(err) {
+                toast('Geolocation failed: ' + err.message, 'err');
+                btn.innerHTML = '<i class="fas fa-times"></i> FAILED';
+                setTimeout(function() { 
+                    btn.innerHTML = '<i class="fas fa-map-marker-alt" style="color:var(--acc);"></i> DETECT BROWSER LOCATION'; 
+                    btn.disabled = false; 
+                }, 2000);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    } else {
+        toast('Geolocation not supported by this browser', 'err');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-map-marker-alt" style="color:var(--acc);"></i> DETECT BROWSER LOCATION';
+    }
+}
+
+/* ── UI helpers ── */
+function setToggle(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.checked = !!val;
+    var lbl = document.getElementById(id + '-lbl');
+    if (lbl) { lbl.textContent = val ? 'ON' : 'OFF'; lbl.style.color = val ? 'var(--ok)' : 'var(--txt3)'; }
+}
+
+function setSegment(groupId, val) {
+    document.querySelectorAll('#' + groupId + ' .seg-btn').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.val === String(val));
+    });
+}
+
+function setColor(colorId, hexId, val) {
+    var c = document.getElementById(colorId), h = document.getElementById(hexId);
+    if (c) c.value = val;
+    if (h) h.value = val;
+}
+
+function setSlider(sliderId, valId, val, fmt) {
+    var s = document.getElementById(sliderId), v = document.getElementById(valId);
+    if (s) s.value = val;
+    if (v) v.textContent = fmt(val);
+}
+
+function updateStatusPill() {
+    var p = document.getElementById('status-pill');
+    if (!p) return;
+    p.textContent = _cfg.enabled ? 'ACTIVE' : 'DISABLED';
+    p.className   = 'status-pill ' + (_cfg.enabled ? 'status-on' : 'status-off');
+}
+
+function updateUnitLabels() {
+    var lbl = { km: 'km', mi: 'mi', nm: 'NM' }[_cfg.unit] || 'km';
+    document.getElementById('ring-add-unit').textContent = lbl;
+}
+
+/* ── Ring chips ── */
+function renderRingChips() {
+    var wrap = document.getElementById('ring-chips');
+    wrap.innerHTML = '';
+    var sorted = _cfg.rings.slice().sort(function(a,b){return a-b;});
+    var lbl = { km: 'km', mi: 'mi', nm: 'NM' }[_cfg.unit] || 'km';
+    sorted.forEach(function(v) {
+        var chip = document.createElement('span');
+        chip.className = 'ring-chip';
+        chip.innerHTML = v + ' ' + lbl + ' <button title="Remove">×</button>';
+        chip.querySelector('button').addEventListener('click', function() {
+            _cfg.rings = _cfg.rings.filter(function(r){ return r !== v; });
+            renderRingChips();
+            drawPreview();
+        });
+        wrap.appendChild(chip);
+    });
+    _cfg.rings = sorted;
+}
+
+/* ── Canvas preview ── */
+function drawPreview() {
+    var canvas = document.getElementById('preview-canvas');
+    var wrap   = document.getElementById('preview-wrap');
+    if (!canvas || !wrap) return;
+    canvas.width  = wrap.offsetWidth;
+    canvas.height = wrap.offsetHeight;
+    var ctx  = canvas.getContext('2d');
+    var cx   = canvas.width  / 2;
+    var cy   = canvas.height / 2;
+    var maxR = Math.min(cx, cy) * 0.85;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    var sorted = (_cfg.rings || []).slice().sort(function(a,b){return a-b;});
+    var maxVal = sorted[sorted.length-1] || 1;
+
+    /* Azimuth lines */
+    var azCount = parseInt(_cfg.azimuths) || 0;
+    if (azCount > 0) {
+        ctx.strokeStyle = _cfg.azimuth_color;
+        ctx.globalAlpha = _cfg.azimuth_opacity;
+        ctx.lineWidth   = parseFloat(_cfg.azimuth_weight);
+        ctx.setLineDash([3, 5]);
+        for (var i = 0; i < azCount; i++) {
+            var angle = (i * 2 * Math.PI / azCount) - Math.PI/2;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(angle) * maxR * 1.05, cy + Math.sin(angle) * maxR * 1.05);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+    }
+
+    /* Rings */
+    sorted.forEach(function(v, idx) {
+        var r = (v / maxVal) * maxR;
+
+        if (_cfg.fill_bands && idx % 2 === 1) {
+            var innerR = idx > 0 ? (sorted[idx-1] / maxVal) * maxR : 0;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI*2);
+            ctx.arc(cx, cy, innerR, 0, Math.PI*2, true);
+            ctx.fillStyle = _cfg.ring_color;
+            ctx.globalAlpha = 0.06;
+            ctx.fill();
+        }
+
+        ctx.strokeStyle = _cfg.ring_color;
+        ctx.globalAlpha = _cfg.ring_opacity;
+        ctx.lineWidth   = parseFloat(_cfg.ring_weight);
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI*2);
+        ctx.stroke();
+
+        if (_cfg.label_rings) {
+            ctx.globalAlpha = 0.85;
+            ctx.fillStyle   = _cfg.ring_color;
+            ctx.font        = '8px monospace';
+            ctx.textAlign   = 'center';
+            var lbl = { km:'km', mi:'mi', nm:'NM' }[_cfg.unit] || 'km';
+            ctx.fillText(v + lbl, cx, cy - r + 10);
+        }
+    });
+
+    /* Cardinal labels */
+    if (_cfg.show_cardinal && azCount > 0) {
+        var cards = ['N','E','S','W'];
+        var cAngles = [-Math.PI/2, 0, Math.PI/2, Math.PI];
+        ctx.fillStyle   = _cfg.azimuth_color;
+        ctx.font        = 'bold 9px monospace';
+        ctx.textAlign   = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.globalAlpha = 0.8;
+        cAngles.forEach(function(a, i) {
+            var cr = maxR * 1.12;
+            ctx.fillText(cards[i], cx + Math.cos(a)*cr, cy + Math.sin(a)*cr);
+        });
+    }
+
+    /* Centre cross */
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = _cfg.ring_color;
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx-6, cy); ctx.lineTo(cx+6, cy);
+    ctx.moveTo(cx, cy-6); ctx.lineTo(cx, cy+6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, 3, 0, Math.PI*2);
+    ctx.fillStyle = _cfg.ring_color;
+    ctx.fill();
+
+    ctx.globalAlpha = 1;
+    ctx.textBaseline = 'alphabetic';
+}
+
+/* ── Wire all events ── */
+function _init() {
+    console.log('[Polar Grid] _init starting, readyState=' + document.readyState);
+
+    /* Detect Location Button */
+    document.getElementById('detect-loc-btn').addEventListener('click', detectLocation);
+
+    /* Enable toggle */
+    document.getElementById('pg-enabled').addEventListener('change', function() {
+        _cfg.enabled = this.checked;
+        var lbl = document.getElementById('pg-enabled-lbl');
+        if (lbl) { lbl.textContent = _cfg.enabled ? 'ON' : 'OFF'; lbl.style.color = _cfg.enabled ? 'var(--ok)' : 'var(--txt3)'; }
+        updateStatusPill();
+    });
+
+    /* Option toggles */
+    ['pg-label-rings','pg-fill-bands','pg-show-cardinal', 'pg-mini-nodes'].forEach(function(id) {
+        document.getElementById(id).addEventListener('change', function() { drawPreview(); });
+    });
+
+    /* Unit segment */
+    document.getElementById('unit-seg').addEventListener('click', function(e) {
+        var b = e.target.closest('.seg-btn');
+        if (!b) return;
+        _cfg.unit = b.dataset.val;
+        setSegment('unit-seg', _cfg.unit);
+        updateUnitLabels();
+        renderRingChips();
+    });
+
+    /* Azimuth segment */
+    document.getElementById('az-seg').addEventListener('click', function(e) {
+        var b = e.target.closest('.seg-btn');
+        if (!b) return;
+        _cfg.azimuths = parseInt(b.dataset.val);
+        setSegment('az-seg', b.dataset.val);
+        drawPreview();
+    });
+
+    /* Colour pickers */
+    function wireColor(colorId, hexId, key) {
+        var cp = document.getElementById(colorId);
+        var hx = document.getElementById(hexId);
+        cp.addEventListener('input', function() {
+            hx.value  = cp.value;
+            _cfg[key] = cp.value;
+            drawPreview();
+        });
+        hx.addEventListener('change', function() {
+            if (/^#[0-9a-fA-F]{6}$/.test(hx.value)) {
+                cp.value  = hx.value;
+                _cfg[key] = hx.value;
+                drawPreview();
+            }
+        });
+    }
+    wireColor('ring-color', 'ring-color-hex', 'ring_color');
+    wireColor('az-color',   'az-color-hex',   'azimuth_color');
+
+    /* Sliders */
+    function wireSlider(id, valId, key, fmt) {
+        document.getElementById(id).addEventListener('input', function() {
+            var v = parseFloat(this.value);
+            _cfg[key] = v;
+            document.getElementById(valId).textContent = fmt(v);
+            drawPreview();
+        });
+    }
+    wireSlider('ring-opacity', 'ring-opacity-val', 'ring_opacity',    function(v){ return v; });
+    wireSlider('ring-weight',  'ring-weight-val',  'ring_weight',     function(v){ return v + ' px'; });
+    wireSlider('az-opacity',   'az-opacity-val',   'azimuth_opacity', function(v){ return v; });
+    wireSlider('az-weight',    'az-weight-val',    'azimuth_weight',  function(v){ return v + ' px'; });
+
+    /* Ring add */
+    document.getElementById('ring-add-btn').addEventListener('click', function() {
+        var v = parseFloat(document.getElementById('ring-add-val').value);
+        if (!v || v <= 0) return;
+        if (!_cfg.rings.includes(v)) {
+            _cfg.rings.push(v);
+            _cfg.rings.sort(function(a,b){return a-b;});
+        }
+        document.getElementById('ring-add-val').value = '';
+        renderRingChips();
+        drawPreview();
+    });
+
+    document.getElementById('ring-add-val').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') document.getElementById('ring-add-btn').click();
+    });
+
+    /* Save / reset */
+    document.getElementById('save-btn').addEventListener('click', saveConfig);
+    document.getElementById('reset-btn').addEventListener('click', function() {
+        Object.assign(_cfg, JSON.parse(JSON.stringify(DEFAULTS)));
+        applyToUI();
+        toast('Polar Grid reset to defaults.', 'warn');
+    });
+
+    loadConfig().then(function() {
+        console.log('[Polar Grid] loadConfig complete');
+    }).catch(function(e) {
+        console.error('[Polar Grid] loadConfig failed:', e);
+    });
+}
+
+console.log('[Polar Grid] readyState=' + document.readyState);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _init);
+} else {
+    _init();
+}
+</script>
+</body>
+</html>

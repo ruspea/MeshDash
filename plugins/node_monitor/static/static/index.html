@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Node Monitor</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg)}
+body{font-family:var(--mono);color:var(--txt);font-size:12px;display:flex;flex-direction:column;overflow:hidden}
+
+/* Top bar */
+.topbar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--bg2);border-bottom:1px solid var(--bd2);flex-shrink:0;flex-wrap:wrap;min-height:46px}
+.logo{font-family:var(--sans);font-size:14px;font-weight:800;color:var(--acc);letter-spacing:.06em;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.logo i{font-size:16px}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctrl{background:var(--bg3);color:var(--txt);border:1px solid var(--bd2);border-radius:var(--r);padding:4px 9px;font-family:var(--mono);font-size:11px;cursor:pointer;height:28px}
+.ctrl:hover,.ctrl:focus{outline:none;border-color:var(--acc)}
+.btn{display:inline-flex;align-items:center;gap:5px;background:var(--bg3);color:var(--txt);border:1px solid var(--bd2);border-radius:var(--r);padding:4px 12px;font-family:var(--mono);font-size:11px;cursor:pointer;height:28px;white-space:nowrap;transition:border-color .12s,color .12s}
+.btn:hover{border-color:var(--acc);color:var(--acc)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-acc{background:rgba(0,200,240,.1);border-color:rgba(0,200,240,.3);color:var(--acc)}
+.btn-acc:hover{background:rgba(0,200,240,.2);border-color:var(--acc)}
+.btn-ok{background:rgba(26,232,122,.1);border-color:rgba(26,232,122,.3);color:var(--ok)}
+.btn-ok:hover{background:rgba(26,232,122,.2);border-color:var(--ok)}
+.btn-err{background:rgba(240,72,72,.1);border-color:rgba(240,72,72,.3);color:var(--err)}
+.btn-err:hover{background:rgba(240,72,72,.2);border-color:var(--err)}
+.btn-sm{padding:3px 8px;height:24px;font-size:10px}
+
+.status-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:10px;font-size:9px;font-weight:700;letter-spacing:.5px;border:1px solid rgba(26,232,122,.3);background:rgba(26,232,122,.06);color:var(--ok)}
+.chip-dot{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pulse 1.5s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
+
+/* Main layout */
+.main-wrap{flex:1;display:grid;grid-template-columns:280px 1fr;gap:0;overflow:hidden}
+@media(max-width:800px){.main-wrap{grid-template-columns:1fr}}
+
+/* Sidebar */
+.sidebar{background:var(--bg2);border-right:1px solid var(--bd2);display:flex;flex-direction:column;overflow:hidden}
+.sidebar-hdr{padding:12px 14px;border-bottom:1px solid var(--bd);font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--acc);text-transform:uppercase}
+.sidebar-filter{padding:10px;border-bottom:1px solid var(--bd)}
+.sidebar-filter input{width:100%;background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);padding:6px 10px;color:var(--txt);font-family:var(--mono);font-size:11px}
+.sidebar-filter input:focus{outline:none;border-color:var(--acc)}
+.node-list{flex:1;overflow-y:auto;background:var(--bg)}
+.node-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--bd);cursor:pointer;transition:background .1s}
+.node-item:hover{background:var(--bg3)}
+.node-item.active{background:var(--bg3);border-left:3px solid var(--acc)}
+.node-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.node-dot.online{background:var(--ok);box-shadow:0 0 6px var(--ok)}
+.node-dot.offline{background:var(--bd2)}
+.node-info{flex:1;overflow:hidden}
+.node-name{font-weight:600;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node-meta{font-size:9px;color:var(--txt3);margin-top:2px}
+
+/* Main panel */
+.main-panel{display:flex;flex-direction:column;overflow:hidden;gap:16px;padding:16px;overflow-y:auto}
+
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--bd2);border-radius:var(--r);overflow:hidden}
+.card-hdr{padding:12px 16px;border-bottom:1px solid var(--bd);font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--acc);text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.card-body{padding:16px}
+
+/* Form elements */
+.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:900px){.form-grid{grid-template-columns:1fr}}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-label{font-size:9px;color:var(--txt3);letter-spacing:.5px;text-transform:uppercase}
+.form-input{background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);padding:8px 10px;color:var(--txt);font-family:var(--mono);font-size:11px}
+.form-input:focus{outline:none;border-color:var(--acc)}
+.form-input::placeholder{color:var(--txt3)}
+select.form-input{cursor:pointer}
+
+.form-divider{grid-column:1/-1;border-top:1px dashed var(--bd);margin:8px 0}
+
+/* Empty state */
+.empty-state{text-align:center;padding:40px;color:var(--txt3)}
+
+/* Table */
+.rules-table{width:100%;border-collapse:collapse;font-size:11px}
+.rules-table th{text-align:left;color:var(--txt3);padding:10px 12px;border-bottom:1px solid var(--bd2);font-weight:600;font-size:9px;letter-spacing:.5px;text-transform:uppercase}
+.rules-table td{padding:12px;border-bottom:1px solid rgba(255,255,255,0.02);color:var(--txt);vertical-align:middle}
+.rules-table tr:hover td{background:rgba(255,255,255,0.02)}
+
+.rule-target{font-weight:700;color:var(--txt)}
+.rule-target-id{font-size:9px;color:var(--txt3)}
+.rule-metric{color:var(--pur);font-weight:700}
+.rule-condition{color:var(--warn);margin:0 4px}
+.rule-threshold{color:var(--txt);font-weight:700}
+.rule-dest{color:var(--acc)}
+.rule-channel{color:var(--txt3);font-size:9px}
+.rule-freq{color:var(--txt2)}
+.rule-slot{font-size:9px;background:rgba(176,96,255,.12);color:var(--pur);border:1px solid rgba(176,96,255,.25);padding:2px 6px;border-radius:3px;display:inline-block}
+.rule-inactive{opacity:.5}
+.rule-actions{text-align:right;white-space:nowrap}
+.rule-actions .btn{margin-left:4px}
+
+/* Destination type badges */
+.dest-type{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:600;padding:2px 8px;border-radius:3px}
+.dest-type.broadcast{background:rgba(0,200,240,.1);color:var(--acc);border:1px solid rgba(0,200,240,.25)}
+.dest-type.direct{background:rgba(26,232,122,.1);color:var(--ok);border:1px solid rgba(26,232,122,.25)}
+.dest-type i{font-size:9px}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;padding:12px 20px;border-radius:var(--r);font-size:11px;font-weight:600;z-index:1000;opacity:0;transform:translateY(20px);transition:all .3s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{background:rgba(26,232,122,.15);border:1px solid var(--ok);color:var(--ok)}
+.toast.err{background:rgba(240,72,72,.15);border:1px solid var(--err);color:var(--err)}
+.toast.warn{background:rgba(240,180,41,.15);border:1px solid var(--warn);color:var(--warn)}
+
+/* Alert type picker */
+.alert-type-picker{display:flex;gap:8px}
+.alert-type-opt{display:flex;align-items:center;gap:8px;padding:10px 16px;background:var(--bg3);border:1px solid var(--bd2);border-radius:var(--r);cursor:pointer;transition:all .15s;flex:1;justify-content:center}
+.alert-type-opt:hover{border-color:var(--acc)}
+.alert-type-opt.selected{background:rgba(0,200,240,.1);border-color:var(--acc);color:var(--acc)}
+.alert-type-opt input{display:none}
+.alert-type-opt i{font-size:14px}
+.alert-type-opt span{font-size:11px;font-weight:600}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--bd3)}
+
+
+/* ── Mobile responsive ── */
+@media (max-width: 860px) {
+    /* Stack sidebar layouts using inline styles (most plugins) */
+    [style*="grid-template-columns: 340px"],
+    [style*="grid-template-columns: 300px"],
+    [style*="grid-template-columns: 280px"],
+    [style*="grid-template-columns: 260px"],
+    [style*="grid-template-columns: 380px"],
+    [style*="grid-template-columns: 1fr 380px"],
+    [style*="grid-template-columns: 1fr 340px"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Stack CSS sidebar layouts */
+    .cfg-grid, .live-grid, .prompts-grid, .guide-grid, .dl-grid,
+    .vault-layout, .manage-layout, .comp-grid, .sidebar,
+    .sp-wrap {
+        grid-template-columns: 1fr !important;
+    }
+    /* Wrap nav/filter rows */
+    .hdr-nav, .main-tabs, .fi-row, .chk-row, .btn-row, .toggle-row, .srow {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+    .nav-tab, .tab-btn, .tp-btn {
+        padding: 6px 10px;
+        font-size: 10px;
+    }
+    /* Full-width forms */
+    .form-row, .frow, .input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .form-row > *, .frow > * { width: 100%; }
+    /* Tables scroll horizontal */
+    .table-wrap, .data-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    /* Smaller cards */
+    .card { border-radius: 4px; }
+    .card-head { padding: 8px 12px; }
+    .card-body { padding: 10px; }
+    /* Stack header */
+    .hdr, .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
+    .hdr-stats { gap: 12px; }
+    .stat-val { font-size: 16px; }
+    /* Modal touch-friendly */
+    .modal-box { width: 95vw; max-width: 95vw; max-height: 90vh; }
+    /* URL service grid: 2 col → 1 col */
+    .url-service-grid { grid-template-columns: 1fr !important; }
+    /* Generic multi-col grids → 2-col */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+}
+@media (max-width: 480px) {
+    .hdr, .topbar { padding: 6px 8px; gap: 6px; }
+    .logo-name { font-size: 13px; }
+    .card-body { padding: 8px; }
+    .btn, .tp-btn { padding: 8px 14px; font-size: 11px; }
+    .nav-tab, .tab-btn { padding: 4px 8px; font-size: 9px; }
+    .stat-val { font-size: 14px; }
+    .stat-lbl { font-size: 8px; }
+    /* Full-width buttons */
+    .btn-primary, .btn-danger, .btn-ghost { width: 100%; justify-content: center; }
+    /* Multi-col grids → single */
+    [class*="grid-3"], [class*="grid-4"], [class*="grid-5"],
+    .nb-grid, .wt-grid, .stat-grid, .fgrid2, .fg {
+        grid-template-columns: 1fr !important;
+    }
+    /* Row tables stack */
+    .srow { grid-template-columns: 1fr !important; }
+    .srow-key, .srow-val { display: block; }
+    .srow-key, .srow-val { display: block; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="topbar">
+    <div class="logo"><i class="fas fa-bell"></i> NODE MONITOR</div>
+    <select class="ctrl" id="slot-sel"></select>
+    <div class="topbar-right">
+        <div class="status-chip"><div class="chip-dot"></div><span id="status-txt">ACTIVE</span></div>
+        <button class="btn" id="refresh-btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+    </div>
+</div>
+
+<div class="main-wrap">
+    <!-- Sidebar: Node selector -->
+    <div class="sidebar">
+        <div class="sidebar-hdr"><i class="fas fa-broadcast-tower"></i> Select Target Node</div>
+        <div class="sidebar-filter">
+            <input type="text" id="node-filter" placeholder="Filter by ID or name...">
+        </div>
+        <div class="node-list" id="node-list">
+            <div style="padding:20px;text-align:center;color:var(--txt3);font-size:10px">SCANNING MESH...</div>
+        </div>
+    </div>
+
+    <!-- Main Panel -->
+    <div class="main-panel">
+        <!-- New Rule Card -->
+        <div class="card" style="border-color:var(--acc)">
+            <div class="card-hdr"><i class="fas fa-plus-circle"></i> New Monitor Rule</div>
+            <div class="card-body">
+                <div id="no-selection" class="empty-state">
+                    [ SELECT A NODE FROM THE SIDEBAR TO CONFIGURE ]
+                </div>
+                
+                <form id="rule-form" style="display:none">
+                    <div style="font-size:10px;color:var(--acc);margin-bottom:16px;font-weight:700">
+                        TARGET: <span id="target-name" style="color:var(--txt)"></span>
+                    </div>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Metric</label>
+                            <select id="f-metric" class="form-input" required>
+                                <option value="battery_level">Battery Level (%)</option>
+                                <option value="voltage">Voltage (V)</option>
+                                <option value="snr">Signal Quality (SNR)</option>
+                                <option value="channel_utilization">Channel Util (%)</option>
+                                <option value="temperature">Temperature (°C)</option>
+                                <option value="humidity">Humidity (%)</option>
+                                <option value="pressure">Pressure (hPa)</option>
+                                <option value="rssi">RSSI (dBm)</option>
+                                <option value="air_util_tx">Air Util TX (%)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Condition</label>
+                            <select id="f-condition" class="form-input" required>
+                                <option value="below">Drops Below (&lt;)</option>
+                                <option value="above">Rises Above (&gt;)</option>
+                                <option value="equals">Equals (=)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Threshold</label>
+                            <input type="number" id="f-threshold" class="form-input" step="0.1" placeholder="e.g. 20" required>
+                        </div>
+                        
+                        <div class="form-divider"></div>
+                        
+                        <div class="form-group" style="grid-column:1/-1">
+                            <label class="form-label">Alert Type</label>
+                            <div class="alert-type-picker">
+                                <label class="alert-type-opt selected" data-type="broadcast">
+                                    <input type="radio" name="alert-type" value="broadcast" checked>
+                                    <i class="fas fa-broadcast-tower"></i>
+                                    <span>Broadcast to Channel</span>
+                                </label>
+                                <label class="alert-type-opt" data-type="direct">
+                                    <input type="radio" name="alert-type" value="direct">
+                                    <i class="fas fa-user"></i>
+                                    <span>Direct to Node</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- Broadcast options -->
+                        <div class="form-group dest-broadcast">
+                            <label class="form-label">Broadcast Channel</label>
+                            <select id="f-channel-sel" class="form-input">
+                                <option value="0">CH 0 — Primary</option>
+                                <option value="1">CH 1 — Secondary</option>
+                                <option value="2">CH 2</option>
+                                <option value="3">CH 3</option>
+                                <option value="4">CH 4</option>
+                                <option value="5">CH 5</option>
+                                <option value="6">CH 6</option>
+                                <option value="7">CH 7</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Direct node options (hidden by default) -->
+                        <div class="form-group dest-direct" style="display:none">
+                            <label class="form-label">Destination Node</label>
+                            <select id="f-node-sel" class="form-input"></select>
+                        </div>
+                        <div class="form-group dest-direct" style="display:none">
+                            <label class="form-label">Via Channel</label>
+                            <select id="f-dm-channel" class="form-input">
+                                <option value="0">CH 0 — Primary</option>
+                                <option value="1">CH 1</option>
+                                <option value="2">CH 2</option>
+                                <option value="3">CH 3</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Check Frequency (mins)</label>
+                            <input type="number" id="f-interval" class="form-input" value="30" min="1" required>
+                        </div>
+                        
+                        <!-- Hidden fields that get populated on submit -->
+                        <input type="hidden" id="f-dest-node" value="^all">
+                        <input type="hidden" id="f-dest-channel" value="0">
+                        
+                        <div class="form-divider"></div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Send Alert Via Radio</label>
+                            <select id="f-slot" class="form-input"></select>
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex;justify-content:flex-end;margin-top:16px">
+                        <button type="submit" class="btn btn-acc" id="btn-deploy">
+                            <i class="fas fa-rocket"></i> Deploy Rule
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Active Rules Card -->
+        <div class="card" style="flex:1">
+            <div class="card-hdr"><i class="fas fa-list-check"></i> Active Monitor Rules</div>
+            <div class="card-body" style="padding:0;overflow-x:auto">
+                <table class="rules-table">
+                    <thead>
+                        <tr>
+                            <th>Target</th>
+                            <th>Condition</th>
+                            <th>Destination</th>
+                            <th>Frequency</th>
+                            <th>Via Radio</th>
+                            <th style="text-align:right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rules-body">
+                        <tr><td colspan="6" class="empty-state">[ NO RULES CONFIGURED ]</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = window.location.origin;
+const PLUGIN_API = `${API_BASE}/api/plugins/node_monitor`;
+
+let _activeSlotId = 'node_0';
+let _selectedNodeId = null;
+let _meshNodes = {};
+let _rules = [];
+let _slots = [];
+
+/* ── Helpers ── */
+const escHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+const fmtTimeAgo = ts => {
+    if (!ts) return '?';
+    const sec = Math.floor(Date.now()/1000 - ts);
+    if (sec < 60) return `${sec}s`;
+    if (sec < 3600) return `${Math.floor(sec/60)}m`;
+    if (sec < 86400) return `${Math.floor(sec/3600)}h`;
+    return `${Math.floor(sec/86400)}d`;
+};
+
+function showToast(msg, type='ok') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+/* ── Load slots ── */
+async function loadSlots() {
+    try {
+        const res = await fetch(`${API_BASE}/api/slots`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const slotsObj = await res.json();
+        
+        // API returns object keyed by slot_id, convert to array
+        _slots = Object.entries(slotsObj || {}).map(([sid, s]) => ({
+            slot_id: sid,
+            display_name: s.label || sid,
+            is_ready: s.is_ready,
+            is_primary: sid === 'node_0',
+            local_node_id: s.local_node_id,
+            connection_type: s.connection_type,
+            connection_status: s.connection_status
+        }));
+        
+        // Sort so node_0 is first
+        _slots.sort((a, b) => {
+            if (a.slot_id === 'node_0') return -1;
+            if (b.slot_id === 'node_0') return 1;
+            return a.slot_id.localeCompare(b.slot_id);
+        });
+        
+        // Fallback if no slots returned
+        if (_slots.length === 0) {
+            _slots = [{slot_id: 'node_0', display_name: 'Primary Radio', is_primary: true, is_ready: true}];
+        }
+        
+        // Populate slot selector in topbar
+        const sel = document.getElementById('slot-sel');
+        if (sel) {
+            sel.innerHTML = _slots.map(s => {
+                const status = s.is_ready ? '●' : '○';
+                const label = s.display_name || s.slot_id;
+                return `<option value="${s.slot_id}" ${s.is_primary?'selected':''}>${status} ${label}</option>`;
+            }).join('');
+            _activeSlotId = sel.value || 'node_0';
+        }
+        
+        // Populate slot selector in form
+        populateSlotDropdown();
+    } catch(e) {
+        console.error('Failed to load slots:', e);
+        // Fallback to just node_0 if API fails
+        _slots = [{slot_id: 'node_0', display_name: 'Primary Radio', is_primary: true, is_ready: true}];
+        const sel = document.getElementById('slot-sel');
+        if (sel) {
+            sel.innerHTML = '<option value="node_0" selected>● Primary Radio</option>';
+            _activeSlotId = 'node_0';
+        }
+        populateSlotDropdown();
+    }
+}
+
+/* ── Populate slot dropdown in form ── */
+function populateSlotDropdown() {
+    const fSlot = document.getElementById('f-slot');
+    if (!fSlot) return;
+    
+    if (_slots.length === 0) {
+        fSlot.innerHTML = '<option value="node_0">Primary Radio</option>';
+        return;
+    }
+    
+    fSlot.innerHTML = _slots.map(s => {
+        const status = s.is_ready ? '●' : '○';
+        const label = s.display_name || s.slot_id;
+        return `<option value="${s.slot_id}" ${s.is_primary?'selected':''}>${status} ${label}</option>`;
+    }).join('');
+}
+
+/* ── Load nodes ── */
+async function loadNodes() {
+    try {
+        const res = await fetch(`${API_BASE}/api/nodes?slot_id=${encodeURIComponent(_activeSlotId)}`);
+        if (!res.ok) {
+            console.error('Failed to load nodes: HTTP', res.status);
+            return;
+        }
+        const nodes = await res.json();
+        _meshNodes = {};
+        
+        // Handle both array and object responses
+        const nodeList = Array.isArray(nodes) ? nodes : Object.values(nodes || {});
+        nodeList.forEach(n => {
+            const id = n.node_id || n.id;
+            if (id) _meshNodes[id] = n;
+        });
+        
+        renderSidebar();
+    } catch(e) {
+        console.error('Failed to load nodes:', e);
+        // Show empty state on error
+        const list = document.getElementById('node-list');
+        if (list) {
+            list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--err);font-size:10px">[ ERROR LOADING NODES ]</div>';
+        }
+    }
+}
+
+/* ── Render sidebar ── */
+function renderSidebar() {
+    const list = document.getElementById('node-list');
+    const filter = (document.getElementById('node-filter')?.value || '').toLowerCase();
+    const nodes = Object.values(_meshNodes);
+    nodes.sort((a,b) => (b.last_heard||b.lastHeard||0) - (a.last_heard||a.lastHeard||0));
+    
+    const filtered = nodes.filter(n => {
+        const name = (n.user?.longName || n.user?.shortName || n.long_name || n.short_name || n.node_id || '').toLowerCase();
+        return name.includes(filter) || (n.node_id||'').toLowerCase().includes(filter);
+    });
+    
+    if (!filtered.length) {
+        list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--txt3);font-size:10px">[ NO NODES FOUND ]</div>';
+        return;
+    }
+    
+    list.innerHTML = filtered.map(n => {
+        const name = n.user?.longName || n.user?.shortName || n.long_name || n.short_name || n.node_id || 'Unknown';
+        const lh = n.last_heard || n.lastHeard;
+        const online = lh && (Date.now()/1000 - lh) < 3600;
+        const isActive = n.node_id === _selectedNodeId;
+        
+        return `<div class="node-item ${isActive?'active':''}" data-nid="${n.node_id}">
+            <div class="node-dot ${online?'online':'offline'}"></div>
+            <div class="node-info">
+                <div class="node-name">${escHtml(name)}</div>
+                <div class="node-meta">${n.node_id||'N/A'} · ${fmtTimeAgo(lh)}</div>
+            </div>
+        </div>`;
+    }).join('');
+    
+    list.querySelectorAll('.node-item').forEach(el => {
+        el.onclick = () => selectNode(el.dataset.nid);
+    });
+}
+
+/* ── Select node ── */
+function selectNode(nid) {
+    _selectedNodeId = nid;
+    const n = _meshNodes[nid];
+    const name = n?.user?.longName || n?.user?.shortName || n?.long_name || n?.short_name || nid;
+    
+    document.getElementById('target-name').textContent = `${name.toUpperCase()} (${nid})`;
+    document.getElementById('no-selection').style.display = 'none';
+    document.getElementById('rule-form').style.display = 'block';
+    
+    // Populate destination node dropdown (excluding the target node itself)
+    populateNodeDropdown();
+    
+    renderSidebar();
+}
+
+/* ── Populate destination node dropdown ── */
+function populateNodeDropdown() {
+    const sel = document.getElementById('f-node-sel');
+    if (!sel) return;
+    
+    const nodes = Object.values(_meshNodes);
+    
+    if (nodes.length === 0) {
+        sel.innerHTML = '<option value="" disabled selected>No nodes available</option>';
+        return;
+    }
+    
+    nodes.sort((a,b) => {
+        const nameA = a.user?.longName || a.user?.shortName || a.long_name || a.short_name || a.node_id || '';
+        const nameB = b.user?.longName || b.user?.shortName || b.long_name || b.short_name || b.node_id || '';
+        return nameA.localeCompare(nameB);
+    });
+    
+    sel.innerHTML = nodes.map(n => {
+        const name = n.user?.longName || n.user?.shortName || n.long_name || n.short_name || 'Unknown';
+        const lh = n.last_heard || n.lastHeard;
+        const online = lh && (Date.now()/1000 - lh) < 3600;
+        const status = online ? '●' : '○';
+        return `<option value="${n.node_id}">${status} ${escHtml(name)} (${n.node_id})</option>`;
+    }).join('');
+}
+
+/* ── Handle alert type switching ── */
+function setupAlertTypeToggle() {
+    const opts = document.querySelectorAll('.alert-type-opt');
+    const broadcastEls = document.querySelectorAll('.dest-broadcast');
+    const directEls = document.querySelectorAll('.dest-direct');
+    
+    opts.forEach(opt => {
+        opt.addEventListener('click', () => {
+            // Update selected state
+            opts.forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            opt.querySelector('input').checked = true;
+            
+            const type = opt.dataset.type;
+            
+            if (type === 'broadcast') {
+                broadcastEls.forEach(el => el.style.display = '');
+                directEls.forEach(el => el.style.display = 'none');
+            } else {
+                broadcastEls.forEach(el => el.style.display = 'none');
+                directEls.forEach(el => el.style.display = '');
+            }
+        });
+    });
+}
+
+/* ── Get destination values based on alert type ── */
+function getDestinationValues() {
+    const alertTypeEl = document.querySelector('input[name="alert-type"]:checked');
+    const alertType = alertTypeEl ? alertTypeEl.value : 'broadcast';
+    
+    if (alertType === 'broadcast') {
+        const channelEl = document.getElementById('f-channel-sel');
+        return {
+            dest_node: '^all',
+            dest_channel: channelEl ? (parseInt(channelEl.value) || 0) : 0
+        };
+    } else {
+        const nodeEl = document.getElementById('f-node-sel');
+        const dmChannelEl = document.getElementById('f-dm-channel');
+        return {
+            dest_node: nodeEl ? (nodeEl.value || '') : '',
+            dest_channel: dmChannelEl ? (parseInt(dmChannelEl.value) || 0) : 0
+        };
+    }
+}
+
+/* ── Load rules ── */
+async function loadRules() {
+    try {
+        const res = await fetch(`${PLUGIN_API}/rules`);
+        if (!res.ok) {
+            console.error('Failed to load rules: HTTP', res.status);
+            _rules = [];
+            renderRules();
+            return;
+        }
+        _rules = await res.json();
+        if (!Array.isArray(_rules)) _rules = [];
+        renderRules();
+    } catch(e) {
+        console.error('Failed to load rules:', e);
+        _rules = [];
+        renderRules();
+    }
+}
+
+/* ── Render rules table ── */
+function renderRules() {
+    const tbody = document.getElementById('rules-body');
+    
+    if (!_rules.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">[ NO RULES CONFIGURED ]</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = _rules.map(r => {
+        const n = _meshNodes[r.target_node];
+        const tName = n?.user?.longName || n?.user?.shortName || n?.long_name || n?.short_name || r.target_node;
+        const metric = r.metric.replace(/_/g,' ').toUpperCase();
+        const cond = r.condition === 'below' ? '&lt;' : r.condition === 'above' ? '&gt;' : '=';
+        const slot = _slots.find(s => s.slot_id === r.slot_id);
+        const slotLabel = slot?.display_name || r.slot_id || 'PRIMARY';
+        const rowClass = r.is_active ? '' : 'rule-inactive';
+        
+        // Determine destination display
+        let destDisplay;
+        if (r.dest_node === '^all') {
+            destDisplay = `<span class="dest-type broadcast"><i class="fas fa-broadcast-tower"></i> Broadcast</span>
+                           <span class="rule-channel">CH ${r.dest_channel}</span>`;
+        } else {
+            const destNode = _meshNodes[r.dest_node];
+            const destName = destNode?.user?.shortName || destNode?.short_name || r.dest_node;
+            destDisplay = `<span class="dest-type direct"><i class="fas fa-user"></i> ${escHtml(destName)}</span>
+                           <span class="rule-channel">via CH ${r.dest_channel}</span>`;
+        }
+        
+        return `<tr class="${rowClass}">
+            <td>
+                <div class="rule-target">${escHtml(tName)}</div>
+                <div class="rule-target-id">${r.target_node}</div>
+            </td>
+            <td>
+                <span class="rule-metric">${metric}</span>
+                <span class="rule-condition">${cond}</span>
+                <span class="rule-threshold">${r.threshold}</span>
+            </td>
+            <td>${destDisplay}</td>
+            <td class="rule-freq">${r.check_interval_minutes}m</td>
+            <td><span class="rule-slot">⬡ ${escHtml(slotLabel)}</span></td>
+            <td class="rule-actions">
+                <button class="btn btn-sm btn-acc" title="Test Alert" onclick="testRule(${r.id})">
+                    <i class="fas fa-vial"></i>
+                </button>
+                <button class="btn btn-sm ${r.is_active?'btn-ok':'btn-err'}" title="${r.is_active?'Pause':'Activate'}" onclick="toggleRule(${r.id})">
+                    <i class="fas fa-${r.is_active?'pause':'play'}"></i>
+                </button>
+                <button class="btn btn-sm btn-err" title="Delete" onclick="deleteRule(${r.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+/* ── Create rule ── */
+async function createRule(e) {
+    e.preventDefault();
+    if (!_selectedNodeId) {
+        showToast('Please select a target node first', 'err');
+        return;
+    }
+    
+    // Validate threshold
+    const thresholdVal = document.getElementById('f-threshold').value;
+    if (!thresholdVal || isNaN(parseFloat(thresholdVal))) {
+        showToast('Please enter a valid threshold value', 'err');
+        return;
+    }
+    
+    // Validate interval
+    const intervalVal = document.getElementById('f-interval').value;
+    if (!intervalVal || parseInt(intervalVal) < 1) {
+        showToast('Check frequency must be at least 1 minute', 'err');
+        return;
+    }
+    
+    // Get destination based on alert type selection
+    const dest = getDestinationValues();
+    
+    // Validate direct message has a destination selected
+    if (dest.dest_node !== '^all' && !dest.dest_node) {
+        showToast('Please select a destination node', 'err');
+        return;
+    }
+    
+    const btn = document.getElementById('btn-deploy');
+    const oldTxt = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deploying...';
+    btn.disabled = true;
+    
+    const payload = {
+        name: `Monitor ${_selectedNodeId}`,
+        target_node: _selectedNodeId,
+        metric: document.getElementById('f-metric').value,
+        condition: document.getElementById('f-condition').value,
+        threshold: parseFloat(thresholdVal),
+        check_interval_minutes: parseInt(intervalVal),
+        dest_node: dest.dest_node,
+        dest_channel: dest.dest_channel,
+        slot_id: document.getElementById('f-slot').value || _activeSlotId || 'node_0',
+        is_active: true
+    };
+    
+    try {
+        const res = await fetch(`${PLUGIN_API}/rules`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        
+        if (res.ok) {
+            await loadRules();
+            // Reset form
+            document.getElementById('rule-form').reset();
+            document.getElementById('f-threshold').value = '';
+            document.getElementById('f-interval').value = '30';
+            // Reset alert type to broadcast
+            document.querySelectorAll('.alert-type-opt').forEach(o => o.classList.remove('selected'));
+            document.querySelector('.alert-type-opt[data-type="broadcast"]').classList.add('selected');
+            document.querySelectorAll('.dest-broadcast').forEach(el => el.style.display = '');
+            document.querySelectorAll('.dest-direct').forEach(el => el.style.display = 'none');
+            _selectedNodeId = null;
+            document.getElementById('rule-form').style.display = 'none';
+            document.getElementById('no-selection').style.display = 'block';
+            renderSidebar();
+            showToast('Rule deployed successfully', 'ok');
+        } else {
+            const errData = await res.json().catch(() => ({}));
+            showToast(errData.detail || 'Failed to deploy rule', 'err');
+        }
+    } catch(e) {
+        console.error('Create rule error:', e);
+        showToast('Network error - check connection', 'err');
+    } finally {
+        btn.innerHTML = oldTxt;
+        btn.disabled = false;
+    }
+}
+
+/* ── Delete rule ── */
+async function deleteRule(id) {
+    if (!confirm('Are you sure you want to delete this monitoring rule?')) return;
+    
+    try {
+        const res = await fetch(`${PLUGIN_API}/rules/${id}`, {method:'DELETE'});
+        if (res.ok) {
+            await loadRules();
+            showToast('Rule deleted', 'warn');
+        } else {
+            showToast('Failed to delete rule', 'err');
+        }
+    } catch(e) {
+        showToast('Network error', 'err');
+    }
+}
+
+/* ── Toggle rule ── */
+async function toggleRule(id) {
+    try {
+        const res = await fetch(`${PLUGIN_API}/rules/${id}/toggle`, {method:'POST'});
+        if (res.ok) {
+            await loadRules();
+            showToast('Rule toggled', 'ok');
+        } else {
+            showToast('Failed to toggle rule', 'err');
+        }
+    } catch(e) {
+        showToast('Network error', 'err');
+    }
+}
+
+/* ── Test rule ── */
+async function testRule(id) {
+    try {
+        const res = await fetch(`${PLUGIN_API}/rules/${id}/test`, {method:'POST'});
+        if (res.ok) {
+            showToast('Test alert sent', 'ok');
+        } else {
+            const err = await res.json().catch(()=>({}));
+            showToast(err.detail || 'Test failed', 'err');
+        }
+    } catch(e) {
+        showToast('Network error', 'err');
+    }
+}
+
+/* ── Event listeners ── */
+document.getElementById('slot-sel').addEventListener('change', e => {
+    _activeSlotId = e.target.value || 'node_0';
+    loadNodes();
+});
+
+document.getElementById('node-filter').addEventListener('input', renderSidebar);
+document.getElementById('refresh-btn').addEventListener('click', () => { loadNodes(); loadRules(); });
+document.getElementById('rule-form').addEventListener('submit', createRule);
+
+/* ── Init ── */
+(async () => {
+    setupAlertTypeToggle();
+    await loadSlots();
+    await loadNodes();
+    await loadRules();
+    
+    // Update status
+    try {
+        const res = await fetch(`${PLUGIN_API}/status`);
+        if (res.ok) {
+            const data = await res.json();
+            document.getElementById('status-txt').textContent = `${data.active_rules} ACTIVE`;
+        }
+    } catch(e) {}
+})();
+</script>
+</body>
+</html>
