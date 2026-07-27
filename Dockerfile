@@ -61,5 +61,5 @@ CMD ["--host", "0.0.0.0", "--port", "8181"]
 # Labels
 LABEL org.opencontainers.image.title="Mesh Dash"
 LABEL org.opencontainers.image.description="Meshtastic Mesh Network Dashboard"
-LABEL org.opencontainers.image.version="R3.1.4"
+LABEL org.opencontainers.image.version="R3.1.5"
 LABEL org.opencontainers.image.source="https://github.com/ruspea/MeshDash"

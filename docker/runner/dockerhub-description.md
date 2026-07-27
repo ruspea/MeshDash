@@ -1,4 +1,4 @@
-MeshDash R3.1.4 — Official Docker Runner
+MeshDash R3.1.5 — Official Docker Runner
 Self-updating Meshtastic Command & Control Dashboard
 
 MeshDash is a powerful, persistent web dashboard for your Meshtastic nodes. It logs packet history, visualizes telemetry, manages messages, and provides a sleek interface for controlling your mesh hardware.
