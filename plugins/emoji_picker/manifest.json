@@ -1,0 +1,18 @@
+{
+  "id": "emoji_picker",
+  "name": "Emoji Picker",
+  "version": "1.0.0",
+  "author": "MeshDash",
+  "description": "Adds an emoji picker button to all message input fields (broadcast, DM, tasks, bulletins). Tap to insert emojis into your messages. MeshDash v3.0+ required for full functionality.",
+  "watchdog": false,
+  "entry_point": "main.py",
+  "router_prefix": "/api/plugins/emoji_picker",
+  "static_prefix": "/static/plugins/emoji_picker",
+  "nav_menu": [
+    {
+      "label": "Emoji Picker",
+      "href": "/plugin/emoji_picker/index.html",
+      "icon": "fa-face-smile"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emoji Picker — MeshDash</title>
+<link rel="stylesheet" href="/static/css/plugin.css">
+<style>
+/* Fallbacks for when plugin.css variables aren't available */
+:root {
+    --txt: #e8e8e8;
+    --txt-dim: #a0a0a0;
+    --bg: #111318;
+    --bg2: #1a1d23;
+    --bd2: #2a2d35;
+    --acc: #4a9eff;
+    --ok: #34d399;
+    --warn: #f59e0b;
+}
+.ep-wrap{max-width:800px;margin:0 auto;padding:20px}
+.ep-wrap h2{color:var(--txt,#e8e8e8);margin-bottom:12px;font-size:18px}
+.ep-wrap p{color:var(--txt-dim,#a0a0a0);font-size:13px;line-height:1.6;margin-bottom:16px}
+.ep-wrap strong{color:var(--txt,#e8e8e8)}
+.ep-status{padding:12px 16px;border-radius:8px;background:var(--bg2,#1a1d23);border:1px solid var(--bd2,#2a2d35);margin-bottom:16px;font-size:13px;color:var(--ok,#34d399)}
+.ep-status.off{border-color:var(--warn,#f59e0b);color:var(--warn,#f59e0b)}
+.ep-preview{background:var(--bg2,#1a1d23);border:1px solid var(--bd2,#2a2d35);border-radius:8px;padding:16px;margin-top:16px}
+.ep-preview label{color:var(--txt,#e8e8e8);font-size:13px;display:block;margin-bottom:8px}
+.ep-demo-input{width:100%;padding:8px 12px;border:1px solid var(--bd2,#2a2d35);border-radius:6px;background:var(--bg,#111318);color:var(--txt,#e8e8e8);font-size:14px;box-sizing:border-box}
+.ep-demo-input:focus{outline:none;border-color:var(--acc,#4a9eff)}
+.ep-demo-input::placeholder{color:var(--txt-dim,#a0a0a0)}
+</style>
+</head>
+<body>
+<div class="ep-wrap">
+  <h2>😀 Emoji Picker</h2>
+  <div id="ep-status" class="ep-status">✅ Emoji picker active — button injected into all message fields.</div>
+  <p>
+    The emoji picker adds a <strong>😀</strong> button next to every message input field across the dashboard:
+    broadcast messages, DMs, task messages, and bulletin posts.
+    Tap the button, pick an emoji, and it's inserted at the cursor position.
+  </p>
+  <div class="ep-preview">
+    <label>Try it here:</label>
+    <input type="text" class="ep-demo-input" id="ep-demo" placeholder="Type a message..." maxlength="230">
+  </div>
+</div>
+</body>
+</html>
