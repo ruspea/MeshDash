@@ -38,7 +38,8 @@ try:
 except NameError:
     _SCRIPT_DIR = os.getcwd()
 
-CONFIG_FILE_PATH = os.path.join(_SCRIPT_DIR, "data", ".mesh-dash_config")
+CONFIG_FILE_PATH = os.path.join(_SCRIPT_DIR, "..", "..", "data", ".mesh-dash_config")
+CONFIG_FILE_PATH = os.path.normpath(CONFIG_FILE_PATH)
 # Fallback: check legacy root location if data/ doesn't have it
 if not os.path.exists(CONFIG_FILE_PATH):
     _legacy_path = os.path.join(_SCRIPT_DIR, ".mesh-dash_config")
