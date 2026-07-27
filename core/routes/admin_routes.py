@@ -504,6 +504,31 @@ async def initial_setup_api(payload: SetupWizardPayload):
         f"serial={g.MESHTASTIC_SERIAL_PORT}, ble={g.MESHTASTIC_BLE_MAC}"
     )
 
+    # ── Step 3b: Force the connection manager to reload config and reconnect ──
+    # The connection manager was created at startup with the old config.
+    # The setup wizard just wrote new connection settings — we need to push
+    # them into the manager and trigger a reconnect.
+    try:
+        cm = g.connection_manager
+        if cm is not None:
+            cm.config["MESHTASTIC_CONNECTION_TYPE"] = _conn_type
+            if _host:
+                cm.config["MESHTASTIC_HOST"] = _host
+            cm.config["MESHTASTIC_PORT"] = str(_port_str)
+            cm.config["MESHTASTIC_SERIAL_PORT"] = _serial
+            cm.config["MESHTASTIC_BLE_MAC"] = _ble
+            # Reset mtime so _load_config doesn't skip the next reload
+            cm._config_mtime = 0.0
+            # Force reconnect with new settings
+            if hasattr(cm, 'force_reconnect'):
+                import asyncio as _aio
+                _loop = g.main_event_loop
+                if _loop:
+                    _aio.run_coroutine_threadsafe(cm.force_reconnect(), _loop)
+                    logger.info("✅ Connection manager reloaded and reconnecting with setup wizard settings")
+    except Exception as e:
+        logger.warning(f"Could not hot-reload connection manager: {e}")
+
     # ── Step 4: Clean up flags, issue token ──
     _cleanup_setup_flags()
 
