@@ -588,7 +588,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // CSRF token — read from meta tag or cookie for POST/PUT/DELETE requests
     try {
         const metaToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
-        const cookieToken = document.cookie.match(/(?:^|;)\s*csrf_token=([^;]*)/)?.[1];
+        const cookieToken = document.cookie.match(/(?:^|;)\s*csrf-token=([^;]*)/)?.[1];
         window._csrfToken = metaToken || cookieToken || '';
     } catch (e) { window._csrfToken = ''; }
 

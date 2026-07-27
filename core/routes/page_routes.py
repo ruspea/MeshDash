@@ -44,7 +44,7 @@ def _inject_csrf(response, token):
     )
     r = HTMLResponse(content=html)
     _no_cache(r)
-    r.set_cookie(key="csrf_token", value=token, httponly=True, samesite="strict")
+    r.set_cookie(key="csrf-token", value=token, httponly=True, samesite="strict")
     return r
 
 
