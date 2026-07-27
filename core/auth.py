@@ -160,8 +160,13 @@ def _generate_csrf_token() -> str:
 
 
 async def verify_csrf(request: Request, user: User = Depends(get_current_active_user)):
-    """Validate CSRF token on state-changing requests (double-submit cookie pattern)."""
+    """Validate CSRF token on state-changing requests (double-submit cookie pattern).
+    GET requests are exempt — they don't change state and plugin bridge pages
+    need to read config without CSRF headers."""
     if isinstance(user, RedirectResponse):
+        return user
+    # GET requests don't need CSRF — they're read-only
+    if request.method == "GET":
         return user
     cookie_token = request.cookies.get("csrf-token", "")
     header_token = request.headers.get("x-csrf-token", "")

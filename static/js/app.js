@@ -822,6 +822,15 @@ function loadPluginFrame(pluginName, url, targetElement) {
             try {
                 const frameDoc = iframe.contentWindow.document;
                 
+                // ── Inject CSRF token into plugin iframe ──
+                // Bridge pages need the token for POST requests but can't
+                // access the parent's meta tag. Inject it as a global.
+                try {
+                    const script = frameDoc.createElement('script');
+                    script.textContent = 'window._csrfToken = "' + (window._csrfToken || '') + '";';
+                    frameDoc.head.appendChild(script);
+                } catch(csrfE) { console.warn('[CSRF] Could not inject token into iframe:', csrfE); }
+
                 // ── Inject theme overrides into plugin iframe ──
                 // The theme bridge injects into the parent doc, but CSS variables
                 // don't cross iframe boundaries. Re-inject here so plugins stay themed.
