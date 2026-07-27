@@ -37,7 +37,8 @@ import logging
 import threading
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 # User type — lazy import to avoid circular import when plugin loads at startup
@@ -429,12 +430,23 @@ async def get_cold_nodes(
     }
 
 
-def _require_admin_or_operator(user: "User"):
-    """Guard: raise 403 if user is not admin (0) or operator (1)."""
+async def _require_admin_or_operator(request: Request):
+    """
+    Resolve the current user (via the shared get_current_active_user dep)
+    and raise 403 if they are not admin (0) or operator (1).
+
+    NOTE: get_current_active_user is imported lazily here to avoid a circular
+    import at plugin load time — meshtastic_dashboard imports plugins, and
+    plugins import from meshtastic_dashboard.
+    """
+    from meshtastic_dashboard import get_current_active_user
+
+    user = await get_current_active_user(request)
     if isinstance(user, RedirectResponse):
         return user
     if user.role not in (0, 1):
         raise HTTPException(403, "Admin or Operator access required.")
+    return user
 
 
 @plugin_router.post("/delete")

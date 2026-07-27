@@ -13,7 +13,6 @@
     </menu>
     
     <menu label="Tools" icon="fas fa-tools">
-        <item icon="fas fa-desktop" action="loadView('monitor')">Monitor</item>
         <item icon="fas fa-chart-line" action="loadView('analytics')">Analytics</item>
         <item icon="fas fa-columns" action="loadView('compare')">Node Comparison</item>
         <item icon="fas fa-water" action="loadView('shark')">Mesh Shark</item>
