@@ -22,6 +22,9 @@ from typing import Optional
 import httpx
 from fastapi import APIRouter, Body, HTTPException, Query
 
+# ── Config ────────────────────────────────────────────────────────────────────
+WEATHER_RETRY_INTERVAL = 300  # seconds — retry failed sends after 5 minutes
+
 # Plugin registry
 core_context: dict = {}
 plugin_router = APIRouter()
@@ -312,16 +315,15 @@ async def _scheduler_worker():
                         s["next_run"] = None
                     else:
                         # Retry in 5 minutes — don't discard a one-time send
-                        s["next_run"] = now + 300
+                        s["next_run"] = now + WEATHER_RETRY_INTERVAL
                 else:
                     if send_ok:
                         s["next_run"] = _calc_next_run(s, after=now)
                     else:
-                        # Radio not ready or send failed — retry in 5 minutes
-                        # instead of skipping to tomorrow. This fixes daily
-                        # schedules silently failing when the radio is in a
-                        # reconnect cycle at the scheduled time.
-                        s["next_run"] = now + 300
+                        # Radio not ready or send failed — retry instead of
+                        # skipping to tomorrow. Fixes daily schedules silently
+                        # failing when the radio is in a reconnect cycle.
+                        s["next_run"] = now + WEATHER_RETRY_INTERVAL
 
                 await asyncio.to_thread(_upsert_schedule, s)
 

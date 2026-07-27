@@ -20,7 +20,7 @@ async def available_plugins():
     except httpx.HTTPStatusError as e:
         raise HTTPException(status_code=502, detail=f"Plugin server returned error {e.response.status_code}.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch plugin manifest: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to fetch plugin manifest.")
 
 
 async def check_version_periodically():
