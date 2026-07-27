@@ -285,6 +285,7 @@ async def _scheduler_worker():
                     continue
 
                 logger.info(f"⏰ Weather schedule '{s['label']}' firing (id={s['id']})")
+                send_ok = False
                 try:
                     msg = await _do_weather_send(
                         lat       = s["lat"],
@@ -295,18 +296,32 @@ async def _scheduler_worker():
                         units     = s.get("units", "metric"),
                     )
                     logger.info(f"✅ Scheduled weather sent: {msg[:60]}…")
+                    send_ok = True
                 except Exception as e:
                     logger.error(f"❌ Scheduled weather send failed: {e}")
 
-                s["last_run"]   = now
-                s["run_count"]  = int(s.get("run_count") or 0) + 1
                 s["updated_at"] = now
 
+                if send_ok:
+                    s["last_run"]   = now
+                    s["run_count"]  = int(s.get("run_count") or 0) + 1
+
                 if s["sched_type"] == "once":
-                    s["enabled"]  = 0
-                    s["next_run"] = None
+                    if send_ok:
+                        s["enabled"]  = 0
+                        s["next_run"] = None
+                    else:
+                        # Retry in 5 minutes — don't discard a one-time send
+                        s["next_run"] = now + 300
                 else:
-                    s["next_run"] = _calc_next_run(s, after=now)
+                    if send_ok:
+                        s["next_run"] = _calc_next_run(s, after=now)
+                    else:
+                        # Radio not ready or send failed — retry in 5 minutes
+                        # instead of skipping to tomorrow. This fixes daily
+                        # schedules silently failing when the radio is in a
+                        # reconnect cycle at the scheduled time.
+                        s["next_run"] = now + 300
 
                 await asyncio.to_thread(_upsert_schedule, s)
 
