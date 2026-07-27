@@ -335,7 +335,6 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from pubsub import pub
 from requests.exceptions import RequestException
 from sse_starlette.sse import EventSourceResponse
@@ -813,10 +812,6 @@ if LOG_LEVEL > logging.DEBUG:
     ]:
         logging.getLogger(log_name).setLevel(logging.WARNING)
 
-
-# ── Auth ──
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-ALGORITHM = "HS256"
 
 # ── Packet Source Detection ──
 _node_source_evidence: Dict[str, Dict] = {}
