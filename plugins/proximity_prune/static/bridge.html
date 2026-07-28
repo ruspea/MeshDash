@@ -6,6 +6,8 @@
 <script>
 // ── CSRF token receiver (from parent via postMessage) ──
 window._csrfToken = '';
+// Read CSRF token from cookie (same-origin iframe can access cookies)
+try { window._csrfToken = document.cookie.match(/csrf-token=([^;]*)/)?.[1] || ''; } catch(e) {}
 window.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'csrf_token') {
         window._csrfToken = e.data.token || '';

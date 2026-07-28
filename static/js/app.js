@@ -835,11 +835,33 @@ function loadPluginFrame(pluginName, url, targetElement) {
             try {
                 const frameDoc = iframe.contentWindow.document;
 
-                // ── Inject CSRF token into plugin iframe ──
+                // ── Inject CSRF token + fetch wrapper into plugin iframe ──
                 try {
                     const script = frameDoc.createElement('script');
-                    script.textContent = 'window._csrfToken = "' + (window._csrfToken || '') + '";';
+                    script.textContent = `
+                        window._csrfToken = "${window._csrfToken || ''}";
+                        // Auto-add CSRF header to all state-changing requests
+                        (function() {
+                            var _origFetch = window.fetch;
+                            window.fetch = function(url, opts) {
+                                opts = opts || {};
+                                var method = (opts.method || 'GET').toUpperCase();
+                                if (['POST','PUT','DELETE','PATCH'].includes(method) && window._csrfToken) {
+                                    opts.headers = opts.headers || {};
+                                    if (!opts.headers['X-CSRF-Token'] && !opts.headers['x-csrf-token']) {
+                                        opts.headers['X-CSRF-Token'] = window._csrfToken;
+                                    }
+                                }
+                                return _origFetch.call(window, url, opts);
+                            };
+                        })();
+                    `;
                     frameDoc.head.appendChild(script);
+                    // Also send via postMessage for bridge.html files that listen for it
+                    iframe.contentWindow.postMessage({
+                        type: 'csrf_token',
+                        token: window._csrfToken || ''
+                    }, '*');
                 } catch(csrfE) { /* sandboxed */ }
 
                 // ── Inject theme overrides into plugin iframe ──
