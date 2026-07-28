@@ -2606,7 +2606,7 @@ window.PluginBridge = (function () {
                     // correctly within the 86x86 clipping box. pointer-events:none
                     // on the wrap means clicks fall through to the ribbon itself.
                     wrap.style.cssText = 'position:absolute;inset:0;pointer-events:none;';
-                    wrap.innerHTML = window.escapeHtml ? window.escapeHtml(String(b.html || '')) : '';
+                    wrap.innerHTML = String(b.html || '');
                     if (b.tabId) {
                         var _tabId = b.tabId, _nid = nodeId;
                         // Wire click on the ribbon element itself (not the wrap)
