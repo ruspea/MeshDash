@@ -616,7 +616,7 @@ window.C2PluginsApp = {
         const fd = new FormData();
         fd.append('file', file);
         try {
-            const r = await fetch('/api/system/plugins/install', { method: 'POST', body: fd });
+            const r = await fetch('/api/system/plugins/install', { method: 'POST', body: fd, headers: { 'X-CSRF-Token': window._csrfToken || '' } });
             const d = await r.json();
             if (!r.ok) throw new Error(d.detail || 'Install failed');
             log.innerHTML += `<div style="color:var(--ok);">[SUCCESS] ${this._esc(d.message || 'Installed.')}</div>`;
@@ -669,7 +669,7 @@ window.C2PluginsApp = {
         try {
             const r = await fetch('/api/system/plugins/install-remote', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': window._csrfToken || '' },
                 body: JSON.stringify({ url }),
             });
             const d = await r.json();
@@ -726,7 +726,7 @@ window.C2PluginsApp = {
 
     async clearLogs() {
         if (!this.activeLogId) return;
-        try { await fetch(`/api/system/plugins/${this.activeLogId}/logs`, { method: 'DELETE' }); this.refreshLogs(); } catch (e) {}
+        try { await fetch(`/api/system/plugins/${this.activeLogId}/logs`, { method: 'DELETE', headers: { 'X-CSRF-Token': window._csrfToken || '' } }); this.refreshLogs(); } catch (e) {}
     },
 
     // ── Restart ──────────────────────────────────────────────────────────────

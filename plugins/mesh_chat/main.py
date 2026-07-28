@@ -590,7 +590,17 @@ def init_plugin(context: dict):
     cfg = _get_config()
     if cfg.get("provider", "local") == "local":
         if cfg["status"] == "uninitialized" or not os.path.exists(os.path.join(_BASE_DIR, cfg["model_file"])):
-            threading.Thread(target=_download_model_worker, args=(cfg["model_repo"], cfg["model_file"]), daemon=True).start()
+            # Check if local deps are available before trying to download
+            try:
+                import huggingface_hub  # noqa
+                import llama_cpp  # noqa
+                threading.Thread(target=_download_model_worker, args=(cfg["model_repo"], cfg["model_file"]), daemon=True).start()
+            except ImportError:
+                _set_status("error", "Local model mode requires huggingface_hub and llama_cpp_python. "
+                             "Install with: pip install huggingface_hub llama_cpp_python — "
+                             "OR switch to an API provider (OpenAI/NVIDIA/Custom) in Config & Model settings.")
+                logger.warning("Mesh Chat: local dependencies not installed. "
+                              "User should switch to API provider or install: pip install huggingface_hub llama_cpp_python")
 
     threading.Thread(target=_reap_sessions_worker, daemon=True).start()
 

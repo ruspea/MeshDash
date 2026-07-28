@@ -441,6 +441,16 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS)
     const _origFetch = window.fetch.bind(window);
     window.fetch = async function(url, options = {}, ...rest) {
         try {
+            // Auto-add CSRF token to all state-changing requests
+            const method = (options.method || 'GET').toUpperCase();
+            if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method) && window._csrfToken) {
+                options.headers = options.headers || {};
+                // Don't overwrite if already set
+                if (!options.headers['X-CSRF-Token'] && !options.headers['x-csrf-token']) {
+                    options.headers['X-CSRF-Token'] = window._csrfToken;
+                }
+            }
+
             // Only intercept POST /api/messages when Web Serial bridge is active
             const urlStr = typeof url === 'string' ? url : (url?.url || '');
             if (

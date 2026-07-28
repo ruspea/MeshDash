@@ -1,5 +1,13 @@
 import os
 import re
+import json
+import time
+import shutil
+import secrets
+import zipfile
+import asyncio
+import logging
+import httpx
 import core.globals as g
 # Auto-extracted from meshtastic_dashboard.py
 import asyncio
@@ -10,6 +18,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSON
 from core.routes.schemas import User, RemoteInstallRequest
 from core.auth import verify_csrf, get_current_active_user, _generate_csrf_token
 from core.broadcast import broadcast_data
+from core.utils import validate_url
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -356,9 +365,9 @@ async def install_plugin(file: UploadFile = File(...), user: User = Depends(veri
     if not file.filename.endswith('.zip'):
         raise HTTPException(400, "Only .zip files are allowed.")
 
-    os.makedirs(PLUGIN_DIR, exist_ok=True)
-    temp_zip = os.path.join(PLUGIN_DIR, f"temp_{secrets.token_hex(4)}.zip")
-    extract_dir = os.path.join(PLUGIN_DIR, f"temp_extract_{secrets.token_hex(4)}")
+    os.makedirs(g.PLUGIN_DIR, exist_ok=True)
+    temp_zip = os.path.join(g.PLUGIN_DIR, f"temp_{secrets.token_hex(4)}.zip")
+    extract_dir = os.path.join(g.PLUGIN_DIR, f"temp_extract_{secrets.token_hex(4)}")
 
     try:
         # R2.X: stream upload to disk non-blocking
@@ -437,8 +446,8 @@ async def install_plugin(file: UploadFile = File(...), user: User = Depends(veri
                 "Invalid manifest: missing required field 'watchdog'. "
                 "Add \"watchdog\": true (monitored) or \"watchdog\": false (unmonitored).")
 
-        final_dest = os.path.join(PLUGIN_DIR, pid)
-        backup_dest = os.path.join(PLUGIN_DIR, f"{pid}_backup_{secrets.token_hex(4)}")
+        final_dest = os.path.join(g.PLUGIN_DIR, pid)
+        backup_dest = os.path.join(g.PLUGIN_DIR, f"{pid}_backup_{secrets.token_hex(4)}")
 
         def _atomic_replace():
             if os.path.exists(final_dest):
@@ -494,9 +503,9 @@ async def install_remote_plugin(req: RemoteInstallRequest, user: User = Depends(
     else:
         download_url += f"?_cb={int(time.time())}"
 
-    os.makedirs(PLUGIN_DIR, exist_ok=True)
-    temp_zip = os.path.join(PLUGIN_DIR, f"temp_{secrets.token_hex(4)}.zip")
-    extract_dir = os.path.join(PLUGIN_DIR, f"temp_extract_{secrets.token_hex(4)}")
+    os.makedirs(g.PLUGIN_DIR, exist_ok=True)
+    temp_zip = os.path.join(g.PLUGIN_DIR, f"temp_{secrets.token_hex(4)}.zip")
+    extract_dir = os.path.join(g.PLUGIN_DIR, f"temp_extract_{secrets.token_hex(4)}")
 
     try:
         async with httpx.AsyncClient(timeout=60.0, follow_redirects=True) as client:
@@ -583,8 +592,8 @@ async def install_remote_plugin(req: RemoteInstallRequest, user: User = Depends(
                 "Invalid manifest: missing required field 'watchdog'. "
                 "Add \"watchdog\": true (monitored) or \"watchdog\": false (unmonitored).")
 
-        final_dest = os.path.join(PLUGIN_DIR, pid)
-        backup_dest = os.path.join(PLUGIN_DIR, f"{pid}_backup_{secrets.token_hex(4)}")
+        final_dest = os.path.join(g.PLUGIN_DIR, pid)
+        backup_dest = os.path.join(g.PLUGIN_DIR, f"{pid}_backup_{secrets.token_hex(4)}")
 
         def _atomic_replace():
             # Rename existing to backup so we can restore on failure
