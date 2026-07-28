@@ -1,6 +1,6 @@
 <style>
-    .ap{max-width:750px;margin:0 auto;padding:20px;}
-    .ac{background:var(--bg1);border:1px solid var(--bd2);border-radius:var(--r);margin-bottom:16px;overflow:hidden;}
+    .ap{max-width:1400px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+    .ac{background:var(--bg1);border:1px solid var(--bd2);border-radius:var(--r);margin-bottom:0;overflow:hidden;}
     .ah{padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--bd2);font-family:var(--mono);font-size:11px;text-transform:uppercase;color:var(--txt2);display:flex;align-items:center;gap:8px;}
     .ab2{padding:16px 20px;}
     .ar{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd);}
@@ -28,6 +28,8 @@
     .ai{width:100%;background:var(--bg);border:1px solid var(--bd2);color:var(--txt);font-family:var(--mono);font-size:13px;padding:9px 10px;border-radius:4px;outline:none;box-sizing:border-box;}
     .ai:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(0,200,245,.1);}
     .as{background:var(--bg);border:1px solid var(--bd2);color:var(--txt);font-family:var(--mono);font-size:12px;padding:8px;border-radius:4px;outline:none;}
+    .span2{grid-column:span 2;}
+    @media(max-width:900px){.ap{grid-template-columns:1fr;}.span2{grid-column:span 1;}}
     .qrc{text-align:center;padding:16px;}
     .qrc img{max-width:200px;border-radius:4px;border:2px solid var(--bd2);}
     .mk{font-family:var(--mono);font-size:13px;color:var(--acc);letter-spacing:2px;word-break:break-all;text-align:center;padding:10px;background:var(--bg);border:1px solid var(--bd2);border-radius:4px;margin:10px 0;cursor:pointer;}
@@ -88,6 +90,33 @@
                 <div class="ar"><span class="al">Last Login</span><span class="av" id="p-lastlogin">—</span></div>
                 <div class="ar"><span class="al">Total Logins</span><span class="av" id="p-logincount">—</span></div>
                 <div class="ar"><span class="al">Account Status</span><span class="av" id="p-status">—</span></div>
+            </div>
+            <div style="padding:12px 20px;border-top:1px solid var(--bd2);">
+                <button class="bt bt-d" onclick="if(confirm('Log out of MeshDash?')) window.location.href='/logout'" style="width:100%;justify-content:center;">
+                    <i class="fas fa-right-from-bracket"></i> LOG OUT
+                </button>
+            </div>
+        </div>
+
+        <!-- ═══ DASHBOARD ACCESS ═══ -->
+        <div class="ac">
+            <div class="ah"><i class="fas fa-globe"></i> Dashboard Access</div>
+            <div class="ab2">
+                <div class="ar">
+                    <span class="al">Public Mode</span>
+                    <span class="av">
+                        <span id="pm-status" class="b b-off">—</span>
+                        <button class="bt bt-s bt-p" id="pm-toggle" onclick="togglePublicMode()" style="display:none;">Toggle</button>
+                    </span>
+                </div>
+                <div class="ar">
+                    <span class="al">Access Level</span>
+                    <span class="av" id="pm-level">—</span>
+                </div>
+                <div style="padding:10px 0;font-size:12px;color:var(--txt3);line-height:1.5;">
+                    <strong>Public Mode ON:</strong> Dashboard is accessible without login. No authentication required. Anyone on the network can view and control the dashboard.<br><br>
+                    <strong>Public Mode OFF:</strong> Login required. Only authenticated users can access the dashboard. Recommended for most installations.
+                </div>
             </div>
         </div>
     
@@ -431,7 +460,48 @@
         document.getElementById('mfa-confirm-code')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();confirmMfa();}});
         document.getElementById('mfa-disable-password')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();confirmDisable();}});
     
-        window.AccountPageInit=function(){loadProfile();loadStatus();loadUsers();};
-        loadProfile();loadStatus();loadUsers();
+        window.AccountPageInit=function(){loadProfile();loadStatus();loadUsers();loadPublicMode();};
+        loadProfile();loadStatus();loadUsers();loadPublicMode();
+
+        async function loadPublicMode(){
+            try{
+                const r=await fetch('/api/system/config');
+                const d=await r.json();
+                const pm=d.public_mode;
+                const el=document.getElementById('pm-status');
+                const btn=document.getElementById('pm-toggle');
+                const lvl=document.getElementById('pm-level');
+                if(pm){
+                    el.className='b b-w';el.textContent='ON';
+                    btn.textContent='Disable';btn.style.display='';
+                    lvl.innerHTML='<span class="b b-w">PUBLIC</span> No login required';
+                }else{
+                    el.className='b b-on';el.textContent='OFF';
+                    btn.textContent='Enable';btn.style.display='';
+                    lvl.innerHTML='<span class="b b-on">SECURED</span> Login required';
+                }
+            }catch(e){console.warn('Could not load public mode:',e);}
+        }
+
+        async function togglePublicMode(){
+            try{
+                const r=await fetch('/api/system/config');
+                const d=await r.json();
+                const current=d.public_mode;
+                if(!confirm(current?'Disable Public Mode? Login will be required after restart.':'Enable Public Mode? Dashboard will be accessible without login.'))return;
+                const r2=await fetch('/api/system/config',{
+                    method:'POST',
+                    headers:{'Content-Type':'application/json','X-CSRF-Token':window._csrfToken||''},
+                    body:JSON.stringify({PUBLIC_MODE:!current})
+                });
+                if(r2.ok){
+                    alert('Public Mode '+(current?'disabled':'enabled')+'. Restart required to apply. Click OK to restart now.');
+                    fetch('/api/system/restart',{method:'POST',headers:{'X-CSRF-Token':window._csrfToken||''}}).catch(()=>{});
+                    setTimeout(()=>{setInterval(async()=>{try{const r=await fetch('/api/status');if(r.ok)window.location.reload();}catch(e){}},2000);},3000);
+                }else{
+                    alert('Failed to toggle Public Mode.');
+                }
+            }catch(e){alert('Error: '+e);}
+        }
     })();
     </script>

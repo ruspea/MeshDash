@@ -171,8 +171,9 @@ async def login_confirm_totp_setup(preauth_token: str = Form(...), totp_code: st
 
 @router.get("/logout")
 async def logout():
-    r = RedirectResponse("/login", 302)
-    r.delete_cookie("access_token")
+    r = RedirectResponse("/login?logout=1", 302)
+    r.delete_cookie("access_token", path="/", samesite="strict")
+    r.delete_cookie("csrf-token", path="/", samesite="strict")
     return r
 
 
