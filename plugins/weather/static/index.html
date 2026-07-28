@@ -16,7 +16,7 @@
 html,body{background:var(--bg);color:var(--txt);font-family:var(--sans);height:100%;}
 
 /* ── Layout ─────────────────────────────────────────────────────────────── */
-.page{display:flex;gap:14px;padding:14px;min-height:100%;align-items:flex-start;}
+.page{display:flex;gap:14px;padding:14px;height:100vh;align-items:flex-start;overflow:auto;}
 
 .panel-left{
     width:380px;flex-shrink:0;
@@ -278,7 +278,7 @@ select option{background:var(--bg1);}
 .map-save-btn:disabled{opacity:.35;cursor:not-allowed;}
 .map-save-btn.saved{color:var(--ok);border-color:var(--ok);}
 
-#map{flex:1;width:100%;cursor:crosshair;}
+#map{flex:1;width:100%;min-height:300px;cursor:crosshair;}
 
 /* Leaflet dark */
 .leaflet-container{background:var(--bg);}
