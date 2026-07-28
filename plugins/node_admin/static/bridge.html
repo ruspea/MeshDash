@@ -5,6 +5,29 @@
 </head>
 <body>
 <script>
+// ── CSRF token receiver (from parent via postMessage) ──
+window._csrfToken = '';
+window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'csrf_token') {
+        window._csrfToken = e.data.token || '';
+    }
+    if (e.data && e.data.type === 'theme_overrides' && e.data.css) {
+        var s = document.createElement('style');
+        s.textContent = e.data.css;
+        document.head.appendChild(s);
+    }
+});
+// ── Fetch wrapper: add CSRF header to all POST/PUT/DELETE ──
+var _origFetch = window.fetch;
+window.fetch = function(url, opts) {
+    opts = opts || {};
+    if (['POST','PUT','DELETE'].includes((opts.method||'GET').toUpperCase()) && window._csrfToken) {
+        opts.headers = opts.headers || {};
+        opts.headers['X-CSRF-Token'] = window._csrfToken;
+    }
+    return _origFetch.call(window, url, opts);
+};
+
 'use strict';
 const PLUGIN_ID='node_admin', TAB_ID='na_admin_tab';
 var _reg=false;

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 async def available_plugins():
     """Fetches the official plugin manifest from meshdash.co.uk."""
-    remote_url = "https://meshdash.co.uk/plugins"
+    remote_url = "https://meshdash.co.uk/plugins.php"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(remote_url)

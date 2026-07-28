@@ -550,7 +550,7 @@ window.C2PluginsApp = {
             const p = this.registry.get(id);
             if (!confirm(`Permanently uninstall "${p ? p.name : id}"?\n\nThis will delete all plugin files. A restart is required to fully remove it.`)) return;
             try {
-                const r = await fetch(`/api/system/plugins/${id}`, { method: 'DELETE' });
+                const r = await fetch(`/api/system/plugins/${id}`, { method: 'DELETE', headers: { 'X-CSRF-Token': window._csrfToken || '' } });
                 if (!r.ok) throw new Error('Failed');
                 window.triggerToast('Plugin Uninstalled', 'ok');
                 this.syncRegistry(true);
@@ -559,7 +559,7 @@ window.C2PluginsApp = {
             return;
         }
         try {
-            const r = await fetch(`/api/system/plugins/${id}/toggle?action=${action}`, { method: 'POST' });
+            const r = await fetch(`/api/system/plugins/${id}/toggle?action=${action}`, { method: 'POST', headers: { 'X-CSRF-Token': window._csrfToken || '' } });
             if (!r.ok) throw new Error('Failed');
             const d = await r.json();
             window.triggerToast(`Signal sent: ${action.toUpperCase()}`, 'ok');
@@ -738,7 +738,7 @@ window.C2PluginsApp = {
                 <i class="fas fa-power-off fa-3x fa-fade" style="margin-bottom:18px;display:block;"></i>
                 RESTARTING CORE SERVICES…
              </div>`;
-        fetch('/api/system/restart', { method: 'POST' }).catch(() => {});
+        fetch('/api/system/restart', { method: 'POST', headers: { 'X-CSRF-Token': window._csrfToken || '' } }).catch(() => {});
         setTimeout(() => {
             setInterval(async () => {
                 try { const r = await fetch('/api/status'); if (r.ok) window.location.reload(); } catch (e) {}

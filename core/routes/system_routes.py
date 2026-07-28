@@ -570,3 +570,12 @@ async def start_update_process(request: Request, user: User = Depends(verify_csr
 # These routes are now served by admin_routes.py and the main system_routes router.
 
 
+
+
+# ── Plugin available endpoint (for plugin store/registry) ──
+from core.version import available_plugins
+
+@router.get("/plugins/available")
+async def get_available_plugins():
+    """Return available plugins from the community server."""
+    return await available_plugins()

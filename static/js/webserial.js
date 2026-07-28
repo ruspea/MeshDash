@@ -760,7 +760,7 @@ window.addEventListener('beforeunload', () => {
     try { _wsState._cancelReader = true; } catch(_) {}
 });
 
-window.addEventListener('unload', () => {
+window.addEventListener('pagehide', () => {
     clearInterval(_wsStatsInterval);
 });
 

@@ -570,7 +570,7 @@ window.c2ExecuteRestart = function() {
     const status = document.getElementById('modal-status-area');
     const actions = document.getElementById('modal-actions');
 
-    try { fetch('/api/system/restart', { method: 'POST' }).catch(() => {}); } catch(e) {}
+    try { fetch('/api/system/restart', { method: 'POST', headers: { 'X-CSRF-Token': window._csrfToken || '' } }).catch(() => {}); } catch(e) {}
 
     bar.style.width = '20%';
     status.innerHTML = 'Sending command...';

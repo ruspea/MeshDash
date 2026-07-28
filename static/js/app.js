@@ -621,7 +621,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {}
     }, SSE_HEALTH_INTERVAL_MS);
 
-    window.addEventListener('unload', () => {
+    window.addEventListener('pagehide', () => {
         clearInterval(window._knownSlotsInterval);
         clearInterval(window._diagnosticsClockInterval);
         clearInterval(window._diagnosticsPollInterval);
@@ -737,10 +737,13 @@ async function loadView(viewName) {
         contentArea.innerHTML = `<div class="view-wrapper">${htmlData}</div>`;
 
         // innerHTML does not execute <script> tags — re-run them manually
+        // Use an IIFE wrapper to avoid re-declaration errors (e.g. const EMOJI_DATA)
         contentArea.querySelectorAll('script').forEach(oldScript => {
             const s = document.createElement('script');
             [...oldScript.attributes].forEach(a => s.setAttribute(a.name, a.value));
-            s.textContent = oldScript.textContent;
+            // Wrap in a block to avoid "Identifier has already been declared" errors
+            // when the same view is loaded multiple times (const/let re-declaration)
+            s.textContent = '{\n' + oldScript.textContent + '\n}';
             oldScript.parentNode.replaceChild(s, oldScript);
         });
 
@@ -813,7 +816,7 @@ function loadPluginFrame(pluginName, url, targetElement) {
                         <span class="ct"><span style="color:var(--acc);margin-right:8px;">❖</span>${window.escapeHtml(pluginName)}</span>
                         <a href="${frameUrl}" target="_blank" class="btn btn-sm" style="margin-left:auto;">Pop Out ↗</a>
                     </div>
-                    <iframe src="${frameUrl}" style="flex:1;width:100%;border:none;background:var(--bg1);" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox"></iframe>
+                    <iframe src="${frameUrl}" style="flex:1;width:100%;border:none;background:var(--bg1);" id="plugin-iframe-${pluginName}"></iframe>
                 </div>
             </div>`;
 
@@ -821,46 +824,29 @@ function loadPluginFrame(pluginName, url, targetElement) {
         iframe.onload = function() {
             try {
                 const frameDoc = iframe.contentWindow.document;
-                
+
                 // ── Inject CSRF token into plugin iframe ──
-                // Bridge pages need the token for POST requests but can't
-                // access the parent's meta tag. Inject it as a global.
                 try {
                     const script = frameDoc.createElement('script');
                     script.textContent = 'window._csrfToken = "' + (window._csrfToken || '') + '";';
                     frameDoc.head.appendChild(script);
-                } catch(csrfE) { console.warn('[CSRF] Could not inject token into iframe:', csrfE); }
+                } catch(csrfE) { /* sandboxed */ }
 
                 // ── Inject theme overrides into plugin iframe ──
-                // The theme bridge injects into the parent doc, but CSS variables
-                // don't cross iframe boundaries. Re-inject here so plugins stay themed.
                 try {
-                    const themeStyle = document.getElementById('md-theme-override');
-                    if (themeStyle && themeStyle.textContent) {
-                        let s = frameDoc.getElementById('md-theme-override');
-                        if (s) { s.textContent = themeStyle.textContent; }
-                        else { s = frameDoc.createElement('style'); s.id = 'md-theme-override'; s.setAttribute('data-theme-plugin','1'); s.textContent = themeStyle.textContent; frameDoc.head.appendChild(s); }
+                    const themeStyle = frameDoc.createElement('style');
+                    themeStyle.id = 'md-theme-override';
+                    if (frameDoc.getElementById('md-theme-override')) {
+                        frameDoc.getElementById('md-theme-override').remove();
                     }
-                } catch(te) { console.warn('[Theme] Could not inject into plugin iframe:', te); }
-
-                frameDoc.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    const rect = iframe.getBoundingClientRect();
-                    const parentX = e.clientX + rect.left;
-                    const parentY = e.clientY + rect.top;
-                    
-                    if (window.showGlobalContextMenu) {
-                        window.showGlobalContextMenu(parentX, parentY);
+                    const parentTheme = document.getElementById('md-theme-override');
+                    if (parentTheme && parentTheme.textContent) {
+                        themeStyle.textContent = parentTheme.textContent;
+                        frameDoc.head.appendChild(themeStyle);
                     }
-                });
-
-                frameDoc.addEventListener('click', (e) => {
-                    if (e.button !== 2 && window.hideGlobalContextMenu) {
-                        window.hideGlobalContextMenu();
-                    }
-                });
+                } catch(te) { /* sandboxed */ }
             } catch (err) {
-                console.warn("Could not attach context menu to plugin iframe:", err);
+                console.warn("Plugin iframe setup:", err);
             }
         };
 

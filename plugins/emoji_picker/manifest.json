@@ -8,11 +8,5 @@
   "entry_point": "main.py",
   "router_prefix": "/api/plugins/emoji_picker",
   "static_prefix": "/static/plugins/emoji_picker",
-  "nav_menu": [
-    {
-      "label": "Emoji Picker",
-      "href": "/plugin/emoji_picker/index.html",
-      "icon": "fa-face-smile"
-    }
-  ]
+  "nav_menu": []
 }

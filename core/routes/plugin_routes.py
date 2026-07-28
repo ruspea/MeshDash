@@ -9,6 +9,7 @@ from fastapi import APIRouter, Request, Response, Depends, HTTPException, File, 
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from core.routes.schemas import User, RemoteInstallRequest
 from core.auth import verify_csrf, get_current_active_user, _generate_csrf_token
+from core.broadcast import broadcast_data
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
