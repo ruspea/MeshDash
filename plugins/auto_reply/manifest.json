@@ -1,7 +1,7 @@
 {
   "id": "auto_reply",
   "name": "Auto-Reply",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "author": "MeshDash",
   "description": "Hierarchical auto-reply with slot/channel/DM filtering, smart reply routing, and per-rule scope overrides. MeshDash v3.0+ required for full functionality.",
   "watchdog": true,

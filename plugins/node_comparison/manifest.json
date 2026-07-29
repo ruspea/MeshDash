@@ -1,7 +1,7 @@
 {
   "id": "node_comparison",
   "name": "Node Comparison",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "MeshDash",
   "description": "Stub plugin \u2014 placeholder for future implementation. No functionality yet. MeshDash v3.0+ required for full functionality.",
   "watchdog": false,

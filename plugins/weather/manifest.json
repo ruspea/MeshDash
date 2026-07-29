@@ -1,7 +1,7 @@
 {
   "id": "weather",
   "name": "Weather Plugin",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "author": "MeshDash",
   "description": "Fetch current weather from Open\u2011Meteo and broadcast to the mesh",
   "entry_point": "main.py",

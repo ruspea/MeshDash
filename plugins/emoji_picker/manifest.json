@@ -1,7 +1,7 @@
 {
   "id": "emoji_picker",
   "name": "Emoji Picker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "MeshDash",
   "description": "Adds an emoji picker button to all message input fields (broadcast, DM, tasks, bulletins). Tap to insert emojis into your messages. MeshDash v3.0+ required for full functionality.",
   "watchdog": false,

@@ -1,7 +1,7 @@
 {
   "id": "theme_editor",
   "name": "Theme Editor",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "MeshDash",
   "description": "Live CSS variable theming for the MeshDash UI. Pick accent colours, backgrounds and borders with instant preview. Includes preset themes and a reset to default. MeshDash v3.0+ required for full functionality.",
   "entry_point": "main.py",

@@ -1,7 +1,7 @@
 {
   "id": "auto_responder",
   "name": "Auto-Responder",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "MeshDash",
   "description": "Automatically replies to incoming Direct Messages. Includes an anti-spam cooldown to prevent infinite reply loops. MeshDash v3.0+ required for full functionality.",
   "entry_point": "main.py",

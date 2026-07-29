@@ -1,7 +1,7 @@
 {
   "id": "share_map",
   "name": "Share Map",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "author": "MeshDash",
   "description": "Create public embeddable widgets \u2014 live maps, node stat cards, network stats, activity feeds \u2014 and share them anywhere with no login required. Each widget gets a unique URL and iframe code. 100% read-only. MeshDash v3.0+ required for full functionality.",
   "entry_point": "main.py",
