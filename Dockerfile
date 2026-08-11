@@ -5,14 +5,23 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Install build dependencies
+# Install build dependencies (required for compiling wheels on arm/v7 like bcrypt, pillow, cffi)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc libffi-dev libssl-dev && \
+    build-essential \
+    pkg-config \
+    cargo \
+    rustc \
+    python3-dev \
+    libffi-dev \
+    libssl-dev \
+    zlib1g-dev \
+    libjpeg-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install to a venv
 COPY requirements.txt .
 RUN python -m venv /opt/venv && \
+    /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel && \
     /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 
