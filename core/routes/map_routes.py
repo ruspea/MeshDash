@@ -14,10 +14,12 @@ router = APIRouter()
 
 
 @router.get("/api/map/carto-config.js")
-async def carto_basemap_config(user: User = Depends(get_current_active_user)):
-    """Provide the browser-facing CARTO tile template to authenticated users."""
-    if isinstance(user, RedirectResponse):
-        return user
+async def carto_basemap_config():
+    """Provide the browser-facing CARTO tile template.
+
+    Loaded as a <script src> tag which cannot send a bearer token, so this
+    endpoint is intentionally unauthenticated — the tile URL is not sensitive.
+    """
     payload = {"dark": raster_tile_url("dark_all")}
     script = "window.MeshDashBasemaps = Object.freeze(" + json.dumps(payload) + ");"
     return Response(
