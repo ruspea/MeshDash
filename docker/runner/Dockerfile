@@ -21,10 +21,10 @@ FROM python:3.12-slim
 
 LABEL maintainer="info@meshdash.co.uk"
 LABEL description="Official MeshDash Runner R3.1.8 — Self-updating Meshtastic Dashboard"
-LABEL version="3.1.3"
+LABEL version="3.1.4"
 LABEL org.opencontainers.image.title="MeshDash Runner"
 LABEL org.opencontainers.image.description="Self-updating Docker container for MeshDash R3.1.8+"
-LABEL org.opencontainers.image.version="3.1.3"
+LABEL org.opencontainers.image.version="3.1.4"
 LABEL org.opencontainers.image.source="https://github.com/ruspea/MeshDash"
 
 # Prevent Python from writing .pyc files and buffering stdout
@@ -37,17 +37,26 @@ ENV PIP_NO_CACHE_DIR=1
 # - Serial/USB access (usbutils)
 # - Package downloads (wget, curl)
 # - Bluetooth (bluez for BLE)
-# - Building native Python extensions (gcc, etc.)
+# - Building native Python extensions on all architectures (incl. arm/v7)
+#   arm/v7 needs cargo, rustc, pkg-config, python3-dev, zlib1g-dev, libjpeg-dev
+#   to compile wheels for bcrypt, pycryptodome, cffi, pillow, cryptography
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     unzip \
     curl \
     usbutils \
     bluez \
+    build-essential \
+    pkg-config \
+    cargo \
+    rustc \
+    python3-dev \
     gcc \
     libffi-dev \
     libssl-dev \
     libbluetooth-dev \
+    zlib1g-dev \
+    libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
