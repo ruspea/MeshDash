@@ -29,7 +29,7 @@ DB_PATH = "meshtastic_data.db"
 MAX_SLOTS = 16
 
 try:
-    from core.connections.mqtt import MQTTConnectionManager
+    from core.connections.mqtt import MQTTConnectionManager, is_valid_channel_psk
     _HAS_MQTT = True
 except ImportError:
     _HAS_MQTT = False
@@ -176,6 +176,22 @@ async def create_slot(req: SlotCreateRequest, user: User = Depends(verify_csrf))
     while slot_id in g.NODE_REGISTRY:
         slot_id = f"node_{secrets.token_hex(3)}"
 
+    conn_type = req.connection_type.upper()
+    mqtt_channel_psks = req.mqtt_channel_psks or {}
+    if conn_type == "MQTT":
+        if not _HAS_MQTT:
+            raise HTTPException(
+                503,
+                "MQTT support not available (core.connections.mqtt missing or paho-mqtt not installed)",
+            )
+        if len(mqtt_channel_psks) > 64:
+            raise HTTPException(400, "A maximum of 64 MQTT channel PSKs may be supplied.")
+        for channel_id, psk_b64 in mqtt_channel_psks.items():
+            if not str(channel_id).strip():
+                raise HTTPException(400, "MQTT channel IDs must not be empty.")
+            if not is_valid_channel_psk(str(psk_b64)):
+                raise HTTPException(400, f"Invalid PSK for MQTT channel '{channel_id}'.")
+
     # Generate a stable unique identifier for this slot's database.
     # Using a UUID means the DB filename is independent of the slot position counter 
     # deleting node_1 and adding a new radio won't silently reuse the old node_1 DB.
@@ -185,13 +201,8 @@ async def create_slot(req: SlotCreateRequest, user: User = Depends(verify_csrf))
     slot_md = MeshtasticData(slot_db, g.MAX_PACKETS_IN_MEMORY, slot_id=slot_id)
     slot_q: asyncio.Queue = asyncio.Queue(maxsize=2000)
 
-    conn_type = req.connection_type.upper()
-
     if conn_type == "MQTT":
         #  MQTT slot 
-        if not _HAS_MQTT:
-            raise HTTPException(503, "MQTT support not available (core.connections.mqtt missing or paho-mqtt not installed)")
-
         # Apply preset values first, then override with any explicit fields
         from core.connections.mqtt import MQTT_PRESETS
         preset_key = (req.mqtt_preset or "meshtastic_public").lower().replace(" ", "_")
@@ -219,6 +230,9 @@ async def create_slot(req: SlotCreateRequest, user: User = Depends(verify_csrf))
         )
         # Wire the packet queue so MQTT messages land in the right place
         slot_cm.set_packet_queue(slot_q)
+        for channel_id, psk_b64 in mqtt_channel_psks.items():
+            if not slot_cm.set_channel_psk(str(channel_id), str(psk_b64)):
+                raise HTTPException(400, f"Invalid PSK for MQTT channel '{channel_id}'.")
 
     elif conn_type == "MESHCORE":
         #  MeshCore slot 
@@ -651,5 +665,3 @@ async def sse_slot(request: Request, slot_id: str):
                 slot.g.sse_queues.pop(cid, None)
 
     return EventSourceResponse(gen(), ping=15)
-
-

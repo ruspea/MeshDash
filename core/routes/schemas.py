@@ -236,6 +236,7 @@ class SlotCreateRequest(PydanticBaseModel):
     mqtt_channel:    Optional[str] = None   # channel name, e.g. "LongFast" or "#" for all
     mqtt_node_id:    Optional[str] = None   # our node's !hexid (optional  observer mode if unset)
     mqtt_preset:     Optional[str] = None   # "meshtastic_public" | "meshtastic_public_tls" | "custom"
+    mqtt_channel_psks: Optional[Dict[str, str]] = None  # channel name -> base64 PSK
     # MeshCore fields  only used when connection_type == "MESHCORE"
     meshcore_transport:   Optional[str] = None   # "serial" | "tcp" | "ble"
     meshcore_serial_port: Optional[str] = None   # e.g. /dev/ttyUSB0 or COM3

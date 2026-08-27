@@ -1122,6 +1122,8 @@ async def lifespan(app: FastAPI):
                     slot_id=_sid,
                 )
                 _slot_cm.set_packet_queue(_slot_q)
+                for _channel_id, _psk_b64 in (_ps.get("mqtt_channel_psks", {}) or {}).items():
+                    _slot_cm.set_channel_psk(str(_channel_id), str(_psk_b64))
 
             elif _conn_type == "MESHCORE" and _HAS_MESHCORE:
                 _mc_params = {
