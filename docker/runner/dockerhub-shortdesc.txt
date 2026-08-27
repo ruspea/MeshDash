@@ -1,1 +1,1 @@
-MeshDash R3.1.7 — Self-updating Docker container for the Meshtastic mesh network dashboard. Automatic updates, persistent SQLite storage, 32 built-in plugins, serial/TCP/BLE connectivity.
+MeshDash R3.1.8 — Self-updating Docker container for the Meshtastic mesh network dashboard. Automatic updates, persistent SQLite storage, 32 built-in plugins, serial/TCP/BLE connectivity.

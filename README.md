@@ -27,7 +27,7 @@
 <p align="center">
   <a href="https://www.wikidata.org/wiki/Q139844395"><img src="https://img.shields.io/badge/Wikidata-Q139844395-blue" alt="Wikidata" /></a>
   <a href="https://meshdash.co.uk"><img src="https://img.shields.io/badge/Website-meshdash.co.uk-green" alt="Website" /></a>
-  <img src="https://img.shields.io/badge/version-R3.1.7-orange" alt="Version" />
+  <img src="https://img.shields.io/badge/version-R3.1.8-orange" alt="Version" />
   <img src="https://img.shields.io/badge/license-GPL--3.0--only-blue" alt="License" />
   <img src="https://img.shields.io/badge/platform-Linux%20%7C%20Raspberry%20Pi%20%7C%20WSL2-lightgrey" alt="Platform" />
 </p>
@@ -53,7 +53,7 @@ The fastest way to get MeshDash running. The setup wizard generates a personalis
 
 ```bash
 # Example — your command will be customised by the wizard
-curl -sL https://meshdash.co.uk/versions/R3.1.7/install.sh | bash
+curl -sL https://meshdash.co.uk/versions/R3.1.8/install.sh | bash
 ```
 
 The wizard handles:
