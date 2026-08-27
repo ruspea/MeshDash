@@ -28,6 +28,19 @@ DEFAULT_TARGET_HOST = "192.168.0.0"
 DB_PATH = "meshtastic_data.db"
 MAX_SLOTS = 16
 
+
+def _additional_slot_db_path(slot: NodeSlot, slot_id: str) -> Optional[str]:
+    """Resolve the active persistent database path for a non-primary slot."""
+    if g.PUBLIC_MODE:
+        return None
+    active_path = getattr(slot.g.db_manager, "db_path", None)
+    if active_path and active_path != ":memory:":
+        return active_path
+    if slot.db_uuid:
+        return os.path.join(g.DATA_DIR, f"meshtastic_data_{slot.db_uuid}.db")
+    return os.path.join(g.DATA_DIR, f"meshtastic_data_{slot_id}.db")
+
+
 try:
     from core.connections.mqtt import MQTTConnectionManager
     _HAS_MQTT = True
@@ -107,12 +120,7 @@ async def list_slots(user: User = Depends(get_current_active_user)):
         # DB size  read from disk without opening the connection
         db_size_mb: Optional[float] = None
         db_path_str: Optional[str] = None
-        if sid != "node_0" and not g.PUBLIC_MODE and slot.db_uuid:
-            _p = f"meshtastic_data_{slot.db_uuid}.db"
-        elif sid != "node_0" and not g.PUBLIC_MODE:
-            _p = f"meshtastic_data_{sid}.db"  # legacy
-        else:
-            _p = None
+        _p = _additional_slot_db_path(slot, sid) if sid != "node_0" else None
         if _p:
             db_path_str = _p
             try:
@@ -180,7 +188,11 @@ async def create_slot(req: SlotCreateRequest, user: User = Depends(verify_csrf))
     # Using a UUID means the DB filename is independent of the slot position counter 
     # deleting node_1 and adding a new radio won't silently reuse the old node_1 DB.
     db_uuid = uuid.uuid4().hex
-    db_path = f"meshtastic_data_{db_uuid}.db" if not g.PUBLIC_MODE else ":memory:"
+    db_path = (
+        os.path.join(g.DATA_DIR, f"meshtastic_data_{db_uuid}.db")
+        if not g.PUBLIC_MODE
+        else ":memory:"
+    )
     slot_db = DatabaseManager(db_path, ephemeral=g.PUBLIC_MODE)
     slot_md = MeshtasticData(slot_db, g.MAX_PACKETS_IN_MEMORY, slot_id=slot_id)
     slot_q: asyncio.Queue = asyncio.Queue(maxsize=2000)
@@ -346,13 +358,7 @@ async def delete_slot(
         raise HTTPException(404, f"Slot '{slot_id}' not found.")
 
     # Resolve the DB file path before teardown (slot.g.db_manager.db_path is the source of truth)
-    _db_file: Optional[str] = None
-    if not g.PUBLIC_MODE and slot.db_uuid:
-        _db_file = f"meshtastic_data_{slot.db_uuid}.db"
-    elif not g.PUBLIC_MODE:
-        _db_file = getattr(slot.g.db_manager, "db_path", None)
-        if _db_file == ":memory:":
-            _db_file = None
+    _db_file = _additional_slot_db_path(slot, slot_id)
 
     _save_slots_file()
     logger.info("??  Slot '%s' removed from registry (delete_db=%s).", slot_id, delete_db)
@@ -405,11 +411,7 @@ async def purge_slot_db(slot_id: str, user: User = Depends(verify_csrf)):
         raise HTTPException(404, f"Slot '{slot_id}' not found.")
 
     # Resolve the DB file path
-    db_file: Optional[str] = None
-    if not g.PUBLIC_MODE and slot.db_uuid:
-        db_file = f"meshtastic_data_{slot.db_uuid}.db"
-    elif not g.PUBLIC_MODE:
-        db_file = getattr(slot.g.db_manager, "db_path", f"meshtastic_data_{slot_id}.db")
+    db_file = _additional_slot_db_path(slot, slot_id)
 
     if not db_file or db_file == ":memory:":
         raise HTTPException(400, "No persistent database file to purge.")
@@ -464,10 +466,7 @@ async def slot_db_info(slot_id: str, user: User = Depends(get_current_active_use
         if g.PUBLIC_MODE:
             return {"slot_id": slot_id, "db_file": ":memory:", "exists": True,
                     "size_bytes": 0, "size_mb": 0.0, "delete_supported": False}
-        if slot.db_uuid:
-            _db_file = f"meshtastic_data_{slot.db_uuid}.db"
-        else:
-            _db_file = getattr(slot.g.db_manager, "db_path", f"meshtastic_data_{slot_id}.db")
+        _db_file = _additional_slot_db_path(slot, slot_id)
 
     _exists = os.path.exists(_db_file)
     _size_bytes = 0
@@ -651,5 +650,3 @@ async def sse_slot(request: Request, slot_id: str):
                 slot.g.sse_queues.pop(cid, None)
 
     return EventSourceResponse(gen(), ping=15)
-
-

@@ -2,6 +2,8 @@
 from core.routes.schemas import User
 from fastapi import File, status
 import core.globals as g
+import os
+import shutil
 import sqlite3
 import time
 import threading
@@ -11,6 +13,47 @@ logger = logging.getLogger(__name__)
 import json
 import asyncio
 from typing import Any, Dict, List, Optional
+
+
+def migrate_legacy_database_files(source_path: str, target_path: str) -> bool:
+    """Move a legacy SQLite database and its WAL/SHM sidecars as one set.
+
+    Returns ``True`` when a database was migrated. Existing destination
+    databases are never overwritten.
+    """
+    source_path = os.path.abspath(source_path)
+    target_path = os.path.abspath(target_path)
+    if source_path == target_path or os.path.exists(target_path):
+        return False
+    if not os.path.exists(source_path):
+        return False
+
+    target_dir = os.path.dirname(target_path)
+    if target_dir:
+        os.makedirs(target_dir, exist_ok=True)
+
+    moved_suffixes = []
+    try:
+        for suffix in ("", "-wal", "-shm"):
+            source_file = source_path + suffix
+            target_file = target_path + suffix
+            if not os.path.exists(source_file):
+                continue
+            if os.path.exists(target_file):
+                raise FileExistsError(target_file)
+            shutil.move(source_file, target_file)
+            moved_suffixes.append(suffix)
+    except Exception:
+        # Best-effort rollback keeps the legacy database usable if moving one
+        # of its sidecars fails (for example across a full filesystem).
+        for suffix in reversed(moved_suffixes):
+            source_file = source_path + suffix
+            target_file = target_path + suffix
+            if os.path.exists(target_file) and not os.path.exists(source_file):
+                shutil.move(target_file, source_file)
+        raise
+    return True
+
 
 class DatabaseManager:
     def __init__(self, db_path: str, ephemeral: bool = False):
@@ -1196,5 +1239,4 @@ class DatabaseManager:
             logging.error(f"Global search DB error: {e}")
         
         return results
-
 

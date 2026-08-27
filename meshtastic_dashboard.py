@@ -358,7 +358,7 @@ from core.broadcast import broadcast_data, broadcast_stats, broadcast_stats_for_
 from core.c2 import C2ActivityLogger, remote_c2_worker_enhanced, _sign_payload, _c2_headers, _c2_query, _path_matches_pattern, _clamp_params, _sanitize_path, send_system_message, send_system_message_sync, _resolve_tier_endpoints, execute_meshtastic_command
 from core.config_loader import load_configuration, _save_slots_file, _load_slots_file, _r, _resolve_base, _resolve_community, _resolve_heartbeat, _resolve_versions
 from core.data import MeshtasticData
-from core.database import DatabaseManager
+from core.database import DatabaseManager, migrate_legacy_database_files
 from core.evidence import SourceEvidence, detect_packet_source, _update_node_source_evidence, _get_node_rf_history
 from core.geocode import _load_geocode_cache, _save_geocode_cache, _geocode_reverse, _cache_key
 from core.logging_utils import MemoryLogHandler, _attach_plugin_log_handler
@@ -1090,11 +1090,26 @@ async def lifespan(app: FastAPI):
 
             _db_uuid = _ps.get("db_uuid", "")
             if _db_uuid:
-                _db_path = f"meshtastic_data_{_db_uuid}.db" if not PUBLIC_MODE else ":memory:"
+                _db_filename = f"meshtastic_data_{_db_uuid}.db"
             else:
-                _db_uuid = uuid.uuid4().hex
-                _db_path = f"meshtastic_data_{_sid}.db" if not PUBLIC_MODE else ":memory:"
-                logger.info("? Slot '%s' has no db_uuid  assigning %s (legacy migration)", _sid, _db_uuid)
+                _db_filename = f"meshtastic_data_{_sid}.db"
+                logger.info("? Slot '%s' has no db_uuid  retaining legacy database name", _sid)
+            if PUBLIC_MODE:
+                _db_path = ":memory:"
+            else:
+                _db_path = os.path.join(DATA_DIR, _db_filename)
+                try:
+                    if migrate_legacy_database_files(_db_filename, _db_path):
+                        logger.info(" Migrated slot '%s' database into data/", _sid)
+                except Exception as _db_migration_err:
+                    # Keep using the legacy database if migration could not be
+                    # completed; never replace its history with a new empty DB.
+                    logger.error(
+                        " Failed to migrate slot '%s' database: %s; using legacy path",
+                        _sid,
+                        _db_migration_err,
+                    )
+                    _db_path = _db_filename
             _slot_db = DatabaseManager(_db_path, ephemeral=PUBLIC_MODE)
             _slot_md = MeshtasticData(_slot_db, MAX_PACKETS_IN_MEMORY, slot_id=_sid)
             _slot_q: asyncio.Queue = asyncio.Queue(maxsize=2000)
