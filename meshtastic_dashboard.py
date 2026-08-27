@@ -848,8 +848,6 @@ _g.sse_queues = sse_queues
 import core.sse as _core_sse
 _core_sse.sse_queues = sse_queues
 _core_sse.sse_queues_lock = sse_queues_lock
-sync_lock = asyncio.Lock()
-_slot_sync_locks: Dict[str, asyncio.Lock] = {}  # per-slot sync locks for additional nodes
 
 all_sse_queues: Dict[int, asyncio.Queue] = {}
 all_sse_queues_lock = asyncio.Lock()
@@ -1175,9 +1173,6 @@ async def lifespan(app: FastAPI):
                 db_uuid=_db_uuid,
             )
             NODE_REGISTRY[_sid] = _restored_slot
-
-            if _sid not in _slot_sync_locks:
-                _slot_sync_locks[_sid] = asyncio.Lock()
 
             def _make_restore_task_handler(s):
                 def _h(task):

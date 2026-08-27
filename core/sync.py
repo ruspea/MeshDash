@@ -2,9 +2,18 @@ import core.globals as g
 import logging
 # Auto-extracted from meshtastic_dashboard.py
 from core.routes.schemas import NodeSlot
+from core.broadcast import broadcast_data
+from core.c2 import send_system_message
 import asyncio
 
 logger = logging.getLogger(__name__)
+
+# These locks used to live in meshtastic_dashboard.py before this module was
+# extracted. Keep them with the code that consumes them so every slot's
+# hydration task shares the same lock registry.
+sync_lock = asyncio.Lock()
+_slot_sync_locks = {}
+
 
 async def _perform_background_sync_for_slot(interface, slot: "NodeSlot"):
     """Slot-aware background node database hydration. Works for any slot including node_0."""
@@ -143,13 +152,12 @@ async def perform_background_sync(interface):
 
 def _remove_keys_from_config(keys):
     try:
-        with open(CONFIG_FILE_PATH, "r") as f:
+        with open(g.CONFIG_FILE_PATH, "r") as f:
             lines = f.readlines()
-        with open(CONFIG_FILE_PATH, "w") as f:
+        with open(g.CONFIG_FILE_PATH, "w") as f:
             for line in lines:
                 if not any(k in line for k in keys):
                     f.write(line)
     except Exception:
         pass
-
 

@@ -426,9 +426,16 @@ class MeshtasticData:
                     local_node = _cm.interface.localNode
                     local_config = getattr(local_node, "localConfig", None)
 
-                # Fetch the local radio's dynamic identity and telemetry from the NodeDB
-                if hasattr(_cm.interface, "nodes"):
-                    local_db_node = _cm.interface.nodes.get(info.my_node_num, {})
+                # Fetch the local radio's dynamic identity and telemetry from
+                # the NodeDB. Meshtastic keys ``nodes`` by string node ID and
+                # ``nodesByNum`` by integer node number.
+                nodes_by_num = getattr(_cm.interface, "nodesByNum", None)
+                if isinstance(nodes_by_num, dict):
+                    local_db_node = nodes_by_num.get(info.my_node_num, {})
+                if not local_db_node:
+                    nodes_by_id = getattr(_cm.interface, "nodes", None)
+                    if isinstance(nodes_by_id, dict):
+                        local_db_node = nodes_by_id.get(nid, {})
 
             # Robust fallback logic: Try metadata first, fallback to info, then None/Unknown
             fw_version = getattr(metadata, "firmware_version", getattr(info, "firmware_version", None)) if metadata else getattr(info, "firmware_version", None)
@@ -692,5 +699,4 @@ class MeshtasticData:
 
     def get_formatted_packets_from_memory(self, limit: int) -> List[Dict]:
         return list(reversed(list(self.packets)))[:limit]
-
 
