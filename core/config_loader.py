@@ -152,6 +152,9 @@ def _save_slots_file() -> None:
                 entry["mqtt_region"]   = cfg.get("MQTT_REGION",  "#")
                 entry["mqtt_channel"]  = cfg.get("MQTT_CHANNEL", "#")
                 entry["mqtt_node_id"]  = cfg.get("MQTT_NODE_ID", "")
+                entry["mqtt_channel_psks"] = dict(
+                    getattr(slot.connection_manager, "_channel_psk_sources", {})
+                )
             # Persist MeshCore-specific fields when applicable
             elif conn_type.upper() == "MESHCORE":
                 try:
@@ -192,5 +195,4 @@ def _load_slots_file() -> List[Dict[str, Any]]:
     except Exception as e:
         logger.error(" Failed to load slots file: %s", e)
         return []
-
 

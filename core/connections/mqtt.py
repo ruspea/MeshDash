@@ -82,13 +82,12 @@ except ImportError:
             "Install with: pip install pycryptodome --break-system-packages"
         )
 
-# Default Meshtastic channel PSK.
-# Meshtastic firmware pads the single-byte seed 0x01 with zeros to 16 bytes.
-# That IS the key directly — no PBKDF2, no hashing.
-# Reference: firmware/src/mesh/CryptoEngine.cpp initKey() + crypto.cpp
+# Default Meshtastic public-channel PSK. Firmware represents this as the
+# single-byte alias 0x01 in channel settings, then expands that alias to the
+# 16-byte ``defaultpsk`` declared in src/mesh/Channels.h.
 _DEFAULT_PSK = bytes([
-    0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0xD4, 0xF1, 0xBB, 0x3A, 0x20, 0x29, 0x07, 0x59,
+    0xF0, 0xBC, 0xFF, 0xAB, 0xCF, 0x4E, 0x69, 0x01,
 ])
 # Map of short PSK seeds → expanded keys for common channels
 _KNOWN_PSKS: Dict[str, bytes] = {
@@ -100,7 +99,7 @@ _KNOWN_PSKS: Dict[str, bytes] = {
 def _expand_psk(psk_b64: str) -> Optional[bytes]:
     """
     Expand a base64 PSK to the 16-byte (or 32-byte) AES key Meshtastic uses.
-    Single byte 0x01 ('AQ==') → padded to 16 bytes with zeros (firmware default).
+    Single byte 0x01 ('AQ==') expands to the firmware's public default PSK.
     """
     import base64
     if not psk_b64:
@@ -108,35 +107,54 @@ def _expand_psk(psk_b64: str) -> Optional[bytes]:
     if psk_b64 in _KNOWN_PSKS:
         return _KNOWN_PSKS[psk_b64]
     try:
-        raw = base64.b64decode(psk_b64)
+        raw = base64.b64decode(psk_b64, validate=True)
     except Exception:
         return None
-    if len(raw) == 1 and raw[0] == 0x01:
-        return _DEFAULT_PSK
+    if len(raw) == 1:
+        # Firmware treats a one-byte PSK as an index into the public default
+        # key family: index 1 is the default key and higher indices increment
+        # its final byte.
+        psk_index = raw[0]
+        if psk_index == 0:
+            return None
+        expanded = bytearray(_DEFAULT_PSK)
+        expanded[-1] = (expanded[-1] + psk_index - 1) & 0xFF
+        return bytes(expanded)
     if len(raw) in (16, 32):
         return raw
     if len(raw) < 16:
         return (raw + b'\x00' * 16)[:16]
-    return raw[:32]
+    if len(raw) < 32:
+        return (raw + b'\x00' * 32)[:32]
+    return None
+
+
+def is_valid_channel_psk(psk_b64: str) -> bool:
+    """Return whether a channel PSK can be expanded into an AES key."""
+    return _expand_psk(psk_b64) is not None
 
 
 def _aes_ctr_crypt(data: bytes, packet_id: int, from_node: int, key: bytes) -> Optional[bytes]:
     """
     AES-CTR encrypt or decrypt (CTR is symmetric — same function for both).
 
-    Meshtastic nonce construction (firmware crypto.cpp):
-      nonce[0..7]  = packet_id as little-endian uint64
-      nonce[8..15] = from_node_num as little-endian uint64
-    PyCryptodome CTR: nonce is first 8 bytes, initial_value is last 8 bytes as int.
+    Meshtastic nonce construction (firmware CryptoEngine::initNonce):
+      nonce[0..7]   = packet_id as little-endian uint64
+      nonce[8..11]  = from_node_num as little-endian uint32
+      nonce[12..15] = a 32-bit block counter starting at zero
+
+    PyCryptodome treats a 12-byte nonce as the fixed prefix and supplies the
+    final four-byte big-endian counter, matching the firmware CTR engine.
     """
     if not _HAS_CRYPTO or not data:
         return None
     try:
-        nonce = struct.pack("<QQ",
-                            packet_id & 0xFFFFFFFFFFFFFFFF,
-                            from_node  & 0xFFFFFFFFFFFFFFFF)
-        initial_value = int.from_bytes(nonce[8:], byteorder='little')
-        cipher = AES.new(key, AES.MODE_CTR, nonce=nonce[:8], initial_value=initial_value)
+        nonce = struct.pack(
+            "<QI",
+            packet_id & 0xFFFFFFFFFFFFFFFF,
+            from_node & 0xFFFFFFFF,
+        )
+        cipher = AES.new(key, AES.MODE_CTR, nonce=nonce, initial_value=0)
         return cipher.encrypt(data)
     except Exception:
         return None
@@ -502,6 +520,7 @@ class MQTTConnectionManager:
         # Channel PSK store: {channel_name: expanded_key_bytes}
         # Populated via set_channel_psk().  Capped at 64 entries.
         self._channel_psks: Dict[str, bytes] = {}
+        self._channel_psk_sources: Dict[str, str] = {}
 
 
     def set_channel_psk(self, channel_id: str, psk_b64: str) -> bool:
@@ -518,7 +537,9 @@ class MQTTConnectionManager:
         if len(self._channel_psks) >= 64:
             oldest = next(iter(self._channel_psks))
             del self._channel_psks[oldest]
+            self._channel_psk_sources.pop(oldest, None)
         self._channel_psks[channel_id] = key
+        self._channel_psk_sources[channel_id] = psk_b64
         self.logger.info("MQTT: PSK set for channel '%s' (%d bytes)", channel_id, len(key))
         return True
 

@@ -665,6 +665,8 @@ async def mqtt_set_channel_key(
     if not ok:
         raise HTTPException(400, "Invalid PSK — could not parse base64 key")
 
+    from core.config_loader import _save_slots_file
+    _save_slots_file()
     logger.info("MQTT [%s]: PSK stored for channel '%s' (idx %s)", slot_id, channel_id, channel_idx)
     return {"status": "ok", "slot_id": slot_id, "channel_id": channel_id}
 
