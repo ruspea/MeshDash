@@ -1,7 +1,7 @@
 <style>
-    .acct-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:1400px;margin:0 auto;}
+    .acct-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;max-width:1400px;margin:0 auto;}
     .acct-full{grid-column:span 2;}
-    @media(max-width:900px){.acct-grid{grid-template-columns:1fr;}.acct-full{grid-column:span 1;}}
+    @media(max-width:900px){.acct-grid{grid-template-columns:minmax(0,1fr);}.acct-full{grid-column:span 1;}}
     .acct-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd);}
     .acct-row:last-child{border-bottom:none;}
     .acct-lbl{font-family:var(--mono);font-size:10px;color:var(--txt3);text-transform:uppercase;letter-spacing:1px;}

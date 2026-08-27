@@ -55,6 +55,30 @@
     .sh-kv { display: flex; gap: 8px; margin-bottom: 4px; border-bottom: 1px dashed rgba(255,255,255,0.05); padding-bottom: 2px; }
     .sh-k { color: var(--txt3); width: 100px; flex-shrink: 0; }
     .sh-v { color: var(--txt); word-break: break-all; }
+
+    /* ─── Mobile responsive ─── */
+    @media (max-width: 768px) {
+        .sh-main-split { flex-direction: column; overflow: visible; }
+        .sh-sidebar { width: 100%; flex-shrink: 0; max-height: 200px; }
+        .sh-table-area { min-height: 300px; }
+        .sh-detail-pane { flex-direction: column; height: auto; max-height: 400px; overflow-y: auto; }
+        .sh-detail-col { border-right: none; border-bottom: 1px solid var(--bd); }
+        .sh-detail-col:last-child { border-bottom: none; }
+        .sh-toolbar { flex-wrap: wrap; gap: 4px; }
+        .sh-toolbar input { font-size: 11px !important; }
+        .sh-table { font-size: 9px; }
+        .sh-table th, .sh-table td { padding: 3px 4px; }
+    }
+    @media (max-width: 480px) {
+        .sh-table { font-size: 8px; }
+        .c-no { width: 30px; }
+        .c-time { width: 50px; }
+        .c-dt { width: 35px; }
+        .c-src, .c-dst { width: 70px; }
+        .c-ch { width: 25px; }
+        .c-proto { width: 60px; }
+        .c-snr { width: 45px; }
+    }
 </style>
 
 <div class="vs" style="height: calc(100vh - 90px); height: calc(100dvh - 90px); display: flex; flex-direction: column;">
