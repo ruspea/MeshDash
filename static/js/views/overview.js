@@ -482,7 +482,7 @@ function _ovInitMiniMap(elementId, lat, lon, hasFix, color) {
             center,
             zoom,
             zoomControl:       false,
-            attributionControl: false,
+            attributionControl: true,
             dragging:          false,
             scrollWheelZoom:   false,
             doubleClickZoom:   false,
@@ -492,12 +492,16 @@ function _ovInitMiniMap(elementId, lat, lon, hasFix, color) {
             preferCanvas:      true,
         });
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        const cartoUrl = window.MeshDashBasemaps?.dark ||
+            'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+        L.tileLayer(cartoUrl, {
             subdomains: 'abcd',
             maxZoom:    19,
             maxNativeZoom: 15,
             detectRetina: false,
             keepBuffer: 0,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, ' +
+                '&copy; <a href="https://carto.com/attributions">CARTO</a>',
         }).addTo(map);
 
         if (hasFix) {

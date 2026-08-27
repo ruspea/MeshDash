@@ -1,14 +1,32 @@
 import core.globals as g
 # Auto-extracted from meshtastic_dashboard.py
+import json
 import logging
 from typing import List, Set
 from fastapi import APIRouter, Request, Response, Depends, HTTPException, File, UploadFile, status
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from core.routes.schemas import User
 from core.auth import verify_csrf, get_current_active_user
+from core.carto_basemap import raster_tile_url
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+@router.get("/api/map/carto-config.js")
+async def carto_basemap_config(user: User = Depends(get_current_active_user)):
+    """Provide the browser-facing CARTO tile template to authenticated users."""
+    if isinstance(user, RedirectResponse):
+        return user
+    payload = {"dark": raster_tile_url("dark_all")}
+    script = "window.MeshDashBasemaps = Object.freeze(" + json.dumps(payload) + ");"
+    return Response(
+        content=script,
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @router.get("/api/map/tiles/{z}/{x}/{y}")
 @router.get("/api/map/tiles/{z}/{x}/{y}.pbf")
 async def serve_map_tile(z: int, x: int, y: int):
@@ -449,5 +467,4 @@ async def map_status():
         if not has_file:
             active = None
     return {"active_file": active, "available": has_file}
-
 

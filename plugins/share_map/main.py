@@ -37,6 +37,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
+from core.carto_basemap import raster_tile_url
 
 import os
 
@@ -578,15 +579,35 @@ def _render_map(data, cfg, title, theme, refresh_s, data_url, token):
     show_links  = bool(cfg.get("show_links",  False))
     zoom      = int(cfg.get("zoom", 7))
 
-    tile_url  = {
-        "dark":      "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-        "satellite": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        "osm":       "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    }.get(map_style, "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png")
+    tile_url, tile_attribution = {
+        "dark": (
+            raster_tile_url("dark_all"),
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> '
+            '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+        ),
+        "satellite": (
+            "https://server.arcgisonline.com/ArcGIS/rest/services/"
+            "World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            'Powered by <a href="https://www.esri.com/">Esri</a> | Source: Esri, Vantor, '
+            'Earthstar Geographics, and the GIS User Community',
+        ),
+        "osm": (
+            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        ),
+    }.get(
+        map_style,
+        (
+            raster_tile_url("dark_all"),
+            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> '
+            '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+        ),
+    )
 
     nodes_json = json.dumps(nodes)
     cfg_json   = json.dumps({"zoom": zoom, "show_trails": show_trails,
                               "show_links": show_links, "tile_url": tile_url,
+                              "tile_attribution": tile_attribution,
                               "theme": theme})
     bg_css = "#060b12" if theme == "dark" else "#f4f7fb"
 
@@ -676,9 +697,11 @@ def _render_map(data, cfg, title, theme, refresh_s, data_url, token):
 
   // Init map
   const isDark = CFG.theme === 'dark';
-  map = L.map('wmap', {{zoomControl:true, attributionControl:false}})
+  map = L.map('wmap', {{zoomControl:true, attributionControl:true}})
     .setView([20, 0], CFG.zoom);
-  L.tileLayer(CFG.tile_url, {{subdomains:'abcd',maxZoom:19}}).addTo(map);
+  L.tileLayer(CFG.tile_url, {{
+    subdomains:'abcd', maxZoom:19, attribution:CFG.tile_attribution
+  }}).addTo(map);
 
   // Inject Leaflet CSS overrides
   const s = document.createElement('style');
