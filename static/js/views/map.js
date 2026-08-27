@@ -20,16 +20,28 @@ window.C2MapApp = {
     ],
     tileLayers: {
         dark: {
-            url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-            options: { attribution: '&copy; CARTO', subdomains: 'abcd', maxZoom: 19 }
+            url: window.MeshDashBasemaps?.dark ||
+                'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+            options: {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, ' +
+                    '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd', maxZoom: 19
+            }
         },
         satellite: {
             url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-            options: { attribution: '&copy; Esri', maxZoom: 18 }
+            options: {
+                attribution: 'Powered by <a href="https://www.esri.com/">Esri</a> | ' +
+                    'Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community',
+                maxZoom: 18
+            }
         },
         osm: {
             url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-            options: { attribution: '&copy; OpenStreetMap', maxZoom: 18 }
+            options: {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+                maxZoom: 18
+            }
         },
         offline: {
             // NOTE: offline tiles are Shortbread vector (MVT/protobuf) — rendered via

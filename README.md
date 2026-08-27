@@ -139,6 +139,19 @@ Then open **http://localhost:8000/setup** in your browser to configure your radi
 | `-v /dev:/dev` | Maps host device tree so the container can see serial hardware |
 | `-v meshdash_data:/app/data` | Persists database, logs, and settings across container updates |
 
+### CARTO basemap API key
+
+Map views that use CARTO raster tiles can load an API key from either the
+`CARTO_BASEMAP_API_KEY` environment variable or a file named by
+`CARTO_BASEMAP_KEY_FILE`. For Docker, mounting a read-only key file keeps the
+key out of the Compose environment:
+
+```bash
+-v /path/to/carto_basemap_key:/run/secrets/carto_basemap_key:ro
+```
+
+The default key-file path is `/run/secrets/carto_basemap_key`.
+
 ## Core Features
 
 ### Live Node C2

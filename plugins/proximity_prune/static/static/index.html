@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/static/css/style.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="/api/map/carto-config.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -243,8 +244,14 @@ function toast(m,t){try{window.parent.triggerToast(m,t||'ok');}catch(e){}}
 
 /* ── Map ── */
 function initMap(){
-    _map = L.map('preview-map',{zoomControl:false,attributionControl:false}).setView([20,0],2);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{subdomains:'abcd',maxZoom:19}).addTo(_map);
+    _map = L.map('preview-map',{zoomControl:false,attributionControl:true}).setView([20,0],2);
+    const cartoUrl = window.MeshDashBasemaps?.dark ||
+        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    L.tileLayer(cartoUrl, {
+        subdomains: 'abcd', maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, ' +
+            '&copy; <a href="https://carto.com/attributions">CARTO</a>'
+    }).addTo(_map);
     _markersLayer = L.layerGroup().addTo(_map);
 }
 
