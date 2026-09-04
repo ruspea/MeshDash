@@ -781,6 +781,11 @@ AUTH_SECRET_KEY = loaded_config["AUTH_SECRET_KEY"]
 AUTH_TOKEN_EXPIRE_MINUTES = int(loaded_config["AUTH_TOKEN_EXPIRE_MINUTES"])
 COMMUNITY_API_KEY = loaded_config.get("COMMUNITY_API_KEY", "YOUR_SUPER_SECRET_API_KEY_REPLACE_ME")
 
+# CARTO basemap API key — set into os.environ so carto_basemap.py picks it up
+_carto_key = loaded_config.get("CARTO_BASEMAP_API_KEY", "")
+if _carto_key:
+    os.environ["CARTO_BASEMAP_API_KEY"] = _carto_key
+
 DATA_RETENTION_DAYS: int = int(loaded_config.get("DATA_RETENTION_DAYS", 7))
 
 PUBLIC_MODE: bool = bool(loaded_config.get("PUBLIC_MODE", False))
@@ -869,6 +874,7 @@ _g.PUBLIC_MODE = PUBLIC_MODE
 _g.AUTH_SECRET_KEY = AUTH_SECRET_KEY
 _g.AUTH_TOKEN_EXPIRE_MINUTES = AUTH_TOKEN_EXPIRE_MINUTES
 _g.COMMUNITY_API_KEY = COMMUNITY_API_KEY
+_g.CARTO_BASEMAP_API_KEY = _carto_key
 _g.TARGET_HOST = TARGET_HOST
 _g.TARGET_PORT = TARGET_PORT
 _g.MESHTASTIC_CONNECTION_TYPE = loaded_config.get("MESHTASTIC_CONNECTION_TYPE", "SERIAL")

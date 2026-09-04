@@ -8,6 +8,7 @@ PUBLIC_MODE = False
 AUTH_SECRET_KEY = ""
 AUTH_TOKEN_EXPIRE_MINUTES = 10080
 COMMUNITY_API_KEY = ""
+CARTO_BASEMAP_API_KEY = ""
 # Connection globals set at startup and hot-reloaded on setup
 TARGET_HOST = ""
 TARGET_PORT = 4403

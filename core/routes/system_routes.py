@@ -170,6 +170,7 @@ def _load_config_models():
         C2_ACCESS_LEVEL: Optional[str] = None
         REMOTE_C2: Optional[bool] = None
         PUBLIC_MODE: Optional[bool] = None
+        CARTO_BASEMAP_API_KEY: Optional[str] = None
         # Heartbeat API key/URLs are hardcoded server-side — not user-configurable.
         # C2 sync intervals, endpoint lists are hardcoded internally.
 
@@ -257,6 +258,11 @@ async def update_system_config(request: Request, user: User = Depends(verify_csr
             "HISTORY_DAYS": lambda v: setattr(md, "AVERAGE_METRICS_HISTORY_DAYS", int(v)),
             "COMMUNITY_API_KEY": lambda v: setattr(md, "COMMUNITY_API_KEY", v),
             "PUBLIC_MODE": lambda v: setattr(md, "PUBLIC_MODE", bool(v)),
+            "CARTO_BASEMAP_API_KEY": lambda v: (
+                os.environ.__setitem__("CARTO_BASEMAP_API_KEY", v) if v
+                else os.environ.pop("CARTO_BASEMAP_API_KEY", None),
+                setattr(_globals, "CARTO_BASEMAP_API_KEY", v or ""),
+            )[-1],
         }
         for k, fn in reload_map.items():
             if k in update_data:

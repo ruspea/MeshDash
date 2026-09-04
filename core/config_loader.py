@@ -87,6 +87,7 @@ def load_configuration(config_path: str) -> Dict[str, Any]:
         "INITIAL_ADMIN_USERNAME": None,
         "INITIAL_ADMIN_PASSWORD": None,
         "PUBLIC_MODE": True,
+        "CARTO_BASEMAP_API_KEY": "",
     }
     if not os.path.exists(config_path):
         return config

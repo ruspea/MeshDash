@@ -206,6 +206,7 @@ class ConfigUpdateRequest(PydanticBaseModel):
     SCHEDULER_RW_TIMEOUT: Optional[float] = None
     C2_ACCESS_LEVEL: Optional[str] = None
     REMOTE_C2: Optional[bool] = None
+    CARTO_BASEMAP_API_KEY: Optional[str] = None
     # Heartbeat API key/URLs are hardcoded server-side — not user-configurable.
 
 
