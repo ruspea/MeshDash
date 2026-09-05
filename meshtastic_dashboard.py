@@ -1294,7 +1294,7 @@ _LOCKOUT_SECONDS = 300
 # ── FastAPI App ──
 app = FastAPI(
     title="Mesh Dash — Meshtastic Dashboard",
-    version="R3.1.8",
+    version="R3.1.9",
     description="Monitor, manage, and automate your Meshtastic mesh network. Multi-radio dashboard with plugin system, C2 bridge, and real-time mesh analytics.",
     docs_url="/docs",
     redoc_url="/redoc",
