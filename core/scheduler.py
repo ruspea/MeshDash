@@ -10,6 +10,7 @@ from croniter import croniter
 from typing import Dict, Any, List, Optional, Tuple
 import os
 import random
+import time
 import sys
 import math
 import base64
@@ -63,7 +64,7 @@ else:
 
 DEFAULT_SCHEDULER_LOG_LEVEL_STR = "INFO"
 DEFAULT_MAIN_APP_WEBSERVER_HOST = "0.0.0.0" 
-DEFAULT_MAIN_APP_WEBSERVER_PORT = 8000      
+DEFAULT_MAIN_APP_WEBSERVER_PORT = 8181  # same default as core/config.py and the app
 DEFAULT_COMMUNITY_API_ENABLED = False
 DEFAULT_HEARTBEAT_INTERVAL_MINUTES = 1
 DEFAULT_SEND_LOCAL_NODE_LOCATION_SCHED = False
@@ -200,11 +201,20 @@ def load_scheduler_configuration(resolved_config_file_path: str):
     except ValueError:
         webserver_port_val = DEFAULT_MAIN_APP_WEBSERVER_PORT
 
+    # The port the app is ACTUALLY listening on (set from --port at startup)
+    # beats the config file: systemd units pass --port without editing config.
+    runtime_port = os.environ.get("MESHDASH_RUNTIME_PORT")
+    if runtime_port and runtime_port.isdigit():
+        webserver_port_val = int(runtime_port)
+    runtime_host = os.environ.get("MESHDASH_RUNTIME_HOST")
+    if runtime_host:
+        webserver_host_val = runtime_host
+
     env_main_app_url = os.environ.get("MAIN_APP_API_URL")
     if env_main_app_url: 
         MAIN_APP_API_URL = env_main_app_url.rstrip('/')
     else: 
-        connect_host = "127.0.0.1" if webserver_host_val == "0.0.0.0" else webserver_host_val
+        connect_host = "127.0.0.1" if webserver_host_val in ("0.0.0.0", "::", "") else webserver_host_val
         MAIN_APP_API_URL = f"http://{connect_host}:{webserver_port_val}"
 
     if found_in_file["SEND_LOCAL_NODE_LOCATION"]:
@@ -453,6 +463,36 @@ async def trigger_task_action(client: httpx.AsyncClient, task: Dict[str, Any]):
         action_successful = await trigger_send_message_action(client, task)
     return action_successful
 
+_hb_last_outcome = None
+_hb_last_logged = 0.0
+
+
+def _in_process_node_id():
+    try:
+        import core.globals as _g
+        md = getattr(_g, "meshtastic_data", None)
+        return getattr(md, "local_node_id", None) if md is not None else None
+    except Exception:
+        return None
+
+
+def _note_heartbeat(outcome: str, node_id, fetch_errors) -> None:
+    """Log heartbeat health on change (and every 30 min while failing)."""
+    global _hb_last_outcome, _hb_last_logged
+    now = time.monotonic()
+    changed = outcome != _hb_last_outcome
+    if not changed and (outcome == "ok" or now - _hb_last_logged < 1800):
+        return
+    _hb_last_outcome, _hb_last_logged = outcome, now
+    detail = f"node={node_id or 'unknown'} key={'set' if COMMUNITY_API_KEY else 'MISSING'} local_api={MAIN_APP_API_URL}"
+    if fetch_errors:
+        detail += f" local_api_errors={fetch_errors[:3]}"
+    if outcome == "ok":
+        logger.info(f"Community heartbeat OK ({detail})")
+    else:
+        logger.warning(f"Community heartbeat {outcome} ({detail})")
+
+
 async def send_heartbeat(client: httpx.AsyncClient):
     status_data, stats_data, all_nodes_data = None, None, None
     fetch_errors: List[str] = [] 
@@ -479,6 +519,10 @@ async def send_heartbeat(client: httpx.AsyncClient):
     if status_err: fetch_errors.append(status_err)
     if status_data and isinstance(status_data.get("local_node_info"), dict):
         local_node_id = status_data["local_node_info"].get("node_id")
+    if not local_node_id:
+        # The scheduler runs inside the app: if the HTTP self-call failed
+        # (port, auth redirect, 404) the node id is still known in-process.
+        local_node_id = _in_process_node_id()
 
     stats_data, stats_err = await fetch_with_retry(stats_url)
     if stats_err: fetch_errors.append(stats_err)
@@ -491,6 +535,8 @@ async def send_heartbeat(client: httpx.AsyncClient):
         fetch_errors.append(f"Invalid data format from {nodes_url}")
 
     processed_local_node_info = status_data.get('local_node_info') if status_data and isinstance(status_data.get('local_node_info'), dict) else {} 
+    if not processed_local_node_info and local_node_id:
+        processed_local_node_info = {"node_id": local_node_id}
 
     def _process_node_location(node_dict: Dict[str, Any], node_id_str: str, is_local: bool):
         should_send_location = SEND_LOCAL_NODE_LOCATION if is_local else SEND_OTHER_NODES_LOCATION
@@ -540,6 +586,7 @@ async def send_heartbeat(client: httpx.AsyncClient):
     }
 
     _remote = base64.b64decode(_B64_H).decode('utf-8')
+    last_problem = "no attempt made"
     for attempt in range(MAX_RETRIES): 
         current_delay = INITIAL_RETRY_DELAY_SECONDS * (2 ** attempt)
         if attempt > 0:
@@ -552,15 +599,19 @@ async def send_heartbeat(client: httpx.AsyncClient):
                 hb_headers["X-Node-Id"] = local_node_id
             response = await client.post(_remote, json=payload, headers=hb_headers)
             if 200 <= response.status_code < 300:
+                _note_heartbeat("ok", local_node_id, fetch_errors)
                 return True 
             else:
                 if response.status_code in [408, 429] or response.status_code >= 500:
+                    last_problem = f"server HTTP {response.status_code}"
                     continue
                 else:
+                    _note_heartbeat(f"rejected HTTP {response.status_code}", local_node_id, fetch_errors)
                     return False
-        except Exception:
-            pass
+        except Exception as e:
+            last_problem = f"{type(e).__name__}: {e}"
     
+    _note_heartbeat(f"failed ({last_problem})", local_node_id, fetch_errors)
     return False
 
 async def check_and_trigger_tasks(client: httpx.AsyncClient, system_tz_val: datetime.tzinfo, last_check_time_utc_val: datetime.datetime):

@@ -1,3 +1,33 @@
+# MeshDash R3.1.10 (unreleased)
+
+## Security (all panels should update)
+- **Authentication fix.** An authentication bypass let some protected API routes run for requests that were not logged in. All earlier versions are affected: please update. Logged-out requests are now always rejected (redirect to `/login` for pages, 401 for API calls).
+- **Admin-only system actions.** Configuration, updates, restarts, plugin management and similar system actions now require a logged-in operator or admin. Public-mode viewers and spectator accounts can't use them.
+- **Secrets stay on the server.** The settings API no longer returns secret values; saving the form with them blank keeps the stored ones.
+
+## Updates can no longer leave a panel stuck
+- **Restart in place.** Update and Restart now use `execv` instead of exiting cleanly and relying on a supervisor. Under systemd `Restart=on-failure` (or with no supervisor) the old clean exit left the panel down.
+- **Verified before anything changes.** The update is streamed to a `.part` file, checked for zip integrity, sha256 (when the server publishes one), required files, and the version inside matching the version offered. Disk space and write access are checked first. A rejected download changes nothing.
+- **Transactional install.** The release is staged and every `.py` compile-checked. Dependencies are resolved with `pip --dry-run` and installed only if `requirements.txt` changed. Every file about to be replaced or removed is backed up to `data/update_backups/`, then the swap is done file by file with atomic replaces. A failure undoes it immediately, and a power cut mid-install is undone on the next boot. Files a release removes are now deleted (tracked by `data/.release_manifest.json`).
+- **Trial boot with automatic rollback.** The new version must start, stay up and serve the update/rollback/status routes. Otherwise the previous version is restored: on an unhandled startup crash, after 3 failed starts, if it isn't healthy within 5 minutes, or if critical routes are missing. A rolled-back version isn't installed again unless forced.
+- **Paths no longer depend on the working directory.** The updater resolves the install from its own location. Previously, a panel started from another directory never applied its update, or applied it in the wrong place.
+- `GET /api/system/update-status` and `POST /api/system/update-rollback` (manual rollback). The UI reports the outcome of the last update in the system log, and its restart screen waits for the real result instead of reloading blindly after 60s.
+- The "Installing…" screen now actually appears (the broadcast used `g.main_event_loop` on a dict and silently failed). The radio is released properly before a restart (the coroutine was never awaited).
+
+## Maps
+- **OpenStreetMap is now the default basemap everywhere** (main map, overview, node detail, Geo Fence, Proximity Prune, ISS, Weather, Traceroute, Share Map). No API key needed. CARTO now requires a key, so **C2 Dark** uses CARTO only when `CARTO_BASEMAP_API_KEY` is set and shows OpenStreetMap otherwise; a map is never blank. All maps take their tile URL and attribution from `/api/map/carto-config.js` (`core/carto_basemap.browser_config`).
+- CSP `img-src` now allows `tile.openstreetmap.org` (only `*.tile.openstreetmap.org` was allowed) and `server.arcgisonline.com`; Satellite tiles were being blocked.
+
+## Reliability
+- **Config writes are atomic** (temp file, fsync, replace, `.bak` kept) everywhere: settings, Web Setup, key removal. A crash mid-write used to leave an empty config, which re-ran setup and lost the community API key.
+- **Web Setup keeps existing secrets** if the form leaves them empty.
+- **`AUTH_SECRET_KEY` is saved once when missing.** It used to be regenerated on every start, which logged everyone out on every restart and update.
+- **Fresh installs no longer run the R2→R3 self-heal.** A clean clone used to delete README.md, reinstall every dependency and crash on its first start.
+- **Community heartbeat:** it uses the port the app actually listens on (`--port`), not a hard-coded 8000. It takes the node ID from the running app when the local API call fails, and logs its health on change instead of failing silently.
+- **Docker runner (3.1.5):** the data restore no longer deletes `data/` when the copy fails.
+- `scripts/meshdash.service`: a reference systemd unit for manual installs (`Restart=always`).
+- `tests/test_update.py`: 33 tests covering every update failure path.
+
 # MeshDash R3.1.3
 
 ## Bug Fixes

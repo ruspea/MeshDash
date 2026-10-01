@@ -23,6 +23,56 @@ import subprocess
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+# ── Maintainer settings (never committed) ──
+# Server paths and credential locations live in a local, gitignored file:
+#   .env.release in the repo root, or the file named by $MESHDASH_RELEASE_ENV.
+# Keys used:
+#   MESHDASH_SERVER_WEBROOT    web root of the download site on the server
+#   MESHDASH_CREDENTIALS_ENV   optional: another env file holding the secrets
+#   MESHDASH_INTERNAL_IP, MESHDASH_SSH_USER, MESHDASH_SSH_PASSWORD,
+#   GITHUB_PERSONAL_ACCESS_TOKEN (here or in MESHDASH_CREDENTIALS_ENV)
+RELEASE_ENV = os.environ.get("MESHDASH_RELEASE_ENV", os.path.join(ROOT, ".env.release"))
+
+
+def _read_env_file(path):
+    values = {}
+    with open(os.path.expanduser(path)) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                values[k.strip()] = v.strip().strip('"').strip("'")
+    return values
+
+
+def release_settings():
+    """Merged maintainer settings; exits with a clear message if missing."""
+    if not os.path.exists(os.path.expanduser(RELEASE_ENV)):
+        print(f"ERROR: release settings not found at {RELEASE_ENV} "
+              "(create .env.release or set MESHDASH_RELEASE_ENV)")
+        sys.exit(1)
+    settings = _read_env_file(RELEASE_ENV)
+    creds = settings.get("MESHDASH_CREDENTIALS_ENV")
+    if creds:
+        merged = _read_env_file(creds)
+        merged.update(settings)
+        settings = merged
+    return settings
+
+
+def server_login():
+    s = release_settings()
+    host, user, password = (s.get("MESHDASH_INTERNAL_IP"), s.get("MESHDASH_SSH_USER"),
+                            s.get("MESHDASH_SSH_PASSWORD"))
+    if not all([host, user, password]):
+        print("ERROR: Missing MESHDASH_INTERNAL_IP / MESHDASH_SSH_USER / MESHDASH_SSH_PASSWORD")
+        sys.exit(1)
+    webroot = s.get("MESHDASH_SERVER_WEBROOT")
+    if not webroot:
+        print("ERROR: Missing MESHDASH_SERVER_WEBROOT in release settings")
+        sys.exit(1)
+    return host, user, password, webroot.rstrip("/")
+
 # ── Files that contain the version string and must be updated ──
 # Each entry: (relative_path, old_pattern, new_template)
 # Uses {ver} as placeholder for the new version
@@ -223,23 +273,8 @@ def upload_zip():
         print("No zip found. Run 'python3 scripts/release.py zip' first.")
         sys.exit(1)
 
-    # Load credentials
-    env_path = "/Users/russ/Overlord/.env"
-    host = user = password = None
-    with open(env_path) as f:
-        for line in f:
-            if line.startswith("MESHDASH_INTERNAL_IP="):
-                host = line.split("=", 1)[1].strip()
-            elif line.startswith("MESHDASH_SSH_USER="):
-                user = line.split("=", 1)[1].strip()
-            elif line.startswith("MESHDASH_SSH_PASSWORD="):
-                password = line.split("=", 1)[1].strip()
-
-    if not all([host, user, password]):
-        print("ERROR: Missing MESHDASH_* credentials in .env")
-        sys.exit(1)
-
-    base_dir = "/var/www/meshdash_co__usr/data/www/meshdash.co.uk/versions"
+    host, user, password, webroot = server_login()
+    base_dir = f"{webroot}/versions"
     ver_dir = f"{base_dir}/{ver}"
     prev_ver = None
 
@@ -287,22 +322,9 @@ def bump_api(new_ver=None):
     if new_ver is None:
         new_ver = get_current_version()
 
-    env_path = "/Users/russ/Overlord/.env"
-    host = user = password = None
-    with open(env_path) as f:
-        for line in f:
-            if line.startswith("MESHDASH_INTERNAL_IP="):
-                host = line.split("=", 1)[1].strip()
-            elif line.startswith("MESHDASH_SSH_USER="):
-                user = line.split("=", 1)[1].strip()
-            elif line.startswith("MESHDASH_SSH_PASSWORD="):
-                password = line.split("=", 1)[1].strip()
+    host, user, password, webroot = server_login()
 
-    if not all([host, user, password]):
-        print("ERROR: Missing MESHDASH_* credentials in .env")
-        sys.exit(1)
-
-    php_code = f'''require_once "/var/www/meshdash_co__usr/data/www/meshdash.co.uk/db_connect.php";
+    php_code = f'''require_once "{webroot}/db_connect.php";
 $stmt = $pdo->prepare("UPDATE c2_api_config SET setting_value = ? WHERE setting_key = ?");
 $stmt->execute(["{new_ver}", "api_version"]);
 $stmt2 = $pdo->prepare("SELECT setting_value FROM c2_api_config WHERE setting_key = ?");
@@ -321,14 +343,9 @@ def push_github():
     """Push all changes to GitHub via the REST API."""
     import base64, json, urllib.request
 
-    token = None
-    with open("/Users/russ/Overlord/.env") as f:
-        for line in f:
-            if line.startswith("GITHUB_PERSONAL_ACCESS_TOKEN="):
-                token = line.split("=", 1)[1].strip()
-                break
+    token = release_settings().get("GITHUB_PERSONAL_ACCESS_TOKEN")
     if not token:
-        print("ERROR: Missing GITHUB_PERSONAL_ACCESS_TOKEN in .env")
+        print("ERROR: Missing GITHUB_PERSONAL_ACCESS_TOKEN in release settings")
         sys.exit(1)
 
     headers = {"Authorization": f"token {token}", "Content-Type": "application/json"}

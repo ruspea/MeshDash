@@ -438,17 +438,24 @@ async def initial_setup_api(payload: SetupWizardPayload):
         for key in ("adminUser", "configValues", "rawSelections", "username", "password"):
             config_data.pop(key, None)
 
+        from core.config import atomic_write_text, keep_existing_secrets
+        kept = keep_existing_secrets(existing_config, config_data)
+        if kept:
+            logger.info(f"Setup kept existing {', '.join(sorted(kept))} (form left it empty)")
+
         def _write_initial():
-            with open(g.CONFIG_FILE_PATH, "w", encoding="utf-8") as f:
-                f.write("# ---------------------------------------------------------\n")
-                f.write("# MeshDash Configuration\n")
-                f.write(f"# Generated via Web Setup on {datetime.now().isoformat()}\n")
-                f.write("# ---------------------------------------------------------\n\n")
-                for key, val in config_data.items():
-                    if isinstance(val, dict):
-                        continue
-                    val_str = str(val) if val is not None else ""
-                    f.write(f"{key}={val_str}\n")
+            lines = [
+                "# ---------------------------------------------------------\n",
+                "# MeshDash Configuration\n",
+                f"# Generated via Web Setup on {datetime.now().isoformat()}\n",
+                "# ---------------------------------------------------------\n\n",
+            ]
+            for key, val in config_data.items():
+                if isinstance(val, dict):
+                    continue
+                val_str = str(val) if val is not None else ""
+                lines.append(f"{key}={val_str}\n")
+            atomic_write_text(g.CONFIG_FILE_PATH, "".join(lines))
 
         await asyncio.to_thread(_write_initial)
         logger.info(f"✅ Configuration written to {g.CONFIG_FILE_PATH}")

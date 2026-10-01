@@ -3,6 +3,7 @@ Configuration module for Mesh Dashboard.
 Extracted from meshtastic_dashboard.py
 """
 import re
+import shutil
 import os
 import logging
 import secrets
@@ -119,6 +120,58 @@ def load_configuration(config_path: str) -> Dict[str, Any]:
     return config
 
 
+# Atomic config writes
+# A config written in place ("w") is empty for a moment; a crash or power cut
+# then leaves an empty file, the setup wizard re-runs and the community key is
+# lost. Every writer goes through here instead.
+
+# Values the UI must never blank out by submitting an empty field.
+PRESERVE_IF_EMPTY_KEYS = frozenset({"COMMUNITY_API_KEY", "AUTH_SECRET_KEY"})
+
+
+def atomic_write_text(filepath: str, text: str, keep_backup: bool = True) -> None:
+    abs_filepath = os.path.abspath(filepath)
+    directory = os.path.dirname(abs_filepath)
+    os.makedirs(directory, exist_ok=True)
+    tmp = f"{abs_filepath}.tmp{os.getpid()}"
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(text)
+        f.flush()
+        os.fsync(f.fileno())
+    if keep_backup and os.path.exists(abs_filepath) and os.path.getsize(abs_filepath) > 0:
+        try:
+            shutil.copy2(abs_filepath, abs_filepath + ".bak")
+        except Exception:
+            pass
+    try:
+        st = os.stat(abs_filepath)
+        os.chmod(tmp, st.st_mode & 0o7777)
+    except FileNotFoundError:
+        pass
+    os.replace(tmp, abs_filepath)
+    try:
+        fd = os.open(directory, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except Exception:
+        pass
+
+
+def keep_existing_secrets(existing: Dict[str, Any], merged: Dict[str, Any]) -> list:
+    """Restore secrets that an update would set to empty/placeholder. Returns the keys kept."""
+    kept = []
+    for key in PRESERVE_IF_EMPTY_KEYS:
+        old = str(existing.get(key, "") or "").strip().strip('"')
+        new = str(merged.get(key, "") or "").strip().strip('"')
+        placeholder = new in ("", "YOUR_SUPER_SECRET_API_KEY_REPLACE_ME")
+        if old and old != "YOUR_SUPER_SECRET_API_KEY_REPLACE_ME" and placeholder:
+            merged[key] = existing[key]
+            kept.append(key)
+    return kept
+
+
 # Config file path (from system.py)
 
 DEFAULT_DASH_CONFIG_PATH = "data/.mesh-dash_config"
@@ -231,8 +284,7 @@ def write_dash_config(filepath: str, config_data_to_update: Dict[str, str]) -> S
                 lines_to_write.append(formatted_line)
                 keys_actually_written.add(key)
 
-        with open(abs_filepath, 'w', encoding="utf-8") as f_write:
-            f_write.writelines(lines_to_write)
+        atomic_write_text(abs_filepath, "".join(lines_to_write))
 
         _config_logger.info(f"Successfully wrote config updates to {abs_filepath} for keys: {keys_actually_written}")
         return keys_actually_written

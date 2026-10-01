@@ -154,10 +154,14 @@ def _remove_keys_from_config(keys):
     try:
         with open(g.CONFIG_FILE_PATH, "r") as f:
             lines = f.readlines()
-        with open(g.CONFIG_FILE_PATH, "w") as f:
-            for line in lines:
-                if not any(k in line for k in keys):
-                    f.write(line)
+        from core.config import atomic_write_text
+
+        def _key_of(line):
+            stripped = line.strip()
+            return stripped.split("=", 1)[0].strip() if "=" in stripped and not stripped.startswith("#") else None
+
+        kept = [line for line in lines if _key_of(line) not in set(keys)]
+        atomic_write_text(g.CONFIG_FILE_PATH, "".join(kept))
     except Exception:
         pass
 

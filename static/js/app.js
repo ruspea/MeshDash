@@ -420,6 +420,28 @@ window.getMeshVal = function(n, ...keys) {
 // ---------------------------------------------------------------------------
 // Fetch with timeout + AbortController
 // ---------------------------------------------------------------------------
+// Session expired / not logged in: the server answers API calls with 401.
+// Send the browser to the login page once instead of failing silently.
+(function () {
+    if (window.__mdAuthFetchWrapped) return;
+    window.__mdAuthFetchWrapped = true;
+    const _origFetch = window.fetch.bind(window);
+    let redirecting = false;
+    window.fetch = async function (input, init) {
+        const resp = await _origFetch(input, init);
+        try {
+            const url = typeof input === 'string' ? input : (input && input.url) || '';
+            const sameOrigin = url.startsWith('/') || url.startsWith(location.origin);
+            if (resp.status === 401 && sameOrigin && !redirecting && !location.pathname.startsWith('/login')
+                && !location.pathname.startsWith('/setup')) {
+                redirecting = true;
+                location.href = '/login';
+            }
+        } catch (e) {}
+        return resp;
+    };
+})();
+
 async function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -1046,17 +1068,32 @@ const _sse = {
                         '</div>';
                     document.body.appendChild(ov);
                 }
-                // Poll version status every 2s until confirmed
+                // Poll every 2s. Reload once the panel answers: on the new
+                // version (success) or the old one (update rolled back / refused).
+                var startedAt = Date.now();
+                var sawDown = false;
+                var msgEl = ov.querySelector('span');
                 var confirmInterval = setInterval(function() {
                     fetch('/api/system/version-status', {cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(d){
-                        if (d && d.local === targetVer) {
+                        if (!d) { sawDown = true; return; }
+                        if (d.local === targetVer || (sawDown && d.local)) {
                             clearInterval(confirmInterval);
                             location.reload(true);
                         }
-                    }).catch(function(){});
+                    }).catch(function(){ sawDown = true; });
+                    var waited = (Date.now() - startedAt) / 1000;
+                    if (msgEl && waited > 90) {
+                        msgEl.textContent = 'Still installing (dependency updates can take a few minutes)…';
+                    }
+                    if (waited > 600) {
+                        clearInterval(confirmInterval);
+                        if (msgEl) {
+                            msgEl.innerHTML = 'The panel has not come back after 10 minutes.<br>' +
+                                'Check the service on the host: <code>systemctl status meshdash</code> or <code>docker logs</code>.<br>' +
+                                'If the new version cannot start, MeshDash restores the previous one automatically on the next start.';
+                        }
+                    }
                 }, 2000);
-                // Safety timeout: reload after 60s regardless
-                setTimeout(function() { clearInterval(confirmInterval); location.reload(true); }, 60000);
             } catch(e) {}
             // Stop SSE reconnect — we're restarting
             _sse._destroyInstance();
@@ -2367,6 +2404,28 @@ window.C2Terminal = {
         } catch (e) {}
     },
 
+    reportLastUpdate(lu) {
+        try {
+            if (!lu || !lu.phase || !lu.updated_at) return;
+            const key = 'md_update_seen_' + lu.phase + '_' + lu.updated_at;
+            try { if (localStorage.getItem(key)) return; } catch (e) {}
+            const esc = window.escapeHtml;
+            let html = null;
+            if (lu.phase === 'good') {
+                html = `<span style="color:var(--ok)">✅ Updated to ${esc(lu.to_version || '')}.</span>`;
+            } else if (lu.phase === 'rolled_back') {
+                html = `<span style="color:var(--warn)">⏪ Update to ${esc(lu.to_version || '')} was rolled back; still running ${esc(lu.from_version || '')}. Reason: ${esc(lu.reason || 'unknown')}</span>`;
+            } else if (lu.phase === 'aborted') {
+                html = `<span style="color:var(--warn)">⚠️ Update to ${esc(lu.to_version || '')} was not installed, nothing changed. Reason: ${esc(lu.reason || 'unknown')}</span>`;
+            } else if (lu.phase === 'failed') {
+                html = `<span style="color:var(--err)">❌ Update problem: ${esc(lu.reason || 'unknown')}. See the service log.</span>`;
+            }
+            if (!html) return;
+            this.log('system', `<span style="color:var(--acc)">[UPDATE]</span> ${html}`);
+            try { localStorage.setItem(key, '1'); } catch (e) {}
+        } catch (e) {}
+    },
+
     async checkVersion(initialLoad = false) {
         try {
             const icon  = document.getElementById('c2-term-ver-icon');
@@ -2378,6 +2437,7 @@ window.C2Terminal = {
             if (!r.ok) throw new Error('API Error');
             const d = await r.json();
             this.versionData = d;
+            this.reportLastUpdate(d.last_update);
 
             if (d.status === 'update_needed') {
                 if (badge) badge.className = 'term-badge update';
@@ -2485,9 +2545,13 @@ window.C2Terminal = {
             const result   = await response.json();
 
             if (response.ok) {
-                this.logUpdate('⬇️  Downloading payload...');
-                this.logUpdate('✅  Verification successful.');
-                this.logUpdate('🔄  <span style="color:var(--warn)">REBOOTING CORE ARCHITECTURE...</span>');
+                if (result.status === 'current') {
+                    this.logUpdate('✅  Already on the latest version.');
+                    return;
+                }
+                this.logUpdate('⬇️  Download complete.');
+                this.logUpdate('✅  Package verified (integrity + version).');
+                this.logUpdate('🔄  <span style="color:var(--warn)">Restarting to install. The previous version is restored automatically if the new one fails to start.</span>');
                 this.pollForLife();
             } else {
                 throw new Error(result.detail || 'Unknown Server Error');
@@ -2515,9 +2579,9 @@ window.C2Terminal = {
                 try {
                     attempts++;
                     statusRow.innerHTML = `<span class="c2-log-ts">SYS</span> Awaiting API restart... ${spinner[attempts % 4]}`;
-                    if (attempts > 90) {
+                    if (attempts > 300) {
                         clearInterval(interval);
-                        statusRow.innerHTML = `<span class="c2-log-ts">SYS</span> <span style="color:var(--err)">Timed out waiting for restart.</span>`;
+                        statusRow.innerHTML = `<span class="c2-log-ts">SYS</span> <span style="color:var(--err)">No response after 10 minutes. Check the service on the host (systemctl status meshdash / docker logs). A failed update is rolled back automatically on the next start.</span>`;
                         return;
                     }
                     const resp = await fetchWithTimeout('/api/status', { cache: 'no-store' }, 3000);

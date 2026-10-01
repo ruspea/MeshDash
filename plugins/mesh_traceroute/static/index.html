@@ -619,7 +619,7 @@ window.C2TracerouteApp = {
         const el = document.getElementById('tr-map');
         if (!el || this._map) return;
         this._map = L.map('tr-map', { center: [54.5, -2], zoom: 6, zoomControl: true });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors', maxZoom: 19,
         }).addTo(this._map);
     },

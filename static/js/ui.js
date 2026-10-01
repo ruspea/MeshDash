@@ -289,11 +289,10 @@ window.c2SwitchModalTab = async function(tab, nodeId) {
             
             if (typeof L === 'undefined') throw new Error('Leaflet not loaded yet');
             c2DetailMapInstance = L.map('c2-modal-map').setView(hasPos ? [positions[0].latitude, positions[0].longitude] : [20, 0], hasPos ? 14 : 2);
-            const cartoUrl = window.MeshDashBasemaps?.dark ||
-                'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-            L.tileLayer(cartoUrl, {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, ' +
-                    '&copy; <a href="https://carto.com/attributions">CARTO</a>'
+            const _bm = window.MeshDashBasemaps || {};
+            L.tileLayer(_bm.default || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: _bm.defaultAttribution || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(c2DetailMapInstance);
             
             if (hasPos) {

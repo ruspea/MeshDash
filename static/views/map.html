@@ -142,9 +142,9 @@
           <span class="map-tb-lbl">STYLE</span>
           <select class="inp mono" id="map-style" style="max-width:115px;width:100%;font-size:10px;padding:3px 6px;"
             onchange="window.c2ChangeMapStyle(this.value)">
-            <option value="dark" selected>◼ C2 Dark</option>
+            <option value="osm" selected>◻ OpenStreetMap</option>
+            <option value="dark" title="Needs a CARTO API key (Settings); shows OpenStreetMap without one">◼ C2 Dark</option>
             <option value="satellite">🛰 Satellite</option>
-            <option value="osm">◻ Standard</option>
             <option value="offline" title="Ensure offline_map.mbtiles is placed in your static directory">🗄 Offline Archive</option>
           </select>
           <span id="offline-map-indicator" style="display:none; font-size:8px; padding:2px 6px; background:rgba(0,200,100,.15); color:#00e87a; border-radius:3px; border:1px solid rgba(0,200,100,.3); white-space:nowrap; cursor:help;" title="Offline tiles active"></span>
@@ -434,9 +434,9 @@
         <div class="mem-field">
           <span class="mem-lbl">MAP STYLE</span>
           <select class="mem-inp" id="mem-style" onchange="window.c2RebuildEmbedCode()">
+            <option value="osm" selected>OpenStreetMap</option>
             <option value="dark">C2 Dark</option>
             <option value="satellite">Satellite</option>
-            <option value="osm">Standard</option>
             <option value="offline">Offline Archive</option>
           </select>
         </div>

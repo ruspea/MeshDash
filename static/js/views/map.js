@@ -19,12 +19,13 @@ window.C2MapApp = {
         '#008080','#e6194b','#3cb44b','#ffe119','#4363d8'
     ],
     tileLayers: {
+        // C2 Dark needs a CARTO key; without one it shows OpenStreetMap.
         dark: {
-            url: window.MeshDashBasemaps?.dark ||
-                'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+            url: window.MeshDashBasemaps?.cartoDark || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             options: {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, ' +
-                    '&copy; <a href="https://carto.com/attributions">CARTO</a>',
+                attribution: window.MeshDashBasemaps?.cartoDark
+                    ? window.MeshDashBasemaps.cartoAttribution
+                    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
                 subdomains: 'abcd', maxZoom: 19
             }
         },
@@ -37,10 +38,10 @@ window.C2MapApp = {
             }
         },
         osm: {
-            url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            url: window.MeshDashBasemaps?.default || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
             options: {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-                maxZoom: 18
+                attribution: window.MeshDashBasemaps?.defaultAttribution || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
             }
         },
         offline: {
@@ -172,7 +173,7 @@ window.c2ChangeMapStyle = function(key) {
         fetch('/api/map/status').then(r => r.json()).then(data => {
             if (!data.available || !data.active_file) {
                 window.triggerToast?.('No offline map loaded. Open MAPS panel to download or upload an .mbtiles archive.', 'warn');
-                const fallback = app.tileLayers.dark;
+                const fallback = app.tileLayers.osm;
                 app.currentTileLayer = L.tileLayer(fallback.url, fallback.options).addTo(app.map);
                 return;
             }
@@ -228,17 +229,17 @@ window.c2ChangeMapStyle = function(key) {
             window.triggerToast?.('Offline map active: ' + data.active_file, 'ok');
         }).catch(() => {
             window.triggerToast?.('Failed to reach /api/map/status', 'err');
-            const fallback = app.tileLayers.dark;
+            const fallback = app.tileLayers.osm;
             app.currentTileLayer = L.tileLayer(fallback.url, fallback.options).addTo(app.map);
         });
         return;
     }
-    const style = app.tileLayers[effectiveKey] || app.tileLayers.dark;
+    const style = app.tileLayers[effectiveKey] || app.tileLayers.osm;
     app.currentTileLayer = L.tileLayer(style.url, style.options).addTo(app.map);
 };
 
-window.addEventListener('offline', () => window.c2ChangeMapStyle(document.getElementById('map-style')?.value || 'dark'));
-window.addEventListener('online', () => window.c2ChangeMapStyle(document.getElementById('map-style')?.value || 'dark'));
+window.addEventListener('offline', () => window.c2ChangeMapStyle(document.getElementById('map-style')?.value || 'osm'));
+window.addEventListener('online', () => window.c2ChangeMapStyle(document.getElementById('map-style')?.value || 'osm'));
 
 const _mqttFilter = (() => {
     const DEFAULTS = { maxNodes:200, maxAgeDays:7, showTrails:false, showNeighbors:false, nameFilter:'', onlyWithGps:false };
@@ -492,7 +493,7 @@ window.initC2Map = async function(){
     }
 
     app.map=L.map('main-c2-map',{preferCanvas:true,zoomControl:true}).setView([20,0],2);
-    app.currentTileLayer=L.tileLayer(app.tileLayers.dark.url,app.tileLayers.dark.options).addTo(app.map);
+    app.currentTileLayer=L.tileLayer(app.tileLayers.osm.url,app.tileLayers.osm.options).addTo(app.map);
     app.map.invalidateSize({animate:false});
 
     app.map.on('resize zoomend moveend',()=>window.C2SonarPing?.resize());
@@ -2439,7 +2440,7 @@ window.c2UploadMBTiles = async function() {
 window.c2RebuildEmbedCode = function() {
     const g = id => document.getElementById(id);
     const title    = (g('mem-title')?.value || '').trim();
-    const style    = g('mem-style')?.value || 'dark';
+    const style    = g('mem-style')?.value || 'osm';
     const zoom     = parseInt(g('mem-zoom')?.value || '7');
     const filter   = (g('mem-filter')?.value || '').trim();
     const age      = parseInt(g('mem-age')?.value || '168');
@@ -2520,7 +2521,7 @@ document.addEventListener('keydown', e => {
 
     // Apply embed params to the MQTT-style filter so map.js can use them
     window.addEventListener('load', () => {
-        const style_  = params.get('style')  || 'dark';
+        const style_  = params.get('style')  || 'osm';
         const zoom    = parseInt(params.get('zoom') || '7');
         const filter  = params.get('filter') || '';
         const age     = parseInt(params.get('age') || '0');

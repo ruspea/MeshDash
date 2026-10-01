@@ -1,5 +1,25 @@
 """MeshDash — Self-hosted Meshtastic dashboard. R3.0."""
 
+# ── Update guard ──
+# Runs before anything else is imported: applies a downloaded update, watches
+# the trial boot of a new version, and rolls back to the previous version if
+# the new one cannot start. Only stdlib is touched here, so a broken release
+# can always be undone.
+def _md_update_guard():
+    import os, sys
+    _root = os.path.dirname(os.path.abspath(__file__))
+    if _root not in sys.path:
+        sys.path.insert(0, _root)
+    try:
+        from core.update import check_and_apply_update
+    except Exception as e:
+        print(f"[update] updater unavailable, skipping update checks: {e}", flush=True)
+        return
+    check_and_apply_update()
+
+_md_update_guard()
+del _md_update_guard
+
 # ── R3.0 Self-Heal Bootstrap ──
 def _md_r3_bootstrap():
     import os, sys, shutil, time, subprocess
@@ -14,6 +34,17 @@ def _md_r3_bootstrap():
         return
 
     if os.path.exists("data/.r3_bootstrap_done"):
+        return
+
+    if not has_r2_stale:
+        # Clean R3 install (fresh clone / installer): nothing to migrate.
+        # Without this, a first run would "self-heal" a healthy install.
+        try:
+            os.makedirs("data", exist_ok=True)
+            with open("data/.r3_bootstrap_done", "w") as f:
+                f.write("clean R3 install, no R2.x files found\n")
+        except Exception:
+            pass
         return
 
     print("=" * 60, flush=True)
@@ -187,7 +218,7 @@ def _md_r3_bootstrap():
                 print(f"    [warn] pip install had issues: {result.stderr[-300:]}", flush=True)
             else:
                 print("    [ok] Dependencies installed into /opt/venv", flush=True)
-            old_venv = "/opt/venv"  # referenced later by restart path
+            old_venv = os.path.dirname(os.path.dirname(sys.executable))  # the venv we run in
         else:
             old_venv = "mesh-dash_venv"
             new_venv = "mesh-dash_venv_new"
@@ -233,6 +264,8 @@ def _md_r3_bootstrap():
         new_python = os.path.abspath(os.path.join(old_venv, "bin", "python3"))
         if not os.path.exists(new_python):
             new_python = os.path.abspath(os.path.join(old_venv, "bin", "python"))
+        if not os.path.exists(new_python):
+            new_python = sys.executable
         print("  [restart] Restarting with: " + new_python, flush=True)
         os.execv(new_python, [new_python] + sys.argv[1:])
 
@@ -379,7 +412,19 @@ from core.routes.schemas import User, TokenData, NodeSlot, MessageRequest, URLRe
 from core.routes.slot_routes import router as slot_routes
 from core.routes.web_routes import router as web_routes
 from core.sync import _perform_background_sync_for_slot, perform_background_sync, _remove_keys_from_config
-from core.update import check_and_apply_update
+from core.update import mark_update_healthy, HEALTHY_AFTER_S as _UPDATE_HEALTHY_AFTER_S
+from core.update import trial_active as _update_trial_active, fail_trial as _update_trial_fail
+
+# A release must serve these, or the user could not update/roll back from it.
+_UPDATE_CRITICAL_ROUTES = frozenset({
+    "/api/status",
+    "/api/system/version-status",
+    "/api/system/start-update",
+    "/api/system/update-status",
+    "/api/system/update-rollback",
+    "/api/system/restart",
+    "/login",
+})
 from core.utils import validate_url, get_node_registry
 from core.version import check_version_periodically, _parse_version_number, available_plugins
 
@@ -389,7 +434,7 @@ router = APIRouter()
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
-check_and_apply_update()
+# check_and_apply_update() now runs in the update guard at the top of this file.
 
 # ── Bootstrap restart after upgrade ──
 # If _bootstrap marker exists, we just came from an update.
@@ -778,6 +823,15 @@ TASK_DB_PATH = loaded_config["TASK_DB_PATH"]
 MAX_PACKETS_IN_MEMORY = int(loaded_config["MAX_PACKETS_MEMORY"])
 AVERAGE_METRICS_HISTORY_DAYS = int(loaded_config["HISTORY_DAYS"])
 AUTH_SECRET_KEY = loaded_config["AUTH_SECRET_KEY"]
+# No key in the file means a fresh random one every start, which logs every
+# user out on each restart and update. Persist it once.
+try:
+    from core.config import read_dash_config as _read_dash_config, write_dash_config as _write_dash_config
+    if os.path.exists(CONFIG_FILE_PATH) and not _read_dash_config(CONFIG_FILE_PATH).get("AUTH_SECRET_KEY", "").strip('"'):
+        _write_dash_config(CONFIG_FILE_PATH, {"AUTH_SECRET_KEY": AUTH_SECRET_KEY})
+        logging.info("AUTH_SECRET_KEY was missing from config — generated and saved one.")
+except Exception as _ask_err:
+    logging.warning(f"Could not persist AUTH_SECRET_KEY: {_ask_err}")
 AUTH_TOKEN_EXPIRE_MINUTES = int(loaded_config["AUTH_TOKEN_EXPIRE_MINUTES"])
 COMMUNITY_API_KEY = loaded_config.get("COMMUNITY_API_KEY", "YOUR_SUPER_SECRET_API_KEY_REPLACE_ME")
 
@@ -1253,6 +1307,29 @@ async def lifespan(app: FastAPI):
         background_tasks.add(task)
         task.add_done_callback(handle_task_result)
 
+    async def _confirm_update_health():
+        # Startup finished. A version only counts as healthy if it is still up
+        # shortly after AND serves the routes a user needs to get out of a bad
+        # release (status, update, rollback, restart). Several routers are
+        # imported with try/except, so "it started" alone proves nothing.
+        await asyncio.sleep(_UPDATE_HEALTHY_AFTER_S)
+        served = {getattr(r, "path", "") for r in app.routes}
+        missing = sorted(_UPDATE_CRITICAL_ROUTES - served)
+        if missing:
+            logger.error(f"Startup incomplete, critical routes missing: {missing}")
+            if _update_trial_active():
+                await asyncio.to_thread(_update_trial_fail, f"critical routes missing after startup: {missing}")
+            return
+        try:
+            await asyncio.to_thread(mark_update_healthy, DATA_DIR)
+        except Exception as e:
+            logger.warning(f"Could not record update health: {e}")
+
+    _health_task = asyncio.create_task(_confirm_update_health())
+    _health_task.set_name("Task-update-health")
+    background_tasks.add(_health_task)
+    _health_task.add_done_callback(handle_task_result)
+
     yield
 
     logger.info("--- Shutdown initiated ---")
@@ -1322,6 +1399,18 @@ app.include_router(web_routes)
 app.include_router(slot_routes)
 app.include_router(map_routes)
 app.include_router(node_config_routes)
+
+from core.auth import LoginRequired as _LoginRequired
+
+
+@app.exception_handler(_LoginRequired)
+async def _login_required_handler(request: Request, exc: _LoginRequired):
+    # Browser page loads go to the login page; API and fetch calls get a 401.
+    wants_html = "text/html" in request.headers.get("accept", "")
+    if request.method == "GET" and wants_html and not request.url.path.startswith("/api/"):
+        return RedirectResponse("/login", status_code=302)
+    return JSONResponse({"detail": exc.detail}, status_code=401)
+
 
 app.middleware("http")(_inject_sw_header)
 app.middleware("http")(_inject_request_id)
@@ -1414,6 +1503,15 @@ if __name__ == "__main__":
 
     DB_PATH = args.db_path
     TASK_DB_PATH = args.task_db_path
+
+    # Everything that calls the app's own API (scheduler heartbeat, C2 bridge)
+    # must use the port we really listen on, not a config default.
+    os.environ["MESHDASH_RUNTIME_PORT"] = str(args.port)
+    os.environ["MESHDASH_RUNTIME_HOST"] = str(args.host)
+    try:
+        loaded_config["WEBSERVER_PORT"] = args.port
+    except Exception:
+        pass
     if args.log_level != LOG_LEVEL_STR:
         logging.getLogger().setLevel(getattr(logging, args.log_level.upper()))
 

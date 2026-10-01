@@ -134,25 +134,48 @@ def ensure_serializable(obj: Any) -> Any:
         return None
 
 
-async def get_current_active_user(request: Request) -> User:
-    if g.PUBLIC_MODE:
-        return User(username="public", disabled=False)
+class LoginRequired(HTTPException):
+    """Raised by the auth dependencies when there is no valid session.
+
+    An exception (not a returned RedirectResponse) so a route body can never
+    run for an anonymous caller. The app's exception handler turns it into a
+    redirect to /login for browser page loads and a 401 for everything else.
+    """
+
+    def __init__(self, detail: str = "Not authenticated"):
+        super().__init__(status_code=401, detail=detail)
+
+
+PUBLIC_USERNAME = "public"
+
+
+async def _user_from_token(request: Request) -> Optional[User]:
     token = request.cookies.get("access_token")
     if not token or not token.startswith("Bearer "):
-        return RedirectResponse("/login", status_code=302)
+        return None
     try:
         payload = jwt.decode(token.split(" ")[1], g.AUTH_SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         if username == "__c2_bridge__" and payload.get("internal"):
             return User(username="__c2_bridge__", disabled=False)
         if not username:
-            raise JWTError("No username")
+            return None
     except Exception:
-        return RedirectResponse("/login", status_code=302)
+        return None
     user = await asyncio.to_thread(g.db_manager.get_user, username)
     if not user or user["disabled"]:
-        return RedirectResponse("/login", status_code=302)
+        return None
     return User(**user)
+
+
+async def get_current_active_user(request: Request) -> User:
+    user = await _user_from_token(request)
+    if user is not None:
+        return user
+    if g.PUBLIC_MODE:
+        # Public mode: anonymous viewers get a read-only identity.
+        return User(username=PUBLIC_USERNAME, disabled=False, role=2)
+    raise LoginRequired()
 
 
 def _generate_csrf_token() -> str:
@@ -163,8 +186,6 @@ async def verify_csrf(request: Request, user: User = Depends(get_current_active_
     """Validate CSRF token on state-changing requests (double-submit cookie pattern).
     GET requests are exempt — they don't change state and plugin bridge pages
     need to read config without CSRF headers."""
-    if isinstance(user, RedirectResponse):
-        return user
     # GET requests don't need CSRF — they're read-only
     if request.method == "GET":
         return user
@@ -175,3 +196,16 @@ async def verify_csrf(request: Request, user: User = Depends(get_current_active_
     if cookie_token != header_token:
         raise HTTPException(status_code=403, detail="CSRF token mismatch")
     return user
+
+
+async def require_admin(request: Request, user: User = Depends(verify_csrf)) -> User:
+    """System-level actions (config, updates, restart, plugins, console).
+
+    Logged-in operators and admins only: never the anonymous public-mode
+    viewer, never a spectator account.
+    """
+    if user.username == PUBLIC_USERNAME or (user.role is not None and user.role >= 2
+                                            and user.username != "__c2_bridge__"):
+        raise HTTPException(status_code=403, detail="Administrator login required")
+    return user
+

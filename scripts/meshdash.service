@@ -1,0 +1,25 @@
+# MeshDash systemd unit for manual installs.
+# Copy to /etc/systemd/system/meshdash.service, adjust User/paths, then:
+#   sudo systemctl daemon-reload && sudo systemctl enable --now meshdash
+#
+# Restart=always matters: updates and the dashboard's Restart button restart
+# the process in place, but a crash or a failed exec must still come back.
+
+[Unit]
+Description=MeshDash Meshtastic Dashboard
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=meshdash
+WorkingDirectory=/opt/meshdash
+ExecStart=/opt/meshdash/mesh-dash_venv/bin/python meshtastic_dashboard.py --host 0.0.0.0 --port 8181
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

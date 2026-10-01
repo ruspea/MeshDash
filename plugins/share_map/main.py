@@ -37,7 +37,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
-from core.carto_basemap import raster_tile_url
+from core.carto_basemap import OSM_ATTRIBUTION, OSM_TILE_URL, dark_tile
 
 import os
 
@@ -574,35 +574,22 @@ def _render_widget_html(wtype, data, cfg, title, theme, refresh_s, data_url, tok
 
 def _render_map(data, cfg, title, theme, refresh_s, data_url, token):
     nodes     = data.get("nodes", [])
-    map_style = cfg.get("map_style", "dark")
+    map_style = cfg.get("map_style", "osm")
     show_trails = bool(cfg.get("show_trails", False))
     show_links  = bool(cfg.get("show_links",  False))
     zoom      = int(cfg.get("zoom", 7))
 
+    # OpenStreetMap is the default; "dark" is CARTO with a key, else OSM.
     tile_url, tile_attribution = {
-        "dark": (
-            raster_tile_url("dark_all"),
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> '
-            '&copy; <a href="https://carto.com/attributions">CARTO</a>',
-        ),
+        "dark": dark_tile("dark_all"),
         "satellite": (
             "https://server.arcgisonline.com/ArcGIS/rest/services/"
             "World_Imagery/MapServer/tile/{z}/{y}/{x}",
             'Powered by <a href="https://www.esri.com/">Esri</a> | Source: Esri, Vantor, '
             'Earthstar Geographics, and the GIS User Community',
         ),
-        "osm": (
-            "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        ),
-    }.get(
-        map_style,
-        (
-            raster_tile_url("dark_all"),
-            '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> '
-            '&copy; <a href="https://carto.com/attributions">CARTO</a>',
-        ),
-    )
+        "osm": (OSM_TILE_URL, OSM_ATTRIBUTION),
+    }.get(map_style, (OSM_TILE_URL, OSM_ATTRIBUTION))
 
     nodes_json = json.dumps(nodes)
     cfg_json   = json.dumps({"zoom": zoom, "show_trails": show_trails,

@@ -6,8 +6,8 @@ from typing import List, Set
 from fastapi import APIRouter, Request, Response, Depends, HTTPException, File, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from core.routes.schemas import User
-from core.auth import verify_csrf, get_current_active_user
-from core.carto_basemap import raster_tile_url
+from core.auth import verify_csrf, get_current_active_user, require_admin
+from core.carto_basemap import browser_config
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -15,12 +15,12 @@ router = APIRouter()
 
 @router.get("/api/map/carto-config.js")
 async def carto_basemap_config():
-    """Provide the browser-facing CARTO tile template.
+    """Provide the browser-facing basemap config (OSM default, CARTO optional).
 
     Loaded as a <script src> tag which cannot send a bearer token, so this
-    endpoint is intentionally unauthenticated — the tile URL is not sensitive.
+    endpoint is intentionally unauthenticated — tile URLs are not sensitive.
     """
-    payload = {"dark": raster_tile_url("dark_all")}
+    payload = browser_config()
     script = "window.MeshDashBasemaps = Object.freeze(" + json.dumps(payload) + ");"
     return Response(
         content=script,
@@ -88,7 +88,7 @@ async def serve_map_tile(z: int, x: int, y: int):
 @router.post("/api/map/download")
 async def start_map_download(
     request: Request,
-    user: User = Depends(verify_csrf),
+    user: User = Depends(require_admin),
 ):
     """Start a background download of an MBTiles file from a URL."""
     body = await request.json()
@@ -212,7 +212,7 @@ async def start_map_download(
 
 
 @router.post("/api/map/download/cancel")
-async def cancel_map_download(user: User = Depends(verify_csrf)):
+async def cancel_map_download(user: User = Depends(require_admin)):
     """Cancel an active download."""
     evt = _download_state.get("cancel_event")
     if evt and _download_state.get("status") == "downloading":
@@ -347,7 +347,7 @@ async def list_map_files(user: User = Depends(get_current_active_user)):
 @router.put("/api/map/files/{filename}/activate")
 async def activate_map_file(
     filename: str,
-    user: User = Depends(verify_csrf),
+    user: User = Depends(require_admin),
 ):
     """Set a specific MBTiles file as the active tile source."""
     filepath = os.path.join(MAPS_DIR, filename)
@@ -378,7 +378,7 @@ async def activate_map_file(
 @router.delete("/api/map/files/{filename}")
 async def delete_map_file(
     filename: str,
-    user: User = Depends(verify_csrf),
+    user: User = Depends(require_admin),
 ):
     """Delete an MBTiles file."""
     filepath = os.path.join(MAPS_DIR, filename)
@@ -400,7 +400,7 @@ async def delete_map_file(
 @router.post("/api/map/upload_tiles")
 async def upload_mbtiles(
     file: UploadFile = File(...),
-    user: User = Depends(verify_csrf),
+    user: User = Depends(require_admin),
 ):
     """Upload an MBTiles file (multipart form). Streams to disk."""
     if not file.filename or not file.filename.endswith(".mbtiles"):

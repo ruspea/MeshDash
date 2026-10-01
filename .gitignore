@@ -34,3 +34,19 @@ Thumbs.db
 
 # Environment
 .env
+
+# Maintainer-only release settings (server paths, credential locations)
+.env.release
+.env.*
+!.env.example
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Update/runtime leftovers
+*.part
+*.mdtmp
+*.tmp[0-9]*
+version.tag

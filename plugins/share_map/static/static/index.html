@@ -508,9 +508,9 @@ html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
             <div class="fr">
               <span class="fr-lbl">Map Style</span>
               <select id="cfg-map-style" onchange="P.debounce()">
+                <option value="osm" selected>◻ OpenStreetMap</option>
                 <option value="dark">◼ C2 Dark</option>
                 <option value="satellite">🛰 Satellite</option>
-                <option value="osm">◻ OpenStreetMap</option>
               </select>
             </div>
             <div class="fr-2" style="margin-bottom:8px;">
@@ -681,7 +681,7 @@ const P = {
     return {
       theme:              $('cfg-theme')?.value     || 'dark',
       refresh_s:          parseInt($('cfg-refresh')?.value || '30'),
-      map_style:          $('cfg-map-style')?.value || 'dark',
+      map_style:          $('cfg-map-style')?.value || 'osm',
       show_trails:        $('cfg-trails')?.checked  || false,
       show_links:         $('cfg-links')?.checked   || false,
       node_id:            $('cfg-node-id')?.value   || '',
@@ -789,7 +789,7 @@ const P = {
     sv('cfg-title',   w.title);
     sv('cfg-theme',   c.theme       || 'dark');
     sv('cfg-refresh', c.refresh_s   || 30);
-    sv('cfg-map-style', c.map_style || 'dark');
+    sv('cfg-map-style', c.map_style || 'osm');
     sc('cfg-trails',  c.show_trails);
     sc('cfg-links',   c.show_links);
     sv('cfg-node-id', c.node_id     || '');

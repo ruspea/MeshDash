@@ -86,6 +86,10 @@ python3 meshtastic_dashboard.py
 
 Then open `http://localhost:8181/setup` in your browser to complete the first-time configuration.
 
+To run it as a service, use the unit in [`scripts/meshdash.service`](scripts/meshdash.service). Keep `Restart=always`, so the panel always comes back after a crash.
+
+**Updates** are installed transactionally. The download is verified first (integrity and version). Every replaced file is backed up, and the new version boots on trial. If it fails to start (crash, crash loop, or no healthy startup within 5 minutes), the previous version is restored automatically. The outcome appears in the dashboard's system log and at `GET /api/system/update-status`. `POST /api/system/update-rollback` puts the previous version back on request.
+
 **Requirements:** Python 3.9+, a Meshtastic radio (or MQTT observer mode), Linux / Raspberry Pi / WSL2.
 
 > **Docker** is supported via the official [`rusjpmd/meshdash-runner`](https://hub.docker.com/r/rusjpmd/meshdash-runner) image — see [Docker setup](#docker) below.

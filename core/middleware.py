@@ -61,8 +61,9 @@ def no_cache(r):
 def _require_admin(user: User):
     """Guard: raise 403 if user is not an admin (role 0)."""
     from starlette.responses import RedirectResponse, JSONResponse
-    if isinstance(user, (HTTPException, RedirectResponse, JSONResponse)):
-        return user
+    if not isinstance(user, User):
+        # Never let a non-user (old-style redirect object) through to the route.
+        raise HTTPException(401, "Not authenticated")
     if user.role != 0:
         raise HTTPException(403, "Admin access required.")
 
@@ -92,7 +93,7 @@ async def _security_headers(request, call_next):
         "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://translate.google.com https://translate.googleapis.com https://translate-pa.googleapis.com; "
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com https://unpkg.com https://use.fontawesome.com https://www.gstatic.com; "
         "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com https://use.fontawesome.com; "
-        "img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://cdnjs.cloudflare.com https://fonts.gstatic.com https://www.google.com; "
+        "img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com https://server.arcgisonline.com https://cdnjs.cloudflare.com https://fonts.gstatic.com https://www.google.com; "
         "connect-src 'self' ws: wss: https://unpkg.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://translate.googleapis.com https://translate-pa.googleapis.com https://meshdash.co.uk; "
         "frame-src 'self'; "
         "object-src 'none'; "

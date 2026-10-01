@@ -11,7 +11,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
 from core.routes.schemas import User, NodeSlot, SlotCreateRequest
-from core.auth import verify_csrf, get_current_active_user, ensure_serializable
+from core.auth import verify_csrf, get_current_active_user, ensure_serializable, require_admin
 from core.database import DatabaseManager
 from core.data import MeshtasticData
 from core.connections.meshtastic import MeshtasticConnectionManager
@@ -176,7 +176,7 @@ async def list_slots(user: User = Depends(get_current_active_user)):
 
 
 @router.post("/api/slots")
-async def create_slot(req: SlotCreateRequest, user: User = Depends(verify_csrf)):
+async def create_slot(req: SlotCreateRequest, user: User = Depends(require_admin)):
     if len(g.NODE_REGISTRY) >= MAX_SLOTS:
         raise HTTPException(400, f"Maximum slot limit ({MAX_SLOTS}) reached.")
 
@@ -349,7 +349,7 @@ async def delete_slot(
     request: Request,
     slot_id: str,
     delete_db: bool = False,
-    user: User = Depends(verify_csrf),
+    user: User = Depends(require_admin),
 ):
     """
     Remove a radio slot.
@@ -415,7 +415,7 @@ async def delete_slot(
 
 
 @router.delete("/api/slots/{slot_id}/db")
-async def purge_slot_db(slot_id: str, user: User = Depends(verify_csrf)):
+async def purge_slot_db(slot_id: str, user: User = Depends(require_admin)):
     """Delete a non-primary slot's database file. Stops the slot first."""
     if slot_id == "node_0":
         raise HTTPException(400, "Cannot purge the primary slot database.")

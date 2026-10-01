@@ -15,7 +15,7 @@ import base64
 
 logger = logging.getLogger(__name__)
 
-from core.auth import get_current_active_user, User, ensure_serializable, verify_csrf
+from core.auth import get_current_active_user, User, ensure_serializable, verify_csrf, require_admin
 
 router = APIRouter()
 
@@ -618,7 +618,7 @@ class ConsoleRequest:
 
 
 @router.post("/api/console")
-async def api_console(req: dict, request: Request, user: User = Depends(verify_csrf)):
+async def api_console(req: dict, request: Request, user: User = Depends(require_admin)):
     from meshtastic_dashboard import send_system_message, execute_meshtastic_command
 
     parsed = ConsoleRequest(req)

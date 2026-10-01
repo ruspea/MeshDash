@@ -16,7 +16,7 @@ from typing import Dict, List, Optional, Any
 from fastapi import APIRouter, Request, Response, Depends, HTTPException, File, UploadFile, Query, status
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
 from core.routes.schemas import User, RemoteInstallRequest
-from core.auth import verify_csrf, get_current_active_user, _generate_csrf_token
+from core.auth import verify_csrf, get_current_active_user, _generate_csrf_token, require_admin
 from core.broadcast import broadcast_data
 from core.utils import validate_url
 
@@ -70,7 +70,7 @@ async def get_plugin_logs(plugin_id: str, user: User = Depends(get_current_activ
 
 
 @router.delete("/api/system/plugins/{plugin_id}/logs")
-async def clear_plugin_logs(plugin_id: str, user: User = Depends(verify_csrf)):
+async def clear_plugin_logs(plugin_id: str, user: User = Depends(require_admin)):
     """Clears the in-memory log buffer for the given plugin."""
     if plugin_id not in g.PLUGIN_REGISTRY:
         raise HTTPException(404, f"Plugin '{plugin_id}' not found.")
@@ -287,7 +287,7 @@ async def serve_plugin_frame(plugin_id: str, file_path: str, request: Request, u
 
 
 @router.post("/api/system/plugins/{plugin_id}/toggle")
-async def toggle_plugin(plugin_id: str, action: str = Query(...), user: User = Depends(verify_csrf)):
+async def toggle_plugin(plugin_id: str, action: str = Query(...), user: User = Depends(require_admin)):
     """Soft-starts or stops a plugin without restarting the main app."""
     if plugin_id not in g.PLUGIN_REGISTRY:
         raise HTTPException(404, "Plugin not found")
@@ -345,7 +345,7 @@ async def toggle_plugin(plugin_id: str, action: str = Query(...), user: User = D
 
 
 @router.delete("/api/system/plugins/{plugin_id}")
-async def remove_plugin(plugin_id: str, user: User = Depends(verify_csrf)):
+async def remove_plugin(plugin_id: str, user: User = Depends(require_admin)):
     if plugin_id not in g.PLUGIN_REGISTRY:
         raise HTTPException(404, "Plugin not found")
     plugin_path = g.PLUGIN_REGISTRY[plugin_id]["path"]
@@ -360,7 +360,7 @@ async def remove_plugin(plugin_id: str, user: User = Depends(verify_csrf)):
 
 
 @router.post("/api/system/plugins/install")
-async def install_plugin(file: UploadFile = File(...), user: User = Depends(verify_csrf)):
+async def install_plugin(file: UploadFile = File(...), user: User = Depends(require_admin)):
     """Accepts a .zip file, validates it, and installs it."""
     if not file.filename.endswith('.zip'):
         raise HTTPException(400, "Only .zip files are allowed.")
@@ -489,7 +489,7 @@ async def install_plugin(file: UploadFile = File(...), user: User = Depends(veri
 
 
 @router.post("/api/system/plugins/install-remote")
-async def install_remote_plugin(req: RemoteInstallRequest, user: User = Depends(verify_csrf)):
+async def install_remote_plugin(req: RemoteInstallRequest, user: User = Depends(require_admin)):
     download_url = req.url
     is_valid, reason = await asyncio.to_thread(validate_url, download_url)
     if not is_valid:

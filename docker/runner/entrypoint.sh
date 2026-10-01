@@ -119,10 +119,16 @@ if [ "$CURRENT_VERSION" != "$TARGET_VERSION" ] || [ ! -f "meshtastic_dashboard.p
     unzip -o -q app.zip
     rm app.zip
 
-    # Restore data directory
+    # Restore data directory. The release zip has no data/, so create it first,
+    # and only drop the backup once the copy verifiably succeeded.
     if [ -d "/tmp/data_backup" ]; then
-        cp -rn /tmp/data_backup/* data/ 2>/dev/null || true
-        rm -rf /tmp/data_backup
+        mkdir -p data
+        if cp -a /tmp/data_backup/. data/; then
+            rm -rf /tmp/data_backup
+        else
+            echo "[ERROR] Could not restore data/ — your data is preserved in /tmp/data_backup"
+            exit 1
+        fi
     fi
 
     # Build /opt/venv from the shipped requirements.txt

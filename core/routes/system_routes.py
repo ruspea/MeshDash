@@ -2,11 +2,13 @@
 System management routes (status, config, plugins, restart, updates).
 Extracted from meshtastic_dashboard.py
 """
+import asyncio
 import core.globals as _globals
 import json
 import logging
 import os
 import re
+import shutil
 import sys
 import threading
 import time
@@ -22,7 +24,7 @@ from fastapi import (
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel as PydanticBaseModel
 
-from core.auth import User, get_current_active_user, verify_csrf
+from core.auth import User, get_current_active_user, verify_csrf, require_admin
 from core.config import ABS_DASH_CONFIG_PATH, read_dash_config, write_dash_config
 
 router = APIRouter(prefix="/api", tags=["system"])
@@ -178,7 +180,7 @@ def _load_config_models():
 
 
 @router.get("/system/config")
-async def get_system_config(user: User = Depends(get_current_active_user)):
+async def get_system_config(user: User = Depends(require_admin)):
     from collections import OrderedDict
 
     g = _get_globals()
@@ -188,7 +190,12 @@ async def get_system_config(user: User = Depends(get_current_active_user)):
 
     try:
         config = await asyncio.to_thread(load_configuration, CONFIG_FILE_PATH)
-        # Ensure ordered output
+        # Secrets never leave the server. The settings form sends AUTH_SECRET_KEY
+        # back empty, which the config writer treats as "keep the current one".
+        config["AUTH_SECRET_KEY"] = ""
+        config.pop("INITIAL_ADMIN_PASSWORD", None)
+        key = str(config.get("COMMUNITY_API_KEY") or "")
+        config["COMMUNITY_API_KEY"] = (key[:3] + "…" + key[-4:]) if len(key) > 10 else ""
         return JSONResponse(content=json.loads(json.dumps(config)))
     except Exception as e:
         logging.getLogger("meshtastic_dashboard").error(f"Failed to read config file: {e}")
@@ -196,7 +203,7 @@ async def get_system_config(user: User = Depends(get_current_active_user)):
 
 
 @router.post("/system/config/update")
-async def update_system_config(request: Request, user: User = Depends(verify_csrf)):
+async def update_system_config(request: Request, user: User = Depends(require_admin)):
     from datetime import datetime
     from core.auth import PYDANTIC_V2
     import asyncio
@@ -227,19 +234,27 @@ async def update_system_config(request: Request, user: User = Depends(verify_csr
             __import__('core.config', fromlist=['load_configuration']).load_configuration,
             CONFIG_FILE_PATH
         )
+        from core.config import atomic_write_text, keep_existing_secrets
+        if "…" in str(update_data.get("COMMUNITY_API_KEY") or ""):
+            update_data.pop("COMMUNITY_API_KEY")  # the masked value we sent out
+        existing_config = dict(current_config)
         current_config.update(update_data)
+        for kept_key in keep_existing_secrets(existing_config, current_config):
+            update_data.pop(kept_key, None)
 
         def _write_config():
-            with open(CONFIG_FILE_PATH, "w", encoding="utf-8") as f:
-                f.write(f"# ---------------------------------------------------------\n")
-                f.write(f"# MeshDash Configuration\n")
-                f.write(f"# Updated via Web UI on {datetime.now().isoformat()}\n")
-                f.write(f"# ---------------------------------------------------------\n\n")
-                for key, value in current_config.items():
-                    if key in ("INITIAL_ADMIN_USERNAME", "INITIAL_ADMIN_PASSWORD"):
-                        continue
-                    value_str = "" if value is None else ("True" if value is True else ("False" if value is False else str(value)))
-                    f.write(f"{key}={value_str}\n")
+            lines = [
+                "# ---------------------------------------------------------\n",
+                "# MeshDash Configuration\n",
+                f"# Updated via Web UI on {datetime.now().isoformat()}\n",
+                "# ---------------------------------------------------------\n\n",
+            ]
+            for key, value in current_config.items():
+                if key in ("INITIAL_ADMIN_USERNAME", "INITIAL_ADMIN_PASSWORD"):
+                    continue
+                value_str = "" if value is None else ("True" if value is True else ("False" if value is False else str(value)))
+                lines.append(f"{key}={value_str}\n")
+            atomic_write_text(CONFIG_FILE_PATH, "".join(lines))
 
         await asyncio.to_thread(_write_config)
         logging.getLogger("meshtastic_dashboard").info(f"✅ Configuration updated by user {user.username}")
@@ -303,35 +318,50 @@ async def update_system_config(request: Request, user: User = Depends(verify_csr
 
 # Restart
 
-@router.post("/system/restart")
-async def restart(request: Request, user: User = Depends(verify_csrf)):
-    g = _get_globals()
-    connection_manager = g["connection_manager"]
-
+def _broadcast(g: dict, payload: dict) -> None:
+    """Fire-and-forget SSE broadcast from any thread."""
     try:
+        import asyncio
         from core.sse import broadcast_data
-        if g.main_event_loop:
-            import asyncio
-            asyncio.run_coroutine_threadsafe(
-                broadcast_data({"event": "system_message", "data": {"message": "🔄 System restarting..."}}),
-                g.main_event_loop
-            )
+        loop = g.get("main_event_loop")
+        if loop:
+            asyncio.run_coroutine_threadsafe(broadcast_data(payload), loop)
     except Exception:
         pass
 
-    if connection_manager:
-        try:
-            import asyncio
-            loop = None
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                loop = asyncio.get_event_loop()
-            loop.run_in_executor(None, lambda: connection_manager.disconnect_for_restart(settle_seconds=3.0))
-        except Exception:
-            pass
 
-    os.execv(sys.executable, [sys.executable] + sys.argv)
+def _graceful_restart(g: dict, delay_s: float = 2.0) -> None:
+    """Restart in place: let SSE flush, release the radio, then execv.
+
+    Never exit and rely on a supervisor: under systemd Restart=on-failure (or
+    no supervisor at all) a clean exit means the panel stays down.
+    """
+    from core.update import restart_process
+    connection_manager = g.get("connection_manager")
+
+    loop = g.get("main_event_loop")
+
+    def _run():
+        time.sleep(delay_s)
+        if connection_manager and loop:
+            # disconnect_for_restart is a coroutine: run it on the app loop
+            try:
+                fut = asyncio.run_coroutine_threadsafe(
+                    connection_manager.disconnect_for_restart(settle_seconds=3.0), loop)
+                fut.result(timeout=15)
+            except Exception as e:
+                logging.getLogger("meshtastic_dashboard").warning(f"Radio disconnect before restart: {e}")
+        restart_process()
+
+    threading.Thread(target=_run, name="graceful-restart", daemon=True).start()
+
+
+@router.post("/system/restart")
+async def restart(request: Request, user: User = Depends(require_admin)):
+    g = _get_globals()
+    _broadcast(g, {"event": "system_message", "data": {"message": "🔄 System restarting..."}})
+    _graceful_restart(g)
+    return JSONResponse({"status": "restarting"})
 
 
 # Version & Updates
@@ -343,6 +373,19 @@ def _parse_version_number(v_str) -> tuple:
         return tuple(parts) if parts else (0,)
     except Exception:
         return (0,)
+
+
+def _last_update_summary():
+    """What the UI needs to tell the user how the last update went (no paths)."""
+    try:
+        from core.update import read_state
+        st = read_state(_update_data_dir())
+        if not st:
+            return None
+        return {k: st.get(k) for k in ("phase", "from_version", "to_version", "reason", "updated_at")
+                if st.get(k)}
+    except Exception:
+        return None
 
 
 @router.get("/system/version-status")
@@ -432,134 +475,218 @@ async def get_version_status(notify: bool = False):
         if notify:
             try:
                 import asyncio
-                if g.main_event_loop:
+                if g.get("main_event_loop"):
                     asyncio.run_coroutine_threadsafe(
                         broadcast_data({"event": "system_message", "data": {"message": f"✅ <b>System check:</b> Running latest version ({local_ver})"}}),
-                        g.main_event_loop
+                        g["main_event_loop"]
                     )
             except Exception:
                 pass
 
-    return {"local": local_ver, "remote": remote_ver, "status": status}
+    return {"local": local_ver, "remote": remote_ver, "status": status,
+            "last_update": _last_update_summary()}
 
 
 @router.post("/system/check-update")
-async def check_update(request: Request, user: User = Depends(verify_csrf)):
+async def check_update(request: Request, user: User = Depends(require_admin)):
     # Just call version-status with notify=True
     return await get_version_status(notify=True)
 
 
+_UPDATE_MAX_BYTES = 200 * 1024 * 1024
+_update_lock = threading.Lock()
+
+
+def _install_root() -> str:
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+
+def _update_data_dir() -> str:
+    return os.path.join(_install_root(), "data")
+
+
+def _update_preflight(data_dir: str, expected_bytes: int = 0) -> None:
+    """Refuse to start an update the panel could not finish."""
+    root = _install_root()
+    for path in (root, os.path.join(root, "core"), data_dir):
+        if not os.access(path, os.W_OK):
+            raise HTTPException(500, f"Update blocked: {path} is not writable by the MeshDash process.")
+    # zip + staging copy + backup of the replaced files, with headroom
+    need = max(expected_bytes, 30 * 1024 * 1024) * 4 + 50 * 1024 * 1024
+    free = shutil.disk_usage(data_dir).free
+    if free < need:
+        raise HTTPException(507, f"Update blocked: only {free // (1024*1024)} MB free, need about {need // (1024*1024)} MB.")
+
+
+@router.get("/system/update-status")
+async def update_status(user: User = Depends(require_admin)):
+    """Where the last update stands: trial, good, rolled back, aborted…"""
+    from core.update import read_state, RESULT_FILE, BACKUPS_DIR
+    data_dir = _update_data_dir()
+    state = read_state(data_dir)
+    try:
+        with open(os.path.join(data_dir, RESULT_FILE)) as f:
+            result = json.load(f)
+    except Exception:
+        result = None
+    backups_root = os.path.join(data_dir, BACKUPS_DIR)
+    backups = sorted(os.listdir(backups_root)) if os.path.isdir(backups_root) else []
+    can_rollback = (state.get("phase") in ("good", "trial")
+                    and bool(state.get("backup")) and os.path.isdir(state.get("backup", "")))
+    return {"state": state, "last_result": result, "backups": backups, "can_rollback": can_rollback}
+
+
+@router.post("/system/update-rollback")
+async def update_rollback(request: Request, user: User = Depends(require_admin)):
+    """Restore the version that was running before the last update."""
+    from core.update import request_rollback, UpdateAborted
+    g = _get_globals()
+    try:
+        state = await asyncio.to_thread(request_rollback, _update_data_dir())
+    except UpdateAborted as e:
+        raise HTTPException(409, str(e))
+    target = state.get("from_version", "")
+    logging.getLogger("meshtastic_dashboard").warning(
+        f"Rollback to {target} requested by {user.username}")
+    _broadcast(g, {"event": "system_message", "data": {"message": f"⏪ Rolling back to {target}…"}})
+    _broadcast(g, {"event": "restart_imminent", "data": {"version": target}})
+    _graceful_restart(g)
+    return JSONResponse({"status": "rolling_back", "version": target})
+
+
 @router.post("/system/start-update")
-async def start_update_process(request: Request, user: User = Depends(verify_csrf)):
-    import asyncio
+async def start_update_process(request: Request, user: User = Depends(require_admin)):
+    from core.update import read_state, verify_update_zip, UpdateAborted
+    log = logging.getLogger("meshtastic_dashboard")
     g = _get_globals()
     meshtastic_data = g["meshtastic_data"]
     COMMUNITY_API_KEY = g["COMMUNITY_API_KEY"]
 
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    force = bool(isinstance(body, dict) and body.get("force"))
+
     app = g["app"]
     local_ver = getattr(app, 'version', '0.0.0')
     _node_id = meshtastic_data.local_node_id
-
-    # Always query for updates — don't gate on node_id
-    params = {
-        "view": "version",
-        "action": "check",
-        "dashboard_version": local_ver,
-    }
-    headers = {
-        "User-Agent": f"MeshDash-Backend/{local_ver}",
-        "X-Dashboard-Version": local_ver,
-    }
-    if _node_id:
-        params["node_id"] = _node_id
-        headers["X-Api-Key"] = COMMUNITY_API_KEY
-        headers["X-Node-Id"] = _node_id
-
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(_resolve_heartbeat(), params=params, headers=headers)
-            if resp.status_code != 200:
-                raise HTTPException(502, "Update server returned error")
-            data = resp.json()
-            remote_ver = data.get("version", local_ver)
-            download_url = data.get("url")
-    except Exception as e:
-        logging.getLogger("meshtastic_dashboard").error(f"Update check failed: {e}")
-        raise HTTPException(502, f"Update check failed: {e}")
-
-    l_val = _parse_version_number(local_ver)
-    r_val = _parse_version_number(remote_ver)
-    if r_val <= l_val:
-        return JSONResponse({"status": "current", "message": "Already on latest version."})
-
-    if not download_url:
-        raise HTTPException(502, "No download URL in server response")
-
-    # R3.0+: Detect major-version bump (R2.x → R3.x)
-    is_major = l_val[0] < r_val[0] if l_val and r_val else False
-    update_type = "major" if is_major else "incremental"
-
-    # Write to data/ so check_and_apply_update can find it on boot
-    data_dir = os.path.join(os.path.dirname(__file__), "..", "..", "data")
+    data_dir = _update_data_dir()
     os.makedirs(data_dir, exist_ok=True)
-    temp_path = os.path.join(data_dir, "update.zip")
 
+    state = read_state(data_dir)
+    if state.get("phase") in ("trial", "applying", "rollback_requested"):
+        raise HTTPException(409, "An update is still being verified. Try again in a few minutes.")
+
+    if not _update_lock.acquire(blocking=False):
+        raise HTTPException(409, "An update download is already in progress.")
     try:
-        async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
-            resp = await client.get(download_url)
-            resp.raise_for_status()
-        def _write_zip():
-            with open(temp_path, "wb") as f:
-                f.write(resp.content)
-        await asyncio.to_thread(_write_zip)
-    except Exception as e:
-        logging.getLogger("meshtastic_dashboard").error(f"Update download failed: {e}")
-        raise HTTPException(502, f"Update download failed: {e}")
+        # Always query for updates — don't gate on node_id
+        params = {
+            "view": "version",
+            "action": "check",
+            "dashboard_version": local_ver,
+        }
+        headers = {
+            "User-Agent": f"MeshDash-Backend/{local_ver}",
+            "X-Dashboard-Version": local_ver,
+        }
+        if _node_id:
+            params["node_id"] = _node_id
+            if COMMUNITY_API_KEY:
+                headers["X-Api-Key"] = COMMUNITY_API_KEY
+            headers["X-Node-Id"] = _node_id
 
-    # Write update trigger flags
-    flag_path = os.path.join(data_dir, "update.flag")
-    with open(flag_path, "w") as f:
-        f.write(str(int(time.time())))
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(_resolve_heartbeat(), params=params, headers=headers)
+                if resp.status_code != 200:
+                    raise HTTPException(502, f"Update server returned HTTP {resp.status_code}")
+                data = resp.json()
+                remote_ver = data.get("version", local_ver)
+                download_url = data.get("url")
+                expected_sha = data.get("sha256") or None
+        except HTTPException:
+            raise
+        except Exception as e:
+            log.error(f"Update check failed: {e}")
+            raise HTTPException(502, f"Update check failed: {e}")
 
-    if is_major:
-        major_flag_path = os.path.join(data_dir, "update.major")
-        with open(major_flag_path, "w") as f:
-            f.write(f"{local_ver}→{remote_ver}")
+        l_val = _parse_version_number(local_ver)
+        r_val = _parse_version_number(remote_ver)
+        if r_val <= l_val:
+            return JSONResponse({"status": "current", "message": "Already on latest version."})
 
-    try:
-        from core.sse import broadcast_data
+        if state.get("blocked_version") == remote_ver and not force:
+            raise HTTPException(409, (f"{remote_ver} was rolled back on this panel "
+                                      f"({state.get('reason', 'it failed to start')}). "
+                                      "It will not be installed again unless forced."))
+
+        if not download_url:
+            raise HTTPException(502, "No download URL in server response")
+
+        # R3.0+: Detect major-version bump (R2.x → R3.x)
+        is_major = l_val[0] < r_val[0] if l_val and r_val else False
+        update_type = "major" if is_major else "incremental"
+
+        await asyncio.to_thread(_update_preflight, data_dir)
+
+        zip_path = os.path.join(data_dir, "update.zip")
+        part_path = zip_path + ".part"
+        try:
+            size = 0
+            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=15.0),
+                                         follow_redirects=True) as client:
+                async with client.stream("GET", download_url) as resp:
+                    resp.raise_for_status()
+                    with open(part_path, "wb") as f:
+                        async for chunk in resp.aiter_bytes(1 << 16):
+                            size += len(chunk)
+                            if size > _UPDATE_MAX_BYTES:
+                                raise ValueError("update file is larger than 200 MB")
+                            f.write(chunk)
+                        f.flush()
+                        os.fsync(f.fileno())
+            await asyncio.to_thread(verify_update_zip, part_path, expected_sha, remote_ver)
+            os.replace(part_path, zip_path)
+        except Exception as e:
+            try:
+                os.remove(part_path)
+            except FileNotFoundError:
+                pass
+            reason = str(e)
+            log.error(f"Update download rejected, nothing changed: {reason}")
+            status_code = 422 if isinstance(e, UpdateAborted) else 502
+            raise HTTPException(status_code, f"Update download failed, nothing was changed: {reason}")
+
+        # Manifest first, trigger flag last: a half-written trigger is ignored.
+        with open(os.path.join(data_dir, "update.json"), "w") as f:
+            json.dump({"from_version": local_ver, "to_version": remote_ver,
+                       "sha256": expected_sha, "type": update_type,
+                       "requested_by": user.username,
+                       "downloaded_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}, f)
         if is_major:
-            msg = "🚀 <b>Major Update Downloaded:</b> " + local_ver + " → " + remote_ver + ". Restarting to apply…"
-        else:
-            msg = "✅ <b>Update Downloaded:</b> " + remote_ver + ". Restarting to apply…"
-        if g.main_event_loop:
-            asyncio.run_coroutine_threadsafe(
-                broadcast_data({"event": "system_message", "data": {"message": msg}}),
-                g.main_event_loop
-            )
-            # Send a restart signal so the frontend shows a loading screen
-            asyncio.run_coroutine_threadsafe(
-                broadcast_data({"event": "restart_imminent", "data": {"version": remote_ver}}),
-                g.main_event_loop
-            )
-    except Exception:
-        pass
+            with open(os.path.join(data_dir, "update.major"), "w") as f:
+                f.write(f"{local_ver}→{remote_ver}")
+        with open(os.path.join(data_dir, "update.flag"), "w") as f:
+            f.write(str(int(time.time())))
+    finally:
+        _update_lock.release()
 
-    # Write .restart flag — systemd will auto-restart the service
-    restart_flag = os.path.join(data_dir, ".restart")
-    with open(restart_flag, "w") as f:
-        f.write(str(int(time.time())))
+    log.info(f"Update {local_ver} → {remote_ver} downloaded and verified ({size} bytes); restarting to apply")
+    if is_major:
+        msg = "🚀 <b>Major Update Downloaded:</b> " + local_ver + " → " + remote_ver + ". Restarting to apply…"
+    else:
+        msg = "✅ <b>Update Downloaded:</b> " + remote_ver + ". Restarting to apply…"
+    _broadcast(g, {"event": "system_message", "data": {"message": msg}})
+    # Send a restart signal so the frontend shows a loading screen
+    _broadcast(g, {"event": "restart_imminent", "data": {"version": remote_ver}})
 
-    # Clean exit: systemd restarts us, check_and_apply_update runs on boot
-    def _graceful_exit():
-        import time as _time
-        _time.sleep(2)  # Let SSE flush
-        os._exit(0)
-    threading.Thread(target=_graceful_exit, daemon=True).start()
+    _graceful_restart(g)
 
     return JSONResponse({
         "status": "downloaded",
-        "message": f"{update_type.capitalize()} update ready. Restart to apply.",
+        "message": f"{update_type.capitalize()} update verified. Restarting to apply.",
         "version": remote_ver,
         "update_type": update_type,
         "from_version": local_ver,
