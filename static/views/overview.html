@@ -216,6 +216,9 @@
         border: 1px solid var(--bd);
         flex-shrink: 0;
     }
+    .ov-nc-spark-wrap canvas {
+        display: block; width: 100%; height: 100%;
+    }
     
     /* ── 4. Location strip — 30px ── */
     .ov-nc-loc {
@@ -352,11 +355,37 @@
     .ov-hlth-lbl { font-size: 9px; color: var(--txt3); font-family: var(--mono); letter-spacing: .5px; margin-top: 3px; }
     
     /* Ring gauges */
-    .ov-ring-wrap { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 6px; }
+    .ov-ring-wrap { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 14px; }
     .ov-ring-item { text-align: center; }
     .ov-ring-svg  { overflow: visible; }
     .ov-ring-svg circle:last-of-type { filter: drop-shadow(0 0 3px currentColor); }
     .ov-ring-lbl  { font-size: 9px; color: var(--txt3); font-family: var(--mono); margin-top: 3px; letter-spacing: .5px; }
+    /* ── Channel activity heatmap ── */
+    .ov-heat {
+        background: var(--bg); border: 1px solid var(--bd2);
+        border-radius: 4px; padding: 8px; margin-bottom: 8px;
+    }
+    .ov-heat-head {
+        display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+        font-size: 9px; color: var(--txt3); font-family: var(--mono); letter-spacing: .5px;
+    }
+    .ov-heat-grid {
+        display: grid; grid-template-columns: 40px repeat(24, 1fr);
+        grid-auto-rows: 10px; gap: 2px;
+    }
+    .ov-heat-lbl {
+        font-size: 8px; color: var(--txt3); font-family: var(--mono);
+        letter-spacing: .5px; display: flex; align-items: center;
+    }
+    .ov-heat-cell {
+        background: var(--acc); border-radius: 1px;
+        transition: transform .15s;
+    }
+    .ov-heat-cell:hover { transform: scale(1.25); }
+    .ov-heat-legend {
+        flex: 0 0 60px; height: 4px; border-radius: 2px;
+        background: linear-gradient(to right, rgba(0,0,0,0), var(--acc));
+    }
     
     /* Live feed */
     .ov-feed {
@@ -678,13 +707,140 @@
                                 <div class="ov-ring-lbl">ENV DATA</div>
                             </div>
                         </div>
-                        <!-- Avg SNR + RSSI mini chart -->
+<!-- Channel activity heatmap (DEMO — mock data, not live) -->
+                        <div class="ov-heat">
+                            <div class="ov-heat-head">
+                                <span>CHANNEL ACTIVITY · 7D</span>
+                                <span style="margin-left:auto;">00–23h</span>
+                            </div>
+                            <div class="ov-heat-grid">
+                    <div class="ov-heat-lbl">PRIMARY</div>
+                    <div class="ov-heat-cell" style="opacity:0.33" title="PRIMARY 00:00 — 27 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.22" title="PRIMARY 01:00 — 15 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="PRIMARY 02:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="PRIMARY 03:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="PRIMARY 04:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="PRIMARY 05:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.38" title="PRIMARY 06:00 — 32 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.23" title="PRIMARY 07:00 — 16 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.34" title="PRIMARY 08:00 — 28 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.25" title="PRIMARY 09:00 — 18 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.30" title="PRIMARY 10:00 — 23 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.31" title="PRIMARY 11:00 — 24 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.22" title="PRIMARY 12:00 — 15 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.25" title="PRIMARY 13:00 — 18 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.34" title="PRIMARY 14:00 — 27 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.32" title="PRIMARY 15:00 — 25 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.26" title="PRIMARY 16:00 — 19 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.32" title="PRIMARY 17:00 — 26 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.71" title="PRIMARY 18:00 — 68 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.39" title="PRIMARY 19:00 — 33 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.71" title="PRIMARY 20:00 — 68 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.67" title="PRIMARY 21:00 — 63 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.52" title="PRIMARY 22:00 — 47 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.24" title="PRIMARY 23:00 — 17 msgs (demo)"></div>
+                    <div class="ov-heat-lbl">ADMIN</div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="ADMIN 00:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.12" title="ADMIN 01:00 — 4 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.09" title="ADMIN 02:00 — 1 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.09" title="ADMIN 03:00 — 1 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.10" title="ADMIN 04:00 — 2 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.10" title="ADMIN 05:00 — 1 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="ADMIN 06:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="ADMIN 07:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="ADMIN 08:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="ADMIN 09:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.13" title="ADMIN 10:00 — 5 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.13" title="ADMIN 11:00 — 5 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="ADMIN 12:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.13" title="ADMIN 13:00 — 5 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="ADMIN 14:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.13" title="ADMIN 15:00 — 5 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="ADMIN 16:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.11" title="ADMIN 17:00 — 3 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="ADMIN 18:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="ADMIN 19:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="ADMIN 20:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="ADMIN 21:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="ADMIN 22:00 — 8 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.12" title="ADMIN 23:00 — 4 msgs (demo)"></div>
+                    <div class="ov-heat-lbl">WEATHER</div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="WEATHER 00:00 — 8 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="WEATHER 01:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.10" title="WEATHER 02:00 — 2 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.10" title="WEATHER 03:00 — 2 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.10" title="WEATHER 04:00 — 2 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.11" title="WEATHER 05:00 — 3 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="WEATHER 06:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="WEATHER 07:00 — 8 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="WEATHER 08:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.19" title="WEATHER 09:00 — 11 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="WEATHER 10:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="WEATHER 11:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.18" title="WEATHER 12:00 — 11 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="WEATHER 13:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="WEATHER 14:00 — 8 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="WEATHER 15:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="WEATHER 16:00 — 10 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="WEATHER 17:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.21" title="WEATHER 18:00 — 14 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.18" title="WEATHER 19:00 — 11 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.22" title="WEATHER 20:00 — 15 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.21" title="WEATHER 21:00 — 14 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.21" title="WEATHER 22:00 — 13 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.18" title="WEATHER 23:00 — 10 msgs (demo)"></div>
+                    <div class="ov-heat-lbl">RANDOM</div>
+                    <div class="ov-heat-cell" style="opacity:0.30" title="RANDOM 00:00 — 23 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.22" title="RANDOM 01:00 — 15 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="RANDOM 02:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.13" title="RANDOM 03:00 — 5 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="RANDOM 04:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.13" title="RANDOM 05:00 — 5 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.21" title="RANDOM 06:00 — 14 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.21" title="RANDOM 07:00 — 14 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.29" title="RANDOM 08:00 — 23 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.24" title="RANDOM 09:00 — 17 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.30" title="RANDOM 10:00 — 23 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.30" title="RANDOM 11:00 — 23 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.23" title="RANDOM 12:00 — 16 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.21" title="RANDOM 13:00 — 13 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.31" title="RANDOM 14:00 — 25 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.25" title="RANDOM 15:00 — 18 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.19" title="RANDOM 16:00 — 12 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.19" title="RANDOM 17:00 — 11 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.33" title="RANDOM 18:00 — 27 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.49" title="RANDOM 19:00 — 44 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.53" title="RANDOM 20:00 — 49 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.43" title="RANDOM 21:00 — 37 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.32" title="RANDOM 22:00 — 26 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.23" title="RANDOM 23:00 — 16 msgs (demo)"></div>
+                            </div>
+                            <div class="ov-heat-head" style="margin-top:4px;">
+                                <span>LESS</span>
+                                <div class="ov-heat-legend"></div>
+                                <span>MORE</span>
+                                <span style="margin-left:auto;">DEMO DATA</span>
+                            </div>
+                        </div>
+                                                <!-- Avg SNR + RSSI mini chart -->
                         <div style="height:60px;position:relative;margin-top:4px;">
                             <canvas id="ov-chart-metrics"></canvas>
                         </div>
                     </div>
                 </div>
     
+                <!-- Mesh topology -->
+                <div class="card" style="flex-shrink:0;">
+                    <div class="ch" style="padding-bottom:8px;">
+                        <span class="ct" style="font-size:10px;">⬡ MESH TOPOLOGY</span>
+                        <span style="margin-left:auto;font-size:8px;font-family:var(--mono);color:var(--txt3);" id="topo-stats">—</span>
+                        <button class="btn btn-sm" id="topo-expand" title="Expand" style="padding:2px 8px;font-size:10px;">⤢</button>
+                    </div>
+                    <div class="cb" style="padding:4px;">
+                        <canvas id="ov-topo-canvas" style="width:100%;height:170px;display:block;cursor:grab;"></canvas>
+                    </div>
+                </div>
+
                 <!-- Live feed -->
                 <div class="card" style="flex:1;display:flex;flex-direction:column;min-height:200px;">
                     <div class="ch" style="padding-bottom:8px;">
@@ -705,3 +861,705 @@
             </div>
         </div>
     </div>
+<script>
+/* ── Channel activity heatmap — click-to-open detail modal (DEMO data) ── */
+(function() {
+    'use strict';
+
+    var CHANNELS = ['PRIMARY', 'ADMIN', 'WEATHER', 'RANDOM'];
+    var DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+    /* Deterministic demo data — same shape as the card: evening peak,
+       dead 03-05, channel personality. Seeded so it doesn't jump around. */
+    function rnd(seed) { var x = Math.sin(seed) * 10000; return x - Math.floor(x); }
+    function demoVal(ch, day, hour) {
+        var base = { PRIMARY: 55, ADMIN: 12, WEATHER: 18, RANDOM: 40 }[ch] || 20;
+        var shape = (hour >= 2 && hour <= 5) ? 0.15
+                  : (hour >= 18 && hour <= 22) ? 1.0
+                  : (hour >= 8 && hour <= 10) ? 0.55 : 0.45;
+        var weekend = (day >= 4) ? 1.15 : 1.0;   /* busier weekends */
+        var v = base * shape * weekend * (0.6 + rnd(ch.length * 941 + day * 113 + hour * 7) * 0.8);
+        return Math.max(0, Math.min(100, v));
+    }
+
+    function heatCell(v, title) {
+        var op = (0.08 + (v / 100) * 0.92).toFixed(2);
+        return '<div class="ov-heat-cell" style="opacity:' + op + '" title="' + title + '"></div>';
+    }
+
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+    function renderModalBody(ch) {
+        /* Big heatmap: 7 days × 24h for the active channel */
+        var rows = '';
+        var total = 0, maxV = 0, maxDay = 0, maxHour = 0, counts = [];
+        for (var d = 0; d < 7; d++) {
+            rows += '<div class="ov-heat-lbl">' + DAYS[d] + '</div>';
+            for (var h = 0; h < 24; h++) {
+                var v = demoVal(ch, d, h);
+                total += v;
+                counts.push(v);
+                if (v > maxV) { maxV = v; maxDay = d; maxHour = h; }
+                rows += heatCell(v, DAYS[d] + ' ' + (h < 10 ? '0' + h : h) + ':00 — ' + Math.round(v) + ' msgs (demo)');
+            }
+        }
+        var busiest = (maxHour < 10 ? '0' + maxHour : maxHour) + ':00–' + ((maxHour + 1) < 10 ? '0' + (maxHour + 1) : maxHour + 1) + ':00';
+        var avg = Math.round(total / 168);
+
+        /* Top talkers (demo) */
+        var talkers = [
+            { n: 'RUSJP-BASE', c: Math.round(total * 0.31) },
+            { n: 'REPEATER-HILL', c: Math.round(total * 0.22) },
+            { n: 'COSHAM-GW', c: Math.round(total * 0.14) },
+            { n: 'PORTSMOUTH-PI', c: Math.round(total * 0.09) },
+            { n: 'MOBILE-74', c: Math.round(total * 0.06) }
+        ];
+        var tmax = talkers[0].c || 1;
+        var talkerHtml = talkers.map(function(t) {
+            return '<div class="ovd-talker">'
+                 + '<span class="ovd-talker-n">' + esc(t.n) + '</span>'
+                 + '<div class="ovd-talker-bar"><div style="width:' + Math.round(t.c / tmax * 100) + '%"></div></div>'
+                 + '<span class="ovd-talker-c">' + t.c + '</span>'
+                 + '</div>';
+        }).join('');
+
+        return ''
+        + '<div class="ovd-stats">'
+        +   '<div class="ovd-stat"><div class="ovd-stat-v">' + Math.round(total) + '</div><div class="ovd-stat-l">MSGS · 7D</div></div>'
+        +   '<div class="ovd-stat"><div class="ovd-stat-v">' + busiest + '</div><div class="ovd-stat-l">BUSIEST HOUR</div></div>'
+        +   '<div class="ovd-stat"><div class="ovd-stat-v">' + DAYS[maxDay] + '</div><div class="ovd-stat-l">BUSIEST DAY</div></div>'
+        +   '<div class="ovd-stat"><div class="ovd-stat-v">' + avg + '</div><div class="ovd-stat-l">AVG / HR</div></div>'
+        + '</div>'
+        + '<div class="ovd-heatwrap">'
+        +   '<div class="ovd-heat-grid">' + rows + '</div>'
+        + '</div>'
+        + '<div class="ovd-cols">'
+        +   '<div>'
+        +     '<div class="ovd-sub">TOP TALKERS · 7D</div>'
+        +     talkerHtml
+        +   '</div>'
+        +   '<div>'
+        +     '<div class="ovd-sub">CHANNEL SHARE · 7D</div>'
+        +     shareBars()
+        +   '</div>'
+        + '</div>'
+        + '<div class="ovd-foot">DEMO DATA — illustrative only, not live traffic</div>';
+    }
+
+    function shareBars() {
+        var bases = { PRIMARY: 55, ADMIN: 12, WEATHER: 18, RANDOM: 40 };
+        var sum = 0; Object.keys(bases).forEach(function(k) { sum += bases[k]; });
+        return Object.keys(bases).map(function(k) {
+            var pct = Math.round(bases[k] / sum * 100);
+            return '<div class="ovd-talker">'
+                 + '<span class="ovd-talker-n">' + k + '</span>'
+                 + '<div class="ovd-talker-bar"><div style="width:' + pct + '%"></div></div>'
+                 + '<span class="ovd-talker-c">' + pct + '%</span>'
+                 + '</div>';
+        }).join('');
+    }
+
+    window.c2OpenHeatmapDetail = function() {
+        var m = document.getElementById('modal');
+        if (!m) return;
+        var inner = m.querySelector('.modal-inner');
+        inner.style.width = '95%';
+        inner.style.maxWidth = '860px';
+        inner.style.margin = '20px auto';
+
+        var tabs = CHANNELS.map(function(c, i) {
+            return '<button class="ovd-tab' + (i === 0 ? ' active' : '') + '" data-ch="' + c + '">' + c + '</button>';
+        }).join('');
+
+        inner.innerHTML = ''
+        + '<div class="modal-head" style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--bd2);">'
+        +   '<h3 style="margin:0;font-size:14px;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);">◎ CHANNEL ACTIVITY</h3>'
+        +   '<button class="btn btn-sm" onclick="window.closeModal()">✕ CLOSE</button>'
+        + '</div>'
+        + '<div style="display:flex;gap:4px;padding:10px 20px 0;">' + tabs + '</div>'
+        + '<div id="ovd-body" style="padding:10px 20px 16px;"></div>';
+
+        var body = inner.querySelector('#ovd-body');
+        function activate(ch) {
+            body.innerHTML = renderModalBody(ch);
+            inner.querySelectorAll('.ovd-tab').forEach(function(t) {
+                t.classList.toggle('active', t.dataset.ch === ch);
+            });
+        }
+        inner.querySelectorAll('.ovd-tab').forEach(function(t) {
+            t.addEventListener('click', function() { activate(t.dataset.ch); });
+        });
+        activate(CHANNELS[0]);
+
+        m.style.display = 'flex';
+        setTimeout(function() { m.classList.add('open'); }, 10);
+    };
+
+    /* Wire the card click once the view is in the DOM */
+    function wire() {
+        var el = document.querySelector('.ov-heat');
+        if (!el) { setTimeout(wire, 500); return; }
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.c2OpenHeatmapDetail();
+        });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+    else wire();
+})();
+</script>
+<style>
+    /* ── Heatmap detail modal ── */
+    .ov-heat:hover { border-color: var(--bd3); }
+    .ovd-tab {
+        background: transparent; border: 1px solid var(--bd2); color: var(--txt3);
+        padding: 4px 10px; border-radius: 3px; font-family: var(--mono);
+        font-size: 9px; letter-spacing: .5px; cursor: pointer; transition: all .15s;
+    }
+    .ovd-tab:hover { border-color: var(--acc); color: var(--acc); }
+    .ovd-tab.active { background: var(--acc); color: #000; border-color: var(--acc); font-weight: bold; }
+    .ovd-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+    .ovd-stat {
+        background: var(--bg); border: 1px solid var(--bd2); border-radius: 4px;
+        padding: 8px; text-align: center;
+    }
+    .ovd-stat-v { font-size: 16px; font-weight: bold; font-family: var(--mono); line-height: 1; }
+    .ovd-stat-l { font-size: 9px; color: var(--txt3); font-family: var(--mono); letter-spacing: .5px; margin-top: 3px; }
+    .ovd-heatwrap {
+        background: var(--bg); border: 1px solid var(--bd2); border-radius: 4px;
+        padding: 8px; margin-bottom: 10px;
+    }
+    .ovd-heat-grid {
+        display: grid; grid-template-columns: 34px repeat(24, 1fr);
+        grid-auto-rows: 13px; gap: 2px;
+    }
+    .ovd-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ovd-sub {
+        font-size: 9px; color: var(--txt3); font-family: var(--mono);
+        letter-spacing: .5px; margin-bottom: 6px;
+    }
+    .ovd-talker {
+        display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
+        font-family: var(--mono); font-size: 10px;
+    }
+    .ovd-talker-n { color: var(--txt2); flex: 0 0 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ovd-talker-bar { flex: 1; height: 8px; background: var(--bg); border: 1px solid var(--bd2); border-radius: 2px; overflow: hidden; }
+    .ovd-talker-bar > div { height: 100%; background: var(--acc); border-radius: 1px; }
+    .ovd-talker-c { color: var(--txt3); flex: 0 0 44px; text-align: right; }
+    .ovd-foot {
+        margin-top: 10px; font-size: 8px; color: var(--txt3);
+        font-family: var(--mono); letter-spacing: .5px; text-align: right;
+    }
+    @media (max-width: 640px) {
+        .ovd-cols { grid-template-columns: 1fr; }
+        .ovd-stats { grid-template-columns: repeat(2, 1fr); }
+        .ovd-heat-grid { grid-template-columns: 28px repeat(24, 1fr); grid-auto-rows: 9px; }
+    }
+</style>
+<script>
+/* ── Ring gauge click-to-open detail modals (live data from meshState) ── */
+(function() {
+    'use strict';
+
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function name(n) { return window.getMeshVal(n, 'long_name', 'longName', 'short_name', 'shortName') || n.node_id; }
+    function ago(ts) {
+        if (!ts) return 'never';
+        var d = Math.floor(Date.now() / 1000 - ts);
+        if (d < 60) return d + 's'; if (d < 3600) return Math.floor(d / 60) + 'm';
+        if (d < 86400) return Math.floor(d / 3600) + 'h'; return Math.floor(d / 86400) + 'd';
+    }
+    function nodes() { return Object.values(window.meshState.nodes || {}); }
+
+    function head(title, sub) {
+        return '<div class="modal-head" style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--bd2);">'
+        + '<div><h3 style="margin:0;font-size:14px;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);">' + title + '</h3>'
+        + (sub ? '<div style="font-size:9px;color:var(--txt3);font-family:var(--mono);margin-top:2px;">' + sub + '</div>' : '')
+        + '</div><button class="btn btn-sm" onclick="window.closeModal()">✕ CLOSE</button></div>';
+    }
+    function statGrid(pairs) {
+        return '<div class="ovd-stats">' + pairs.map(function(p) {
+            return '<div class="ovd-stat"><div class="ovd-stat-v">' + p[0] + '</div><div class="ovd-stat-l">' + p[1] + '</div></div>';
+        }).join('') + '</div>';
+    }
+    function bar(pct, col) {
+        return '<div class="ovd-talker-bar"><div style="width:' + Math.max(0, Math.min(100, pct)) + '%;' + (col ? 'background:' + col + ';' : '') + '"></div></div>';
+    }
+    function rowList(rows) {
+        return '<div class="ovd-heatwrap" style="max-height:260px;overflow-y:auto;">' + rows + '</div>';
+    }
+    function nodeRow(n, right, col) {
+        return '<div class="ovd-talker"><span class="ovd-talker-n" title="' + esc(n.node_id) + '">' + esc(name(n)) + '</span>'
+        + bar(right.pct, col) + '<span class="ovd-talker-c">' + right.txt + '</span></div>';
+    }
+
+    /* ── ONLINE ring ── */
+    function onlineBody() {
+        var now = Date.now() / 1000;
+        var all = nodes();
+        var on = all.filter(function(n) { return n.lastHeard && (now - n.lastHeard) < 3600; });
+        var stale = all.filter(function(n) { return !n.lastHeard || (now - n.lastHeard) >= 3600; })
+                       .sort(function(a, b) { return (a.lastHeard || 0) - (b.lastHeard || 0); });
+        var html = statGrid([
+            [on.length + '/' + all.length, 'ONLINE (<1H)'],
+            [stale.length, 'STALE (>1H)'],
+            [all.length ? Math.round(on.length / all.length * 100) : 0, '% ONLINE'],
+            [stale.length ? ago(stale[0].lastHeard) : '—', 'STALEST NODE'],
+        ]);
+        if (stale.length) {
+            html += '<div class="ovd-sub">STALE NODES · LONGEST SILENCE FIRST</div>';
+            html += rowList(stale.slice(0, 15).map(function(n) {
+                return nodeRow(n, { pct: 100, txt: ago(n.lastHeard) }, 'var(--err)');
+            }).join(''));
+        } else {
+            html += '<div class="ovd-foot" style="text-align:center;">All nodes heard within the last hour.</div>';
+        }
+        return html;
+    }
+
+    /* ── AVG BAT ring ── */
+    function batBody() {
+        var all = nodes().filter(function(n) { return window.getMeshVal(n, 'battery_level', 'batteryLevel') != null; });
+        var avg = all.length ? Math.round(all.reduce(function(a, n) { return a + (window.getMeshVal(n, 'battery_level', 'batteryLevel') || 0); }, 0) / all.length) : null;
+        var buckets = { '100–75%': 0, '74–50%': 0, '49–25%': 0, '<25%': 0 };
+        all.forEach(function(n) {
+            var b = window.getMeshVal(n, 'battery_level', 'batteryLevel') || 0;
+            if (b >= 75) buckets['100–75%']++; else if (b >= 50) buckets['74–50%']++;
+            else if (b >= 25) buckets['49–25%']++; else buckets['<25%']++;
+        });
+        var low = all.filter(function(n) { return (window.getMeshVal(n, 'battery_level', 'batteryLevel') || 0) < 25; })
+                     .sort(function(a, b) { return (window.getMeshVal(a, 'battery_level', 'batteryLevel') || 0) - (window.getMeshVal(b, 'battery_level', 'batteryLevel') || 0); });
+        var html = statGrid([
+            [avg != null ? avg + '%' : '—', 'AVG BATTERY'],
+            [all.length, 'NODES REPORTING'],
+            [nodes().length - all.length, 'NO BATTERY DATA'],
+            [low.length, 'CRITICAL (<25%)'],
+        ]);
+        html += '<div class="ovd-sub">DISTRIBUTION</div>';
+        var maxB = Math.max.apply(null, Object.keys(buckets).map(function(k) { return buckets[k]; }).concat([1]));
+        html += rowList(Object.keys(buckets).map(function(k) {
+            return '<div class="ovd-talker"><span class="ovd-talker-n">' + k + '</span>'
+            + bar(buckets[k] / maxB * 100) + '<span class="ovd-talker-c">' + buckets[k] + '</span></div>';
+        }).join(''));
+        if (low.length) {
+            html += '<div class="ovd-sub" style="margin-top:10px;">LOWEST BATTERIES</div>';
+            html += rowList(low.slice(0, 10).map(function(n) {
+                var b = window.getMeshVal(n, 'battery_level', 'batteryLevel') || 0;
+                return nodeRow(n, { pct: b, txt: b + '%' }, b < 15 ? 'var(--err)' : 'var(--warn)');
+            }).join(''));
+        }
+        return html;
+    }
+
+    /* ── GPS ring ── */
+    function gpsBody() {
+        var all = nodes();
+        var withGps = all.filter(function(n) { var la = window.getMeshVal(n, 'latitude'); return la && la !== 0; });
+        var html = statGrid([
+            [withGps.length + '/' + all.length, 'GPS FIX'],
+            [all.length ? Math.round(withGps.length / all.length * 100) : 0, '% FIXED'],
+            [all.length - withGps.length, 'NO POSITION'],
+            [withGps.filter(function(n) { return window.getMeshVal(n, 'altitude') != null; }).length, 'WITH ALTITUDE'],
+        ]);
+        if (withGps.length) {
+            html += '<div class="ovd-sub">LOCATED NODES</div>';
+            html += rowList(withGps.slice(0, 15).map(function(n) {
+                var la = window.getMeshVal(n, 'latitude'), lo = window.getMeshVal(n, 'longitude');
+                return nodeRow(n, { pct: 100, txt: (+la).toFixed(3) + ',' + (+lo).toFixed(3) }, 'var(--acc)');
+            }).join(''));
+        }
+        return html;
+    }
+
+    /* ── ENV DATA ring ── */
+    function envBody() {
+        var all = nodes();
+        var withEnv = all.filter(function(n) { return window.getMeshVal(n, 'temperature') != null; });
+        var temps = withEnv.map(function(n) { return { n: n, t: window.getMeshVal(n, 'temperature') }; });
+        var avgT = temps.length ? (temps.reduce(function(a, x) { return a + x.t; }, 0) / temps.length).toFixed(1) : null;
+        var sorted = temps.slice().sort(function(a, b) { return a.t - b.t; });
+        var html = statGrid([
+            [withEnv.length + '/' + all.length, 'ENV REPORTING'],
+            [avgT != null ? avgT + '°' : '—', 'AVG TEMP'],
+            [sorted.length ? sorted[0].t + '°' : '—', 'COLDEST'],
+            [sorted.length ? sorted[sorted.length - 1].t + '°' : '—', 'WARMEST'],
+        ]);
+        if (temps.length) {
+            html += '<div class="ovd-sub">TEMPERATURE READINGS</div>';
+            var tmin = sorted[0].t, tmax = sorted[sorted.length - 1].t, span = (tmax - tmin) || 1;
+            html += rowList(temps.slice(0, 15).map(function(x) {
+                return nodeRow(x.n, { pct: (x.t - tmin) / span * 100, txt: x.t + '°' }, '#f032e6');
+            }).join(''));
+        } else {
+            html += '<div class="ovd-foot" style="text-align:center;">No nodes are reporting environment telemetry.</div>';
+        }
+        return html;
+    }
+
+    var RINGS = [
+        { id: 'conn', title: '◎ MESH ONLINE', sub: 'nodes heard within the last hour', body: onlineBody },
+        { id: 'bat',  title: '◎ BATTERY',      sub: 'average battery across reporting nodes', body: batBody },
+        { id: 'gps',  title: '◎ GPS FIX',      sub: 'nodes with a known position', body: gpsBody },
+        { id: 'env',  title: '◎ ENV DATA',     sub: 'nodes reporting environment telemetry', body: envBody },
+    ];
+
+    window.c2OpenRingDetail = function(ringId) {
+        var cfg = RINGS.find(function(r) { return r.id === ringId; });
+        if (!cfg) return;
+        var m = document.getElementById('modal');
+        if (!m) return;
+        var inner = m.querySelector('.modal-inner');
+        inner.style.width = '95%';
+        inner.style.maxWidth = '640px';
+        inner.style.margin = '20px auto';
+        inner.innerHTML = head(cfg.title, cfg.sub)
+        + '<div style="padding:12px 20px 16px;">' + cfg.body() + '</div>';
+        m.style.display = 'flex';
+        setTimeout(function() { m.classList.add('open'); }, 10);
+    };
+
+    function wire() {
+        var wrap = document.getElementById('ov-rings');
+        if (!wrap || !wrap.querySelectorAll) { setTimeout(wire, 500); return; }
+        wrap.querySelectorAll('.ov-ring-item').forEach(function(item, i) {
+            if (i >= RINGS.length) return;
+            item.style.cursor = 'pointer';
+            item.title = 'Click for details';
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.c2OpenRingDetail(RINGS[i].id);
+            });
+        });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+    else wire();
+})();
+</script>
+<script>
+/* ── Health tile click-to-open detail modals (live data from meshState) ── */
+(function() {
+    'use strict';
+
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function name(n) { return window.getMeshVal(n, 'long_name', 'longName', 'short_name', 'shortName') || n.node_id; }
+    function nodes() { return Object.values(window.meshState.nodes || {}); }
+
+    function head(title, sub) {
+        return '<div class="modal-head" style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--bd2);">'
+        + '<div><h3 style="margin:0;font-size:14px;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);">' + title + '</h3>'
+        + (sub ? '<div style="font-size:9px;color:var(--txt3);font-family:var(--mono);margin-top:2px;">' + sub + '</div>' : '')
+        + '</div><button class="btn btn-sm" onclick="window.closeModal()">✕ CLOSE</button></div>';
+    }
+    function statGrid(pairs) {
+        return '<div class="ovd-stats">' + pairs.map(function(p) {
+            return '<div class="ovd-stat"><div class="ovd-stat-v">' + p[0] + '</div><div class="ovd-stat-l">' + p[1] + '</div></div>';
+        }).join('') + '</div>';
+    }
+    function bar(pct, col) {
+        return '<div class="ovd-talker-bar"><div style="width:' + Math.max(0, Math.min(100, pct)) + '%;' + (col ? 'background:' + col + ';' : '') + '"></div></div>';
+    }
+    function wrap(rows) {
+        return '<div class="ovd-heatwrap" style="max-height:260px;overflow-y:auto;">' + rows + '</div>';
+    }
+    function nodeRow(n, pct, txt, col) {
+        return '<div class="ovd-talker"><span class="ovd-talker-n" title="' + esc(n.node_id) + '">' + esc(name(n)) + '</span>'
+        + bar(pct, col) + '<span class="ovd-talker-c">' + txt + '</span></div>';
+    }
+
+    /* ── AVG SNR tile ── */
+    function snrBody() {
+        var withSnr = nodes().filter(function(n) { return n.snr != null; });
+        var avg = withSnr.length ? (withSnr.reduce(function(a, n) { return a + n.snr; }, 0) / withSnr.length).toFixed(1) : null;
+        var sorted = withSnr.slice().sort(function(a, b) { return b.snr - a.snr; });
+        var best = sorted[0], worst = sorted[sorted.length - 1];
+        var buckets = { '>10dB': 0, '10–5dB': 0, '5–0dB': 0, '<0dB': 0 };
+        withSnr.forEach(function(n) {
+            if (n.snr > 10) buckets['>10dB']++; else if (n.snr > 5) buckets['10–5dB']++;
+            else if (n.snr > 0) buckets['5–0dB']++; else buckets['<0dB']++;
+        });
+        var html = statGrid([
+            [avg != null ? avg + 'dB' : '—', 'AVG SNR'],
+            [withSnr.length, 'NODES REPORTING'],
+            [best ? best.snr.toFixed(1) + 'dB' : '—', 'BEST LINK'],
+            [worst ? worst.snr.toFixed(1) + 'dB' : '—', 'WORST LINK'],
+        ]);
+        html += '<div class="ovd-sub">SIGNAL DISTRIBUTION</div>';
+        var maxB = Math.max.apply(null, Object.keys(buckets).map(function(k) { return buckets[k]; }).concat([1]));
+        html += wrap(Object.keys(buckets).map(function(k) {
+            return '<div class="ovd-talker"><span class="ovd-talker-n">' + k + '</span>'
+            + bar(buckets[k] / maxB * 100) + '<span class="ovd-talker-c">' + buckets[k] + '</span></div>';
+        }).join(''));
+        if (sorted.length) {
+            html += '<div class="ovd-sub" style="margin-top:10px;">PER-NODE SNR · BEST FIRST</div>';
+            var lo = Math.min.apply(null, withSnr.map(function(n) { return n.snr; }));
+            var hi = Math.max.apply(null, withSnr.map(function(n) { return n.snr; }));
+            var span = (hi - lo) || 1;
+            html += wrap(sorted.slice(0, 15).map(function(n) {
+                var col = n.snr >= 10 ? 'var(--ok)' : n.snr >= 5 ? 'var(--acc)' : n.snr >= 0 ? 'var(--warn)' : 'var(--err)';
+                return nodeRow(n, (n.snr - lo) / span * 100, n.snr.toFixed(1) + 'dB', col);
+            }).join(''));
+        }
+        return html;
+    }
+
+    window.c2OpenSnrDetail = function() {
+        var m = document.getElementById('modal');
+        if (!m) return;
+        var inner = m.querySelector('.modal-inner');
+        inner.style.width = '95%';
+        inner.style.maxWidth = '640px';
+        inner.style.margin = '20px auto';
+        inner.innerHTML = head('◎ AVG SNR', 'signal quality across reporting nodes')
+        + '<div style="padding:12px 20px 16px;">' + snrBody() + '</div>';
+        m.style.display = 'flex';
+        setTimeout(function() { m.classList.add('open'); }, 10);
+    };
+
+    /* Tile 0/2/3 reuse the ring modals (conn / bat / gps); tile 1 is SNR. */
+    var TILE_ACTIONS = [
+        function() { window.c2OpenRingDetail('conn'); },
+        function() { window.c2OpenSnrDetail(); },
+        function() { window.c2OpenRingDetail('bat'); },
+        function() { window.c2OpenRingDetail('gps'); },
+    ];
+
+    function wire() {
+        var grid = document.querySelector('.ov-health-grid');
+        if (!grid || !grid.querySelectorAll) { setTimeout(wire, 500); return; }
+        var tiles = grid.querySelectorAll('.ov-hlth');
+        tiles.forEach(function(tile, i) {
+            if (i >= TILE_ACTIONS.length) return;
+            tile.style.cursor = 'pointer';
+            tile.title = 'Click for details';
+            tile.addEventListener('click', function(e) {
+                e.preventDefault();
+                TILE_ACTIONS[i]();
+            });
+        });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+    else wire();
+})();
+</script>
+<script>
+/* ── KPI strip click-to-open detail modals (live data) ── */
+(function() {
+    'use strict';
+
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function stats() { return window.meshState && window.meshState.stats || {}; }
+    function nodes() { return Object.values(window.meshState.nodes || {}); }
+    function txt(id) { var el = document.getElementById(id); return el ? el.textContent : '—'; }
+
+    function head(title, sub) {
+        return '<div class="modal-head" style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--bd2);">'
+        + '<div><h3 style="margin:0;font-size:14px;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);">' + title + '</h3>'
+        + (sub ? '<div style="font-size:9px;color:var(--txt3);font-family:var(--mono);margin-top:2px;">' + sub + '</div>' : '')
+        + '</div><button class="btn btn-sm" onclick="window.closeModal()">✕ CLOSE</button></div>';
+    }
+    function statGrid(pairs) {
+        return '<div class="ovd-stats">' + pairs.map(function(p) {
+            return '<div class="ovd-stat"><div class="ovd-stat-v">' + p[0] + '</div><div class="ovd-stat-l">' + p[1] + '</div></div>';
+        }).join('') + '</div>';
+    }
+    function bar(pct, col) {
+        return '<div class="ovd-talker-bar"><div style="width:' + Math.max(0, Math.min(100, pct)) + '%;' + (col ? 'background:' + col + ';' : '') + '"></div></div>';
+    }
+    function wrap(rows) {
+        return '<div class="ovd-heatwrap" style="max-height:260px;overflow-y:auto;">' + rows + '</div>';
+    }
+    function row(label, pct, val, col) {
+        return '<div class="ovd-talker"><span class="ovd-talker-n">' + esc(label) + '</span>'
+        + bar(pct, col) + '<span class="ovd-talker-c">' + esc(val) + '</span></div>';
+    }
+    function openModal(title, sub, bodyHtml, maxW) {
+        var m = document.getElementById('modal');
+        if (!m) return;
+        var inner = m.querySelector('.modal-inner');
+        inner.style.width = '95%';
+        inner.style.maxWidth = (maxW || '640px');
+        inner.style.margin = '20px auto';
+        inner.innerHTML = head(title, sub) + '<div style="padding:12px 20px 16px;">' + bodyHtml + '</div>';
+        m.style.display = 'flex';
+        setTimeout(function() { m.classList.add('open'); }, 10);
+    }
+
+    function sessionMins() {
+        var st = window.meshState.sessionStart;
+        return st ? Math.max(1, Math.round((Date.now() - st) / 60000)) : null;
+    }
+
+    /* ── PACKETS · SESSION ── */
+    function pktsBody() {
+        var s = stats();
+        var total = s.packets_received_session || 0;
+        var parts = [
+            ['Text messages', s.text_messages_session || 0, 'var(--ok)'],
+            ['Position updates', s.position_updates_session || 0, 'var(--acc)'],
+            ['Telemetry reports', s.telemetry_reports_session || 0, '#b060ff'],
+            ['Other', s.other_packets_session || 0, 'var(--txt3)'],
+        ];
+        var known = parts.reduce(function(a, p) { return a + p[1]; }, 0);
+        var mins = sessionMins();
+        var html = statGrid([
+            [total.toLocaleString(), 'PACKETS · SESSION'],
+            [mins ? (total / mins).toFixed(1) : '—', 'PACKETS / MIN'],
+            [mins ? mins + 'm' : '—', 'SESSION LENGTH'],
+            [(s.nodes_seen_session || nodes().length).toLocaleString(), 'NODES SEEN'],
+        ]);
+        html += '<div class="ovd-sub">BREAKDOWN BY TYPE</div>';
+        var maxP = Math.max.apply(null, parts.map(function(p) { return p[1]; }).concat([1]));
+        html += wrap(parts.map(function(p) {
+            return row(p[0] + (known ? ' · ' + Math.round(p[1] / known * 100) + '%' : ''), p[1] / maxP * 100, p[1].toLocaleString(), p[2]);
+        }).join(''));
+        return html;
+    }
+
+    /* ── KNOWN NODES ── */
+    function nodesBody() {
+        var all = nodes();
+        var now = Date.now() / 1000;
+        var local = all.filter(function(n) { return n.isLocal || n.is_local; });
+        var on = all.filter(function(n) { return n.lastHeard && (now - n.lastHeard) < 3600; });
+        var sorted = all.slice().sort(function(a, b) { return (b.lastHeard || 0) - (a.lastHeard || 0); });
+        function nm(n) { return window.getMeshVal(n, 'long_name', 'longName', 'short_name', 'shortName') || n.node_id; }
+        function ago(ts) {
+            if (!ts) return 'never';
+            var d = Math.floor(now - ts);
+            if (d < 60) return d + 's'; if (d < 3600) return Math.floor(d / 60) + 'm';
+            if (d < 86400) return Math.floor(d / 3600) + 'h'; return Math.floor(d / 86400) + 'd';
+        }
+        var html = statGrid([
+            [all.length, 'KNOWN NODES'],
+            [local.length, 'LOCAL'],
+            [on.length, 'ONLINE (<1H)'],
+            [all.length - on.length, 'STALE'],
+        ]);
+        html += '<div class="ovd-sub">ALL NODES · MOST RECENT FIRST</div>';
+        html += wrap(sorted.slice(0, 20).map(function(n) {
+            var a = ago(n.lastHeard);
+            var col = (n.isLocal || n.is_local) ? 'var(--ok)' : (a !== 'never' && now - n.lastHeard < 3600 ? 'var(--acc)' : 'var(--txt3)');
+            return row(nm(n), 100, (n.isLocal || n.is_local ? 'LOCAL · ' : '') + a, col);
+        }).join('') + (sorted.length > 20 ? '<div class="ovd-foot" style="text-align:center;">… and ' + (sorted.length - 20) + ' more</div>' : ''));
+        return html;
+    }
+
+    /* ── MESSAGES · SESSION ── */
+    function msgsBody() {
+        var s = stats();
+        var msgs = s.text_messages_session || 0;
+        var pos = s.position_updates_session || 0;
+        var tlm = s.telemetry_reports_session || 0;
+        var mins = sessionMins();
+        var html = statGrid([
+            [msgs.toLocaleString(), 'TEXT MESSAGES'],
+            [pos.toLocaleString(), 'POSITION UPDATES'],
+            [tlm.toLocaleString(), 'TELEMETRY REPORTS'],
+            [mins ? (msgs / mins).toFixed(2) : '—', 'MSGS / MIN'],
+        ]);
+        var parts = [['Text messages', msgs, 'var(--ok)'], ['Position updates', pos, 'var(--acc)'], ['Telemetry', tlm, '#b060ff']];
+        var maxP = Math.max.apply(null, parts.map(function(p) { return p[1]; }).concat([1]));
+        html += '<div class="ovd-sub">SESSION TRAFFIC</div>';
+        html += wrap(parts.map(function(p) { return row(p[0], p[1] / maxP * 100, p[1].toLocaleString(), p[2]); }).join(''));
+        html += '<div class="ovd-foot">Counts reset when the dashboard session restarts.</div>';
+        return html;
+    }
+
+    /* ── CHANNELS ACTIVE ── */
+    function chsBody() {
+        var s = stats();
+        var chs = s.channels_seen_session || 0;
+        var tlm = s.telemetry_reports_session || 0;
+        var html = statGrid([
+            [chs, 'CHANNELS ACTIVE'],
+            [tlm.toLocaleString(), 'TELEMETRY REPORTS'],
+            [(s.text_messages_session || 0).toLocaleString(), 'TEXT MESSAGES'],
+            [(s.position_updates_session || 0).toLocaleString(), 'POSITION UPDATES'],
+        ]);
+        /* Channel list from node registry if present */
+        var names = {};
+        nodes().forEach(function(n) {
+            var ch = window.getMeshVal(n, 'channel') || n.channel;
+            if (ch != null) names[ch] = (names[ch] || 0) + 1;
+        });
+        var keys = Object.keys(names);
+        if (keys.length) {
+            html += '<div class="ovd-sub">NODES PER CHANNEL INDEX</div>';
+            var maxC = Math.max.apply(null, keys.map(function(k) { return names[k]; }).concat([1]));
+            html += wrap(keys.sort(function(a, b) { return names[b] - names[a]; }).map(function(k) {
+                return row('Channel ' + k, names[k] / maxC * 100, names[k] + ' nodes');
+            }).join(''));
+        } else {
+            html += '<div class="ovd-foot" style="text-align:center;">Per-channel node counts appear once channel data is present in the node registry.</div>';
+        }
+        return html;
+    }
+
+    /* ── Connection / session KPI card ── */
+    function connBody() {
+        var s = stats();
+        var mins = sessionMins();
+        var total = s.packets_received_session || 0;
+        var html = statGrid([
+            [txt('ov-conn-state') || '—', 'STATE'],
+            [txt('ov-uptime') || '—', 'SESSION UPTIME'],
+            [mins ? (total / mins).toFixed(1) : '—', 'PACKETS / MIN'],
+            [txt('ov-conn-node') || '—', 'LOCAL NODE'],
+        ]);
+        html += '<div class="ovd-sub">TRANSPORT</div>';
+        html += wrap(
+            row('State', 100, txt('ov-conn-state') || '—')
+          + row('Detail', 100, txt('ov-conn-detail') || '—')
+          + row('Transport', 100, txt('ov-conn-transport') || '—')
+        );
+        html += '<div class="ovd-sub" style="margin-top:10px;">SESSION COUNTERS</div>';
+        html += wrap(
+            row('Packets', 100, (s.packets_received_session || 0).toLocaleString())
+          + row('Text messages', 100, (s.text_messages_session || 0).toLocaleString())
+          + row('Position updates', 100, (s.position_updates_session || 0).toLocaleString())
+          + row('Telemetry reports', 100, (s.telemetry_reports_session || 0).toLocaleString())
+          + row('Nodes seen', 100, (s.nodes_seen_session || nodes().length).toLocaleString())
+        );
+        return html;
+    }
+
+    var KPIS = [
+        { sel: null, id: 'ov-kpi-pkts',  title: '◎ PACKETS · SESSION',  sub: 'session packet breakdown', body: pktsBody },
+        { sel: null, id: 'ov-kpi-nodes', title: '◎ KNOWN NODES',       sub: 'full node registry', body: nodesBody },
+        { sel: null, id: 'ov-kpi-msgs',  title: '◎ MESSAGES · SESSION', sub: 'session message traffic', body: msgsBody },
+        { sel: null, id: 'ov-kpi-chs',   title: '◎ CHANNELS',          sub: 'channel activity this session', body: chsBody },
+    ];
+
+    window.c2OpenKpiDetail = function(kind) {
+        if (kind === 'conn') { openModal('◎ CONNECTION', 'live link + session state', connBody(), '640px'); return; }
+        var k = KPIS.find(function(x) { return x.id === 'ov-kpi-' + kind; });
+        if (k) openModal(k.title, k.sub, k.body(), '640px');
+    };
+
+    function wire() {
+        var hdr = document.querySelector('.ov-hdr');
+        if (!hdr || !hdr.querySelectorAll) { setTimeout(wire, 500); return; }
+        /* Four KPI tiles */
+        KPIS.forEach(function(k) {
+            var el = document.getElementById(k.id) ? document.getElementById(k.id).closest('.ov-kpi') : null;
+            if (!el) return;
+            el.style.cursor = 'pointer';
+            el.title = 'Click for details';
+            el.addEventListener('click', function(e) { e.preventDefault(); openModal(k.title, k.sub, k.body(), '640px'); });
+        });
+        /* Connection KPI card (covers SESSION / POS UPDATES / TELEMETRY tiles) */
+        var conn = document.querySelector('.ov-conn-kpi');
+        if (conn) {
+            conn.style.cursor = 'pointer';
+            conn.title = 'Click for connection details';
+            conn.addEventListener('click', function(e) {
+                e.preventDefault();
+                openModal('◎ CONNECTION', 'live link + session state', connBody(), '640px');
+            });
+        }
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+    else wire();
+})();
+</script>
