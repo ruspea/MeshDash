@@ -294,6 +294,26 @@ def _get_local_node_ids() -> set:
     return ids
 
 
+def _snapshot_nodes(nodes: dict) -> List[tuple]:
+    """
+    Snapshot a live nodes dict into a stable list of (id, data) pairs.
+
+    The radio packet path mutates meshtastic_data.nodes from a worker thread
+    (core/packet.py runs add_packet via asyncio.to_thread) with no lock, so a
+    plain `nodes.items()` loop on the HTTP thread can raise
+    "dictionary changed size during iteration" mid-scan when a new node
+    arrives — which surfaces as HTTP 500 on the /nodes scan endpoint.
+    Retry briefly; a snapshot either lands or the mesh is mutating so fast
+    that returning what we have beats failing the scan.
+    """
+    for attempt in range(5):
+        try:
+            return list(nodes.items())
+        except RuntimeError:
+            time.sleep(0.02 * (attempt + 1))
+    return []
+
+
 def _collect_nodes(slot_id: str) -> Dict[str, Dict]:
     """
     Return a merged dict of all nodes visible from the requested slot(s).
@@ -324,7 +344,7 @@ def _collect_nodes(slot_id: str) -> Dict[str, Dict]:
             logger.warning("Cold Nodes: cannot read nodes from slot '%s': %s", sid, e)
             continue
 
-        for nid, ndata in nodes.items():
+        for nid, ndata in _snapshot_nodes(nodes):
             node = dict(ndata)  # shallow copy — don't mutate the live dict
             node["heard_by_slot"] = sid
             existing = merged.get(nid)
@@ -401,7 +421,7 @@ async def get_cold_nodes(
     local_ids  = _get_local_node_ids()
     cold: List[Dict] = []
 
-    for nid, ndata in nodes.items():
+    for nid, ndata in _snapshot_nodes(nodes):
         # Skip our own radios
         if nid in local_ids:
             continue

@@ -8,6 +8,15 @@
 window._csrfToken = '';
 // Read CSRF token from cookie (same-origin iframe can access cookies)
 try { window._csrfToken = document.cookie.match(/csrf-token=([^;]*)/)?.[1] || ''; } catch(e) {}
+// The csrf-token cookie is HttpOnly, so document.cookie can't see it, and the
+// csrf_token postMessage is only sent to VISIBLE plugin iframes — never to
+// hidden bridge iframes. This bridge is same-origin with full parent access
+// (by design), so pull the token straight from the parent dashboard instead.
+try {
+    window._csrfToken = window.parent._csrfToken
+        || (window.parent.document.querySelector('meta[name="csrf-token"]') || {}).content
+        || window._csrfToken;
+} catch(e) {}
 window.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'csrf_token') {
         window._csrfToken = e.data.token || '';
