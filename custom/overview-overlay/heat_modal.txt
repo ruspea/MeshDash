@@ -1,0 +1,196 @@
+<script>
+/* ── Channel activity heatmap — click-to-open detail modal (DEMO data) ── */
+(function() {
+    'use strict';
+
+    var CHANNELS = ['PRIMARY', 'ADMIN', 'WEATHER', 'RANDOM'];
+    var DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+    /* Deterministic demo data — same shape as the card: evening peak,
+       dead 03-05, channel personality. Seeded so it doesn't jump around. */
+    function rnd(seed) { var x = Math.sin(seed) * 10000; return x - Math.floor(x); }
+    function demoVal(ch, day, hour) {
+        var base = { PRIMARY: 55, ADMIN: 12, WEATHER: 18, RANDOM: 40 }[ch] || 20;
+        var shape = (hour >= 2 && hour <= 5) ? 0.15
+                  : (hour >= 18 && hour <= 22) ? 1.0
+                  : (hour >= 8 && hour <= 10) ? 0.55 : 0.45;
+        var weekend = (day >= 4) ? 1.15 : 1.0;   /* busier weekends */
+        var v = base * shape * weekend * (0.6 + rnd(ch.length * 941 + day * 113 + hour * 7) * 0.8);
+        return Math.max(0, Math.min(100, v));
+    }
+
+    function heatCell(v, title) {
+        var op = (0.08 + (v / 100) * 0.92).toFixed(2);
+        return '<div class="ov-heat-cell" style="opacity:' + op + '" title="' + title + '"></div>';
+    }
+
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+
+    function renderModalBody(ch) {
+        /* Big heatmap: 7 days × 24h for the active channel */
+        var rows = '';
+        var total = 0, maxV = 0, maxDay = 0, maxHour = 0, counts = [];
+        for (var d = 0; d < 7; d++) {
+            rows += '<div class="ov-heat-lbl">' + DAYS[d] + '</div>';
+            for (var h = 0; h < 24; h++) {
+                var v = demoVal(ch, d, h);
+                total += v;
+                counts.push(v);
+                if (v > maxV) { maxV = v; maxDay = d; maxHour = h; }
+                rows += heatCell(v, DAYS[d] + ' ' + (h < 10 ? '0' + h : h) + ':00 — ' + Math.round(v) + ' msgs (demo)');
+            }
+        }
+        var busiest = (maxHour < 10 ? '0' + maxHour : maxHour) + ':00–' + ((maxHour + 1) < 10 ? '0' + (maxHour + 1) : maxHour + 1) + ':00';
+        var avg = Math.round(total / 168);
+
+        /* Top talkers (demo) */
+        var talkers = [
+            { n: 'RUSJP-BASE', c: Math.round(total * 0.31) },
+            { n: 'REPEATER-HILL', c: Math.round(total * 0.22) },
+            { n: 'COSHAM-GW', c: Math.round(total * 0.14) },
+            { n: 'PORTSMOUTH-PI', c: Math.round(total * 0.09) },
+            { n: 'MOBILE-74', c: Math.round(total * 0.06) }
+        ];
+        var tmax = talkers[0].c || 1;
+        var talkerHtml = talkers.map(function(t) {
+            return '<div class="ovd-talker">'
+                 + '<span class="ovd-talker-n">' + esc(t.n) + '</span>'
+                 + '<div class="ovd-talker-bar"><div style="width:' + Math.round(t.c / tmax * 100) + '%"></div></div>'
+                 + '<span class="ovd-talker-c">' + t.c + '</span>'
+                 + '</div>';
+        }).join('');
+
+        return ''
+        + '<div class="ovd-stats">'
+        +   '<div class="ovd-stat"><div class="ovd-stat-v">' + Math.round(total) + '</div><div class="ovd-stat-l">MSGS · 7D</div></div>'
+        +   '<div class="ovd-stat"><div class="ovd-stat-v">' + busiest + '</div><div class="ovd-stat-l">BUSIEST HOUR</div></div>'
+        +   '<div class="ovd-stat"><div class="ovd-stat-v">' + DAYS[maxDay] + '</div><div class="ovd-stat-l">BUSIEST DAY</div></div>'
+        +   '<div class="ovd-stat"><div class="ovd-stat-v">' + avg + '</div><div class="ovd-stat-l">AVG / HR</div></div>'
+        + '</div>'
+        + '<div class="ovd-heatwrap">'
+        +   '<div class="ovd-heat-grid">' + rows + '</div>'
+        + '</div>'
+        + '<div class="ovd-cols">'
+        +   '<div>'
+        +     '<div class="ovd-sub">TOP TALKERS · 7D</div>'
+        +     talkerHtml
+        +   '</div>'
+        +   '<div>'
+        +     '<div class="ovd-sub">CHANNEL SHARE · 7D</div>'
+        +     shareBars()
+        +   '</div>'
+        + '</div>'
+        + '<div class="ovd-foot">DEMO DATA — illustrative only, not live traffic</div>';
+    }
+
+    function shareBars() {
+        var bases = { PRIMARY: 55, ADMIN: 12, WEATHER: 18, RANDOM: 40 };
+        var sum = 0; Object.keys(bases).forEach(function(k) { sum += bases[k]; });
+        return Object.keys(bases).map(function(k) {
+            var pct = Math.round(bases[k] / sum * 100);
+            return '<div class="ovd-talker">'
+                 + '<span class="ovd-talker-n">' + k + '</span>'
+                 + '<div class="ovd-talker-bar"><div style="width:' + pct + '%"></div></div>'
+                 + '<span class="ovd-talker-c">' + pct + '%</span>'
+                 + '</div>';
+        }).join('');
+    }
+
+    window.c2OpenHeatmapDetail = function() {
+        var m = document.getElementById('modal');
+        if (!m) return;
+        var inner = m.querySelector('.modal-inner');
+        inner.style.width = '95%';
+        inner.style.maxWidth = '860px';
+        inner.style.margin = '20px auto';
+
+        var tabs = CHANNELS.map(function(c, i) {
+            return '<button class="ovd-tab' + (i === 0 ? ' active' : '') + '" data-ch="' + c + '">' + c + '</button>';
+        }).join('');
+
+        inner.innerHTML = ''
+        + '<div class="modal-head" style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--bd2);">'
+        +   '<h3 style="margin:0;font-size:14px;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);">◎ CHANNEL ACTIVITY</h3>'
+        +   '<button class="btn btn-sm" onclick="window.closeModal()">✕ CLOSE</button>'
+        + '</div>'
+        + '<div style="display:flex;gap:4px;padding:10px 20px 0;">' + tabs + '</div>'
+        + '<div id="ovd-body" style="padding:10px 20px 16px;"></div>';
+
+        var body = inner.querySelector('#ovd-body');
+        function activate(ch) {
+            body.innerHTML = renderModalBody(ch);
+            inner.querySelectorAll('.ovd-tab').forEach(function(t) {
+                t.classList.toggle('active', t.dataset.ch === ch);
+            });
+        }
+        inner.querySelectorAll('.ovd-tab').forEach(function(t) {
+            t.addEventListener('click', function() { activate(t.dataset.ch); });
+        });
+        activate(CHANNELS[0]);
+
+        m.style.display = 'flex';
+        setTimeout(function() { m.classList.add('open'); }, 10);
+    };
+
+    /* Wire the card click once the view is in the DOM */
+    function wire() {
+        var el = document.querySelector('.ov-heat');
+        if (!el) { setTimeout(wire, 500); return; }
+        el.style.cursor = 'pointer';
+        el.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.c2OpenHeatmapDetail();
+        });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+    else wire();
+})();
+</script>
+<style>
+    /* ── Heatmap detail modal ── */
+    .ov-heat:hover { border-color: var(--bd3); }
+    .ovd-tab {
+        background: transparent; border: 1px solid var(--bd2); color: var(--txt3);
+        padding: 4px 10px; border-radius: 3px; font-family: var(--mono);
+        font-size: 9px; letter-spacing: .5px; cursor: pointer; transition: all .15s;
+    }
+    .ovd-tab:hover { border-color: var(--acc); color: var(--acc); }
+    .ovd-tab.active { background: var(--acc); color: #000; border-color: var(--acc); font-weight: bold; }
+    .ovd-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+    .ovd-stat {
+        background: var(--bg); border: 1px solid var(--bd2); border-radius: 4px;
+        padding: 8px; text-align: center;
+    }
+    .ovd-stat-v { font-size: 16px; font-weight: bold; font-family: var(--mono); line-height: 1; }
+    .ovd-stat-l { font-size: 9px; color: var(--txt3); font-family: var(--mono); letter-spacing: .5px; margin-top: 3px; }
+    .ovd-heatwrap {
+        background: var(--bg); border: 1px solid var(--bd2); border-radius: 4px;
+        padding: 8px; margin-bottom: 10px;
+    }
+    .ovd-heat-grid {
+        display: grid; grid-template-columns: 34px repeat(24, 1fr);
+        grid-auto-rows: 13px; gap: 2px;
+    }
+    .ovd-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .ovd-sub {
+        font-size: 9px; color: var(--txt3); font-family: var(--mono);
+        letter-spacing: .5px; margin-bottom: 6px;
+    }
+    .ovd-talker {
+        display: flex; align-items: center; gap: 8px; margin-bottom: 5px;
+        font-family: var(--mono); font-size: 10px;
+    }
+    .ovd-talker-n { color: var(--txt2); flex: 0 0 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ovd-talker-bar { flex: 1; height: 8px; background: var(--bg); border: 1px solid var(--bd2); border-radius: 2px; overflow: hidden; }
+    .ovd-talker-bar > div { height: 100%; background: var(--acc); border-radius: 1px; }
+    .ovd-talker-c { color: var(--txt3); flex: 0 0 44px; text-align: right; }
+    .ovd-foot {
+        margin-top: 10px; font-size: 8px; color: var(--txt3);
+        font-family: var(--mono); letter-spacing: .5px; text-align: right;
+    }
+    @media (max-width: 640px) {
+        .ovd-cols { grid-template-columns: 1fr; }
+        .ovd-stats { grid-template-columns: repeat(2, 1fr); }
+        .ovd-heat-grid { grid-template-columns: 28px repeat(24, 1fr); grid-auto-rows: 9px; }
+    }
+</style>

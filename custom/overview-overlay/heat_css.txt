@@ -1,0 +1,27 @@
+    /* ── Channel activity heatmap ── */
+    .ov-heat {
+        background: var(--bg); border: 1px solid var(--bd2);
+        border-radius: 4px; padding: 8px; margin-bottom: 8px;
+    }
+    .ov-heat-head {
+        display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+        font-size: 9px; color: var(--txt3); font-family: var(--mono); letter-spacing: .5px;
+    }
+    .ov-heat-grid {
+        display: grid; grid-template-columns: 40px repeat(24, 1fr);
+        grid-auto-rows: 10px; gap: 2px;
+    }
+    .ov-heat-lbl {
+        font-size: 8px; color: var(--txt3); font-family: var(--mono);
+        letter-spacing: .5px; display: flex; align-items: center;
+    }
+    .ov-heat-cell {
+        background: var(--acc); border-radius: 1px;
+        transition: transform .15s;
+    }
+    .ov-heat-cell:hover { transform: scale(1.25); }
+    .ov-heat-legend {
+        flex: 0 0 60px; height: 4px; border-radius: 2px;
+        background: linear-gradient(to right, rgba(0,0,0,0), var(--acc));
+    }
+    

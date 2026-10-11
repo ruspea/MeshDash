@@ -1,0 +1,116 @@
+<!-- Channel activity heatmap (DEMO — mock data, not live) -->
+                        <div class="ov-heat">
+                            <div class="ov-heat-head">
+                                <span>CHANNEL ACTIVITY · 7D</span>
+                                <span style="margin-left:auto;">00–23h</span>
+                            </div>
+                            <div class="ov-heat-grid">
+                    <div class="ov-heat-lbl">PRIMARY</div>
+                    <div class="ov-heat-cell" style="opacity:0.33" title="PRIMARY 00:00 — 27 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.22" title="PRIMARY 01:00 — 15 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="PRIMARY 02:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="PRIMARY 03:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="PRIMARY 04:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="PRIMARY 05:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.38" title="PRIMARY 06:00 — 32 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.23" title="PRIMARY 07:00 — 16 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.34" title="PRIMARY 08:00 — 28 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.25" title="PRIMARY 09:00 — 18 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.30" title="PRIMARY 10:00 — 23 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.31" title="PRIMARY 11:00 — 24 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.22" title="PRIMARY 12:00 — 15 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.25" title="PRIMARY 13:00 — 18 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.34" title="PRIMARY 14:00 — 27 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.32" title="PRIMARY 15:00 — 25 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.26" title="PRIMARY 16:00 — 19 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.32" title="PRIMARY 17:00 — 26 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.71" title="PRIMARY 18:00 — 68 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.39" title="PRIMARY 19:00 — 33 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.71" title="PRIMARY 20:00 — 68 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.67" title="PRIMARY 21:00 — 63 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.52" title="PRIMARY 22:00 — 47 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.24" title="PRIMARY 23:00 — 17 msgs (demo)"></div>
+                    <div class="ov-heat-lbl">ADMIN</div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="ADMIN 00:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.12" title="ADMIN 01:00 — 4 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.09" title="ADMIN 02:00 — 1 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.09" title="ADMIN 03:00 — 1 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.10" title="ADMIN 04:00 — 2 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.10" title="ADMIN 05:00 — 1 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="ADMIN 06:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="ADMIN 07:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="ADMIN 08:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="ADMIN 09:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.13" title="ADMIN 10:00 — 5 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.13" title="ADMIN 11:00 — 5 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="ADMIN 12:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.13" title="ADMIN 13:00 — 5 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="ADMIN 14:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.13" title="ADMIN 15:00 — 5 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="ADMIN 16:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.11" title="ADMIN 17:00 — 3 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="ADMIN 18:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="ADMIN 19:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="ADMIN 20:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="ADMIN 21:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="ADMIN 22:00 — 8 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.12" title="ADMIN 23:00 — 4 msgs (demo)"></div>
+                    <div class="ov-heat-lbl">WEATHER</div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="WEATHER 00:00 — 8 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="WEATHER 01:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.10" title="WEATHER 02:00 — 2 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.10" title="WEATHER 03:00 — 2 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.10" title="WEATHER 04:00 — 2 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.11" title="WEATHER 05:00 — 3 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="WEATHER 06:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="WEATHER 07:00 — 8 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="WEATHER 08:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.19" title="WEATHER 09:00 — 11 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="WEATHER 10:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="WEATHER 11:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.18" title="WEATHER 12:00 — 11 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="WEATHER 13:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.16" title="WEATHER 14:00 — 8 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="WEATHER 15:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="WEATHER 16:00 — 10 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.17" title="WEATHER 17:00 — 9 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.21" title="WEATHER 18:00 — 14 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.18" title="WEATHER 19:00 — 11 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.22" title="WEATHER 20:00 — 15 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.21" title="WEATHER 21:00 — 14 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.21" title="WEATHER 22:00 — 13 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.18" title="WEATHER 23:00 — 10 msgs (demo)"></div>
+                    <div class="ov-heat-lbl">RANDOM</div>
+                    <div class="ov-heat-cell" style="opacity:0.30" title="RANDOM 00:00 — 23 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.22" title="RANDOM 01:00 — 15 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.14" title="RANDOM 02:00 — 6 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.13" title="RANDOM 03:00 — 5 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.15" title="RANDOM 04:00 — 7 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.13" title="RANDOM 05:00 — 5 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.21" title="RANDOM 06:00 — 14 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.21" title="RANDOM 07:00 — 14 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.29" title="RANDOM 08:00 — 23 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.24" title="RANDOM 09:00 — 17 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.30" title="RANDOM 10:00 — 23 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.30" title="RANDOM 11:00 — 23 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.23" title="RANDOM 12:00 — 16 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.21" title="RANDOM 13:00 — 13 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.31" title="RANDOM 14:00 — 25 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.25" title="RANDOM 15:00 — 18 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.19" title="RANDOM 16:00 — 12 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.19" title="RANDOM 17:00 — 11 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.33" title="RANDOM 18:00 — 27 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.49" title="RANDOM 19:00 — 44 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.53" title="RANDOM 20:00 — 49 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.43" title="RANDOM 21:00 — 37 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.32" title="RANDOM 22:00 — 26 msgs (demo)"></div>
+                    <div class="ov-heat-cell" style="opacity:0.23" title="RANDOM 23:00 — 16 msgs (demo)"></div>
+                            </div>
+                            <div class="ov-heat-head" style="margin-top:4px;">
+                                <span>LESS</span>
+                                <div class="ov-heat-legend"></div>
+                                <span>MORE</span>
+                                <span style="margin-left:auto;">DEMO DATA</span>
+                            </div>
+                        </div>
+                        

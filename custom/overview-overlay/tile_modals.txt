@@ -1,0 +1,106 @@
+<script>
+/* ── Health tile click-to-open detail modals (live data from meshState) ── */
+(function() {
+    'use strict';
+
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function name(n) { return window.getMeshVal(n, 'long_name', 'longName', 'short_name', 'shortName') || n.node_id; }
+    function nodes() { return Object.values(window.meshState.nodes || {}); }
+
+    function head(title, sub) {
+        return '<div class="modal-head" style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--bd2);">'
+        + '<div><h3 style="margin:0;font-size:14px;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);">' + title + '</h3>'
+        + (sub ? '<div style="font-size:9px;color:var(--txt3);font-family:var(--mono);margin-top:2px;">' + sub + '</div>' : '')
+        + '</div><button class="btn btn-sm" onclick="window.closeModal()">✕ CLOSE</button></div>';
+    }
+    function statGrid(pairs) {
+        return '<div class="ovd-stats">' + pairs.map(function(p) {
+            return '<div class="ovd-stat"><div class="ovd-stat-v">' + p[0] + '</div><div class="ovd-stat-l">' + p[1] + '</div></div>';
+        }).join('') + '</div>';
+    }
+    function bar(pct, col) {
+        return '<div class="ovd-talker-bar"><div style="width:' + Math.max(0, Math.min(100, pct)) + '%;' + (col ? 'background:' + col + ';' : '') + '"></div></div>';
+    }
+    function wrap(rows) {
+        return '<div class="ovd-heatwrap" style="max-height:260px;overflow-y:auto;">' + rows + '</div>';
+    }
+    function nodeRow(n, pct, txt, col) {
+        return '<div class="ovd-talker"><span class="ovd-talker-n" title="' + esc(n.node_id) + '">' + esc(name(n)) + '</span>'
+        + bar(pct, col) + '<span class="ovd-talker-c">' + txt + '</span></div>';
+    }
+
+    /* ── AVG SNR tile ── */
+    function snrBody() {
+        var withSnr = nodes().filter(function(n) { return n.snr != null; });
+        var avg = withSnr.length ? (withSnr.reduce(function(a, n) { return a + n.snr; }, 0) / withSnr.length).toFixed(1) : null;
+        var sorted = withSnr.slice().sort(function(a, b) { return b.snr - a.snr; });
+        var best = sorted[0], worst = sorted[sorted.length - 1];
+        var buckets = { '>10dB': 0, '10–5dB': 0, '5–0dB': 0, '<0dB': 0 };
+        withSnr.forEach(function(n) {
+            if (n.snr > 10) buckets['>10dB']++; else if (n.snr > 5) buckets['10–5dB']++;
+            else if (n.snr > 0) buckets['5–0dB']++; else buckets['<0dB']++;
+        });
+        var html = statGrid([
+            [avg != null ? avg + 'dB' : '—', 'AVG SNR'],
+            [withSnr.length, 'NODES REPORTING'],
+            [best ? best.snr.toFixed(1) + 'dB' : '—', 'BEST LINK'],
+            [worst ? worst.snr.toFixed(1) + 'dB' : '—', 'WORST LINK'],
+        ]);
+        html += '<div class="ovd-sub">SIGNAL DISTRIBUTION</div>';
+        var maxB = Math.max.apply(null, Object.keys(buckets).map(function(k) { return buckets[k]; }).concat([1]));
+        html += wrap(Object.keys(buckets).map(function(k) {
+            return '<div class="ovd-talker"><span class="ovd-talker-n">' + k + '</span>'
+            + bar(buckets[k] / maxB * 100) + '<span class="ovd-talker-c">' + buckets[k] + '</span></div>';
+        }).join(''));
+        if (sorted.length) {
+            html += '<div class="ovd-sub" style="margin-top:10px;">PER-NODE SNR · BEST FIRST</div>';
+            var lo = Math.min.apply(null, withSnr.map(function(n) { return n.snr; }));
+            var hi = Math.max.apply(null, withSnr.map(function(n) { return n.snr; }));
+            var span = (hi - lo) || 1;
+            html += wrap(sorted.slice(0, 15).map(function(n) {
+                var col = n.snr >= 10 ? 'var(--ok)' : n.snr >= 5 ? 'var(--acc)' : n.snr >= 0 ? 'var(--warn)' : 'var(--err)';
+                return nodeRow(n, (n.snr - lo) / span * 100, n.snr.toFixed(1) + 'dB', col);
+            }).join(''));
+        }
+        return html;
+    }
+
+    window.c2OpenSnrDetail = function() {
+        var m = document.getElementById('modal');
+        if (!m) return;
+        var inner = m.querySelector('.modal-inner');
+        inner.style.width = '95%';
+        inner.style.maxWidth = '640px';
+        inner.style.margin = '20px auto';
+        inner.innerHTML = head('◎ AVG SNR', 'signal quality across reporting nodes')
+        + '<div style="padding:12px 20px 16px;">' + snrBody() + '</div>';
+        m.style.display = 'flex';
+        setTimeout(function() { m.classList.add('open'); }, 10);
+    };
+
+    /* Tile 0/2/3 reuse the ring modals (conn / bat / gps); tile 1 is SNR. */
+    var TILE_ACTIONS = [
+        function() { window.c2OpenRingDetail('conn'); },
+        function() { window.c2OpenSnrDetail(); },
+        function() { window.c2OpenRingDetail('bat'); },
+        function() { window.c2OpenRingDetail('gps'); },
+    ];
+
+    function wire() {
+        var grid = document.querySelector('.ov-health-grid');
+        if (!grid || !grid.querySelectorAll) { setTimeout(wire, 500); return; }
+        var tiles = grid.querySelectorAll('.ov-hlth');
+        tiles.forEach(function(tile, i) {
+            if (i >= TILE_ACTIONS.length) return;
+            tile.style.cursor = 'pointer';
+            tile.title = 'Click for details';
+            tile.addEventListener('click', function(e) {
+                e.preventDefault();
+                TILE_ACTIONS[i]();
+            });
+        });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+    else wire();
+})();
+</script>

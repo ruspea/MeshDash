@@ -1,0 +1,179 @@
+<script>
+/* ── Ring gauge click-to-open detail modals (live data from meshState) ── */
+(function() {
+    'use strict';
+
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function name(n) { return window.getMeshVal(n, 'long_name', 'longName', 'short_name', 'shortName') || n.node_id; }
+    function ago(ts) {
+        if (!ts) return 'never';
+        var d = Math.floor(Date.now() / 1000 - ts);
+        if (d < 60) return d + 's'; if (d < 3600) return Math.floor(d / 60) + 'm';
+        if (d < 86400) return Math.floor(d / 3600) + 'h'; return Math.floor(d / 86400) + 'd';
+    }
+    function nodes() { return Object.values(window.meshState.nodes || {}); }
+
+    function head(title, sub) {
+        return '<div class="modal-head" style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--bd2);">'
+        + '<div><h3 style="margin:0;font-size:14px;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);">' + title + '</h3>'
+        + (sub ? '<div style="font-size:9px;color:var(--txt3);font-family:var(--mono);margin-top:2px;">' + sub + '</div>' : '')
+        + '</div><button class="btn btn-sm" onclick="window.closeModal()">✕ CLOSE</button></div>';
+    }
+    function statGrid(pairs) {
+        return '<div class="ovd-stats">' + pairs.map(function(p) {
+            return '<div class="ovd-stat"><div class="ovd-stat-v">' + p[0] + '</div><div class="ovd-stat-l">' + p[1] + '</div></div>';
+        }).join('') + '</div>';
+    }
+    function bar(pct, col) {
+        return '<div class="ovd-talker-bar"><div style="width:' + Math.max(0, Math.min(100, pct)) + '%;' + (col ? 'background:' + col + ';' : '') + '"></div></div>';
+    }
+    function rowList(rows) {
+        return '<div class="ovd-heatwrap" style="max-height:260px;overflow-y:auto;">' + rows + '</div>';
+    }
+    function nodeRow(n, right, col) {
+        return '<div class="ovd-talker"><span class="ovd-talker-n" title="' + esc(n.node_id) + '">' + esc(name(n)) + '</span>'
+        + bar(right.pct, col) + '<span class="ovd-talker-c">' + right.txt + '</span></div>';
+    }
+
+    /* ── ONLINE ring ── */
+    function onlineBody() {
+        var now = Date.now() / 1000;
+        var all = nodes();
+        var on = all.filter(function(n) { return n.lastHeard && (now - n.lastHeard) < 3600; });
+        var stale = all.filter(function(n) { return !n.lastHeard || (now - n.lastHeard) >= 3600; })
+                       .sort(function(a, b) { return (a.lastHeard || 0) - (b.lastHeard || 0); });
+        var html = statGrid([
+            [on.length + '/' + all.length, 'ONLINE (<1H)'],
+            [stale.length, 'STALE (>1H)'],
+            [all.length ? Math.round(on.length / all.length * 100) : 0, '% ONLINE'],
+            [stale.length ? ago(stale[0].lastHeard) : '—', 'STALEST NODE'],
+        ]);
+        if (stale.length) {
+            html += '<div class="ovd-sub">STALE NODES · LONGEST SILENCE FIRST</div>';
+            html += rowList(stale.slice(0, 15).map(function(n) {
+                return nodeRow(n, { pct: 100, txt: ago(n.lastHeard) }, 'var(--err)');
+            }).join(''));
+        } else {
+            html += '<div class="ovd-foot" style="text-align:center;">All nodes heard within the last hour.</div>';
+        }
+        return html;
+    }
+
+    /* ── AVG BAT ring ── */
+    function batBody() {
+        var all = nodes().filter(function(n) { return window.getMeshVal(n, 'battery_level', 'batteryLevel') != null; });
+        var avg = all.length ? Math.round(all.reduce(function(a, n) { return a + (window.getMeshVal(n, 'battery_level', 'batteryLevel') || 0); }, 0) / all.length) : null;
+        var buckets = { '100–75%': 0, '74–50%': 0, '49–25%': 0, '<25%': 0 };
+        all.forEach(function(n) {
+            var b = window.getMeshVal(n, 'battery_level', 'batteryLevel') || 0;
+            if (b >= 75) buckets['100–75%']++; else if (b >= 50) buckets['74–50%']++;
+            else if (b >= 25) buckets['49–25%']++; else buckets['<25%']++;
+        });
+        var low = all.filter(function(n) { return (window.getMeshVal(n, 'battery_level', 'batteryLevel') || 0) < 25; })
+                     .sort(function(a, b) { return (window.getMeshVal(a, 'battery_level', 'batteryLevel') || 0) - (window.getMeshVal(b, 'battery_level', 'batteryLevel') || 0); });
+        var html = statGrid([
+            [avg != null ? avg + '%' : '—', 'AVG BATTERY'],
+            [all.length, 'NODES REPORTING'],
+            [nodes().length - all.length, 'NO BATTERY DATA'],
+            [low.length, 'CRITICAL (<25%)'],
+        ]);
+        html += '<div class="ovd-sub">DISTRIBUTION</div>';
+        var maxB = Math.max.apply(null, Object.keys(buckets).map(function(k) { return buckets[k]; }).concat([1]));
+        html += rowList(Object.keys(buckets).map(function(k) {
+            return '<div class="ovd-talker"><span class="ovd-talker-n">' + k + '</span>'
+            + bar(buckets[k] / maxB * 100) + '<span class="ovd-talker-c">' + buckets[k] + '</span></div>';
+        }).join(''));
+        if (low.length) {
+            html += '<div class="ovd-sub" style="margin-top:10px;">LOWEST BATTERIES</div>';
+            html += rowList(low.slice(0, 10).map(function(n) {
+                var b = window.getMeshVal(n, 'battery_level', 'batteryLevel') || 0;
+                return nodeRow(n, { pct: b, txt: b + '%' }, b < 15 ? 'var(--err)' : 'var(--warn)');
+            }).join(''));
+        }
+        return html;
+    }
+
+    /* ── GPS ring ── */
+    function gpsBody() {
+        var all = nodes();
+        var withGps = all.filter(function(n) { var la = window.getMeshVal(n, 'latitude'); return la && la !== 0; });
+        var html = statGrid([
+            [withGps.length + '/' + all.length, 'GPS FIX'],
+            [all.length ? Math.round(withGps.length / all.length * 100) : 0, '% FIXED'],
+            [all.length - withGps.length, 'NO POSITION'],
+            [withGps.filter(function(n) { return window.getMeshVal(n, 'altitude') != null; }).length, 'WITH ALTITUDE'],
+        ]);
+        if (withGps.length) {
+            html += '<div class="ovd-sub">LOCATED NODES</div>';
+            html += rowList(withGps.slice(0, 15).map(function(n) {
+                var la = window.getMeshVal(n, 'latitude'), lo = window.getMeshVal(n, 'longitude');
+                return nodeRow(n, { pct: 100, txt: (+la).toFixed(3) + ',' + (+lo).toFixed(3) }, 'var(--acc)');
+            }).join(''));
+        }
+        return html;
+    }
+
+    /* ── ENV DATA ring ── */
+    function envBody() {
+        var all = nodes();
+        var withEnv = all.filter(function(n) { return window.getMeshVal(n, 'temperature') != null; });
+        var temps = withEnv.map(function(n) { return { n: n, t: window.getMeshVal(n, 'temperature') }; });
+        var avgT = temps.length ? (temps.reduce(function(a, x) { return a + x.t; }, 0) / temps.length).toFixed(1) : null;
+        var sorted = temps.slice().sort(function(a, b) { return a.t - b.t; });
+        var html = statGrid([
+            [withEnv.length + '/' + all.length, 'ENV REPORTING'],
+            [avgT != null ? avgT + '°' : '—', 'AVG TEMP'],
+            [sorted.length ? sorted[0].t + '°' : '—', 'COLDEST'],
+            [sorted.length ? sorted[sorted.length - 1].t + '°' : '—', 'WARMEST'],
+        ]);
+        if (temps.length) {
+            html += '<div class="ovd-sub">TEMPERATURE READINGS</div>';
+            var tmin = sorted[0].t, tmax = sorted[sorted.length - 1].t, span = (tmax - tmin) || 1;
+            html += rowList(temps.slice(0, 15).map(function(x) {
+                return nodeRow(x.n, { pct: (x.t - tmin) / span * 100, txt: x.t + '°' }, '#f032e6');
+            }).join(''));
+        } else {
+            html += '<div class="ovd-foot" style="text-align:center;">No nodes are reporting environment telemetry.</div>';
+        }
+        return html;
+    }
+
+    var RINGS = [
+        { id: 'conn', title: '◎ MESH ONLINE', sub: 'nodes heard within the last hour', body: onlineBody },
+        { id: 'bat',  title: '◎ BATTERY',      sub: 'average battery across reporting nodes', body: batBody },
+        { id: 'gps',  title: '◎ GPS FIX',      sub: 'nodes with a known position', body: gpsBody },
+        { id: 'env',  title: '◎ ENV DATA',     sub: 'nodes reporting environment telemetry', body: envBody },
+    ];
+
+    window.c2OpenRingDetail = function(ringId) {
+        var cfg = RINGS.find(function(r) { return r.id === ringId; });
+        if (!cfg) return;
+        var m = document.getElementById('modal');
+        if (!m) return;
+        var inner = m.querySelector('.modal-inner');
+        inner.style.width = '95%';
+        inner.style.maxWidth = '640px';
+        inner.style.margin = '20px auto';
+        inner.innerHTML = head(cfg.title, cfg.sub)
+        + '<div style="padding:12px 20px 16px;">' + cfg.body() + '</div>';
+        m.style.display = 'flex';
+        setTimeout(function() { m.classList.add('open'); }, 10);
+    };
+
+    function wire() {
+        var wrap = document.getElementById('ov-rings');
+        if (!wrap || !wrap.querySelectorAll) { setTimeout(wire, 500); return; }
+        wrap.querySelectorAll('.ov-ring-item').forEach(function(item, i) {
+            if (i >= RINGS.length) return;
+            item.style.cursor = 'pointer';
+            item.title = 'Click for details';
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                window.c2OpenRingDetail(RINGS[i].id);
+            });
+        });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+    else wire();
+})();
+</script>

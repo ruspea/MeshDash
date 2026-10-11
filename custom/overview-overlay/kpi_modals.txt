@@ -1,0 +1,221 @@
+<script>
+/* ── KPI strip click-to-open detail modals (live data) ── */
+(function() {
+    'use strict';
+
+    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+    function stats() { return window.meshState && window.meshState.stats || {}; }
+    function nodes() { return Object.values(window.meshState.nodes || {}); }
+    function txt(id) { var el = document.getElementById(id); return el ? el.textContent : '—'; }
+
+    function head(title, sub) {
+        return '<div class="modal-head" style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--bd2);">'
+        + '<div><h3 style="margin:0;font-size:14px;letter-spacing:1px;text-transform:uppercase;font-family:var(--mono);">' + title + '</h3>'
+        + (sub ? '<div style="font-size:9px;color:var(--txt3);font-family:var(--mono);margin-top:2px;">' + sub + '</div>' : '')
+        + '</div><button class="btn btn-sm" onclick="window.closeModal()">✕ CLOSE</button></div>';
+    }
+    function statGrid(pairs) {
+        return '<div class="ovd-stats">' + pairs.map(function(p) {
+            return '<div class="ovd-stat"><div class="ovd-stat-v">' + p[0] + '</div><div class="ovd-stat-l">' + p[1] + '</div></div>';
+        }).join('') + '</div>';
+    }
+    function bar(pct, col) {
+        return '<div class="ovd-talker-bar"><div style="width:' + Math.max(0, Math.min(100, pct)) + '%;' + (col ? 'background:' + col + ';' : '') + '"></div></div>';
+    }
+    function wrap(rows) {
+        return '<div class="ovd-heatwrap" style="max-height:260px;overflow-y:auto;">' + rows + '</div>';
+    }
+    function row(label, pct, val, col) {
+        return '<div class="ovd-talker"><span class="ovd-talker-n">' + esc(label) + '</span>'
+        + bar(pct, col) + '<span class="ovd-talker-c">' + esc(val) + '</span></div>';
+    }
+    function openModal(title, sub, bodyHtml, maxW) {
+        var m = document.getElementById('modal');
+        if (!m) return;
+        var inner = m.querySelector('.modal-inner');
+        inner.style.width = '95%';
+        inner.style.maxWidth = (maxW || '640px');
+        inner.style.margin = '20px auto';
+        inner.innerHTML = head(title, sub) + '<div style="padding:12px 20px 16px;">' + bodyHtml + '</div>';
+        m.style.display = 'flex';
+        setTimeout(function() { m.classList.add('open'); }, 10);
+    }
+
+    function sessionMins() {
+        var st = window.meshState.sessionStart;
+        return st ? Math.max(1, Math.round((Date.now() - st) / 60000)) : null;
+    }
+
+    /* ── PACKETS · SESSION ── */
+    function pktsBody() {
+        var s = stats();
+        var total = s.packets_received_session || 0;
+        var parts = [
+            ['Text messages', s.text_messages_session || 0, 'var(--ok)'],
+            ['Position updates', s.position_updates_session || 0, 'var(--acc)'],
+            ['Telemetry reports', s.telemetry_reports_session || 0, '#b060ff'],
+            ['Other', s.other_packets_session || 0, 'var(--txt3)'],
+        ];
+        var known = parts.reduce(function(a, p) { return a + p[1]; }, 0);
+        var mins = sessionMins();
+        var html = statGrid([
+            [total.toLocaleString(), 'PACKETS · SESSION'],
+            [mins ? (total / mins).toFixed(1) : '—', 'PACKETS / MIN'],
+            [mins ? mins + 'm' : '—', 'SESSION LENGTH'],
+            [(s.nodes_seen_session || nodes().length).toLocaleString(), 'NODES SEEN'],
+        ]);
+        html += '<div class="ovd-sub">BREAKDOWN BY TYPE</div>';
+        var maxP = Math.max.apply(null, parts.map(function(p) { return p[1]; }).concat([1]));
+        html += wrap(parts.map(function(p) {
+            return row(p[0] + (known ? ' · ' + Math.round(p[1] / known * 100) + '%' : ''), p[1] / maxP * 100, p[1].toLocaleString(), p[2]);
+        }).join(''));
+        return html;
+    }
+
+    /* ── KNOWN NODES ── */
+    function nodesBody() {
+        var all = nodes();
+        var now = Date.now() / 1000;
+        var local = all.filter(function(n) { return n.isLocal || n.is_local; });
+        var on = all.filter(function(n) { return n.lastHeard && (now - n.lastHeard) < 3600; });
+        var sorted = all.slice().sort(function(a, b) { return (b.lastHeard || 0) - (a.lastHeard || 0); });
+        function nm(n) { return window.getMeshVal(n, 'long_name', 'longName', 'short_name', 'shortName') || n.node_id; }
+        function ago(ts) {
+            if (!ts) return 'never';
+            var d = Math.floor(now - ts);
+            if (d < 60) return d + 's'; if (d < 3600) return Math.floor(d / 60) + 'm';
+            if (d < 86400) return Math.floor(d / 3600) + 'h'; return Math.floor(d / 86400) + 'd';
+        }
+        var html = statGrid([
+            [all.length, 'KNOWN NODES'],
+            [local.length, 'LOCAL'],
+            [on.length, 'ONLINE (<1H)'],
+            [all.length - on.length, 'STALE'],
+        ]);
+        html += '<div class="ovd-sub">ALL NODES · MOST RECENT FIRST</div>';
+        html += wrap(sorted.slice(0, 20).map(function(n) {
+            var a = ago(n.lastHeard);
+            var col = (n.isLocal || n.is_local) ? 'var(--ok)' : (a !== 'never' && now - n.lastHeard < 3600 ? 'var(--acc)' : 'var(--txt3)');
+            return row(nm(n), 100, (n.isLocal || n.is_local ? 'LOCAL · ' : '') + a, col);
+        }).join('') + (sorted.length > 20 ? '<div class="ovd-foot" style="text-align:center;">… and ' + (sorted.length - 20) + ' more</div>' : ''));
+        return html;
+    }
+
+    /* ── MESSAGES · SESSION ── */
+    function msgsBody() {
+        var s = stats();
+        var msgs = s.text_messages_session || 0;
+        var pos = s.position_updates_session || 0;
+        var tlm = s.telemetry_reports_session || 0;
+        var mins = sessionMins();
+        var html = statGrid([
+            [msgs.toLocaleString(), 'TEXT MESSAGES'],
+            [pos.toLocaleString(), 'POSITION UPDATES'],
+            [tlm.toLocaleString(), 'TELEMETRY REPORTS'],
+            [mins ? (msgs / mins).toFixed(2) : '—', 'MSGS / MIN'],
+        ]);
+        var parts = [['Text messages', msgs, 'var(--ok)'], ['Position updates', pos, 'var(--acc)'], ['Telemetry', tlm, '#b060ff']];
+        var maxP = Math.max.apply(null, parts.map(function(p) { return p[1]; }).concat([1]));
+        html += '<div class="ovd-sub">SESSION TRAFFIC</div>';
+        html += wrap(parts.map(function(p) { return row(p[0], p[1] / maxP * 100, p[1].toLocaleString(), p[2]); }).join(''));
+        html += '<div class="ovd-foot">Counts reset when the dashboard session restarts.</div>';
+        return html;
+    }
+
+    /* ── CHANNELS ACTIVE ── */
+    function chsBody() {
+        var s = stats();
+        var chs = s.channels_seen_session || 0;
+        var tlm = s.telemetry_reports_session || 0;
+        var html = statGrid([
+            [chs, 'CHANNELS ACTIVE'],
+            [tlm.toLocaleString(), 'TELEMETRY REPORTS'],
+            [(s.text_messages_session || 0).toLocaleString(), 'TEXT MESSAGES'],
+            [(s.position_updates_session || 0).toLocaleString(), 'POSITION UPDATES'],
+        ]);
+        /* Channel list from node registry if present */
+        var names = {};
+        nodes().forEach(function(n) {
+            var ch = window.getMeshVal(n, 'channel') || n.channel;
+            if (ch != null) names[ch] = (names[ch] || 0) + 1;
+        });
+        var keys = Object.keys(names);
+        if (keys.length) {
+            html += '<div class="ovd-sub">NODES PER CHANNEL INDEX</div>';
+            var maxC = Math.max.apply(null, keys.map(function(k) { return names[k]; }).concat([1]));
+            html += wrap(keys.sort(function(a, b) { return names[b] - names[a]; }).map(function(k) {
+                return row('Channel ' + k, names[k] / maxC * 100, names[k] + ' nodes');
+            }).join(''));
+        } else {
+            html += '<div class="ovd-foot" style="text-align:center;">Per-channel node counts appear once channel data is present in the node registry.</div>';
+        }
+        return html;
+    }
+
+    /* ── Connection / session KPI card ── */
+    function connBody() {
+        var s = stats();
+        var mins = sessionMins();
+        var total = s.packets_received_session || 0;
+        var html = statGrid([
+            [txt('ov-conn-state') || '—', 'STATE'],
+            [txt('ov-uptime') || '—', 'SESSION UPTIME'],
+            [mins ? (total / mins).toFixed(1) : '—', 'PACKETS / MIN'],
+            [txt('ov-conn-node') || '—', 'LOCAL NODE'],
+        ]);
+        html += '<div class="ovd-sub">TRANSPORT</div>';
+        html += wrap(
+            row('State', 100, txt('ov-conn-state') || '—')
+          + row('Detail', 100, txt('ov-conn-detail') || '—')
+          + row('Transport', 100, txt('ov-conn-transport') || '—')
+        );
+        html += '<div class="ovd-sub" style="margin-top:10px;">SESSION COUNTERS</div>';
+        html += wrap(
+            row('Packets', 100, (s.packets_received_session || 0).toLocaleString())
+          + row('Text messages', 100, (s.text_messages_session || 0).toLocaleString())
+          + row('Position updates', 100, (s.position_updates_session || 0).toLocaleString())
+          + row('Telemetry reports', 100, (s.telemetry_reports_session || 0).toLocaleString())
+          + row('Nodes seen', 100, (s.nodes_seen_session || nodes().length).toLocaleString())
+        );
+        return html;
+    }
+
+    var KPIS = [
+        { sel: null, id: 'ov-kpi-pkts',  title: '◎ PACKETS · SESSION',  sub: 'session packet breakdown', body: pktsBody },
+        { sel: null, id: 'ov-kpi-nodes', title: '◎ KNOWN NODES',       sub: 'full node registry', body: nodesBody },
+        { sel: null, id: 'ov-kpi-msgs',  title: '◎ MESSAGES · SESSION', sub: 'session message traffic', body: msgsBody },
+        { sel: null, id: 'ov-kpi-chs',   title: '◎ CHANNELS',          sub: 'channel activity this session', body: chsBody },
+    ];
+
+    window.c2OpenKpiDetail = function(kind) {
+        if (kind === 'conn') { openModal('◎ CONNECTION', 'live link + session state', connBody(), '640px'); return; }
+        var k = KPIS.find(function(x) { return x.id === 'ov-kpi-' + kind; });
+        if (k) openModal(k.title, k.sub, k.body(), '640px');
+    };
+
+    function wire() {
+        var hdr = document.querySelector('.ov-hdr');
+        if (!hdr || !hdr.querySelectorAll) { setTimeout(wire, 500); return; }
+        /* Four KPI tiles */
+        KPIS.forEach(function(k) {
+            var el = document.getElementById(k.id) ? document.getElementById(k.id).closest('.ov-kpi') : null;
+            if (!el) return;
+            el.style.cursor = 'pointer';
+            el.title = 'Click for details';
+            el.addEventListener('click', function(e) { e.preventDefault(); openModal(k.title, k.sub, k.body(), '640px'); });
+        });
+        /* Connection KPI card (covers SESSION / POS UPDATES / TELEMETRY tiles) */
+        var conn = document.querySelector('.ov-conn-kpi');
+        if (conn) {
+            conn.style.cursor = 'pointer';
+            conn.title = 'Click for connection details';
+            conn.addEventListener('click', function(e) {
+                e.preventDefault();
+                openModal('◎ CONNECTION', 'live link + session state', connBody(), '640px');
+            });
+        }
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
+    else wire();
+})();
+</script>
