@@ -290,8 +290,16 @@ window.c2SwitchModalTab = async function(tab, nodeId) {
             if (typeof L === 'undefined') throw new Error('Leaflet not loaded yet');
             c2DetailMapInstance = L.map('c2-modal-map').setView(hasPos ? [positions[0].latitude, positions[0].longitude] : [20, 0], hasPos ? 14 : 2);
             const _bm = window.MeshDashBasemaps || {};
+            // Keyless dark tiles — same inverted-OSM filter as the map view
+            if (!document.getElementById('osm-dark-css')) {
+                const _ds = document.createElement('style');
+                _ds.id = 'osm-dark-css';
+                _ds.textContent = '.osm-dark-tiles{filter:invert(1) hue-rotate(180deg) brightness(.95) contrast(.9) saturate(.7);}';
+                document.head.appendChild(_ds);
+            }
             L.tileLayer(_bm.default || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 19,
+                className: 'osm-dark-tiles',
                 attribution: _bm.defaultAttribution || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             }).addTo(c2DetailMapInstance);
             

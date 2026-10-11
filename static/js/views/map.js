@@ -44,6 +44,15 @@ window.C2MapApp = {
                 maxZoom: 19
             }
         },
+        'osm-dark': {
+            // Standard OSM raster tiles with a CSS invert filter — a keyless dark map.
+            url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            options: {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19,
+                className: 'osm-dark-tiles'
+            }
+        },
         offline: {
             // NOTE: offline tiles are Shortbread vector (MVT/protobuf) — rendered via
             // L.vectorGrid.protobuf() in c2ChangeMapStyle, NOT L.tileLayer().
@@ -58,6 +67,9 @@ window.C2MapApp = {
     const s = document.createElement('style');
     s.innerHTML = `
         .leaflet-popup-content-wrapper{background:var(--bg2);color:var(--txt);border:1px solid var(--bd2);border-radius:4px;font-family:var(--mono);box-shadow:0 10px 30px rgba(0,0,0,.8);}
+        /* Keyless dark mode: invert OSM tiles, then rotate hue back so water stays blue-ish */
+        .osm-dark-tiles { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.9) saturate(.7); }
+        .osm-dark-tiles .leaflet-tile { filter: inherit; }
         .leaflet-popup-tip{background:var(--bg2);}
         .leaflet-popup-close-button{color:var(--txt3)!important;font-size:16px!important;margin-top:4px;margin-right:4px;}
         .c2-legend{background:rgba(12,20,32,.92);border:1px solid var(--bd2);padding:10px;border-radius:4px;color:var(--txt);font-family:var(--mono);font-size:10px;backdrop-filter:blur(4px);box-shadow:0 4px 15px rgba(0,0,0,.7);max-height:300px;overflow-y:auto;min-width:160px;}
@@ -233,6 +245,10 @@ window.c2ChangeMapStyle = function(key) {
             app.currentTileLayer = L.tileLayer(fallback.url, fallback.options).addTo(app.map);
         });
         return;
+    }
+    if (effectiveKey === 'dark' && !window.MeshDashBasemaps?.cartoDark) {
+        // No CARTO key — use keyless inverted-OSM dark tiles instead of falling back to light OSM.
+        effectiveKey = 'osm-dark';
     }
     const style = app.tileLayers[effectiveKey] || app.tileLayers.osm;
     app.currentTileLayer = L.tileLayer(style.url, style.options).addTo(app.map);
@@ -493,7 +509,7 @@ window.initC2Map = async function(){
     }
 
     app.map=L.map('main-c2-map',{preferCanvas:true,zoomControl:true}).setView([20,0],2);
-    app.currentTileLayer=L.tileLayer(app.tileLayers.osm.url,app.tileLayers.osm.options).addTo(app.map);
+    app.currentTileLayer=L.tileLayer(app.tileLayers['osm-dark'].url,app.tileLayers['osm-dark'].options).addTo(app.map);
     app.map.invalidateSize({animate:false});
 
     app.map.on('resize zoomend moveend',()=>window.C2SonarPing?.resize());
