@@ -97,10 +97,13 @@ fi
 if [ "$CURRENT_VERSION" != "$TARGET_VERSION" ] || [ ! -f "meshtastic_dashboard.py" ]; then
     echo "[INFO] Update required (Current: $CURRENT_VERSION → Target: $TARGET_VERSION)"
 
-    # Preserve data directory and config before cleaning
-    echo "[INFO] Preserving data/ and .mesh-dash_config..."
+    # Preserve data directory, plugins and config before cleaning
+    echo "[INFO] Preserving data/, plugins/ and .mesh-dash_config..."
     if [ -d "data" ]; then
         mv data /tmp/data_backup 2>/dev/null || true
+    fi
+    if [ -d "plugins" ]; then
+        mv plugins /tmp/plugins_backup 2>/dev/null || true
     fi
     if [ -f ".mesh-dash_config" ]; then
         cp .mesh-dash_config /tmp/config_backup 2>/dev/null || true
@@ -129,6 +132,22 @@ if [ "$CURRENT_VERSION" != "$TARGET_VERSION" ] || [ ! -f "meshtastic_dashboard.p
             echo "[ERROR] Could not restore data/ — your data is preserved in /tmp/data_backup"
             exit 1
         fi
+    fi
+
+    # Restore plugins: user-installed plugins come back whole; bundled
+    # plugins keep the new code but get their data files (SQLite DBs) back.
+    if [ -d "/tmp/plugins_backup" ]; then
+        mkdir -p plugins
+        for d in /tmp/plugins_backup/*/; do
+            [ -d "$d" ] || continue
+            name=$(basename "$d")
+            if [ -d "plugins/$name" ]; then
+                find "$d" -maxdepth 1 -type f -name '*.db*' -exec cp -a {} "plugins/$name/" \; 2>/dev/null || true
+            else
+                cp -a "$d" "plugins/$name"
+            fi
+        done
+        rm -rf /tmp/plugins_backup
     fi
 
     # Build /opt/venv from the shipped requirements.txt
