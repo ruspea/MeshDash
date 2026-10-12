@@ -174,6 +174,18 @@
           <label class="tog"><input type="checkbox" id="map-show-rings"
             onchange="window.c2ToggleRangeRings(this.checked)"><span class="tog-sl"></span></label>
         </div>
+        <div class="map-tb-group" id="map-replay-group" title="Replay node positions over time">
+          <span class="map-tb-lbl">REPLAY</span>
+          <label class="tog"><input type="checkbox" id="map-show-replay"
+            onchange="window.c2ToggleScrubber(this.checked)"><span class="tog-sl"></span></label>
+        </div>
+        <div class="map-tb-group" id="map-measure-group">
+          <button class="btn btn-sm" id="map-measure-btn"
+            onclick="window.c2ToggleMeasure()"
+            style="font-size:9px; padding:3px 10px; display:flex; align-items:center; gap:4px;">
+            📏 MEASURE
+          </button>
+        </div>
         <div class="map-tb-group">
           <button class="btn btn-sm" id="map-filter-btn"
             onclick="window.c2ToggleFilterDrawer()"

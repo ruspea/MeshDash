@@ -512,7 +512,8 @@ window.initC2Map = async function(){
     app.currentTileLayer=L.tileLayer(app.tileLayers['osm-dark'].url,app.tileLayers['osm-dark'].options).addTo(app.map);
     app.map.invalidateSize({animate:false});
 
-    app.map.on('resize zoomend moveend',()=>window.C2SonarPing?.resize());
+    app.map.on('resize zoomend moveend',()=>{window.C2SonarPing?.resize();window.C2Cluster?.update();});
+app.map.on('moveend',()=>window.C2UrlState?.schedule());
     app._initialLoad=true; app._mqttSlotFlag=null;
 
     mapEl.addEventListener('click',e=>{let el=e.target;for(let i=0;i<6&&el&&el!==mapEl;i++){if(el.dataset?.nodeid){window.c2OpenPanel(el.dataset.nodeid);return;}el=el.parentElement;}},true);
@@ -664,6 +665,7 @@ window.c2FetchAndDrawMap = async function() {
         Object.keys(app.markers).filter(id=>!newNodeIds.has(id)).forEach(nodeId=>{
             app.markers[nodeId]?.forEach(m=>{try{app.map.removeLayer(m);}catch(e){}});
             if(app.trajectories[nodeId]){try{app.map.removeLayer(app.trajectories[nodeId]);}catch(e){}}
+            if(app.nodeTracks)delete app.nodeTracks[nodeId];
             delete app.markers[nodeId]; delete app.trajectories[nodeId];
         });
         Object.values(app.neighbourLines).forEach(l=>{try{app.map.removeLayer(l);}catch(e){}});
@@ -711,6 +713,10 @@ window.c2FetchAndDrawMap = async function() {
                         app.markers[nodeId]=app.markers[nodeId].filter(m=>!(m instanceof L.CircleMarker));
                         if(app.trajectories[nodeId]){try{app.map.removeLayer(app.trajectories[nodeId]);}catch(e){}delete app.trajectories[nodeId];}
                         const valid=positions.filter(p=>typeof p.latitude==='number'&&!isNaN(p.latitude)&&p.latitude!==0&&p.longitude!==0).sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));
+                        if(!app.nodeTracks)app.nodeTracks={};
+                        app.nodeTracks[nodeId]=valid.map(p=>({lat:p.latitude,lon:p.longitude,ts:p.timestamp||0}));
+                        const _lt=app.nodeTracks[nodeId][app.nodeTracks[nodeId].length-1];
+                        if(!_lt||Math.abs(_lt.lat-lat)>0.0001||Math.abs(_lt.lon-lon)>0.0001)app.nodeTracks[nodeId].push({lat,lon,ts:Date.now()/1000});
                         const latlngs=[];let last=null;
                         valid.forEach(p=>{if(!last||Math.abs(last.latitude-p.latitude)>0.0001||Math.abs(last.longitude-p.longitude)>0.0001){const hm=L.circleMarker([p.latitude,p.longitude],{radius:2,color,weight:1,fillColor:color,fillOpacity:0.35});hm.bindTooltip(_nodeLabel(node)+' · '+_fmtTime(p.timestamp),{permanent:false,direction:'top'});app.markers[nodeId].push(hm);latlngs.push([p.latitude,p.longitude]);last=p;}});
                         if(latlngs.length>0){const ll=latlngs[latlngs.length-1];if(Math.abs(ll[0]-lat)>0.0001||Math.abs(ll[1]-lon)>0.0001)latlngs.push([lat,lon]);}
@@ -725,7 +731,7 @@ window.c2FetchAndDrawMap = async function() {
         _buildLegend(nodes);
         window.c2UpdateMapVisibility();
         if(isFirstLoad){
-            window.c2FitMapBounds();
+            if(!(window.C2UrlState&&window.C2UrlState.apply()))window.c2FitMapBounds();
         }
 
         console.groupEnd();
@@ -921,6 +927,7 @@ window.c2UpdateMapVisibility = function() {
     _sv('msb-visible', visible);
     _sv('msb-online',  online);
     _sv('msb-gps',     gps);
+    if (!app._clusterGuard) window.C2Cluster?.update();
 };
 
 window.c2FitMapBounds = function() {
@@ -2527,7 +2534,7 @@ document.addEventListener('keydown', e => {
     style.textContent = `
         #map-toolbar, #map-filter-drawer, #map-embed-modal,
         .sidebar, .nav, #topbar, #sidebar, .ct, #map-embed-btn,
-        #map-filter-btn, #map-auto-ref, #map-stats-bar { display: none !important; }
+        #map-filter-btn, #map-auto-ref, #map-stats-bar, #map-measure-group, #map-replay-group { display: none !important; }
         #main-c2-map { border: none !important; }
         body, html { background: #060b12 !important; margin: 0; padding: 0; overflow: hidden; }
         .vs { height: 100vh !important; }
@@ -2621,6 +2628,337 @@ document.addEventListener('keydown', e => {
         window.C2TracerouteOverlay?.refresh();
         // Update stats bar even if no filters active
         window.c2UpdateMapVisibility?.();
+        // Refresh replay scrubber range if visible
+        window.C2Scrubber?.onRefresh();
         return r;
     };
+})();
+
+/* ════════════════════════════════════════════════════════════════════════
+ * MAP IMPROVEMENTS (2026-10-12) — no new dependencies
+ *   1. C2Cluster   — automatic grid clustering below zoom 11
+ *   2. C2Scrubber  — trail replay: time slider + play over nodeTracks
+ *   3. C2Measure   — two-click distance + bearing tool
+ *   4. C2UrlState  — live ?map=lat,lng,zoom URL state (non-embed only)
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Grid clustering — automatic, respects filters/visibility ────── */
+window.C2Cluster = (() => {
+    const MIN_ZOOM = 11, CELL_PX = 90;
+    let active = false, layer = null;
+    const hidden = new Set();
+
+    function update() {
+        const app = window.C2MapApp;
+        if (!app || !app.map) return;
+        const want = app.map.getZoom() < MIN_ZOOM;
+
+        if (!want) {
+            if (active) {
+                active = false;
+                hidden.clear();
+                if (layer) { try { app.map.removeLayer(layer); } catch (e) {} layer = null; }
+                app._clusterGuard = true;
+                try { window.c2UpdateMapVisibility(); } finally { app._clusterGuard = false; }
+            }
+            return;
+        }
+
+        /* Re-cluster: put singles back first so c2UpdateMapVisibility
+         * (which owns filter logic) decides who belongs on the map. */
+        hidden.forEach(nid => {
+            const arr = app.markers[nid];
+            const m = arr && arr.find(x => x instanceof L.Marker);
+            if (m) { try { m.addTo(app.map); } catch (e) {} }
+        });
+        hidden.clear();
+        app._clusterGuard = true;
+        try { window.c2UpdateMapVisibility(); } finally { app._clusterGuard = false; }
+
+        if (layer) { try { app.map.removeLayer(layer); } catch (e) {} }
+        layer = L.layerGroup().addTo(app.map);
+
+        const zoom = app.map.getZoom();
+        const cells = new Map();
+        Object.keys(app.markers).forEach(nid => {
+            const arr = app.markers[nid];
+            const m = arr && arr.find(x => x instanceof L.Marker);
+            if (!m || !app.map.hasLayer(m)) return;
+            const ll = m.getLatLng();
+            if (isNaN(ll.lat) || isNaN(ll.lng)) return;
+            const p = app.map.latLngToLayerPoint(ll);
+            const k = Math.floor(p.x / CELL_PX) + ':' + Math.floor(p.y / CELL_PX);
+            if (!cells.has(k)) cells.set(k, []);
+            cells.get(k).push({ nid, ll });
+            try { app.map.removeLayer(m); } catch (e) {}
+            hidden.add(nid);
+        });
+
+        cells.forEach(members => {
+            if (members.length === 1) {           /* lone node: keep it visible */
+                const arr = app.markers[members[0].nid];
+                const m = arr && arr.find(x => x instanceof L.Marker);
+                if (m) { try { m.addTo(app.map); } catch (e) {} hidden.delete(members[0].nid); }
+                return;
+            }
+            const lat = members.reduce((s, x) => s + x.ll.lat, 0) / members.length;
+            const lng = members.reduce((s, x) => s + x.ll.lng, 0) / members.length;
+            const c = L.marker([lat, lng], {
+                icon: L.divIcon({
+                    className: '', iconSize: [44, 44], iconAnchor: [22, 22],
+                    html: '<div style="width:44px;height:44px;border-radius:50%;background:rgba(0,200,245,.18);border:2px solid #00c8f5;color:#00c8f5;display:flex;align-items:center;justify-content:center;font:900 13px var(--mono,monospace);box-shadow:0 0 18px rgba(0,200,245,.45);">' + members.length + '</div>'
+                })
+            });
+            c.on('click', () => app.map.flyTo([lat, lng], Math.max(zoom + 2, MIN_ZOOM), { duration: .6 }));
+            c.addTo(layer);
+        });
+        active = true;
+    }
+    return { update, get active() { return active; } };
+})();
+
+/* ── 2. Trail replay scrubber — ghosts interpolated along nodeTracks ── */
+window.C2Scrubber = (() => {
+    const PLAY_MS = 25000;                     /* full range plays in 25s */
+    let panel = null, slider = null, timeLbl = null, playBtn = null;
+    let ghostLayer = null, shown = false, playing = false, rafId = null, lastFrame = 0;
+    let tMin = 0, tMax = 0, frac = 1;
+
+    const _tracks = () => (window.C2MapApp && window.C2MapApp.nodeTracks) || {};
+    const _t = () => tMin + (tMax - tMin) * frac;
+
+    function _range() {
+        let lo = Infinity, hi = -Infinity;
+        Object.values(_tracks()).forEach(tr => {
+            if (!tr || !tr.length) return;
+            if (tr[0].ts < lo) lo = tr[0].ts;
+            if (tr[tr.length - 1].ts > hi) hi = tr[tr.length - 1].ts;
+        });
+        return [lo === Infinity ? Date.now() / 1000 - 3600 : lo,
+                hi === -Infinity ? Date.now() / 1000 : hi];
+    }
+
+    function _posAt(tr, t) {
+        if (!tr || !tr.length || t < tr[0].ts) return null;      /* not heard yet */
+        if (t >= tr[tr.length - 1].ts) return tr[tr.length - 1];
+        for (let i = 1; i < tr.length; i++) {
+            if (t <= tr[i].ts) {
+                const a = tr[i - 1], b = tr[i];
+                const f = (t - a.ts) / Math.max(1, b.ts - a.ts);
+                return { lat: a.lat + (b.lat - a.lat) * f, lon: a.lon + (b.lon - a.lon) * f };
+            }
+        }
+        return tr[tr.length - 1];
+    }
+
+    function _draw(t) {
+        const app = window.C2MapApp;
+        if (!app || !app.map) return;
+        if (ghostLayer) { try { app.map.removeLayer(ghostLayer); } catch (e) {} }
+        ghostLayer = L.layerGroup().addTo(app.map);
+        const nodes = (window.meshState && window.meshState.nodes) || {};
+        const tracks = _tracks();
+        Object.keys(tracks).forEach(nid => {
+            const node = nodes[nid];
+            if (typeof _nodeMatchesFilters === 'function' && !_nodeMatchesFilters(nid, node)) return;
+            const p = _posAt(tracks[nid], t);
+            if (!p) return;
+            const color = app.nodeColors[nid] || '#00c8f5';
+            const g = L.circleMarker([p.lat, p.lon], {
+                radius: 5, color: '#fff', weight: 2, fillColor: color, fillOpacity: .95
+            });
+            g.bindTooltip(_nodeLabel(node) + ' · ' + _fmtTime(t), { direction: 'top' });
+            g.on('click', () => window.c2OpenPanel(nid));
+            g.addTo(ghostLayer);
+        });
+        if (timeLbl) timeLbl.textContent = _fmtTime(t);
+    }
+
+    function _stop() {
+        playing = false;
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null; lastFrame = 0;
+        if (playBtn) playBtn.textContent = '▶';
+    }
+
+    function _step(ts) {
+        if (!playing) return;
+        if (!lastFrame) lastFrame = ts;
+        frac = Math.min(1, frac + (ts - lastFrame) / PLAY_MS);
+        lastFrame = ts;
+        if (slider) slider.value = Math.round(frac * 1000);
+        _draw(_t());
+        if (frac >= 1) { _stop(); return; }
+        rafId = requestAnimationFrame(_step);
+    }
+
+    function _ensurePanel() {
+        if (panel) return;
+        const host = document.getElementById('main-c2-map');
+        if (!host) return;
+        panel = document.createElement('div');
+        panel.id = 'c2-scrubber';
+        panel.style.cssText = 'position:absolute;left:10px;bottom:10px;z-index:800;display:none;align-items:center;gap:10px;background:rgba(12,20,32,.92);border:1px solid var(--bd2,#1e3048);border-radius:6px;padding:8px 12px;font-family:var(--mono,monospace);font-size:10px;color:var(--txt,#c8d8e8);box-shadow:0 8px 30px rgba(0,0,0,.7);backdrop-filter:blur(4px);';
+        panel.innerHTML =
+            '<button id="c2-scrub-play" title="Play / pause replay" style="background:none;border:1px solid var(--bd2,#1e3048);color:var(--acc,#00c8f5);border-radius:4px;width:26px;height:22px;cursor:pointer;font-size:10px;">▶</button>' +
+            '<input type="range" id="c2-scrub-slider" min="0" max="1000" value="1000" style="width:220px;accent-color:var(--acc,#00c8f5);">' +
+            '<span id="c2-scrub-time" style="min-width:120px;color:var(--acc,#00c8f5);white-space:nowrap;"></span>' +
+            '<span style="color:var(--txt3,#4a6a88);font-size:8px;letter-spacing:1px;">REPLAY</span>';
+        host.appendChild(panel);
+        try {
+            L.DomEvent.disableClickPropagation(panel);
+            L.DomEvent.disableScrollPropagation(panel);
+        } catch (e) {}
+        playBtn = panel.querySelector('#c2-scrub-play');
+        slider = panel.querySelector('#c2-scrub-slider');
+        timeLbl = panel.querySelector('#c2-scrub-time');
+        playBtn.addEventListener('click', () => playing ? _stop() : (() => {
+            if (tMax <= tMin) return;
+            if (frac >= 1) frac = 0;
+            playing = true; playBtn.textContent = '⏸';
+            rafId = requestAnimationFrame(_step);
+        })());
+        slider.addEventListener('input', function() {
+            if (playing) _stop();
+            frac = this.value / 1000;
+            _draw(_t());
+        });
+    }
+
+    function toggle(on) {
+        shown = !!on;
+        _ensurePanel();
+        if (!panel) return;
+        if (!shown) {
+            _stop();
+            if (ghostLayer) { try { window.C2MapApp.map.removeLayer(ghostLayer); } catch (e) {} ghostLayer = null; }
+            panel.style.display = 'none';
+            return;
+        }
+        const r = _range(); tMin = r[0]; tMax = r[1];
+        if (tMax <= tMin) tMax = tMin + 1;
+        panel.style.display = 'flex';
+        _draw(_t());
+    }
+
+    function onRefresh() {
+        if (!shown) return;
+        const r = _range(); tMin = r[0]; tMax = r[1];
+        if (tMax <= tMin) tMax = tMin + 1;
+        _draw(_t());
+    }
+
+    return { toggle, onRefresh };
+})();
+window.c2ToggleScrubber = on => window.C2Scrubber?.toggle(on);
+
+/* ── 3. Measure — two clicks = distance + bearing, third click restarts ─ */
+window.C2Measure = (() => {
+    const R = 6371008.8;
+    let armed = false, pts = [], layer = null;
+
+    function _clear() {
+        const app = window.C2MapApp;
+        if (layer && app && app.map) { try { app.map.removeLayer(layer); } catch (e) {} }
+        layer = null; pts = [];
+    }
+
+    function _dist(a, b) {
+        const rad = Math.PI / 180;
+        const p1 = a.lat * rad, p2 = b.lat * rad;
+        const dp = (b.lat - a.lat) * rad, dl = (b.lng - a.lng) * rad;
+        const h = Math.sin(dp / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+    }
+
+    function _brg(a, b) {
+        const rad = Math.PI / 180;
+        const p1 = a.lat * rad, p2 = b.lat * rad, dl = (b.lng - a.lng) * rad;
+        const y = Math.sin(dl) * Math.cos(p2);
+        const x = Math.cos(p1) * Math.sin(p2) - Math.sin(p1) * Math.cos(p2) * Math.cos(dl);
+        return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+    }
+
+    function _onClick(e) {
+        const app = window.C2MapApp;
+        if (!app || !app.map) return;
+        if (pts.length >= 2) _clear();
+        pts.push(e.latlng);
+        if (!layer) layer = L.layerGroup().addTo(app.map);
+        L.circleMarker(e.latlng, { radius: 4, color: '#ffd60a', weight: 2, fillColor: '#ffd60a', fillOpacity: 1 }).addTo(layer);
+        if (pts.length === 2) {
+            const a = pts[0], b = pts[1];
+            const d = _dist(a, b), brg = _brg(a, b);
+            L.polyline([a, b], { color: '#ffd60a', weight: 2, dashArray: '6 6', opacity: .9 }).addTo(layer);
+            const card = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(brg / 45) % 8];
+            const dTxt = d >= 1000 ? (d / 1000).toFixed(2) + ' km' : Math.round(d) + ' m';
+            L.marker([(a.lat + b.lat) / 2, (a.lng + b.lng) / 2], {
+                interactive: false,
+                icon: L.divIcon({
+                    className: '', iconSize: [0, 0],
+                    html: '<div style="transform:translate(-50%,-50%);white-space:nowrap;background:rgba(6,11,18,.9);border:1px solid #ffd60a;color:#ffd60a;font:700 9px var(--mono,monospace);padding:3px 8px;border-radius:4px;">' + dTxt + ' · ' + Math.round(brg) + '° ' + card + '</div>'
+                })
+            }).addTo(layer);
+        }
+    }
+
+    function arm(on) {
+        const app = window.C2MapApp;
+        if (!app || !app.map || on === armed) return;
+        armed = on;
+        if (armed) app.map.on('click', _onClick);
+        else { app.map.off('click', _onClick); _clear(); }
+        const host = document.getElementById('main-c2-map');
+        if (host) host.style.cursor = armed ? 'crosshair' : '';
+        const btn = document.getElementById('map-measure-btn');
+        if (btn) {
+            btn.classList.toggle('btn-acc', armed);
+            btn.innerHTML = armed ? '📏 MEASURE ON' : '📏 MEASURE';
+        }
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && armed) window.c2ToggleMeasure(false);
+    });
+
+    return { arm, get armed() { return armed; } };
+})();
+window.c2ToggleMeasure = function(force) {
+    const M = window.C2Measure;
+    M.arm(force !== undefined ? !!force : !M.armed);
+};
+
+/* ── 4. Live URL state — ?map=lat,lng,zoom follows the viewport ─────── */
+window.C2UrlState = (() => {
+    let timer = null;
+    const _embed = () => window._embedFilter || new URLSearchParams(location.search).get('embed');
+
+    function push() {
+        const app = window.C2MapApp;
+        if (!app || !app.map || _embed()) return;
+        try {
+            const c = app.map.getCenter(), z = Math.round(app.map.getZoom());
+            const q = new URLSearchParams(location.search);
+            q.set('map', c.lat.toFixed(5) + ',' + c.lng.toFixed(5) + ',' + z);
+            history.replaceState(null, '', location.pathname + '?' + q.toString());
+        } catch (e) {}
+    }
+
+    function schedule() { clearTimeout(timer); timer = setTimeout(push, 400); }
+
+    /* On first load: if a ?map= state exists, restore it instead of fit-bounds */
+    function apply() {
+        if (_embed()) return false;
+        const m = new URLSearchParams(location.search).get('map');
+        if (!m) return false;
+        const parts = m.split(',').map(Number);
+        const app = window.C2MapApp;
+        if (app && app.map && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            app.map.setView([parts[0], parts[1]], isNaN(parts[2]) ? 13 : parts[2]);
+            return true;
+        }
+        return false;
+    }
+
+    return { schedule, apply };
 })();
