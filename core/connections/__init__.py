@@ -23,10 +23,10 @@ class ConnectionState(str, Enum):
 # Valid state transitions — keys are source states, values are sets of
 # allowed destination states.  Any transition not in this map is rejected.
 _VALID_TRANSITIONS: dict = {
-    ConnectionState.IDLE:         {ConnectionState.CONNECTING, ConnectionState.DISCONNECTED, ConnectionState.WEBSERIAL, ConnectionState.MQTT},
+    ConnectionState.IDLE:         {ConnectionState.CONNECTING, ConnectionState.DISCONNECTED, ConnectionState.WEBSERIAL, ConnectionState.MQTT, ConnectionState.DEGRADED},
     ConnectionState.CONNECTING:   {ConnectionState.CONNECTED, ConnectionState.RECONNECTING, ConnectionState.DISCONNECTED, ConnectionState.DEGRADED},
     ConnectionState.CONNECTED:   {ConnectionState.RECONNECTING, ConnectionState.DISCONNECTED, ConnectionState.DEGRADED},
-    ConnectionState.RECONNECTING:{ConnectionState.CONNECTED, ConnectionState.DISCONNECTED, ConnectionState.CONNECTING},
+    ConnectionState.RECONNECTING:{ConnectionState.CONNECTED, ConnectionState.DISCONNECTED, ConnectionState.CONNECTING, ConnectionState.DEGRADED},
     ConnectionState.DEGRADED:    {ConnectionState.CONNECTED, ConnectionState.RECONNECTING, ConnectionState.DISCONNECTED},
     ConnectionState.DISCONNECTED:{ConnectionState.CONNECTING, ConnectionState.IDLE},  # force_reconnect goes CONNECTING
     ConnectionState.WEBSERIAL:    {ConnectionState.IDLE, ConnectionState.DISCONNECTED},  # can disconnect to reconnect differently

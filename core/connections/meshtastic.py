@@ -227,7 +227,11 @@ class MeshtasticConnectionManager:
         """Transition to a new connection state, enforcing valid transitions."""
         prev = self._state
         from core.connections import is_valid_transition
-        if not is_valid_transition(prev, state):
+        if prev is state:
+            # Same-state re-assert (e.g. connected -> connected on every
+            # health check) is a no-op, not a warning.
+            pass
+        elif not is_valid_transition(prev, state):
             self.logger.warning(f"Invalid state transition: {prev.value} -> {state.value} (detail={detail})")
         self._state = state
         transport = self.config.get("MESHTASTIC_CONNECTION_TYPE", "SERIAL").upper()
