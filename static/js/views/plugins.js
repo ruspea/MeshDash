@@ -159,6 +159,8 @@ window.C2PluginsApp = {
 
         this.updateHeader();
         this.renderGrid();
+        // Keep the sidebar badge in sync with what this view just computed
+        try { window.updatePluginNavBadge?.(); } catch (e) {}
     },
 
     async softSync() {

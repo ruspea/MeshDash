@@ -568,6 +568,45 @@ window.updateChannelNavBadge = function() {
     } catch (e) {}
 };
 
+// Plugin updates badge — compares installed manifests against the published
+// plugin list and badges the Plugins nav item with the update count.
+window.updatePluginNavBadge = async function() {
+    try {
+        const navItem = document.querySelector('.ni[data-view="plugins"]');
+        if (!navItem) return;
+        const [lr, rr] = await Promise.all([
+            fetch('/api/system/plugins', { cache: 'no-store' }),
+            fetch('/api/plugins/available', { cache: 'no-store' }),
+        ]);
+        if (!lr.ok || !rr.ok) return;
+        const installed = (await lr.json()).plugins || {};
+        const remotes   = await rr.json();
+        const cmpVer = v => String(v || '').replace(/^v/i, '').split('.').map(n => parseInt(n) || 0);
+        let updates = 0;
+        remotes.forEach(rp => {
+            const local = installed[rp.id];
+            if (!local || local.status === 'pending_restart') return;
+            const vR = cmpVer(rp.version), vL = cmpVer(local.manifest?.version);
+            for (let i = 0; i < Math.max(vR.length, vL.length); i++) {
+                if ((vR[i] || 0) > (vL[i] || 0)) { updates++; break; }
+                if ((vR[i] || 0) < (vL[i] || 0)) break;
+            }
+        });
+        let badge = navItem.querySelector('.nav-unread-badge');
+        if (updates > 0) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className  = 'nav-unread-badge nbadge';
+                badge.style.cssText = 'margin-left:auto;font-size:9px;background:var(--pur,#b060ff);color:#fff;font-weight:bold;';
+                navItem.appendChild(badge);
+            }
+            badge.textContent = updates;
+        } else if (badge) {
+            badge.remove();
+        }
+    } catch (e) {}
+};
+
 // ---------------------------------------------------------------------------
 // Initialisation
 // ---------------------------------------------------------------------------
@@ -638,8 +677,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         initPluginsMenu(),
         fetchHistoricalPackets(),
         window._refreshKnownSlots(),
+        window.updatePluginNavBadge(),
     ]).catch(() => {});
     if (!window._knownSlotsInterval) window._knownSlotsInterval = setInterval(window._refreshKnownSlots, 30000);
+    // Re-check plugin updates every 30 min (matches the version-check cadence)
+    if (!window._pluginBadgeInterval) window._pluginBadgeInterval = setInterval(window.updatePluginNavBadge, 1800000);
 
     window._diagnosticsClockInterval = setInterval(() => { try { window.C2Diagnostics?.updateClocks(); } catch (e) {} }, 1000);
     window._diagnosticsPollInterval = setInterval(() => { try { window.C2Diagnostics?.pollSystem();   } catch (e) {} }, 30000);
