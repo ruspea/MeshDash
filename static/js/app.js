@@ -3259,6 +3259,23 @@ async function _loadPluginBridges() {
             // No sandbox attribute — same-origin, full parent access intentional
             container.appendChild(iframe);
 
+            // Hidden bridges never get the csrf_token postMessage that
+            // loadPluginFrame sends to VISIBLE plugin iframes, and the
+            // csrf-token cookie is HttpOnly so document.cookie can't read
+            // it. Send the token here so bridge POSTs carry X-CSRF-Token.
+            try {
+                const _sendToken = () => {
+                    try {
+                        iframe.contentWindow.postMessage({
+                            type: 'csrf_token',
+                            token: window._csrfToken || ''
+                        }, '*');
+                    } catch (_e) {}
+                };
+                _sendToken();                      // in case the frame is already up
+                iframe.addEventListener('load', _sendToken);  // and when it finishes loading
+            } catch (_e) { /* bridge also falls back to window.parent */ }
+
         });
     } catch (e) {
         console.warn('[PluginBridge] Bridge loader error:', e);

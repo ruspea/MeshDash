@@ -6,14 +6,15 @@ import importlib
 import os
 from fastapi import Depends, HTTPException
 from core.broadcast import broadcast_data, broadcast_stats_for_slot
+from core.auth import verify_csrf
 # Auto-extracted from meshtastic_dashboard.py
 
-_plugin_watchdog: dict = {}
+# The authoritative watchdog dict lives on g._plugin_watchdog (set by
+# meshtastic_dashboard.py at startup). Plugins heartbeat into THAT dict via
+# their init context, so the worker and recovery must read the same object —
+# a module-local copy here would always be empty and hang detection dead.
 _PLUGIN_HANG_TIMEOUT = 120
 WATCHDOG_AUTO_RECOVER = True
-app = None
-verify_csrf = None
-PluginManager = None
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ async def plugin_watchdog_worker():
     while True:
         await asyncio.sleep(30)
         now = time.time()
-        for pid, last_hb in list(_plugin_watchdog.items()):
+        for pid, last_hb in list(g._plugin_watchdog.items()):
             data = g.PLUGIN_REGISTRY.get(pid)
             if not data or data.get("status") != "running":
                 continue
@@ -85,11 +86,12 @@ async def _attempt_plugin_recovery(pid: str, max_attempts: int = 3):
         if old_module and hasattr(old_module, "plugin_router"):
             try:
                 # Find and remove the mounted router from app
-                for route in list(app.routes):
+                for route in list(g.app.routes):
                     if hasattr(route, "path") and route.path.startswith(
                         manifest.get("router_prefix", f"/api/plugins/{pid}")
                     ):
-                        app.routes.remove(route)
+                        app_routes = g.app.routes
+                        app_routes.remove(route)
                         logger.info(f"    Unmounted routes for '{pid}'.")
             except Exception as e:
                 logger.warning(f"    Could not unmount routes: {e}")
@@ -124,7 +126,7 @@ async def _attempt_plugin_recovery(pid: str, max_attempts: int = 3):
                                 "plugin_id": plugin_id,
                             }
                         )
-                    last_hb = _plugin_watchdog.get(plugin_id)
+                    last_hb = g._plugin_watchdog.get(plugin_id)
                     if last_hb is not None and (time.time() - last_hb) > _PLUGIN_HANG_TIMEOUT:
                         g.PLUGIN_REGISTRY[plugin_id]["status"] = "hung"
                         g.PLUGIN_REGISTRY[plugin_id]["error"] = "Plugin task hang detected  stopped"
@@ -139,7 +141,7 @@ async def _attempt_plugin_recovery(pid: str, max_attempts: int = 3):
                 return plugin_state_check
 
             try:
-                app.include_router(
+                g.app.include_router(
                     new_module.plugin_router,
                     prefix=manifest.get("router_prefix", f"/api/plugins/{pid}"),
                     dependencies=[Depends(_make_state_check(pid)), Depends(verify_csrf)],
@@ -154,13 +156,13 @@ async def _attempt_plugin_recovery(pid: str, max_attempts: int = 3):
         # Re-inject context / call init_plugin
         try:
             ctx = {
-                "db_manager":         getattr(PluginManager, "db_manager", None),
-                "meshtastic_data":    getattr(PluginManager, "meshtastic_data", {}),
-                "connection_manager": getattr(PluginManager, "connection_manager", {}),
-                "node_registry":      getattr(PluginManager, "node_registry", {}),
+                "db_manager":         g.db_manager,
+                "meshtastic_data":    g.meshtastic_data or {},
+                "connection_manager": g.connection_manager or {},
+                "node_registry":      g.NODE_REGISTRY or {},
                 "event_loop":         g.main_event_loop,
                 "logger":             logging.getLogger(f"plugin.{pid}"),
-                "plugin_watchdog":    _plugin_watchdog,
+                "plugin_watchdog":    g._plugin_watchdog,
                 "plugin_id":          pid,
             }
             if hasattr(new_module, "init_plugin"):
@@ -169,7 +171,7 @@ async def _attempt_plugin_recovery(pid: str, max_attempts: int = 3):
                     timeout=15.0,
                 )
                 logger.info(f"     Re-initialised '{pid}'.")
-            _plugin_watchdog[pid] = time.time()
+            g._plugin_watchdog[pid] = time.time()
             data["status"] = "running"
             data["error"] = None
             logger.info(f"   Plugin '{pid}' successfully recovered on attempt {attempt}.")
