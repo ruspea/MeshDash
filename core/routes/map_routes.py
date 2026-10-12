@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from core.routes.schemas import User
 from core.auth import verify_csrf, get_current_active_user, require_admin
 from core.carto_basemap import browser_config
+from core.map_utils import _load_maps_config
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

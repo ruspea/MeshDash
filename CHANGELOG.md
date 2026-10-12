@@ -1,3 +1,13 @@
+# MeshDash R3.1.14
+
+## Bug Fixes
+- **Map status/files endpoints fixed.** `/api/map/status` and `/api/map/files` returned HTTP 500 (a missing import from the R2→R3 file split). All map config routes work again.
+- **Config parser hardened.** Unparseable config lines are no longer logged with their values — anything that looks like a key, secret, password, token or PSK is redacted to `<redacted>` before it reaches the log.
+- **Login no longer 500s on unknown password hashes.** A corrupt or unrecognised hash format now fails closed (401) instead of crashing the login route.
+- **Cold Nodes plugin (2.0.7).** The bulk-delete route used an unresolved type annotation that broke `/openapi.json` for the whole panel, and its admin guard didn't use the real auth dependency. Both fixed; anonymous callers are now rejected before the guard runs.
+- **Connection state noise silenced.** Re-asserting the same state (e.g. `connected → connected` on every health check) is a no-op instead of two warnings per cycle (~6/minute on a busy panel).
+- **Health-check strike counter fixed.** After a teardown the counter now resets, so the next failure cycle logs `1/3` instead of `4/3`.
+
 # MeshDash R3.1.10 (unreleased)
 
 ## Security (all panels should update)

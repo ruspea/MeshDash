@@ -568,6 +568,14 @@ class MeshtasticData:
         if state_enum is not None and self._connection_state is not None:
             try:
                 prev = ConnectionState(self._connection_state)
+                if prev is state_enum:
+                    # Same-state re-assert (e.g. connected -> connected on every
+                    # health check) is a no-op, not a warning.
+                    self._connection_state = state_value
+                    self._connection_detail = detail
+                    if transport:
+                        self._connection_transport = transport
+                    return
                 if not is_valid_transition(prev, state_enum):
                     logger.warning(
                         f"Invalid state transition: {prev.value} -> {state_value} "

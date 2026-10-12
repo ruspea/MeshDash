@@ -40,19 +40,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-# User type — lazy import to avoid circular import when plugin loads at startup
-def _get_user_type():
-    """Lazily resolve the User type from meshtastic_dashboard when needed."""
-    try:
-        from meshtastic_dashboard import User
-        return User
-    except (ImportError, AttributeError):
-        from typing import TypedDict
-        class User(TypedDict):
-            username: str
-            role: int
-            disabled: bool
-        return User
+from core.auth import get_current_active_user
 
 logger = logging.getLogger("plugin.cold_nodes")
 plugin_router = APIRouter()
@@ -480,18 +468,22 @@ async def get_cold_nodes(
     }
 
 
-def _require_admin_or_operator(user: "User"):
-    """Guard: raise 403 if user is not admin (0) or operator (1)."""
-    if isinstance(user, RedirectResponse):
-        return user
+def _require_admin_or_operator(user=Depends(get_current_active_user)):
+    """Guard: raise 403 if user is not admin (0) or operator (1).
+
+    Depends on the real auth dependency, so anonymous callers are rejected
+    (401) before this runs, and FastAPI sees a resolvable type (no ForwardRef
+    in /openapi.json).
+    """
     if user.role not in (0, 1):
         raise HTTPException(403, "Admin or Operator access required.")
+    return user
 
 
 @plugin_router.post("/delete")
 async def delete_nodes(
     req: DeleteRequest,
-    user: "User" = Depends(_require_admin_or_operator),
+    user=Depends(_require_admin_or_operator),
 ):
     """
     Permanently delete nodes from ALL slots' memory and databases.

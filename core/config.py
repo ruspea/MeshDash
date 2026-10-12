@@ -185,6 +185,20 @@ _config_logger.info(f"System module using MeshDash config path: {ABS_DASH_CONFIG
 
 # Config file read/write (from system.py)
 
+_REDACT_KEY_RE = re.compile(
+    r"^(.*?(KEY|SECRET|PASSWORD|TOKEN|PSK|PASS).*)=(.*)$",
+    re.IGNORECASE,
+)
+
+
+def _redact_line(line: str) -> str:
+    """Redact the value of any secret-looking config line before it is logged."""
+    m = _REDACT_KEY_RE.match(line.strip())
+    if m and m.group(3).strip():
+        return f"{m.group(1)}=<redacted>"
+    return line
+
+
 def read_dash_config(filepath: str) -> Dict[str, str]:
     """Reads the MeshDash .mesh-dash_config file and returns a dictionary."""
     config = {}
@@ -204,7 +218,9 @@ def read_dash_config(filepath: str) -> Dict[str, str]:
                     value = match.group(3)
                     config[key] = value
                 else:
-                    _config_logger.warning(f"Could not parse config line in {abs_filepath}: {line}")
+                    _config_logger.warning(
+                        f"Could not parse config line in {abs_filepath}: {_redact_line(line)}"
+                    )
     except IOError as e:
         _config_logger.error(f"IOError reading MeshDash config file {abs_filepath}: {e}", exc_info=True)
         return {}

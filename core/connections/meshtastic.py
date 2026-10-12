@@ -351,6 +351,7 @@ class MeshtasticConnectionManager:
                 if self._failure_strikes >= self.MAX_STRIKES:
                     self.logger.error("[err] Max strikes reached — tearing down connection.")
                     await self._close_interface("Health check failed")
+                    self._failure_strikes = 0  # reset so the next cycle counts from 1 again
                     await self._interruptible_sleep(self.RECONNECT_COOLDOWN)
                 else:
                     await self._interruptible_sleep(2.0)
