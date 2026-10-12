@@ -345,7 +345,23 @@ def _collect_nodes(slot_id: str) -> Dict[str, Dict]:
             continue
 
         for nid, ndata in _snapshot_nodes(nodes):
-            node = dict(ndata)  # shallow copy — don't mutate the live dict
+            # dict(ndata) iterates the node's OWN dict, which the packet
+            # thread can mutate in place (adding/updating keys) — the same
+            # race _snapshot_nodes guards on the outer dict, one level
+            # deeper. Retry briefly; skip the node if it won't hold still.
+            node = None
+            for attempt in range(5):
+                try:
+                    node = dict(ndata)  # shallow copy — don't mutate the live dict
+                    break
+                except RuntimeError:
+                    time.sleep(0.02 * (attempt + 1))
+            if node is None:
+                logger.warning(
+                    "Cold Nodes: node %s kept mutating during copy [slot=%s] — skipped this scan",
+                    nid, sid,
+                )
+                continue
             node["heard_by_slot"] = sid
             existing = merged.get(nid)
             if existing is None:
