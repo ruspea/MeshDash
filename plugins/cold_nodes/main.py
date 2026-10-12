@@ -188,12 +188,12 @@ def _is_local(node: dict) -> bool:
 
 def _short_name(node: dict) -> str:
     user = node.get("user") or {}
-    return (user.get("shortName") or node.get("short_name") or "?").strip() or "?"
+    return str(user.get("shortName") or node.get("short_name") or "?").strip() or "?"
 
 
 def _long_name(node: dict) -> str:
     user = node.get("user") or {}
-    return (user.get("longName") or node.get("long_name") or "Unknown").strip() or "Unknown"
+    return str(user.get("longName") or node.get("long_name") or "Unknown").strip() or "Unknown"
 
 
 def _hw_model(node: dict) -> str:
@@ -204,7 +204,10 @@ def _hw_model(node: dict) -> str:
     Strip enum prefix: "HardwareModel.TBEAM" → "TBEAM", "UNSET" → "".
     """
     user = node.get("user") or {}
-    raw = (user.get("hwModel") or node.get("hw_model") or "").strip()
+    raw = str(user.get("hwModel") or node.get("hw_model") or "").strip()
+    # hwModel can arrive as the protobuf enum int (e.g. 1) — map to "" like UNSET
+    if raw.isdigit():
+        raw = ""
     if "." in raw:
         raw = raw.split(".")[-1]
     if raw.upper() in ("UNSET", "UNKNOWN", "0", ""):
