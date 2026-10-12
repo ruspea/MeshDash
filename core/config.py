@@ -198,7 +198,7 @@ def read_dash_config(filepath: str) -> Dict[str, str]:
                 line = line.strip()
                 if not line or line.startswith('#'):
                     continue
-                match = re.match(r'^([^=\s]+)\s*=\s*("?)(.*?)\s*$', line)
+                match = re.match(r'^([^=\s]+)\s*=\s*("?)(.*?)\s*$', line)
                 if match:
                     key = match.group(1)
                     value = match.group(3)
