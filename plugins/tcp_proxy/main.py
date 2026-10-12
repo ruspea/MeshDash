@@ -63,6 +63,11 @@ DEFAULTS = {
     "session_queue_max":        100,   # max queued messages per session
     "mdns_enabled":             True,  # announce _meshtastic._tcp for app discovery
     "mdns_name":                "MeshDash",
+    # ── Multi-node broker ──────────────────────────────────────────────────
+    "extra_port_base":          4404,  # first port for non-primary slot endpoints
+    "all_feed_enabled":         True,  # serve the merged MD_ALL virtual mesh
+    "all_feed_port":            4413,  # listener port for the MD_ALL endpoint
+    "all_feed_broadcast_slot":  "",    # slot used for ^all broadcasts from MD_ALL ("" = primary)
 }
 
 _node_registry:   Dict[str, Any] = {}
@@ -74,6 +79,9 @@ _server:        Optional[asyncio.Server] = None
 _server_task:   Any = None
 _clients_lock:  Optional[asyncio.Lock] = None
 _sessions_lock: Optional[asyncio.Lock] = None
+
+# Broker endpoints: ep_id -> BrokerEndpoint (one per slot + optional MD_ALL)
+_endpoints: Dict[str, Any] = {}
 
 _debug_log: deque = deque(maxlen=500)
 
@@ -110,7 +118,7 @@ class Session:
     Identity: IP address (primary), confirmed by from_num on first packet.
     """
     __slots__ = (
-        "session_id", "ip", "from_node_id", "from_node_name",
+        "session_id", "ep_id", "ip", "from_node_id", "from_node_name",
         "first_seen", "last_seen", "last_connected", "last_disconnected",
         "total_connections", "total_pkts_rx", "total_pkts_tx",
         "msg_queue",     # deque of FromRadio proto bytes to replay on reconnect
@@ -121,8 +129,9 @@ class Session:
         "app_hint",      # guessed app type
     )
 
-    def __init__(self, ip: str, queue_max: int = 100):
+    def __init__(self, ep_id: str, ip: str, queue_max: int = 100):
         self.session_id        = str(uuid.uuid4())[:12]
+        self.ep_id             = ep_id   # broker endpoint this session belongs to
         self.ip                = ip
         self.from_node_id      = None  # "!aabbccdd" — set on first outbound packet
         self.from_node_name    = None
@@ -179,6 +188,7 @@ class Session:
         queued = len(self.msg_queue)
         return {
             "session_id":        self.session_id,
+            "endpoint":          self.ep_id,
             "ip":                self.ip,
             "from_node_id":      self.from_node_id,
             "from_node_name":    self.from_node_name,
@@ -201,32 +211,36 @@ class Session:
 _sessions: Dict[str, Session] = {}
 
 
-def _get_or_create_session(ip: str, cid: str) -> Session:
+def _get_or_create_session(ep, ip: str, cid: str) -> Session:
+    """Sessions are keyed per-endpoint: the same phone connecting to two
+    different node endpoints is two independent sessions."""
     cfg  = _load_config()
     qmax = cfg.get("session_queue_max", 100)
-    if ip in _sessions:
-        s = _sessions[ip]
+    key  = f"{ep.ep_id}|{ip}"
+    if key in _sessions:
+        s = _sessions[key]
         s.mark_connected(cid)
         _dbg("INFO", cid, "info", "SESSION RESUMED",
-             f"ip={ip} sid={s.session_id} queued={len(s.msg_queue)} "
+             f"ep={ep.ep_id} ip={ip} sid={s.session_id} queued={len(s.msg_queue)} "
              f"node={s.from_node_id or '?'} disconnected_ago="
              f"{int(time.time()-s.last_disconnected) if s.last_disconnected else '?'}s")
         return s
-    s = Session(ip, queue_max=qmax)
+    s = Session(ep.ep_id, ip, queue_max=qmax)
     s.client_cid = cid
-    _sessions[ip] = s
-    _dbg("INFO", cid, "info", "SESSION CREATED", f"ip={ip} sid={s.session_id}")
+    _sessions[key] = s
+    _dbg("INFO", cid, "info", "SESSION CREATED",
+         f"ep={ep.ep_id} ip={ip} sid={s.session_id}")
     return s
 
 
 def _expire_sessions():
     cfg     = _load_config()
     ttl     = cfg.get("session_ttl_secs", 7200)
-    expired = [ip for ip, s in _sessions.items() if s.is_expired(ttl)]
-    for ip in expired:
+    expired = [k for k, s in _sessions.items() if s.is_expired(ttl)]
+    for k in expired:
         _dbg("INFO", "server", "info", "Session expired",
-             f"ip={ip} sid={_sessions[ip].session_id}")
-        del _sessions[ip]
+             f"key={k} sid={_sessions[k].session_id}")
+        del _sessions[k]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -250,13 +264,90 @@ def _save_config(cfg: dict):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# mDNS announcement — spoof a Meshtastic node so phone apps auto-discover us
-# Mirrors firmware WiFiAPClient.cpp (PR #7162):
+# Broker endpoints — one listener + mDNS service per slot, plus optional MD_ALL
+# ══════════════════════════════════════════════════════════════════════════════
+
+class BrokerEndpoint:
+    """One servable 'virtual radio': a TCP listener bound to a slot (or the
+    merged MD_ALL mesh) plus its own mDNS announcement."""
+    __slots__ = ("ep_id", "kind", "slot_id", "label", "port", "server",
+                 "mdns_info")
+
+    def __init__(self, ep_id: str, kind: str, slot_id: str, label: str,
+                 port: int):
+        self.ep_id      = ep_id     # "node_0", "node_1", "all"
+        self.kind      = kind     # "slot" | "all"
+        self.slot_id   = slot_id  # owning slot (for "all": broadcast slot)
+        self.label     = label    # mDNS instance name, e.g. "MD_HOMEBASE"
+        self.port      = port
+        self.server: Optional[asyncio.Server] = None
+        self.mdns_info: Any = None
+
+    def slot(self):
+        return _node_registry.get(self.slot_id)
+
+    def to_dict(self) -> dict:
+        slot = self.slot()
+        return {
+            "endpoint":  self.ep_id,
+            "kind":      self.kind,
+            "slot_id":   self.slot_id,
+            "label":     self.label,
+            "port":      self.port,
+            "listening": self.server is not None,
+            "mdns":      self.mdns_info is not None,
+            "radio_ready": (slot.connection_manager.is_ready.is_set()
+                             if slot else False),
+            "known_nodes": (len(slot.meshtastic_data.nodes)
+                             if slot else 0),
+        }
+
+
+def _sanitize_label(raw: str) -> str:
+    """mDNS instance names: keep it clean — alnum + dashes."""
+    cleaned = "".join(c for c in str(raw or "") if c.isalnum() or c == "-")
+    return cleaned[:24] or "node"
+
+
+def _build_endpoints(cfg: dict) -> List[BrokerEndpoint]:
+    """Derive the endpoint set from the live node registry.
+    Primary slot keeps the legacy port + mdns_name; every additional slot
+    gets extra_port_base+n; MD_ALL (if enabled) gets all_feed_port."""
+    eps: List[BrokerEndpoint] = []
+    primary_port = int(cfg.get("port", 4403))
+    base         = int(cfg.get("extra_port_base", 4404))
+    fallback_nm  = str(cfg.get("mdns_name", "MeshDash")) or "MeshDash"
+
+    for i, (slot_id, slot) in enumerate(_node_registry.items()):
+        label = getattr(slot, "label", None) or slot_id
+        if i == 0:
+            # Primary: keep the configured mDNS name so existing apps that
+            # already know "MeshDash" keep finding it.
+            name = fallback_nm
+            port = primary_port
+        else:
+            name = f"MD_{_sanitize_label(label)}"
+            port = base + i - 1
+        eps.append(BrokerEndpoint(slot_id, "slot", slot_id, name, port))
+
+    if cfg.get("all_feed_enabled", True) and _node_registry:
+        bslot = cfg.get("all_feed_broadcast_slot", "") or next(
+            iter(_node_registry.keys()))
+        if bslot not in _node_registry:
+            bslot = next(iter(_node_registry.keys()))
+        eps.append(BrokerEndpoint("all", "all", bslot, "MD_ALL",
+                                  int(cfg.get("all_feed_port", 4413))))
+    return eps
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# mDNS announcement — spoof a Meshtastic node per endpoint so phone apps
+# auto-discover every servable mesh. Mirrors firmware WiFiAPClient.cpp:
 #   service _meshtastic._tcp on the API port, TXT records shortname + id
 # ══════════════════════════════════════════════════════════════════════════════
 
 _zeroconf: Any = None
-_mdns_info: Any = None
+_mdns_infos: List[Any] = []
 
 def _mdns_local_ip() -> str:
     """Best-effort LAN IP for the mDNS A record (UDP trick, no traffic sent)."""
@@ -283,10 +374,10 @@ def _mdns_node_id(slot) -> str:
     return "!0000dash"  # stable placeholder — apps only use it as a label
 
 
-async def _start_mdns(cfg: dict):
-    """Register _meshtastic._tcp via zeroconf (async API — we're on the loop).
+async def _start_mdns(cfg: dict, endpoints: List[BrokerEndpoint]):
+    """Register one _meshtastic._tcp service per endpoint via zeroconf.
     Safe no-op if zeroconf isn't installed."""
-    global _zeroconf, _mdns_info
+    global _zeroconf, _mdns_infos
     if not cfg.get("mdns_enabled", True):
         return
     try:
@@ -299,63 +390,69 @@ async def _start_mdns(cfg: dict):
 
     await _stop_mdns()
 
-    name     = str(cfg.get("mdns_name", "MeshDash")) or "MeshDash"
-    port     = int(cfg.get("port", 4403))
-    slot     = _node_registry.get(cfg.get("slot_id", "node_0"))
-    shortname = name[:8]  # firmware short_name is ≤8 chars
-    node_id  = _mdns_node_id(slot)
     local_ip = _mdns_local_ip()
-
     try:
         _zeroconf = Zeroconf()
-        _mdns_info = ServiceInfo(
-            "_meshtastic._tcp.local.",
-            f"{name}._meshtastic._tcp.local.",
-            addresses=[socket.inet_aton(local_ip)],
-            port=port,
-            properties={"shortname": shortname, "id": node_id},
-            server=f"{name}.local.",
-        )
-        # Async API — the sync one blocks the event loop (EventLoopBlocked)
-        await asyncio.wait_for(
-            _zeroconf.async_register_service(_mdns_info), timeout=15.0)
-        logger.info("mDNS: announcing %s.local as _meshtastic._tcp:%d "
-                    "(shortname=%s id=%s)", name, port, shortname, node_id)
-        _dbg("INFO", "server", "info", "mDNS ANNOUNCING",
-             f"{name}.local _meshtastic._tcp:{port} ip={local_ip} "
-             f"shortname={shortname} id={node_id}")
-    except ImportError:
-        pass
     except Exception as e:
-        # NonUniqueNameException etc — str(e) is often empty, so use repr
-        logger.warning("mDNS: registration failed: %r", e)
-        _dbg("WARN", "server", "info", f"mDNS registration failed: {e!r}")
-        await _stop_mdns()
+        logger.warning("mDNS: Zeroconf() failed: %r", e)
+        _dbg("WARN", "server", "info", f"mDNS Zeroconf() failed: {e!r}")
+        return
+
+    for ep in endpoints:
+        shortname = ep.label[:8]  # firmware short_name is ≤8 chars
+        node_id   = "!0000all" if ep.kind == "all" else _mdns_node_id(ep.slot())
+        try:
+            info = ServiceInfo(
+                "_meshtastic._tcp.local.",
+                f"{ep.label}._meshtastic._tcp.local.",
+                addresses=[socket.inet_aton(local_ip)],
+                port=ep.port,
+                properties={"shortname": shortname, "id": node_id},
+                server=f"{ep.label}.local.",
+            )
+            # Async API — the sync one blocks the event loop (EventLoopBlocked)
+            await asyncio.wait_for(
+                _zeroconf.async_register_service(info), timeout=15.0)
+            ep.mdns_info = info
+            _mdns_infos.append(info)
+            logger.info("mDNS: announcing %s.local as _meshtastic._tcp:%d "
+                        "(shortname=%s id=%s)",
+                        ep.label, ep.port, shortname, node_id)
+            _dbg("INFO", "server", "info", "mDNS ANNOUNCING",
+                 f"{ep.label}.local _meshtastic._tcp:{ep.port} ip={local_ip} "
+                 f"shortname={shortname} id={node_id}")
+        except Exception as e:
+            # NonUniqueNameException etc — str(e) is often empty, so use repr
+            logger.warning("mDNS: registration of %s failed: %r", ep.label, e)
+            _dbg("WARN", "server", "info",
+                 f"mDNS registration of {ep.label} failed: {e!r}")
 
 
 async def _stop_mdns():
     """Unregister and close mDNS. Safe if never started."""
-    global _zeroconf, _mdns_info
-    if _mdns_info is not None and _zeroconf is not None:
-        try:
-            await asyncio.wait_for(
-                _zeroconf.async_unregister_service(_mdns_info), timeout=5.0)
-        except Exception:
-            pass
-    _mdns_info = None
+    global _zeroconf, _mdns_infos
     if _zeroconf is not None:
+        for info in _mdns_infos:
+            try:
+                await asyncio.wait_for(
+                    _zeroconf.async_unregister_service(info), timeout=5.0)
+            except Exception:
+                pass
         try:
             await asyncio.wait_for(_zeroconf.async_close(), timeout=5.0)
         except Exception:
             pass
     _zeroconf = None
+    _mdns_infos = []
+    for ep in _endpoints.values():
+        ep.mdns_info = None
 
 
 def _mdns_status() -> dict:
     return {
         "mdns_running": _zeroconf is not None,
-        "mdns_name":    (_mdns_info.properties.get(b"shortname", b"")
-                          .decode("utf-8", "replace")) if _mdns_info else None,
+        "mdns_services": [ep.label for ep in _endpoints.values()
+                          if ep.mdns_info is not None],
     }
 
 
@@ -878,16 +975,17 @@ def _port_name(portnum: int) -> str:
 # ══════════════════════════════════════════════════════════════════════════════
 
 class ProxyClient:
-    __slots__ = ("cid", "peer_ip", "peer_port", "writer",
+    __slots__ = ("cid", "peer_ip", "peer_port", "writer", "ep",
                  "connected_at", "pkts_rx", "pkts_tx",
                  "last_activity", "handshake_done", "config_id",
                  "session", "rl_count", "rl_window")
 
-    def __init__(self, writer, peer):
+    def __init__(self, writer, peer, ep=None):
         self.cid            = str(uuid.uuid4())[:8]
         self.peer_ip        = peer[0]
         self.peer_port      = peer[1]
         self.writer         = writer
+        self.ep             = ep       # BrokerEndpoint this client connected to
         self.connected_at   = time.time()
         self.pkts_rx        = 0
         self.pkts_tx        = 0
@@ -901,6 +999,7 @@ class ProxyClient:
     def to_dict(self):
         return {
             "cid":            self.cid,
+            "endpoint":       self.ep.ep_id if self.ep else None,
             "ip":             self.peer_ip,
             "port":           self.peer_port,
             "connected_at":   self.connected_at,
@@ -917,6 +1016,75 @@ class ProxyClient:
 
 
 _active_clients: Dict[str, ProxyClient] = {}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Multi-slot routing helpers
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _merged_nodes() -> List[dict]:
+    """Union of every slot's nodeDB, deduped by node num — the MD_ALL mesh.
+    Node nums are globally unique on the real mesh, so no remapping is needed:
+    the same physical node seen by two slots is one entry."""
+    seen: set = set()
+    out: List[dict] = []
+    for slot in _node_registry.values():
+        md = getattr(slot, "meshtastic_data", None)
+        if not md:
+            continue
+        for node in md.nodes.values():
+            num = node.get("node_num") or node.get("num")
+            if not num:
+                nid = node.get("node_id") or node.get("id") or ""
+                if isinstance(nid, str) and nid.startswith("!"):
+                    try:
+                        num = int(nid[1:], 16)
+                    except Exception:
+                        num = None
+            if not num or num in seen:
+                continue
+            seen.add(num)
+            out.append(node)
+    return out
+
+
+def _route_slot(ep, mp):
+    """Pick which slot's radio transmits a client's MeshPacket.
+      ^all          → the endpoint's own slot (MD_ALL: configured broadcast slot)
+      DM / admin    → the slot whose local node or nodeDB owns the destination
+    Falls back to the endpoint's slot when the destination is unknown."""
+    if ep is None or ep.kind == "slot":
+        return ep.slot() if ep else None
+    to_num = int(getattr(mp, "to", 0) or 0)
+    if not to_num or to_num == 0xFFFFFFFF:
+        return ep.slot()
+    to_hex = "{:08x}".format(to_num)
+    # 1. Is the destination one of our local nodes? (admin packets are
+    #    addressed to the radio itself)
+    for slot in _node_registry.values():
+        md = getattr(slot, "meshtastic_data", None)
+        if md and str(getattr(md, "local_node_id", "") or "").lstrip("!") == to_hex:
+            return slot
+    # 2. Which slot's nodeDB knows the destination node?
+    for slot in _node_registry.values():
+        md = getattr(slot, "meshtastic_data", None)
+        if not md:
+            continue
+        for node in md.nodes.values():
+            nid = str(node.get("node_id") or node.get("id") or "").lstrip("!")
+            if nid == to_hex:
+                return slot
+    return ep.slot()
+
+
+def _ep_wants(ep, slot_id) -> bool:
+    """Does this endpoint carry traffic that originated on slot_id?
+    MD_ALL carries everything; slot endpoints only their own slot."""
+    if ep is None or slot_id is None:
+        return True
+    if ep.kind == "all":
+        return True
+    return ep.slot_id == slot_id
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -952,12 +1120,16 @@ async def _send_handshake(writer: asyncio.StreamWriter,
                           config_id: int,
                           client: ProxyClient,
                           slot,
-                          session: Session):
+                          session: Session,
+                          ep=None):
     tx    = [0]
     cid   = client.cid
     md    = slot.meshtastic_data if slot else None
     iface = slot.connection_manager.interface if slot else None
-    nodes = list(md.nodes.values()) if md else []
+    if ep is not None and ep.kind == "all":
+        nodes = _merged_nodes()   # MD_ALL: merged nodeDB across every slot
+    else:
+        nodes = list(md.nodes.values()) if md else []
 
     _dbg("INFO", cid, "tx", "HANDSHAKE START",
          f"config_id={config_id} nodes={len(nodes)} queued={len(session.msg_queue)}")
@@ -1066,10 +1238,21 @@ async def _send_handshake(writer: asyncio.StreamWriter,
 # ══════════════════════════════════════════════════════════════════════════════
 
 async def _handle_client(reader: asyncio.StreamReader,
-                         writer: asyncio.StreamWriter):
+                         writer: asyncio.StreamWriter,
+                         ep=None):
     peer   = writer.get_extra_info("peername", ("?", 0))
-    client = ProxyClient(writer, peer)
     cfg    = _load_config()
+    if ep is None:
+        ep = _endpoints.get(cfg.get("slot_id", "node_0"))
+    if ep is None:
+        ep = next(iter(_endpoints.values()), None)
+    if ep is None:
+        # No broker endpoints built yet (e.g. registry empty at connect time)
+        ep = BrokerEndpoint(cfg.get("slot_id", "node_0"), "slot",
+                             cfg.get("slot_id", "node_0"),
+                             str(cfg.get("mdns_name", "MeshDash")),
+                             int(cfg.get("port", 4403)))
+    client = ProxyClient(writer, peer, ep=ep)
 
     # ── Access control: CIDR allowlist ────────────────────────────────────────
     if not _ip_allowed(peer[0], cfg.get("allow_nets", [])):
@@ -1099,14 +1282,16 @@ async def _handle_client(reader: asyncio.StreamReader,
 
     # Attach session
     async with _sessions_lock:
-        session = _get_or_create_session(peer[0], client.cid)
+        session = _get_or_create_session(ep, peer[0], client.cid)
     client.session = session
 
     _dbg("INFO", client.cid, "info", "CLIENT CONNECTED",
-         f"{peer[0]}:{peer[1]} active={len(_active_clients)} "
+         f"ep={ep.ep_id} {peer[0]}:{peer[1]} active={len(_active_clients)} "
          f"session={session.session_id} returning={session.total_connections > 1}")
 
-    slot = _node_registry.get(cfg.get("slot_id", "node_0"))
+    # The slot this endpoint serves. For MD_ALL this is the broadcast slot —
+    # used for handshake config/identity; outbound routing is per-packet.
+    slot = ep.slot()
 
     try:
         # ── Wait for want_config_id, swallowing heartbeats / spurious frames
@@ -1146,7 +1331,7 @@ async def _handle_client(reader: asyncio.StreamReader,
                 break
 
         # ── Full handshake
-        await _send_handshake(writer, config_id, client, slot, session)
+        await _send_handshake(writer, config_id, client, slot, session, ep=ep)
 
         # ── Main receive loop
         while True:
@@ -1189,7 +1374,8 @@ async def _handle_client(reader: asyncio.StreamReader,
                 _dbg("INFO", client.cid, "rx", "RE-CONFIG REQUEST",
                      f"want_config_id={tr.want_config_id}")
                 client.handshake_done = False
-                await _send_handshake(writer, tr.want_config_id, client, slot, session)
+                await _send_handshake(writer, tr.want_config_id, client,
+                                      slot, session, ep=ep)
                 continue
 
             # Graceful disconnect
@@ -1246,10 +1432,11 @@ async def _handle_client(reader: asyncio.StreamReader,
                         "unknown", "Meshtastic App (admin)"):
                     session.app_hint = "Meshtastic App"
 
-                # Forward to radio
-                slot = _node_registry.get(cfg.get("slot_id", "node_0"))
-                if slot and slot.connection_manager.interface:
-                    iface = slot.connection_manager.interface
+                # Forward to radio. MD_ALL clients route per-packet:
+                # DMs go out via the slot that owns the destination node.
+                tx_slot = _route_slot(ep, mp)
+                if tx_slot and tx_slot.connection_manager.interface:
+                    iface = tx_slot.connection_manager.interface
                     if hasattr(iface, "_sendToRadio"):
                         fwd_tr = tr
 
@@ -1281,11 +1468,14 @@ async def _handle_client(reader: asyncio.StreamReader,
                         await asyncio.to_thread(iface._sendToRadio, fwd_tr)
                         client.pkts_tx        += 1
                         session.total_pkts_tx += 1
-                        _dbg("INFO", client.cid, "tx", "forwarded to radio", detail)
+                        _dbg("INFO", client.cid, "tx", "forwarded to radio",
+                             f"slot={getattr(tx_slot, 'slot_id', '?')} {detail}")
                     else:
                         _dbg("WARN", client.cid, "tx", "_sendToRadio unavailable")
                 else:
-                    _dbg("WARN", client.cid, "tx", "radio not ready — dropped")
+                    _dbg("WARN", client.cid, "tx",
+                         f"radio not ready (slot "
+                         f"{getattr(tx_slot, 'slot_id', '?')}) — dropped")
             else:
                 # Non-packet, non-config ToRadio frames.
                 # We SELECTIVELY forward only fields the radio genuinely needs.
@@ -1306,9 +1496,9 @@ async def _handle_client(reader: asyncio.StreamReader,
                 should_forward = any(f in _FORWARD_FIELDS for f in fields)
 
                 if should_forward:
-                    slot = _node_registry.get(cfg.get("slot_id", "node_0"))
-                    if slot and slot.connection_manager.interface:
-                        iface = slot.connection_manager.interface
+                    tx_slot = ep.slot()
+                    if tx_slot and tx_slot.connection_manager.interface:
+                        iface = tx_slot.connection_manager.interface
                         if hasattr(iface, "_sendToRadio"):
                             await asyncio.to_thread(iface._sendToRadio, tr)
                             client.pkts_tx        += 1
@@ -1422,16 +1612,18 @@ def _get_reply_id(packet_dict: dict) -> Optional[int]:
     return None
 
 
-async def _broadcast(proto_bytes: bytes, packet_dict: dict):
+async def _broadcast(proto_bytes: bytes, packet_dict: dict, slot_id: str = None):
     """
     Deliver a FromRadio packet to connected clients.
 
     Routing rules:
-      - Text messages   → all connected clients + queue for offline sessions
+      - Endpoint filter: slot endpoints only see traffic from their own slot;
+        MD_ALL clients see everything.
+      - Text messages   → matching connected clients + queue for their sessions
       - Admin responses → route to the specific client that made the request
                           (identified by reply_id matching an _admin_pending entry);
                           if no match found, broadcast to all (safe fallback)
-      - Traceroute / all other packets → broadcast to all connected clients
+      - Traceroute / all other packets → broadcast to matching clients
     """
     if not proto_bytes:
         return
@@ -1454,12 +1646,16 @@ async def _broadcast(proto_bytes: bytes, packet_dict: dict):
                 except Exception:
                     pass
             label = f"TEXT from={from_id} text={text_body[:40]}"
-            for ip, s in _sessions.items():
-                if not s.online:
-                    s.enqueue(proto_bytes, label)
-                    _dbg("INFO", "server", "info",
-                         f"Queued for offline session {s.session_id}",
-                         f"ip={ip} node={s.from_node_id or '?'} label={label[:60]}")
+            for key, s in _sessions.items():
+                if s.online:
+                    continue
+                s_ep = _endpoints.get(s.ep_id)
+                if not _ep_wants(s_ep, slot_id):
+                    continue
+                s.enqueue(proto_bytes, label)
+                _dbg("INFO", "server", "info",
+                     f"Queued for offline session {s.session_id}",
+                     f"ep={s.ep_id} node={s.from_node_id or '?'} label={label[:60]}")
 
     if not _active_clients:
         return
@@ -1483,6 +1679,9 @@ async def _broadcast(proto_bytes: bytes, packet_dict: dict):
     for c in clients:
         if not c.handshake_done:
             continue
+        # Endpoint filter: only clients on endpoints carrying this slot
+        if not _ep_wants(c.ep, slot_id):
+            continue
         # Admin responses with a known target: skip other clients
         if target_cid and c.cid != target_cid:
             continue
@@ -1505,6 +1704,20 @@ async def _broadcast(proto_bytes: bytes, packet_dict: dict):
         async with _clients_lock:
             for cid in dead:
                 _active_clients.pop(cid, None)
+
+
+def _slot_for_interface(interface) -> Optional[str]:
+    """Map a pubsub interface back to the slot_id whose connection owns it.
+    Returns None for unknown interfaces (treated as 'no filter')."""
+    if interface is None:
+        return None
+    for slot_id, slot in _node_registry.items():
+        try:
+            if slot.connection_manager.interface is interface:
+                return slot_id
+        except Exception:
+            continue
+    return None
 
 
 def _on_receive(packet, interface=None):
@@ -1534,8 +1747,13 @@ def _on_receive(packet, interface=None):
     pkt_id  = packet.get("id", 0)
     portnum = _get_portnum(packet)
 
-    # Get local node ID once — used by multiple filters below
-    slot     = next(iter(_node_registry.values()), None) if _node_registry else None
+    # Which slot did this packet arrive on? (pubsub fires for every slot's
+    # interface; the broker must not cross-wire slot endpoints)
+    slot_id = _slot_for_interface(interface)
+
+    # Get the originating slot's local node ID — used by the filters below
+    slot     = (_node_registry.get(slot_id) if slot_id
+                else next(iter(_node_registry.values()), None)) if _node_registry else None
     local_id = (slot.meshtastic_data.local_node_id
                 if slot and slot.meshtastic_data else None)
     from_id  = packet.get("fromId") or ""
@@ -1580,7 +1798,7 @@ def _on_receive(packet, interface=None):
     proto_bytes = _build_from_radio_frame(packet)
     if proto_bytes:
         asyncio.run_coroutine_threadsafe(
-            _broadcast(proto_bytes, packet), _event_loop)
+            _broadcast(proto_bytes, packet, slot_id), _event_loop)
 
 
 
@@ -1599,27 +1817,55 @@ async def _server_main():
     global _server
     cfg  = _load_config()
     host = cfg.get("bind_host", "0.0.0.0")
-    port = int(cfg.get("port", 4403))
+
+    # Build the endpoint set from the live registry and start one listener each
+    endpoints = _build_endpoints(cfg)
+    _endpoints.clear()
+    _endpoints.update({ep.ep_id: ep for ep in endpoints})
+
+    servers: List[asyncio.Server] = []
     try:
-        _server = await asyncio.start_server(_handle_client, host, port)
-        addrs   = ", ".join(str(s.getsockname()) for s in _server.sockets)
-        logger.info("TCP proxy listening on %s", addrs)
-        _dbg("INFO", "server", "info", f"Listening on {addrs}")
-        # Announce ourselves as a Meshtastic node for app auto-discovery
-        await _start_mdns(cfg)
-        async with _server:
-            await _server.serve_forever()
+        for ep in endpoints:
+            if not cfg.get("enabled", True):
+                continue
+            try:
+                srv = await asyncio.start_server(
+                    lambda r, w, _ep=ep: _handle_client(r, w, _ep), host, ep.port)
+                ep.server = srv
+                servers.append(srv)
+                logger.info("TCP proxy [%s] listening on %s:%d (%s)",
+                            ep.ep_id, host, ep.port, ep.label)
+                _dbg("INFO", "server", "info", f"Listening [{ep.ep_id}]",
+                     f"{host}:{ep.port} label={ep.label} kind={ep.kind}")
+            except OSError as e:
+                msg = (f"Bind failed {host}:{ep.port} ({ep.label}) — {e}. "
+                       f"Use a different port if it's taken by the radio TCP server.")
+                logger.error(msg)
+                _dbg("ERROR", "server", "info", msg)
+        if not servers:
+            logger.error("TCP proxy: no listeners started (enabled=%s)",
+                        cfg.get("enabled", True))
+        _server = servers[0] if servers else None
+
+        # Announce every endpoint as a Meshtastic node for app auto-discovery
+        await _start_mdns(cfg, endpoints)
+
+        if servers:
+            await asyncio.gather(
+                *(srv.serve_forever() for srv in servers))
     except asyncio.CancelledError:
         pass
-    except OSError as e:
-        msg = (f"Bind failed {host}:{port} — {e}. "
-               f"Use a different port if 4403 is taken by the radio TCP server.")
-        logger.error(msg)
-        _dbg("ERROR", "server", "info", msg)
     except Exception as e:
         logger.error("Server error: %s", e)
         _dbg("ERROR", "server", "info", f"Server error: {e}")
     finally:
+        for ep in endpoints:
+            try:
+                if ep.server:
+                    ep.server.close()
+            except Exception:
+                pass
+            ep.server = None
         await _stop_mdns()
         _server = None
 
@@ -1742,7 +1988,7 @@ async def get_status():
     cfg  = _load_config()
     slot = _node_registry.get(cfg.get("slot_id", "node_0"))
     return {
-        "version":           "1.4.0",
+        "version":           "1.5.0",
         "enabled":           cfg.get("enabled", True),
         "port":              cfg.get("port", 4403),
         "bind_host":         cfg.get("bind_host", "0.0.0.0"),
@@ -1764,6 +2010,7 @@ async def get_status():
                               if slot else 0),
         "server_running":    _server is not None,
         "available_slots":   list(_node_registry.keys()),
+        "endpoints":         [ep.to_dict() for ep in _endpoints.values()],
         **_mdns_status(),
     }
 
@@ -1842,12 +2089,12 @@ async def list_sessions():
 @plugin_router.delete("/sessions/{session_id}")
 async def delete_session(session_id: str):
     async with _sessions_lock:
-        for ip, s in list(_sessions.items()):
+        for key, s in list(_sessions.items()):
             if s.session_id == session_id:
                 if s.online:
                     raise HTTPException(409,
                         "Session is currently active — kick client first")
-                del _sessions[ip]
+                del _sessions[key]
                 return {"status": "deleted", "session_id": session_id}
     raise HTTPException(404, "Session not found")
 
