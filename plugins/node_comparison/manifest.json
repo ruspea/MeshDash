@@ -1,10 +1,10 @@
 {
   "id": "node_comparison",
   "name": "Node Comparison",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": "MeshDash",
   "description": "Stub plugin \u2014 placeholder for future implementation. No functionality yet. MeshDash v3.0+ required for full functionality.",
-  "watchdog": false,
+  "watchdog": true,
   "entry_point": "main.py",
   "router_prefix": "/api/plugins/node_comparison",
   "static_prefix": "/static/plugins/node_comparison",
