@@ -2,12 +2,13 @@ import asyncio
 import json
 import logging
 import os
+import socket
 import time
 import uuid
 from collections import deque
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pubsub import pub
 
 try:
@@ -50,13 +51,18 @@ plugin_router = APIRouter()
 logger        = logging.getLogger("plugin.tcp_proxy")
 
 DEFAULTS = {
-    "enabled":           True,
-    "port":              4403,
-    "bind_host":         "0.0.0.0",
-    "slot_id":           "node_0",
-    "max_clients":       8,
-    "session_ttl_secs":  7200,  # how long to keep offline sessions (2h)
-    "session_queue_max": 100,   # max queued messages per session
+    "enabled":                  True,
+    "port":                     4403,
+    "bind_host":                "0.0.0.0",
+    "slot_id":                  "node_0",
+    "max_clients":              8,
+    "max_clients_per_ip":       4,     # per-IP connection cap (DoS protection)
+    "client_rate_limit_per_min": 240,   # max frames/min per client before drops
+    "allow_nets":               [],     # CIDR allowlist; empty = allow all
+    "session_ttl_secs":         7200,  # how long to keep offline sessions (2h)
+    "session_queue_max":        100,   # max queued messages per session
+    "mdns_enabled":             True,  # announce _meshtastic._tcp for app discovery
+    "mdns_name":                "MeshDash",
 }
 
 _node_registry:   Dict[str, Any] = {}
@@ -241,6 +247,135 @@ def _load_config() -> dict:
 def _save_config(cfg: dict):
     with open(CONFIG_PATH, "w") as f:
         json.dump(cfg, f, indent=2)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# mDNS announcement — spoof a Meshtastic node so phone apps auto-discover us
+# Mirrors firmware WiFiAPClient.cpp (PR #7162):
+#   service _meshtastic._tcp on the API port, TXT records shortname + id
+# ══════════════════════════════════════════════════════════════════════════════
+
+_zeroconf: Any = None
+_mdns_info: Any = None
+
+def _mdns_local_ip() -> str:
+    """Best-effort LAN IP for the mDNS A record (UDP trick, no traffic sent)."""
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+        finally:
+            s.close()
+    except Exception:
+        return "127.0.0.1"
+
+
+def _mdns_node_id(slot) -> str:
+    """The real local node ID (e.g. !a4f5c2d1) if we have one, else a stable fake."""
+    try:
+        md = slot.meshtastic_data if slot else None
+        nid = getattr(md, "local_node_id", None) if md else None
+        if nid:
+            return str(nid)
+    except Exception:
+        pass
+    return "!0000dash"  # stable placeholder — apps only use it as a label
+
+
+async def _start_mdns(cfg: dict):
+    """Register _meshtastic._tcp via zeroconf (async API — we're on the loop).
+    Safe no-op if zeroconf isn't installed."""
+    global _zeroconf, _mdns_info
+    if not cfg.get("mdns_enabled", True):
+        return
+    try:
+        from zeroconf import Zeroconf, ServiceInfo
+    except ImportError:
+        logger.warning("mDNS: zeroconf not installed — discovery off "
+                       "(pip install zeroconf into the panel venv)")
+        _dbg("WARN", "server", "info", "mDNS off — zeroconf not installed")
+        return
+
+    await _stop_mdns()
+
+    name     = str(cfg.get("mdns_name", "MeshDash")) or "MeshDash"
+    port     = int(cfg.get("port", 4403))
+    slot     = _node_registry.get(cfg.get("slot_id", "node_0"))
+    shortname = name[:8]  # firmware short_name is ≤8 chars
+    node_id  = _mdns_node_id(slot)
+    local_ip = _mdns_local_ip()
+
+    try:
+        _zeroconf = Zeroconf()
+        _mdns_info = ServiceInfo(
+            "_meshtastic._tcp.local.",
+            f"{name}._meshtastic._tcp.local.",
+            addresses=[socket.inet_aton(local_ip)],
+            port=port,
+            properties={"shortname": shortname, "id": node_id},
+            server=f"{name}.local.",
+        )
+        # Async API — the sync one blocks the event loop (EventLoopBlocked)
+        await asyncio.wait_for(
+            _zeroconf.async_register_service(_mdns_info), timeout=15.0)
+        logger.info("mDNS: announcing %s.local as _meshtastic._tcp:%d "
+                    "(shortname=%s id=%s)", name, port, shortname, node_id)
+        _dbg("INFO", "server", "info", "mDNS ANNOUNCING",
+             f"{name}.local _meshtastic._tcp:{port} ip={local_ip} "
+             f"shortname={shortname} id={node_id}")
+    except ImportError:
+        pass
+    except Exception as e:
+        # NonUniqueNameException etc — str(e) is often empty, so use repr
+        logger.warning("mDNS: registration failed: %r", e)
+        _dbg("WARN", "server", "info", f"mDNS registration failed: {e!r}")
+        await _stop_mdns()
+
+
+async def _stop_mdns():
+    """Unregister and close mDNS. Safe if never started."""
+    global _zeroconf, _mdns_info
+    if _mdns_info is not None and _zeroconf is not None:
+        try:
+            await asyncio.wait_for(
+                _zeroconf.async_unregister_service(_mdns_info), timeout=5.0)
+        except Exception:
+            pass
+    _mdns_info = None
+    if _zeroconf is not None:
+        try:
+            await asyncio.wait_for(_zeroconf.async_close(), timeout=5.0)
+        except Exception:
+            pass
+    _zeroconf = None
+
+
+def _mdns_status() -> dict:
+    return {
+        "mdns_running": _zeroconf is not None,
+        "mdns_name":    (_mdns_info.properties.get(b"shortname", b"")
+                          .decode("utf-8", "replace")) if _mdns_info else None,
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Access control helpers
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _ip_allowed(peer_ip: str, allow_nets: List[str]) -> bool:
+    """Empty allowlist = allow all. Otherwise peer must fall inside a CIDR."""
+    if not allow_nets:
+        return True
+    try:
+        import ipaddress
+        addr = ipaddress.ip_address(peer_ip)
+        for net in allow_nets:
+            if addr in ipaddress.ip_network(str(net), strict=False):
+                return True
+    except Exception:
+        pass
+    return False
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -746,7 +881,7 @@ class ProxyClient:
     __slots__ = ("cid", "peer_ip", "peer_port", "writer",
                  "connected_at", "pkts_rx", "pkts_tx",
                  "last_activity", "handshake_done", "config_id",
-                 "session")
+                 "session", "rl_count", "rl_window")
 
     def __init__(self, writer, peer):
         self.cid            = str(uuid.uuid4())[:8]
@@ -760,6 +895,8 @@ class ProxyClient:
         self.handshake_done = False
         self.config_id      = 0
         self.session: Optional[Session] = None
+        self.rl_count       = 0     # rate-limit window counter
+        self.rl_window      = 0.0   # rate-limit window start
 
     def to_dict(self):
         return {
@@ -934,10 +1071,25 @@ async def _handle_client(reader: asyncio.StreamReader,
     client = ProxyClient(writer, peer)
     cfg    = _load_config()
 
+    # ── Access control: CIDR allowlist ────────────────────────────────────────
+    if not _ip_allowed(peer[0], cfg.get("allow_nets", [])):
+        _dbg("WARN", client.cid, "info", "REJECTED — IP not in allow_nets",
+             f"{peer[0]}:{peer[1]}")
+        writer.close()
+        return
+
     async with _clients_lock:
+        # ── Global cap ────────────────────────────────────────────────────────
         if len(_active_clients) >= cfg.get("max_clients", 8):
             _dbg("WARN", client.cid, "info", "MAX_CLIENTS — rejecting",
                  f"{peer[0]}:{peer[1]}")
+            writer.close()
+            return
+        # ── Per-IP cap (DoS protection) ────────────────────────────────────────
+        per_ip = sum(1 for c in _active_clients.values() if c.peer_ip == peer[0])
+        if per_ip >= cfg.get("max_clients_per_ip", 4):
+            _dbg("WARN", client.cid, "info", "PER-IP CAP — rejecting",
+                 f"{peer[0]} already has {per_ip} connections")
             writer.close()
             return
         _active_clients[client.cid] = client
@@ -1010,6 +1162,19 @@ async def _handle_client(reader: asyncio.StreamReader,
             client.last_activity   = time.time()
             session.last_seen      = time.time()
             _stats["pkts_from_clients"] += 1
+
+            # ── Per-client rate limit (DoS protection) ──────────────────────────
+            rl_max = float(cfg.get("client_rate_limit_per_min", 240))
+            now    = time.time()
+            if now - client.rl_window >= 60.0:
+                client.rl_window = now
+                client.rl_count  = 0
+            client.rl_count += 1
+            if rl_max > 0 and client.rl_count > rl_max:
+                _dbg("WARN", client.cid, "rx",
+                     f"RATE LIMITED — {client.rl_count} frames this minute, dropping",
+                     f"ip={client.peer_ip}")
+                continue
 
             tr = mesh_pb2.ToRadio()
             try:
@@ -1423,6 +1588,13 @@ def _on_receive(packet, interface=None):
 # Server lifecycle
 # ══════════════════════════════════════════════════════════════════════════════
 
+async def _wrap_future(f):
+    """Await a concurrent.futures.Future or asyncio.Task transparently."""
+    if isinstance(f, asyncio.Future):
+        return f
+    return await asyncio.wrap_future(f)
+
+
 async def _server_main():
     global _server
     cfg  = _load_config()
@@ -1433,6 +1605,8 @@ async def _server_main():
         addrs   = ", ".join(str(s.getsockname()) for s in _server.sockets)
         logger.info("TCP proxy listening on %s", addrs)
         _dbg("INFO", "server", "info", f"Listening on {addrs}")
+        # Announce ourselves as a Meshtastic node for app auto-discovery
+        await _start_mdns(cfg)
         async with _server:
             await _server.serve_forever()
     except asyncio.CancelledError:
@@ -1446,6 +1620,7 @@ async def _server_main():
         logger.error("Server error: %s", e)
         _dbg("ERROR", "server", "info", f"Server error: {e}")
     finally:
+        await _stop_mdns()
         _server = None
 
 
@@ -1480,13 +1655,15 @@ async def _watchdog_loop(context):
 
 async def _restart_server():
     global _server_task, _server
-    if _server_task and not isinstance(_server_task, asyncio.Future):
-        if not _server_task.done():
-            _server_task.cancel()
-            try:
-                await asyncio.wait_for(asyncio.shield(_server_task), timeout=5.0)
-            except Exception:
-                pass
+    # _server_task may be an asyncio.Task OR a concurrent.futures.Future
+    # (run_coroutine_threadsafe returns the latter) — cancel both kinds.
+    if _server_task is not None and not _server_task.done():
+        _server_task.cancel()
+        try:
+            await asyncio.wait_for(asyncio.shield(_wrap_future(_server_task)),
+                                   timeout=5.0)
+        except Exception:
+            pass
     async with _clients_lock:
         for c in list(_active_clients.values()):
             try:
@@ -1587,6 +1764,7 @@ async def get_status():
                               if slot else 0),
         "server_running":    _server is not None,
         "available_slots":   list(_node_registry.keys()),
+        **_mdns_status(),
     }
 
 
@@ -1601,8 +1779,45 @@ async def get_config():
 async def post_config(body: dict):
     cfg     = _load_config()
     allowed = {"enabled", "port", "bind_host", "slot_id", "max_clients",
-               "session_ttl_secs", "session_queue_max"}
-    cfg.update({k: v for k, v in body.items() if k in allowed})
+               "max_clients_per_ip", "client_rate_limit_per_min", "allow_nets",
+               "session_ttl_secs", "session_queue_max",
+               "mdns_enabled", "mdns_name"}
+    update  = {k: v for k, v in body.items() if k in allowed}
+
+    # ── Validation: reject nonsense before it kills the server ────────────────
+    if "port" in update:
+        try:
+            p = int(update["port"])
+            if not (1 <= p <= 65535):
+                raise ValueError
+            update["port"] = p
+        except (TypeError, ValueError):
+            raise HTTPException(400, "port must be an integer 1-65535")
+    for k in ("max_clients", "max_clients_per_ip", "session_ttl_secs",
+              "session_queue_max"):
+        if k in update:
+            try:
+                update[k] = int(update[k])
+                if update[k] < 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                raise HTTPException(400, f"{k} must be a non-negative integer")
+    if "allow_nets" in update:
+        if not isinstance(update["allow_nets"], list):
+            raise HTTPException(400, "allow_nets must be a list of CIDRs")
+        import ipaddress
+        for net in update["allow_nets"]:
+            try:
+                ipaddress.ip_network(str(net), strict=False)
+            except Exception:
+                raise HTTPException(400, f"allow_nets: invalid CIDR {net!r}")
+    if "mdns_name" in update:
+        nm = str(update["mdns_name"] or "").strip()
+        if not nm or not all(c.isalnum() or c == "-" for c in nm):
+            raise HTTPException(400, "mdns_name must be alphanumeric/dashes")
+        update["mdns_name"] = nm
+
+    cfg.update(update)
     _save_config(cfg)
     if _event_loop:
         asyncio.run_coroutine_threadsafe(_restart_server(), _event_loop)
@@ -1630,10 +1845,11 @@ async def delete_session(session_id: str):
         for ip, s in list(_sessions.items()):
             if s.session_id == session_id:
                 if s.online:
-                    return {"error": "Session is currently active — kick client first"}
+                    raise HTTPException(409,
+                        "Session is currently active — kick client first")
                 del _sessions[ip]
                 return {"status": "deleted", "session_id": session_id}
-    raise Exception("Session not found")
+    raise HTTPException(404, "Session not found")
 
 
 @plugin_router.post("/sessions/{session_id}/clear-queue")
@@ -1644,7 +1860,7 @@ async def clear_session_queue(session_id: str):
                 count = len(s.msg_queue)
                 s.msg_queue.clear()
                 return {"status": "cleared", "count": count}
-    raise Exception("Session not found")
+    raise HTTPException(404, "Session not found")
 
 
 @plugin_router.get("/debug")

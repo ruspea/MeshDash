@@ -54,8 +54,8 @@ body{font-family:var(--mono);background:var(--bg);color:var(--txt);font-size:12p
 .stat-val.warn{color:var(--warn)}
 .stat-val.err{color:var(--err)}
 .stat-sub{font-size:9px;color:var(--txt3);margin-top:3px}
-.chart-wrap{position:relative;height:80px;width:100%}
-canvas.flow-chart{width:100%;height:100%;display:block}
+.chart-wrap{position:relative;height:80px;width:100%;overflow:hidden}
+canvas#flow-chart{width:100%;height:100%;display:block}
 .sess-list{display:flex;flex-direction:column;gap:8px}
 .sess-card{background:var(--bg3);border:1px solid var(--bd2);border-radius:5px;padding:12px 14px;cursor:default;transition:border-color .12s}
 .sess-card.online{border-color:rgba(38,222,132,.3)}
@@ -246,6 +246,7 @@ select.fi{padding-right:4px}
   </div>
   <div id="server-chip" class="status-chip stopped"><div class="chip-dot"></div>STOPPED</div>
   <div id="radio-chip" class="status-chip stopped"><div class="chip-dot"></div>RADIO</div>
+  <div id="mdns-chip" class="status-chip stopped"><div class="chip-dot"></div>mDNS</div>
   <button class="btn" onclick="doRefresh()">↻ Refresh</button>
   <button class="btn danger" onclick="kickAll()" id="kick-btn">⊗ Kick All</button>
   <div class="topbar-right" id="topbar-meta" style="font-size:9px;color:var(--txt3)"></div>
@@ -321,6 +322,9 @@ select.fi{padding-right:4px}
     <div class="fi-row"><div class="fi-label">Port</div><input class="fi" type="number" id="c-port" min="1024" max="65535"><div></div><div class="fi-hint">Default 4403. If MeshDash connects to the radio via TCP on 4403, use 4404 here.</div></div>
     <div class="fi-row"><div class="fi-label">Bind Host</div><input class="fi" type="text" id="c-host" placeholder="0.0.0.0"></div>
     <div class="fi-row"><div class="fi-label">Max Clients</div><input class="fi" type="number" id="c-max" min="1" max="32"></div>
+    <div class="fi-row"><div class="fi-label">Max Clients / IP</div><input class="fi" type="number" id="c-maxip" min="1" max="32"><div></div><div class="fi-hint">Per-IP connection cap — stops one device hogging all slots. Default 4.</div></div>
+    <div class="fi-row"><div class="fi-label">Rate Limit / min</div><input class="fi" type="number" id="c-rl" min="0" max="10000"><div></div><div class="fi-hint">Max frames/min per client before dropping. 0 = unlimited. Default 240.</div></div>
+    <div class="fi-row"><div class="fi-label">Allow Nets</div><input class="fi" type="text" id="c-nets" placeholder="e.g. 10.0.0.0/24, 192.168.1.0/24"><div></div><div class="fi-hint">Comma-separated CIDR allowlist. Empty = allow all LAN clients.</div></div>
 
     <div class="sec-head">Radio Slot</div>
     <div class="fi-row"><div class="fi-label">Slot</div><select class="fi" id="c-slot"></select><div></div><div class="fi-hint">Which MeshDash radio connection to proxy.</div></div>
@@ -328,6 +332,8 @@ select.fi{padding-right:4px}
     <div class="sec-head">Sessions</div>
     <div class="fi-row"><div class="fi-label">Session TTL (s)</div><input class="fi" type="number" id="c-ttl" min="60" max="86400"><div></div><div class="fi-hint">How long to retain an offline session before purging. Default 7200 (2h).</div></div>
     <div class="fi-row"><div class="fi-label">Queue Max (msgs)</div><input class="fi" type="number" id="c-qmax" min="10" max="500"><div></div><div class="fi-hint">Max text messages to buffer per offline session for replay on reconnect.</div></div>
+    <div class="fi-row"><div class="fi-label">mDNS Name</div><input class="fi" type="text" id="c-mdnsname" placeholder="MeshDash"><div></div><div class="fi-hint">Announced as &lt;name&gt;.local _meshtastic._tcp — the phone app auto-discovers it like a real node.</div></div>
+    <div class="fi-row"><div class="fi-label">mDNS Enabled</div><input class="fi" type="checkbox" id="c-mdnson" style="width:auto"><div></div><div class="fi-hint">Uncheck to stop announcing on the LAN.</div></div>
 
     <div style="margin-top:18px;display:flex;gap:8px;align-items:center">
       <button class="btn ok-btn" onclick="saveConfig()">✓ Save &amp; Restart</button>
@@ -408,6 +414,13 @@ async function doRefresh(){
     const rc=document.getElementById("radio-chip");
     rc.className="status-chip "+(d.radio_ready?"running":"stopped");
     rc.innerHTML=`<div class="chip-dot"></div>${d.radio_ready?"RADIO ✓":"RADIO ✗"}`;
+
+    const mc=document.getElementById("mdns-chip");
+    if(mc){
+      mc.className="status-chip "+(d.mdns_running?"running":"stopped");
+      mc.innerHTML=`<div class="chip-dot"></div>${d.mdns_running?"mDNS ✓":"mDNS ✗"}`;
+      mc.title=d.mdns_running?`Announcing ${e(d.mdns_name||"MeshDash")} as _meshtastic._tcp — apps can auto-discover this proxy`:"mDNS announcement off";
+    }
 
     const ld=document.getElementById("logo-dot");
     ld.className=d.server_running&&d.radio_ready?"logo-dot pulse":"logo-dot off";
@@ -664,6 +677,11 @@ async function loadConfig(){
     document.getElementById("c-max").value=d.max_clients;
     document.getElementById("c-ttl").value=d.session_ttl_secs||7200;
     document.getElementById("c-qmax").value=d.session_queue_max||100;
+    document.getElementById("c-maxip").value=d.max_clients_per_ip||4;
+    document.getElementById("c-rl").value=d.client_rate_limit_per_min??240;
+    document.getElementById("c-nets").value=(d.allow_nets||[]).join(", ");
+    document.getElementById("c-mdnsname").value=d.mdns_name||"MeshDash";
+    document.getElementById("c-mdnson").checked=d.mdns_enabled!==false;
     const sel=document.getElementById("c-slot");
     const slots=d.available_slots||[d.slot_id];
     sel.innerHTML=slots.map(s=>`<option value="${e(s)}"${s===d.slot_id?" selected":""}>${e(s)}</option>`).join("");
@@ -679,6 +697,11 @@ async function saveConfig(){
       max_clients: parseInt(document.getElementById("c-max").value),
       session_ttl_secs: parseInt(document.getElementById("c-ttl").value),
       session_queue_max:parseInt(document.getElementById("c-qmax").value),
+      max_clients_per_ip:parseInt(document.getElementById("c-maxip").value)||4,
+      client_rate_limit_per_min:parseInt(document.getElementById("c-rl").value)||0,
+      allow_nets:document.getElementById("c-nets").value.split(",").map(s=>s.trim()).filter(Boolean),
+      mdns_name:document.getElementById("c-mdnsname").value.trim()||"MeshDash",
+      mdns_enabled:document.getElementById("c-mdnson").checked,
     })});
     st.style.color="var(--ok)";st.textContent="✓ Saved — proxy restarting…";
     setTimeout(()=>{doRefresh();st.textContent=""},2500);
