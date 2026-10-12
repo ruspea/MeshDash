@@ -1,0 +1,250 @@
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   DEBUG — Diagnostics & Support Bundle
+   ═══════════════════════════════════════════════════════════════ */
+.dbg-view {
+    display: flex; flex-direction: column; gap: 12px;
+    height: 100%; overflow-y: auto; padding-right: 4px;
+}
+.dbg-head {
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    background: var(--bg2); border: 1px solid var(--bd2); border-radius: var(--r);
+    padding: 14px 18px;
+}
+.dbg-title { font-size: 16px; font-weight: 700; font-family: var(--mono); color: var(--txt); }
+.dbg-sub { font-size: 10px; font-family: var(--mono); color: var(--txt3); }
+.dbg-actions { margin-left: auto; display: flex; gap: 8px; }
+.dbg-btn {
+    background: var(--bg3); border: 1px solid var(--bd2); color: var(--txt);
+    font-family: var(--mono); font-size: 11px; padding: 7px 14px; border-radius: var(--r);
+    cursor: pointer; transition: all .15s;
+}
+.dbg-btn:hover { border-color: var(--acc); color: var(--acc); }
+.dbg-btn.primary { background: var(--acc); color: #000; border-color: var(--acc); font-weight: 700; }
+.dbg-btn.primary:hover { filter: brightness(1.15); color: #000; }
+
+.dbg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; }
+.dbg-card {
+    background: var(--bg2); border: 1px solid var(--bd2); border-radius: var(--r);
+    padding: 14px 16px;
+}
+.dbg-card h3 {
+    font-size: 10px; font-family: var(--mono); color: var(--txt3);
+    text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 12px 0;
+    border-bottom: 1px solid var(--bd2); padding-bottom: 8px;
+}
+.dbg-kv { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 12px; font-family: var(--mono); }
+.dbg-kv .k { color: var(--txt3); }
+.dbg-kv .v { color: var(--txt); text-align: right; word-break: break-all; }
+.dbg-kv .v.ok   { color: #00e676; }
+.dbg-kv .v.warn { color: #ffab00; }
+.dbg-kv .v.bad  { color: #ff1744; }
+.dbg-kv .v.acc  { color: var(--acc); }
+
+.dbg-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+.dbg-table th {
+    text-align: left; color: var(--txt3); font-weight: 600; font-size: 9px;
+    text-transform: uppercase; letter-spacing: 1px; padding: 4px 8px;
+    border-bottom: 1px solid var(--bd2);
+}
+.dbg-table td { padding: 5px 8px; color: var(--txt); border-bottom: 1px solid rgba(255,255,255,0.03); }
+.dbg-pill {
+    display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 9px; font-weight: 700;
+}
+.dbg-pill.running { background: rgba(0,230,118,.15); color: #00e676; }
+.dbg-pill.stopped { background: rgba(255,255,255,.08); color: var(--txt3); }
+.dbg-pill.hung, .dbg-pill.error, .dbg-pill.invalid_manifest, .dbg-pill.load_error {
+    background: rgba(255,23,68,.15); color: #ff1744;
+}
+.dbg-pill.other { background: rgba(255,171,0,.15); color: #ffab00; }
+
+.dbg-errors { max-height: 320px; overflow-y: auto; font-family: var(--mono); font-size: 10.5px; }
+.dbg-err-line { padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.03); display: flex; gap: 10px; }
+.dbg-err-line .src { color: var(--txt3); flex-shrink: 0; min-width: 130px; }
+.dbg-err-line .lvl-ERROR, .dbg-err-line .lvl-CRITICAL { color: #ff1744; font-weight: 700; flex-shrink: 0; }
+.dbg-err-line .lvl-WARNING { color: #ffab00; font-weight: 700; flex-shrink: 0; }
+.dbg-err-line .msg { color: var(--txt2); word-break: break-word; }
+.dbg-empty { color: var(--txt3); font-family: var(--mono); font-size: 11px; padding: 12px; text-align: center; }
+.dbg-loading { color: var(--txt3); font-family: var(--mono); font-size: 11px; padding: 20px; text-align: center; }
+</style>
+
+<div class="dbg-view" id="dbg-view">
+    <div class="dbg-head">
+        <div>
+            <div class="dbg-title">DEBUG &amp; DIAGNOSTICS</div>
+            <div class="dbg-sub" id="dbg-generated">loading…</div>
+        </div>
+        <div class="dbg-actions">
+            <button class="dbg-btn" id="dbg-refresh" onclick="window.C2DebugApp.refresh()">↻ Refresh</button>
+            <button class="dbg-btn primary" id="dbg-download" onclick="window.C2DebugApp.downloadLogs()">⬇ Download Logs</button>
+        </div>
+    </div>
+
+    <div class="dbg-grid">
+        <div class="dbg-card" id="dbg-card-panel">
+            <h3>Panel</h3>
+            <div id="dbg-panel-body" class="dbg-loading">loading…</div>
+        </div>
+        <div class="dbg-card" id="dbg-card-update">
+            <h3>Update History</h3>
+            <div id="dbg-update-body" class="dbg-loading">loading…</div>
+        </div>
+        <div class="dbg-card" id="dbg-card-runtime">
+            <h3>Runtime</h3>
+            <div id="dbg-runtime-body" class="dbg-loading">loading…</div>
+        </div>
+        <div class="dbg-card" id="dbg-card-config">
+            <h3>Configuration</h3>
+            <div id="dbg-config-body" class="dbg-loading">loading…</div>
+        </div>
+    </div>
+
+    <div class="dbg-card" id="dbg-card-plugins">
+        <h3>Installed Plugins</h3>
+        <div id="dbg-plugins-body" class="dbg-loading">loading…</div>
+    </div>
+
+    <div class="dbg-card" id="dbg-card-errors">
+        <h3>Recent Errors &amp; Warnings <span id="dbg-err-count" style="float:right;color:var(--txt3);"></span></h3>
+        <div id="dbg-errors-body" class="dbg-loading">loading…</div>
+    </div>
+</div>
+
+<script nonce="meshdash-csp">
+(function () {
+    'use strict';
+
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
+        c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    const kv = (k, v, cls) =>
+        `<div class="dbg-kv"><span class="k">${esc(k)}</span><span class="v ${cls||''}">${esc(v)}</span></div>`;
+
+    const ago = (t) => {
+        if (!t) return '—';
+        const s = Math.round(Date.now()/1000 - t);
+        if (s < 0) return '—';
+        if (s < 60) return s + 's ago';
+        if (s < 3600) return Math.floor(s/60) + 'm ago';
+        if (s < 86400) return Math.floor(s/3600) + 'h ' + Math.floor((s%3600)/60) + 'm ago';
+        return Math.floor(s/86400) + 'd ago';
+    };
+
+    const ts = (t) => {
+        if (!t) return '—';
+        const d = new Date(t * 1000);
+        return d.toLocaleString();
+    };
+
+    function renderInfo(d) {
+        document.getElementById('dbg-generated').textContent =
+            'generated ' + esc(d.generated_at) + ' · nothing here contains private data or secrets';
+
+        // Panel
+        const pb = document.getElementById('dbg-panel-body');
+        pb.innerHTML =
+            kv('Version', d.panel_version, 'acc') +
+            kv('Install method', d.install_method) +
+            kv('Install dir', d.install_root_basename) +
+            kv('Uptime', d.process_uptime_human) +
+            kv('DB size', d.db_size);
+
+        // Update history
+        const ub = document.getElementById('dbg-update-body');
+        if (d.last_update) {
+            const u = d.last_update;
+            ub.innerHTML =
+                kv('Last phase', u.phase, u.phase === 'done' ? 'ok' : 'warn') +
+                kv('From → To', (u.from_version || '?') + ' → ' + (u.to_version || '?')) +
+                (u.reason ? kv('Reason', u.reason) : '') +
+                (u.updated_at ? kv('When', u.updated_at) : '');
+        } else {
+            ub.innerHTML = '<div class="dbg-empty">No update history (never updated via the panel).</div>';
+        }
+
+        // Runtime
+        const rb = document.getElementById('dbg-runtime-body');
+        rb.innerHTML =
+            kv('Python', d.python_version) +
+            kv('Platform', d.platform) +
+            kv('CPU cores', d.cpu_count) +
+            kv('Radio slots', d.slots.length) +
+            d.slots.map(s => kv('  ' + s.slot_id, s.local_node_id || 'no local node', s.local_node_id ? 'ok' : 'warn')).join('');
+
+        // Config (booleans only — no secret values)
+        const cb = document.getElementById('dbg-config-body');
+        const c = d.config;
+        cb.innerHTML =
+            kv('Public mode', c.public_mode ? 'ON' : 'off', c.public_mode ? 'warn' : 'ok') +
+            kv('Log level', c.log_level) +
+            kv('Community API key', c.community_key_configured ? 'configured' : 'MISSING', c.community_key_configured ? 'ok' : 'bad') +
+            kv('Auth secret', c.auth_secret_configured ? 'configured' : 'MISSING', c.auth_secret_configured ? 'ok' : 'bad') +
+            kv('Community host', c.community_host);
+
+        // Plugins
+        const pl = document.getElementById('dbg-plugins-body');
+        if (!d.plugins.length) {
+            pl.innerHTML = '<div class="dbg-empty">No plugins installed.</div>';
+        } else {
+            const pill = (s) => {
+                const known = ['running','stopped','hung','error','invalid_manifest','load_error'];
+                return `<span class="dbg-pill ${known.includes(s) ? s : 'other'}">${esc(s)}</span>`;
+            };
+            pl.innerHTML = '<table class="dbg-table"><thead><tr>' +
+                '<th>Plugin</th><th>Version</th><th>Status</th><th>WD</th><th>Last ping</th><th>Error</th>' +
+                '</tr></tbody>' +
+                d.plugins.map(p =>
+                    `<tr><td>${esc(p.name)} <span style="color:var(--txt3)">(${esc(p.id)})</span></td>` +
+                    `<td>${esc(p.version)}</td><td>${pill(p.status)}</td>` +
+                    `<td>${p.watchdog ? '✓' : '—'}</td>` +
+                    `<td>${p.last_wd_ping_s != null ? esc(p.last_wd_ping_s) + 's' : '—'}</td>` +
+                    `<td style="color:#ff1744">${esc(p.error || '')}</td></tr>`
+                ).join('') + '</tbody></table>';
+        }
+    }
+
+    function renderErrors(d) {
+        const eb = document.getElementById('dbg-errors-body');
+        document.getElementById('dbg-err-count').textContent =
+            d.count ? d.count + ' in buffer' : '';
+        if (!d.errors.length) {
+            eb.innerHTML = '<div class="dbg-empty">No errors or warnings in the recent log buffer. 🎉</div>';
+            return;
+        }
+        eb.innerHTML = '<div class="dbg-errors">' + d.errors.map(e =>
+            `<div class="dbg-err-line">` +
+            `<span class="src">${esc(e.source)}</span>` +
+            `<span class="lvl-${esc(e.lvl)}">${esc(e.lvl)}</span>` +
+            `<span class="msg">${esc(e.msg)}</span>` +
+            `</div>`).join('') + '</div>';
+    }
+
+    async function fetchJSON(url) {
+        const r = await fetch(url, { headers: { 'X-CSRF-Token': window._csrf || '' } });
+        if (!r.ok) throw new Error(url + ' → ' + r.status);
+        return r.json();
+    }
+
+    window.C2DebugApp = {
+        async refresh() {
+            try {
+                const [info, errors] = await Promise.all([
+                    fetchJSON('/api/debug/info'),
+                    fetchJSON('/api/debug/errors'),
+                ]);
+                renderInfo(info);
+                renderErrors(errors);
+            } catch (e) {
+                document.getElementById('dbg-generated').textContent = 'load failed: ' + e.message;
+            }
+        },
+        downloadLogs() {
+            window.location.href = '/api/debug/logs';
+        },
+        init() { this.refresh(); }
+    };
+
+    if (typeof window.AccountPageInit === 'function') { /* noop guard */ }
+    window.C2DebugApp.init();
+})();
+</script>

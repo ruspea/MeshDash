@@ -395,6 +395,13 @@ from core.database import DatabaseManager, migrate_legacy_database_files
 from core.evidence import SourceEvidence, detect_packet_source, _update_node_source_evidence, _get_node_rf_history
 from core.geocode import _load_geocode_cache, _save_geocode_cache, _geocode_reverse, _cache_key
 from core.logging_utils import MemoryLogHandler, _attach_plugin_log_handler
+
+# Core log buffer for the Debug page (recent lines from ALL loggers).
+# Attached to the root logger so core + library warnings/errors are captured.
+_CORE_LOG_MAX_LINES = 2000
+_core_log_handler = MemoryLogHandler(maxlen=_CORE_LOG_MAX_LINES)
+logging.getLogger().addHandler(_core_log_handler)
+_g._core_log_handler = _core_log_handler
 from core.map_utils import _load_maps_config, _save_maps_config, _get_mbtiles_conn, _close_mbtiles_conn
 from core.middleware import _inject_sw_header, _inject_request_id, _security_headers, no_cache, _require_admin, _resolve_cors_origins, _check_login_not_locked, _record_login_failure, _clear_login_failure
 from core.node_config import _nc_int_to_ip, _nc_ip_to_int, _nc_flatten_message, _nc_coerce, _nc_build_snapshot, _nc_apply_changes
@@ -410,6 +417,7 @@ from core.routes.packet_routes import router as packet_routes
 from core.routes.plugin_routes import router as plugin_routes
 from core.routes.schemas import User, TokenData, NodeSlot, MessageRequest, URLRequest, WebsiteMonitorRequest, ConsoleRequest, TracerouteRequest, ConfigUpdateRequest, RemoteInstallRequest, SlotCreateRequest, NodeConfigSaveRequest
 from core.routes.slot_routes import router as slot_routes
+from core.routes.debug_routes import router as debug_routes
 from core.routes.web_routes import router as web_routes
 from core.sync import _perform_background_sync_for_slot, perform_background_sync, _remove_keys_from_config
 from core.update import mark_update_healthy, HEALTHY_AFTER_S as _UPDATE_HEALTHY_AFTER_S
@@ -1408,6 +1416,9 @@ app.include_router(web_routes)
 app.include_router(slot_routes)
 app.include_router(map_routes)
 app.include_router(node_config_routes)
+
+# Debug page — diagnostics for the Debug view (version/plugins/errors/logs)
+app.include_router(debug_routes)
 
 from core.auth import LoginRequired as _LoginRequired
 

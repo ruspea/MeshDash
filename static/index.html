@@ -326,6 +326,7 @@
             <div class="ni" data-view="account" onclick="loadView('account')" style="border-top: 1px solid var(--bd2);">
                 <span class="ico">⛨</span>Account
             </div>
+            <div class="ni" data-view="debug" onclick="loadView('debug')"><span class="ico">⚑</span>Debug</div>
             <div class="ni" id="nav-logout" style="color: #ff3050;" onclick="window.location.href='/logout'">
                 <span class="ico">⏏</span>Logout
             </div>
@@ -1073,6 +1074,7 @@
         autoreply:   { src: '/static/js/views/autoreply.js' },
         plugins:     { src: '/static/js/views/plugins.js' },
         terminal:    { src: '/static/js/views/terminal.js' },
+        debug:       { src: '/static/js/views/debug.js' },
         node_config: { src: '/static/js/views/node_config.js' },
     };
 

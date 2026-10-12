@@ -842,6 +842,7 @@ async function loadView(viewName) {
                 ['connection',  () => typeof window.initConnectionView === 'function' && window.initConnectionView()],
                 ['traceroute',  () => typeof window.C2TracerouteApp !== 'undefined' && window.C2TracerouteApp.init()],
                 ['account',     () => typeof window.AccountPageInit === 'function' && window.AccountPageInit()],
+                ['debug',       () => typeof window.C2DebugApp !== 'undefined' && window.C2DebugApp.init()],
             ];
             for (const [view, fn] of inits) {
                 if (viewName === view) {
