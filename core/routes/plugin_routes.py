@@ -278,10 +278,13 @@ async def serve_plugin_frame(plugin_id: str, file_path: str, request: Request, u
 
     framed_html = re.sub(r'<header id="topbar">.*?</header>', '', base_html, flags=re.DOTALL)
     framed_html = re.sub(r'<nav id="sidebar">.*?</nav>', '', framed_html, flags=re.DOTALL)
-    framed_html = framed_html.replace(
-        '<main id="content"></main>',
-        f'{iframe_html}\n<main id="content" style="display: none !important;"></main>'
-    )
+    # Regex, not exact-string replace: index.html's <main> carries extra
+    # attributes (role, aria-label) — an exact match on '<main id="content"></main>'
+    # silently no-ops and the full SPA gets served instead of the plugin frame.
+    framed_html = re.sub(
+        r'<main id="content"[^>]*>\s*</main>',
+        f'{iframe_html}\n<main id="content" style="display: none !important;"></main>',
+        framed_html, count=1)
     framed_html = re.sub(r'<title>.*?</title>', f'<title>{plugin_name} | MeshDash</title>', framed_html)
     return HTMLResponse(content=framed_html)
 
