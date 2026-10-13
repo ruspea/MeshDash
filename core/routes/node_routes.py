@@ -36,18 +36,20 @@ async def api_nodes(slot_id: str = "node_0"):
                 node = dict(ndata)
                 node["heard_by_slot"] = sid
                 merged[nid] = node
-        return merged
+        return ensure_serializable(merged)
     _slot = g.NODE_REGISTRY.get(slot_id) or g.NODE_REGISTRY.get("node_0")
     _md = _slot.g.meshtastic_data if _slot else g.meshtastic_data
     if g.PUBLIC_MODE and not _md.local_node_id:
         return {}
-    return _md.nodes
+    # NaN/Inf backstop — FastAPI's JSONResponse (allow_nan=False) 500s on
+    # non-finite floats that bypassed ingestion guards (e.g. DB hydration).
+    return ensure_serializable(_md.nodes)
 
 
 @router.get("/api/nodes/{node_id}")
 async def api_node(node_id: str):
     if node_id in g.meshtastic_data.nodes:
-        return g.meshtastic_data.nodes[node_id]
+        return ensure_serializable(g.meshtastic_data.nodes[node_id])
     raise HTTPException(404, "Node not found")
 
 

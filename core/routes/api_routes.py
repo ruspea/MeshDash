@@ -64,6 +64,7 @@ def _is_mqtt(cm):
 @router.get("/api/nodes")
 async def api_nodes(slot_id: str = "node_0"):
     from meshtastic_dashboard import NODE_REGISTRY, meshtastic_data, PUBLIC_MODE
+    from core.auth import ensure_serializable
 
     if slot_id == "all":
         merged: Dict[str, Any] = {}
@@ -72,12 +73,15 @@ async def api_nodes(slot_id: str = "node_0"):
                 node = dict(ndata)
                 node["heard_by_slot"] = sid
                 merged[nid] = node
-        return merged
+        return ensure_serializable(merged)
     _slot = NODE_REGISTRY.get(slot_id) or NODE_REGISTRY.get("node_0")
     _md = _slot.meshtastic_data if _slot else meshtastic_data
     if PUBLIC_MODE and not _md.local_node_id:
         return {}
-    return _md.nodes
+    # ensure_serializable is the NaN/Inf backstop: FastAPI's JSONResponse uses
+    # allow_nan=False and 500s on non-finite floats that bypassed ingestion
+    # guards (e.g. nodes hydrated from the DB at startup).
+    return ensure_serializable(_md.nodes)
 
 
 # GET /api/nodes/{node_id}

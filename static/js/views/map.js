@@ -272,7 +272,7 @@ const _mqttFilter = (() => {
     function _read() { return { maxNodes:Math.max(1,parseInt(document.getElementById('mff-maxNodes')?.value||200)), maxAgeDays:Math.max(0,parseInt(document.getElementById('mff-maxAgeDays')?.value||7)), nameFilter:(document.getElementById('mff-nameFilter')?.value||'').trim().toLowerCase(), showTrails:document.getElementById('mff-showTrails')?.checked||false, showNeighbors:document.getElementById('mff-showNeighbors')?.checked||false, onlyWithGps:document.getElementById('mff-onlyWithGps')?.checked!==false }; }
     function _hide() { document.getElementById('mqtt-filter-overlay')?.remove(); }
     return {
-        show() { return new Promise((resolve,reject)=>{ _onConfirm=resolve; _onCancel=reject; _inject(); const set=(id,v)=>{const el=document.getElementById(id);if(el){el.type==='checkbox'?(el.checked=!!v):(el.value=v);}}; const f=DEFAULTS; set('mff-maxNodes',f.maxNodes);set('mff-maxAgeDays',f.maxAgeDays);set('mff-nameFilter',f.nameFilter);set('mff-showTrails',f.showTrails);set('mff-showNeighbors',f.showNeighbors);set('mff-onlyWithGps',f.onlyWithGps); }); },
+        show() { return new Promise((resolve,reject)=>{ _onConfirm=resolve; _onCancel=reject; _inject(); const set=(id,v)=>{const el=document.getElementById(id);if(el){el.type==='checkbox'?(el.checked=!!v):(el.value=v);}}; const f=Object.assign({},DEFAULTS,window.C2MapApp?._mqttFilter||{}); set('mff-maxNodes',f.maxNodes);set('mff-maxAgeDays',f.maxAgeDays);set('mff-nameFilter',f.nameFilter);set('mff-showTrails',f.showTrails);set('mff-showNeighbors',f.showNeighbors);set('mff-onlyWithGps',f.onlyWithGps); }); },
         confirm() { const cfg=_read(); _hide(); if(_onConfirm){_onConfirm(cfg);_onConfirm=null;_onCancel=null;} },
         cancel()  { _hide(); if(_onCancel){_onCancel(new Error('cancelled'));_onConfirm=null;_onCancel=null;} },
         applyPreset(name) { const p={minimal:{maxNodes:50,maxAgeDays:3,showTrails:false,showNeighbors:false},balanced:{maxNodes:200,maxAgeDays:7,showTrails:false,showNeighbors:false},full:{maxNodes:500,maxAgeDays:30,showTrails:true,showNeighbors:true}}[name]||{}; const set=(id,v)=>{const el=document.getElementById(id);if(el){el.type==='checkbox'?(el.checked=!!v):(el.value=v);}}; if(p.maxNodes!==undefined)set('mff-maxNodes',p.maxNodes);if(p.maxAgeDays!==undefined)set('mff-maxAgeDays',p.maxAgeDays);if(p.showTrails!==undefined)set('mff-showTrails',p.showTrails);if(p.showNeighbors!==undefined)set('mff-showNeighbors',p.showNeighbors); },
@@ -307,7 +307,7 @@ function _showMqttBanner(plottedCount, totalRaw) {
     const countStr = (plottedCount != null && totalRaw != null)
         ? ` <span style="color:var(--txt3);margin:0 4px;">|</span> <span style="color:var(--txt2);">${plottedCount} plotted of ${totalRaw} nodes</span>`
         : '';
-    b.innerHTML=`<i class="fas fa-tower-broadcast" style="font-size:13px;flex-shrink:0;"></i><span><b>MQTT MODE</b> — Static snapshot. Auto-refresh disabled.</span>${countStr}<button onclick="location.reload()" style="background:rgba(255,168,38,.15);border:1px solid #ffa826;color:#ffa826;padding:3px 10px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:9px;letter-spacing:1px;margin-left:8px;">↻ RELOAD</button>`;
+    b.innerHTML=`<i class="fas fa-tower-broadcast" style="font-size:13px;flex-shrink:0;"></i><span><b>MQTT MODE</b> — Static snapshot. Auto-refresh disabled.</span>${countStr}<button onclick="window.c2ManualRefresh()" title="Redraw with current filter — keeps viewport" style="background:rgba(255,168,38,.15);border:1px solid #ffa826;color:#ffa826;padding:3px 10px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:9px;letter-spacing:1px;margin-left:8px;">↻ REFRESH</button>`;
     const mapEl=document.getElementById('main-c2-map'); if(mapEl)mapEl.appendChild(b);
 }
 function _hideMqttBanner(){document.getElementById('mqtt-map-banner')?.remove();}
@@ -341,13 +341,21 @@ function _clearMapLayers(){
     app.markers={}; app.trajectories={}; app.neighbourLines={};
 }
 
-async function _mqttDrawOnce(){
+
+async function _mqttDrawOnce(reuseFilter=false){
     const app=window.C2MapApp,sid=window._activeSlotId;
     clearInterval(app.refreshInterval); app.refreshInterval=null;
     app._mqttSlotFlag=sid; // block c2FetchAndDrawMap immediately
     let filterCfg;
-    try{filterCfg=await _mqttFilter.show();}catch(e){_mapLoad.forceHide();_showMqttBanner();return;}
-    app._mqttFilter=filterCfg; app._initialLoad=true;
+    if(reuseFilter && app._mqttFilter){
+        // Manual refresh / banner refresh — reuse the confirmed filter, no re-prompt.
+        filterCfg=app._mqttFilter;
+    } else {
+        try{filterCfg=await _mqttFilter.show();}catch(e){_mapLoad.forceHide();_showMqttBanner();return;}
+    }
+    app._mqttFilter=filterCfg;
+    // On a re-draw keep the current viewport; only fit bounds on the very first load.
+    app._initialLoad = !reuseFilter;
     _mapLoad.show('mqtt');
     const raw=window.meshState?.nodes||{};
     app._mqttNodeSnapshot=_snapshotNodes(raw,filterCfg);
@@ -539,7 +547,7 @@ app.map.on('moveend',()=>window.C2UrlState?.schedule());
 
 window.c2ManualRefresh = async function(){
     const app=window.C2MapApp; if(!app.map)return;
-    if(await _isActiveMqttSlot()){clearInterval(app.refreshInterval);app.refreshInterval=null;_clearMapLayers();app.nodeColors={};app._mqttNodeSnapshot=null;await _mqttDrawOnce();}
+    if(await _isActiveMqttSlot()){clearInterval(app.refreshInterval);app.refreshInterval=null;_clearMapLayers();app.nodeColors={};app._mqttNodeSnapshot=null;await _mqttDrawOnce(true);}
     else{app._initialLoad=true;_mapLoad.show('normal');window.c2FetchAndDrawMap().then(()=>_mapLoad.hide()).catch(()=>_mapLoad.forceHide());}
 };
 

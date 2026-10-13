@@ -4,6 +4,7 @@ import asyncio
 import base64
 import json
 import logging
+import math
 import secrets
 from collections import deque
 from datetime import datetime, timedelta, timezone
@@ -126,7 +127,18 @@ def ensure_serializable(obj: Any) -> Any:
             return obj.decode("utf-8")
         except Exception:
             return f"base64:{base64.b64encode(obj).decode('utf-8')}"
-    if isinstance(obj, (int, float, bool, str)):
+    if isinstance(obj, bool):  # bool is a subclass of int — check before int/float
+        return obj
+    if isinstance(obj, float):
+        # NaN/Infinity are valid Python floats but NOT valid JSON (RFC 8259).
+        # FastAPI's JSONResponse (allow_nan=False) 500s on them and plain
+        # json.dumps emits a literal NaN token that breaks browser JSON.parse.
+        # MQTT telemetry (e.g. a glitching BME sensor) delivers NaN floats, so
+        # this is a real-world path — coerce to None instead of poisoning payloads.
+        return obj if math.isfinite(obj) else None
+    if isinstance(obj, int):
+        return obj
+    if isinstance(obj, str):
         return obj
     if isinstance(obj, (datetime,)):
         return str(obj)

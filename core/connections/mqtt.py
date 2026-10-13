@@ -43,6 +43,7 @@ from core.routes.schemas import User, NodeSlot
 from fastapi import status
 import asyncio
 import logging
+import math
 import os
 from core.connections import ConnectionState
 import random
@@ -207,6 +208,23 @@ _PORTNUM_NAME: Dict[int, str] = {
 }
 
 
+def _safe_float(v, ndigits=None):
+    """Coerce a protobuf float to a finite Python float, or None.
+
+    Protobuf floats can legally carry NaN/±Inf (a glitching BME280 upstream
+    ships NaN temperature/humidity on the real mesh). Those poison JSON
+    serialization downstream (500s on /api/nodes, invalid SSE tokens), so
+    any non-finite value becomes None at the door.
+    """
+    try:
+        f = float(v)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(f):
+        return None
+    return round(f, ndigits) if ndigits is not None else f
+
+
 def _decode_portnum(d, pnum: int, decoded: dict) -> None:
     """Decode a known portnum payload into the decoded dict in-place."""
     decoded["portnum"] = pnum
@@ -220,9 +238,13 @@ def _decode_portnum(d, pnum: int, decoded: dict) -> None:
             pos = mesh_pb2.Position()
             pos.ParseFromString(d.payload)
             pd: Dict[str, Any] = {}
-            if pos.latitude_i:   pd["latitude"]   = pos.latitude_i  * 1e-7; pd["latitudeI"]  = pos.latitude_i
-            if pos.longitude_i:  pd["longitude"]  = pos.longitude_i * 1e-7; pd["longitudeI"] = pos.longitude_i
-            if pos.altitude:     pd["altitude"]   = pos.altitude
+            # _safe_float guards against NaN/Inf coordinates (bad GPS fixes)
+            lat = _safe_float(pos.latitude_i * 1e-7) if pos.latitude_i else None
+            lon = _safe_float(pos.longitude_i * 1e-7) if pos.longitude_i else None
+            if lat is not None: pd["latitude"] = lat;   pd["latitudeI"]  = pos.latitude_i
+            if lon is not None: pd["longitude"] = lon;   pd["longitudeI"] = pos.longitude_i
+            alt = _safe_float(pos.altitude) if pos.altitude else None
+            if alt is not None: pd["altitude"] = alt
             if pos.sats_in_view: pd["satsInView"] = pos.sats_in_view
             if pos.time:         pd["time"]       = pos.time
             decoded["position"] = pd
@@ -235,19 +257,19 @@ def _decode_portnum(d, pnum: int, decoded: dict) -> None:
                 dm = tel.device_metrics
                 td["deviceMetrics"] = {
                     "batteryLevel":       dm.battery_level,
-                    "voltage":            round(dm.voltage, 3),
-                    "channelUtilization": round(dm.channel_utilization, 2),
-                    "airUtilTx":          round(dm.air_util_tx, 2),
+                    "voltage":            _safe_float(dm.voltage, 3),
+                    "channelUtilization": _safe_float(dm.channel_utilization, 2),
+                    "airUtilTx":          _safe_float(dm.air_util_tx, 2),
                     "uptimeSeconds":      dm.uptime_seconds,
                 }
             if tel.HasField("environment_metrics"):
                 em = tel.environment_metrics
                 td["environmentMetrics"] = {
-                    "temperature":        round(em.temperature, 2),
-                    "relativeHumidity":   round(em.relative_humidity, 2),
-                    "barometricPressure": round(em.barometric_pressure, 2),
-                    "gasResistance":      round(em.gas_resistance, 2),
-                    "iaq":                em.iaq,
+                    "temperature":        _safe_float(em.temperature, 2),
+                    "relativeHumidity":   _safe_float(em.relative_humidity, 2),
+                    "barometricPressure": _safe_float(em.barometric_pressure, 2),
+                    "gasResistance":      _safe_float(em.gas_resistance, 2),
+                    "iaq":                _safe_float(em.iaq),
                 }
             decoded["telemetry"] = td
 
@@ -306,8 +328,8 @@ def _decode_service_envelope(raw_payload: bytes) -> Optional[Dict]:
         "hopLimit":  mp.hop_limit,
         "hopStart":  mp.hop_start,
         "wantAck":   mp.want_ack,
-        "rxSnr":     mp.rx_snr,
-        "rxRssi":    mp.rx_rssi,
+        "rxSnr":     _safe_float(mp.rx_snr),
+        "rxRssi":    mp.rx_rssi if isinstance(mp.rx_rssi, int) else _safe_float(mp.rx_rssi),
         "rxTime":    mp.rx_time or int(time.time()),
         "viaMqtt":   True,
         "priority":  mp.priority,
