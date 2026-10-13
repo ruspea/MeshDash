@@ -271,7 +271,7 @@ class BrokerEndpoint:
     """One servable 'virtual radio': a TCP listener bound to a slot (or the
     merged MD_ALL mesh) plus its own mDNS announcement."""
     __slots__ = ("ep_id", "kind", "slot_id", "label", "port", "server",
-                 "mdns_info")
+                 "mdns_info", "mdns_announced_id")
 
     def __init__(self, ep_id: str, kind: str, slot_id: str, label: str,
                  port: int):
@@ -282,6 +282,7 @@ class BrokerEndpoint:
         self.port      = port
         self.server: Optional[asyncio.Server] = None
         self.mdns_info: Any = None
+        self.mdns_announced_id: Optional[str] = None  # node ID in the TXT record
 
     def slot(self):
         return _node_registry.get(self.slot_id)
@@ -414,6 +415,7 @@ async def _start_mdns(cfg: dict, endpoints: List[BrokerEndpoint]):
             await asyncio.wait_for(
                 _zeroconf.async_register_service(info), timeout=15.0)
             ep.mdns_info = info
+            ep.mdns_announced_id = node_id
             _mdns_infos.append(info)
             logger.info("mDNS: announcing %s.local as _meshtastic._tcp:%d "
                         "(shortname=%s id=%s)",
@@ -1897,6 +1899,38 @@ async def _watchdog_loop(context):
                       if ts < cutoff]
         for k in stale_echo:
             del _forwarded_packet_ids[k]
+
+        # ── Broker upkeep ────────────────────────────────────────────────────
+        # The endpoint set is derived from the slot registry, but slots can be
+        # added/removed at runtime. If the registry no longer matches what we
+        # built at startup, rebuild listeners + mDNS.
+        cfg = _load_config()
+        desired = {ep.ep_id: (ep.label, ep.port)
+                   for ep in _build_endpoints(cfg)}
+        current = {ep_id: (ep.label, ep.port)
+                   for ep_id, ep in _endpoints.items()}
+        if desired != current:
+            _dbg("INFO", "server", "info",
+                 "Slot registry changed — rebuilding broker endpoints",
+                 f"have={sorted(current)} want={sorted(desired)}")
+            await _restart_server()
+            continue
+
+        # mDNS: the initial announcement races the radio handshake, so slot
+        # endpoints can go out with a placeholder node ID. Re-announce once
+        # the real local node ID is known.
+        for ep in _endpoints.values():
+            if ep.kind != "slot":
+                continue
+            slot = ep.slot()
+            nid = (getattr(slot.meshtastic_data, "local_node_id", None)
+                   if slot and slot.meshtastic_data else None)
+            if nid and ep.mdns_announced_id != str(nid):
+                _dbg("INFO", "server", "info",
+                     f"Re-announcing mDNS with real node ID ({ep.label})",
+                     f"announced={ep.mdns_announced_id} actual={nid}")
+                await _start_mdns(cfg, list(_endpoints.values()))
+                break
 
 
 async def _restart_server():
