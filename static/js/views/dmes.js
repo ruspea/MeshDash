@@ -87,8 +87,14 @@ window.C2CommsApp = {
         if (idEl) idEl.innerText = '';
         document.getElementById('comms-slot-picker-wrap')?.remove();
 
+        // Mirror the global unread store (single source of truth) — REPLACE,
+        // never add. The old additive merge doubled counts on every view
+        // revisit because init() runs on each loadView('dmes').
+        this.unreadCounts = {};
         Object.entries(window.meshState.dmUnread || {}).forEach(([id, count]) => {
-            this.unreadCounts[id] = (this.unreadCounts[id] || 0) + count;
+            const n = Number(count);
+            if (n > 0) this.unreadCounts[id] = n;
+            else delete window.meshState.dmUnread[id]; // heal junk entries
         });
 
         this.renderContacts();
@@ -140,11 +146,21 @@ window.C2CommsApp = {
     // ─── Badge ────────────────────────────────────────────────────────────────
 
     _updateInternalBadge() {
-        const total = Object.values(this.unreadCounts).reduce((a, b) => a + b, 0);
+        const total = Object.values(this.unreadCounts || {}).reduce((a, b) => a + (Number(b) || 0), 0);
         const badge = document.getElementById('dmes-total-unread-badge');
         if (!badge) return;
         if (total > 0) { badge.textContent = total; badge.style.display = ''; }
         else badge.style.display = 'none';
+    },
+
+    // Mark every contact read — clears local mirror AND the global store,
+    // then refreshes both badges so nav + header always agree.
+    markAllRead() {
+        this.unreadCounts = {};
+        if (window.meshState.dmUnread) window.meshState.dmUnread = {};
+        window.updateDmNavBadge?.();
+        this._updateInternalBadge();
+        this.renderContacts();
     },
 
     getColor(nodeId) {

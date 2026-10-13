@@ -5,7 +5,8 @@
         <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
             <div class="ch">
                 <span class="ct">📡 ACTIVE CONTACTS</span>
-                <span id="dmes-total-unread-badge" class="nbadge" style="margin-left:auto; display:none; background:var(--acc); color:#000; font-weight:bold;"></span>
+                <button id="dmes-mark-all-read" class="btn btn-sm" title="Mark all contacts read" style="margin-left:auto;padding:2px 8px;font-size:9px;font-family:var(--mono);border:1px solid var(--bd2);background:transparent;color:var(--txt2);cursor:pointer;" onclick="window.C2CommsApp.markAllRead()">✓ ALL READ</button>
+                <span id="dmes-total-unread-badge" class="nbadge" style="display:none; background:var(--acc); color:#000; font-weight:bold;"></span>
             </div>
             <div style="padding: 10px; border-bottom: 1px solid var(--bd);">
                 <input type="text" id="comms-filter" class="inp mono" placeholder="Filter ID/Name..." style="font-size: 11px;">

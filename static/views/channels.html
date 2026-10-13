@@ -5,7 +5,8 @@
         <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
             <div class="ch">
                 <span class="ct">⬡ RF CHANNELS</span>
-                <span id="channels-total-unread-badge" class="nbadge" style="margin-left:auto; display:none; background:var(--warn); color:#000; font-weight:bold;"></span>
+                <button id="channels-mark-all-read" class="btn btn-sm" title="Mark all channels read" style="margin-left:auto;padding:2px 8px;font-size:9px;font-family:var(--mono);border:1px solid var(--bd2);background:transparent;color:var(--txt2);cursor:pointer;" onclick="window.C2ChannelsApp.markAllRead()">✓ ALL READ</button>
+                <span id="channels-total-unread-badge" class="nbadge" style="display:none; background:var(--warn); color:#000; font-weight:bold;"></span>
             </div>
             <div id="channels-list" style="flex: 1; overflow-y: auto; background: var(--bg);">
                 <div style="padding:40px; text-align:center; color:var(--txt3); font-family:var(--mono); font-size:10px;"><i class="fas fa-circle-notch fa-spin"></i> READING MESH CONFIG...</div>

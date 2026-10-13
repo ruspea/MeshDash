@@ -41,10 +41,16 @@ window.C2ChannelsApp = {
         if (sendBtn) sendBtn.disabled = true;
         document.getElementById('ch-slot-picker-wrap')?.remove();
 
+        // Mirror the global unread store (single source of truth) — REPLACE,
+        // never add. The old additive merge doubled counts on every view
+        // revisit because init() runs on each loadView('channels').
+        this.unreadCounts = {};
         const global = window.meshState.channelUnread || {};
         Object.entries(global).forEach(([idx, count]) => {
             const key = Number(idx);
-            this.unreadCounts[key] = (this.unreadCounts[key] || 0) + count;
+            const n   = Number(count);
+            if (Number.isFinite(key) && n > 0) this.unreadCounts[key] = n;
+            else delete window.meshState.channelUnread[idx]; // heal junk entries
         });
 
         this.setupListeners();
@@ -55,11 +61,21 @@ window.C2ChannelsApp = {
     },
 
     _updateInternalBadge() {
-        const total = Object.values(this.unreadCounts).reduce((a, b) => a + b, 0);
+        const total = Object.values(this.unreadCounts || {}).reduce((a, b) => a + (Number(b) || 0), 0);
         const badge = document.getElementById('channels-total-unread-badge');
         if (!badge) return;
         if (total > 0) { badge.textContent = total; badge.style.display = ''; }
         else badge.style.display = 'none';
+    },
+
+    // Mark every channel read — clears local mirror AND the global store,
+    // then refreshes both badges so nav + header always agree.
+    markAllRead() {
+        this.unreadCounts = {};
+        if (window.meshState.channelUnread) window.meshState.channelUnread = {};
+        window.updateChannelNavBadge?.();
+        this._updateInternalBadge();
+        this.renderSidebar();
     },
 
     getColor(nodeId) {

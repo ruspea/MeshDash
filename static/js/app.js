@@ -530,7 +530,7 @@ function _normNodeId(raw) {
 // ---------------------------------------------------------------------------
 window.updateDmNavBadge = function() {
     try {
-        const total   = Object.values(window.meshState.dmUnread).reduce((a, b) => a + b, 0);
+        const total   = Object.values(window.meshState.dmUnread || {}).reduce((a, b) => a + (Number(b) || 0), 0);
         const navItem = document.querySelector('.ni[data-view="dmes"]');
         if (!navItem) return;
         let badge = navItem.querySelector('.nav-unread-badge');
@@ -550,7 +550,7 @@ window.updateDmNavBadge = function() {
 
 window.updateChannelNavBadge = function() {
     try {
-        const total   = Object.values(window.meshState.channelUnread).reduce((a, b) => a + b, 0);
+        const total   = Object.values(window.meshState.channelUnread || {}).reduce((a, b) => a + (Number(b) || 0), 0);
         const navItem = document.querySelector('.ni[data-view="channels"]');
         if (!navItem) return;
         let badge = navItem.querySelector('.nav-unread-badge');
@@ -1426,7 +1426,8 @@ const _sseHandlers = {
         } catch (err) {}
 
         // ── Message unread tracking (DMs + channel broadcasts) ────────────
-        if (p.app_packet_type === 'Message') {
+        // Case-insensitive: some transports deliver lowercase 'message'.
+        if (String(p.app_packet_type || '').toLowerCase() === 'message') {
             try {
                 const fromId  = _normNodeId(p.fromId ?? p.from_id ?? null);
                 const toId    = _normNodeId(p.toId   ?? p.to_id   ?? null);
@@ -1436,6 +1437,7 @@ const _sseHandlers = {
 
                 const isBroadcast = toId === '^all' ||
                                     toId === 'ffffffff' ||
+                                    toId === '4294967295' ||
                                     (p.toId ?? p.to_id) === 4294967295;
                 const isFromSelf  = fromId ? window._isFromSelf(fromId) : false;
 
@@ -1448,13 +1450,13 @@ const _sseHandlers = {
 
                     if (!alreadyReading) {
                         window.meshState.dmUnread[fromId] =
-                            (window.meshState.dmUnread[fromId] || 0) + 1;
+                            (Number(window.meshState.dmUnread[fromId]) || 0) + 1;
                         window.updateDmNavBadge();
 
                         if (window.meshState.currentView === 'dmes' &&
                             typeof window.C2CommsApp !== 'undefined') {
                             window.C2CommsApp.unreadCounts[fromId] =
-                                (window.C2CommsApp.unreadCounts[fromId] || 0) + 1;
+                                (Number(window.C2CommsApp.unreadCounts[fromId]) || 0) + 1;
                             try { window.C2CommsApp.renderContacts(); } catch (e) {}
                             try { window.C2CommsApp._updateInternalBadge(); } catch (e) {}
                         }
@@ -1469,7 +1471,10 @@ const _sseHandlers = {
 
                 // ── Channel broadcast unread ──────────────────────────────
                 if (isBroadcast && !isFromSelf) {
-                    const chIdx = typeof p.channel === 'number' ? p.channel : 0;
+                    // Coerce once — a string channel (e.g. "3" from some transports)
+                    // must not fall back to 0 and pollute channel 0's count.
+                    const chIdxRaw = Number(p.channel);
+                    const chIdx = Number.isFinite(chIdxRaw) ? chIdxRaw : 0;
 
                     const alreadyReading =
                         window.meshState.currentView === 'channels' &&
@@ -1478,13 +1483,13 @@ const _sseHandlers = {
 
                     if (!alreadyReading) {
                         window.meshState.channelUnread[chIdx] =
-                            (window.meshState.channelUnread[chIdx] || 0) + 1;
+                            (Number(window.meshState.channelUnread[chIdx]) || 0) + 1;
                         window.updateChannelNavBadge();
 
                         if (window.meshState.currentView === 'channels' &&
                             typeof window.C2ChannelsApp !== 'undefined') {
                             window.C2ChannelsApp.unreadCounts[chIdx] =
-                                (window.C2ChannelsApp.unreadCounts[chIdx] || 0) + 1;
+                                (Number(window.C2ChannelsApp.unreadCounts[chIdx]) || 0) + 1;
                             try { window.C2ChannelsApp.renderSidebar(); } catch (e) {}
                             try { window.C2ChannelsApp._updateInternalBadge(); } catch (e) {}
                         }
