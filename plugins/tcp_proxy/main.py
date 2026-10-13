@@ -327,7 +327,7 @@ def _build_endpoints(cfg: dict) -> List[BrokerEndpoint]:
             name = fallback_nm
             port = primary_port
         else:
-            name = f"MD_{_sanitize_label(label)}"
+            name = f"MeshDash_{_sanitize_label(label)}"
             port = base + i - 1
         eps.append(BrokerEndpoint(slot_id, "slot", slot_id, name, port))
 
@@ -336,7 +336,7 @@ def _build_endpoints(cfg: dict) -> List[BrokerEndpoint]:
             iter(_node_registry.keys()))
         if bslot not in _node_registry:
             bslot = next(iter(_node_registry.keys()))
-        eps.append(BrokerEndpoint("all", "all", bslot, "MD_ALL",
+        eps.append(BrokerEndpoint("all", "all", bslot, "MeshDash_ALL",
                                   int(cfg.get("all_feed_port", 4413))))
     return eps
 
@@ -399,16 +399,33 @@ async def _start_mdns(cfg: dict, endpoints: List[BrokerEndpoint]):
         _dbg("WARN", "server", "info", f"mDNS Zeroconf() failed: {e!r}")
         return
 
+    # Display naming (what phone apps show): the Apple app renders
+    # "<shortname>_<last4 of id>" from the TXT records, falling back to the
+    # instance name. So every endpoint publishes shortname="MeshDash" plus
+    # its real node id → "MeshDash_e924"; the merged feed publishes
+    # shortname="MeshDash_ALL" and NO id → "MeshDash_ALL".
     for ep in endpoints:
-        shortname = ep.label[:8]  # firmware short_name is ≤8 chars
-        node_id   = "!0000all" if ep.kind == "all" else _mdns_node_id(ep.slot())
+        if ep.kind == "all":
+            shortname = "MeshDash_ALL"
+            node_id   = None
+            props     = {"shortname": shortname}
+        else:
+            shortname = "MeshDash"
+            node_id   = _mdns_node_id(ep.slot())
+            props     = {"shortname": shortname}
+            if node_id != "!0000dash":
+                # Real ID known — publish it. While only the placeholder is
+                # known (radio handshake still in flight) omit "id" so the
+                # app shows plain "MeshDash" instead of "MeshDash_dash";
+                # the watchdog re-announces with the real ID once it lands.
+                props["id"] = node_id
         try:
             info = ServiceInfo(
                 "_meshtastic._tcp.local.",
                 f"{ep.label}._meshtastic._tcp.local.",
                 addresses=[socket.inet_aton(local_ip)],
                 port=ep.port,
-                properties={"shortname": shortname, "id": node_id},
+                properties=props,
                 server=f"{ep.label}.local.",
             )
             # Async API — the sync one blocks the event loop (EventLoopBlocked)
