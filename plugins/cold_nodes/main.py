@@ -30,6 +30,7 @@ Slot awareness:
 
 import os
 import json
+import math
 import sqlite3
 import time
 import asyncio
@@ -173,12 +174,14 @@ def _last_heard(node: dict) -> float:
     Return lastHeard as a float unix timestamp.
     Returns 0.0 if never heard.
     Checks camelCase first (normalised), snake_case as fallback (unpatched).
+    Non-finite values (NaN/Inf, e.g. from a poisoned DB row) → 0.0.
     """
     v = node.get("lastHeard") or node.get("last_heard")
     try:
-        return float(v) if v else 0.0
+        f = float(v) if v else 0.0
     except (TypeError, ValueError):
         return 0.0
+    return f if math.isfinite(f) else 0.0
 
 
 def _is_local(node: dict) -> bool:
@@ -236,9 +239,11 @@ def _battery(node: dict) -> Optional[int]:
 def _snr(node: dict) -> Optional[float]:
     v = node.get("snr")
     try:
-        return float(v) if v is not None else None
+        f = float(v) if v is not None else None
     except (TypeError, ValueError):
         return None
+    # float(nan) does NOT raise — filter it explicitly or FastAPI 500s
+    return f if (f is not None and math.isfinite(f)) else None
 
 
 def _rssi(node: dict) -> Optional[int]:
@@ -250,7 +255,7 @@ def _rssi(node: dict) -> Optional[int]:
 
 
 def _lat_lon(node: dict) -> tuple:
-    """Return (lat, lon) floats or (None, None)."""
+    """Return (lat, lon) floats or (None, None). NaN/Inf → None."""
     pos = node.get("position") or {}
     lat = pos.get("latitude") or node.get("latitude")
     lon = pos.get("longitude") or node.get("longitude")
@@ -259,11 +264,16 @@ def _lat_lon(node: dict) -> tuple:
         lon = float(lon) if lon else None
     except (TypeError, ValueError):
         lat = lon = None
+    # float(nan) does NOT raise — filter explicitly or FastAPI 500s
+    if lat is not None and not math.isfinite(lat):
+        lat = None
+    if lon is not None and not math.isfinite(lon):
+        lon = None
     return lat, lon
 
 
 def _age_hours(lh: float) -> Optional[float]:
-    if not lh:
+    if not lh or not math.isfinite(lh):
         return None
     return round((time.time() - lh) / 3600, 2)
 
