@@ -68,6 +68,14 @@ DEFAULTS = {
     "all_feed_enabled":         True,  # serve the merged MD_ALL virtual mesh
     "all_feed_port":            4413,  # listener port for the MD_ALL endpoint
     "all_feed_broadcast_slot":  "",    # slot used for ^all broadcasts from MD_ALL ("" = primary)
+    # ── Mesh taming (MQTT-scale filtering) ────────────────────────────────
+    "max_nodes":                0,      # cap nodeDB by most-recently-heard; 0 = all
+    "channel_allow":            [],     # channel indices clients may see; empty = all
+    "channel_block":            [],     # channel indices never forwarded (sent DISABLED in handshake)
+    "drop_portnums":            [],     # portnum names/numbers never forwarded to clients
+    "nodeinfo_min_interval":    0,      # min secs between forwards per node; 0 = off
+    "position_min_interval":    0,      # min secs between forwards per node; 0 = off
+    "telemetry_min_interval":   0,      # min secs between forwards per node; 0 = off
 }
 
 _node_registry:   Dict[str, Any] = {}
@@ -91,6 +99,7 @@ _stats = {
     "total_connections": 0,
     "peak_clients":      0,
     "msgs_replayed":     0,
+    "pkts_filtered":     0,
 }
 
 # Track pending admin requests: packet_id -> client_cid
@@ -248,6 +257,15 @@ def _expire_sessions():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _load_config() -> dict:
+    # mtime-cached: the mesh-taming filters call this per packet, and a huge
+    # MQTT mesh would otherwise re-read config.json thousands of times a minute.
+    global _cfg_cache, _cfg_mtime
+    try:
+        mtime = os.path.getmtime(CONFIG_PATH)
+    except OSError:
+        mtime = -1.0
+    if _cfg_cache is not None and mtime == _cfg_mtime:
+        return _cfg_cache
     cfg = DEFAULTS.copy()
     if os.path.exists(CONFIG_PATH):
         try:
@@ -255,12 +273,23 @@ def _load_config() -> dict:
                 cfg.update(json.load(f))
         except Exception:
             pass
+    _cfg_cache, _cfg_mtime = cfg, mtime
     return cfg
 
 
+_cfg_cache: Optional[dict] = None
+_cfg_mtime: float          = -1.0
+
+
 def _save_config(cfg: dict):
+    global _cfg_cache, _cfg_mtime
     with open(CONFIG_PATH, "w") as f:
         json.dump(cfg, f, indent=2)
+    try:
+        _cfg_mtime = os.path.getmtime(CONFIG_PATH)
+    except OSError:
+        _cfg_mtime = -1.0
+    _cfg_cache = cfg
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -990,6 +1019,99 @@ def _port_name(portnum: int) -> str:
         return str(portnum)
 
 
+# ── Mesh taming (MQTT-scale filtering) ─────────────────────────────────────
+
+_node_last_fwd: Dict[str, float] = {}   # "portnum:fromId" -> last forward ts
+
+
+def _parse_channel_list(vals) -> set:
+    """Channel indices from config (ints or numeric strings), 0-7 only."""
+    out = set()
+    for v in vals or []:
+        try:
+            ch = int(v)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= ch <= 7:
+            out.add(ch)
+    return out
+
+
+def _parse_portnum_list(vals) -> set:
+    """Portnums from config — names (NEIGHBORINFO_APP) or numbers."""
+    out = set()
+    for v in vals or []:
+        try:
+            out.add(int(v))
+            continue
+        except (TypeError, ValueError):
+            pass
+        try:
+            out.add(portnums_pb2.PortNum.Value(str(v).upper()))
+        except Exception:
+            pass
+    return out
+
+
+def _throttle_interval(portnum: int, cfg: dict) -> int:
+    """Min seconds between forwards per node for this portnum (0 = off)."""
+    try:
+        if portnum == portnums_pb2.PortNum.Value("NODEINFO_APP"):
+            return int(cfg.get("nodeinfo_min_interval") or 0)
+        if portnum == portnums_pb2.PortNum.Value("POSITION_APP"):
+            return int(cfg.get("position_min_interval") or 0)
+        if portnum == portnums_pb2.PortNum.Value("TELEMETRY_APP"):
+            return int(cfg.get("telemetry_min_interval") or 0)
+    except Exception:
+        pass
+    return 0
+
+
+def _cap_nodes(nodes: List[dict], cfg: dict) -> List[dict]:
+    """Cap the nodeDB by most-recently-heard. 0/unset = no cap."""
+    cap = int(cfg.get("max_nodes") or 0)
+    if cap <= 0 or len(nodes) <= cap:
+        return nodes
+
+    def _recency(n: dict) -> float:
+        return (n.get("last_heard") or n.get("lastHeard") or
+                n.get("last_seen") or 0)
+
+    return sorted(nodes, key=_recency, reverse=True)[:cap]
+
+
+def _filter_reason(packet: dict, portnum: int, from_id: str,
+                   now: float) -> Optional[str]:
+    """Return a drop reason for the mesh-taming filters, or None to forward."""
+    cfg = _load_config()
+
+    if portnum in _parse_portnum_list(cfg.get("drop_portnums")):
+        return f"portnum {_port_name(portnum)} dropped"
+
+    ch = packet.get("channel")
+    if isinstance(ch, int) and ch >= 0:
+        allow = _parse_channel_list(cfg.get("channel_allow"))
+        block = _parse_channel_list(cfg.get("channel_block"))
+        if allow and ch not in allow:
+            return f"channel {ch} not in allow list"
+        if ch in block:
+            return f"channel {ch} blocked"
+
+    interval = _throttle_interval(portnum, cfg)
+    if interval > 0 and from_id:
+        key = f"{portnum}:{from_id}"
+        last = _node_last_fwd.get(key, 0.0)
+        if now - last < interval:
+            return f"throttled {_port_name(portnum)} (min {interval}s)"
+        _node_last_fwd[key] = now
+        if len(_node_last_fwd) > 4096:   # purge stale throttle entries
+            cutoff = now - max(interval, 3600)
+            for k in [k for k, ts in _node_last_fwd.items() if ts < cutoff]:
+                del _node_last_fwd[k]
+
+    return None
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Active clients
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1150,6 +1272,10 @@ async def _send_handshake(writer: asyncio.StreamWriter,
         nodes = _merged_nodes()   # MD_ALL: merged nodeDB across every slot
     else:
         nodes = list(md.nodes.values()) if md else []
+    fcfg     = _load_config()
+    nodes    = _cap_nodes(nodes, fcfg)
+    allow_ch = _parse_channel_list(fcfg.get("channel_allow"))
+    block_ch = _parse_channel_list(fcfg.get("channel_block"))
 
     _dbg("INFO", cid, "tx", "HANDSHAKE START",
          f"config_id={config_id} nodes={len(nodes)} queued={len(session.msg_queue)}")
@@ -1182,8 +1308,12 @@ async def _send_handshake(writer: asyncio.StreamWriter,
                     role_name = channel_pb2.Channel.Role.Name(role_val)
                 except Exception:
                     role_name = str(role_val)
-                b   = _build_channel(idx, real_channel=ch_obj)
-                lbl = f"FromRadio{{channel[{idx}] {role_name}}}"
+                if idx in block_ch or (allow_ch and idx not in allow_ch):
+                    b   = _build_channel(idx, is_primary=False)
+                    lbl = f"FromRadio{{channel[{idx}] DISABLED (filtered)}}"
+                else:
+                    b   = _build_channel(idx, real_channel=ch_obj)
+                    lbl = f"FromRadio{{channel[{idx}] {role_name}}}"
                 await _write_frame(writer, b, cid, lbl, tx)
                 ch_count += 1
             except Exception as e:
@@ -1196,8 +1326,9 @@ async def _send_handshake(writer: asyncio.StreamWriter,
     else:
         logger.debug("No real channels from interface, using synthetic")
         for i in range(8):
-            b   = _build_channel(i, is_primary=(i == 0))
-            lbl = f"FromRadio{{channel[{i}] {'PRIMARY' if i == 0 else 'DISABLED'}}}"
+            ok  = (i not in block_ch and (not allow_ch or i in allow_ch))
+            b   = _build_channel(i, is_primary=(i == 0 and ok))
+            lbl = f"FromRadio{{channel[{i}] {'PRIMARY' if i == 0 and ok else 'DISABLED'}}}"
             await _write_frame(writer, b, cid, lbl, tx)
 
     # ── 4. LocalConfig sections (8 sections) ──────────────────────────────────
@@ -1815,6 +1946,14 @@ def _on_receive(packet, interface=None):
         for k in stale:
             del _forwarded_packet_ids[k]
 
+    # ── Mesh taming filters (MQTT-scale) ─────────────────────────────────────
+    reason = _filter_reason(packet, portnum, from_id, now)
+    if reason:
+        _stats["pkts_filtered"] += 1
+        logger.debug("_on_receive: filtered %s from=%s ch=%s — %s",
+                     _port_name(portnum), from_id, packet.get("channel"), reason)
+        return
+
     proto_bytes = _build_from_radio_frame(packet)
     if proto_bytes:
         asyncio.run_coroutine_threadsafe(
@@ -2055,6 +2194,7 @@ async def get_status():
         "pkts_to_clients":   _stats["pkts_to_clients"],
         "pkts_from_clients": _stats["pkts_from_clients"],
         "msgs_replayed":     _stats["msgs_replayed"],
+        "pkts_filtered":     _stats["pkts_filtered"],
         "admin_pending":     len(_admin_pending),
         "radio_ready":       (slot.connection_manager.is_ready.is_set()
                               if slot else False),
@@ -2080,7 +2220,10 @@ async def post_config(body: dict):
     allowed = {"enabled", "port", "bind_host", "slot_id", "max_clients",
                "max_clients_per_ip", "client_rate_limit_per_min", "allow_nets",
                "session_ttl_secs", "session_queue_max",
-               "mdns_enabled", "mdns_name"}
+               "mdns_enabled", "mdns_name",
+               "max_nodes", "channel_allow", "channel_block", "drop_portnums",
+               "nodeinfo_min_interval", "position_min_interval",
+               "telemetry_min_interval"}
     update  = {k: v for k, v in body.items() if k in allowed}
 
     # ── Validation: reject nonsense before it kills the server ────────────────
@@ -2115,6 +2258,29 @@ async def post_config(body: dict):
         if not nm or not all(c.isalnum() or c == "-" for c in nm):
             raise HTTPException(400, "mdns_name must be alphanumeric/dashes")
         update["mdns_name"] = nm
+    for k in ("max_nodes", "nodeinfo_min_interval", "position_min_interval",
+              "telemetry_min_interval"):
+        if k in update:
+            try:
+                update[k] = int(update[k])
+                if update[k] < 0:
+                    raise ValueError
+            except (TypeError, ValueError):
+                raise HTTPException(400, f"{k} must be a non-negative integer")
+    for k in ("channel_allow", "channel_block"):
+        if k in update:
+            if not isinstance(update[k], list):
+                raise HTTPException(400, f"{k} must be a list of channel indices")
+            try:
+                update[k] = [int(v) for v in update[k]]
+            except (TypeError, ValueError):
+                raise HTTPException(400, f"{k} must contain integers")
+            if any(not (0 <= v <= 7) for v in update[k]):
+                raise HTTPException(400, f"{k} must contain integers 0-7")
+    if "drop_portnums" in update:
+        if not isinstance(update["drop_portnums"], list):
+            raise HTTPException(400, "drop_portnums must be a list")
+        update["drop_portnums"] = [str(v) for v in update["drop_portnums"]]
 
     cfg.update(update)
     _save_config(cfg)

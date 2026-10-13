@@ -329,6 +329,15 @@ select.fi{padding-right:4px}
     <div class="sec-head">Radio Slot</div>
     <div class="fi-row"><div class="fi-label">Slot</div><select class="fi" id="c-slot"></select><div></div><div class="fi-hint">Which MeshDash radio connection to proxy.</div></div>
 
+    <div class="sec-head">Mesh Taming <span style="font-size:9px;color:var(--mut)">— for huge MQTT meshes; all off by default</span></div>
+    <div class="fi-row"><div class="fi-label">Max Nodes</div><input class="fi" type="number" id="c-maxnodes" min="0" max="5000"><div></div><div class="fi-hint">Cap the nodeDB sent to clients by most-recently-heard. 0 = send all. E.g. 200 keeps the 200 freshest nodes.</div></div>
+    <div class="fi-row"><div class="fi-label">Allow Channels</div><input class="fi" type="text" id="c-challow" placeholder="e.g. 0, 2"><div></div><div class="fi-hint">Channel indices clients may see (0-7). Empty = all. Blocked/absent channels are sent DISABLED in the handshake.</div></div>
+    <div class="fi-row"><div class="fi-label">Block Channels</div><input class="fi" type="text" id="c-chblock" placeholder="e.g. 3, 5"><div></div><div class="fi-hint">Channel indices never forwarded to clients. Takes precedence over allow.</div></div>
+    <div class="fi-row"><div class="fi-label">Drop Portnums</div><input class="fi" type="text" id="c-dropports" placeholder="e.g. NEIGHBORINFO_APP, RANGE_TEST_APP"><div></div><div class="fi-hint">Portnum types never forwarded (names or numbers). Comma-separated.</div></div>
+    <div class="fi-row"><div class="fi-label">NodeInfo Interval (s)</div><input class="fi" type="number" id="c-ni-int" min="0" max="86400"><div></div><div class="fi-hint">Min seconds between NODEINFO forwards per node. 0 = off. 300 tames periodic rebroadcasts.</div></div>
+    <div class="fi-row"><div class="fi-label">Position Interval (s)</div><input class="fi" type="number" id="c-pos-int" min="0" max="86400"><div></div><div class="fi-hint">Min seconds between POSITION forwards per node. 0 = off.</div></div>
+    <div class="fi-row"><div class="fi-label">Telemetry Interval (s)</div><input class="fi" type="number" id="c-tel-int" min="0" max="86400"><div></div><div class="fi-hint">Min seconds between TELEMETRY forwards per node. 0 = off. 600 = one battery/metric update per node per 10 min.</div></div>
+
     <div class="sec-head">Sessions</div>
     <div class="fi-row"><div class="fi-label">Session TTL (s)</div><input class="fi" type="number" id="c-ttl" min="60" max="86400"><div></div><div class="fi-hint">How long to retain an offline session before purging. Default 7200 (2h).</div></div>
     <div class="fi-row"><div class="fi-label">Queue Max (msgs)</div><input class="fi" type="number" id="c-qmax" min="10" max="500"><div></div><div class="fi-hint">Max text messages to buffer per offline session for replay on reconnect.</div></div>
@@ -682,6 +691,13 @@ async function loadConfig(){
     document.getElementById("c-nets").value=(d.allow_nets||[]).join(", ");
     document.getElementById("c-mdnsname").value=d.mdns_name||"MeshDash";
     document.getElementById("c-mdnson").checked=d.mdns_enabled!==false;
+    document.getElementById("c-maxnodes").value=d.max_nodes??0;
+    document.getElementById("c-challow").value=(d.channel_allow||[]).join(", ");
+    document.getElementById("c-chblock").value=(d.channel_block||[]).join(", ");
+    document.getElementById("c-dropports").value=(d.drop_portnums||[]).join(", ");
+    document.getElementById("c-ni-int").value=d.nodeinfo_min_interval??0;
+    document.getElementById("c-pos-int").value=d.position_min_interval??0;
+    document.getElementById("c-tel-int").value=d.telemetry_min_interval??0;
     const sel=document.getElementById("c-slot");
     const slots=d.available_slots||[d.slot_id];
     sel.innerHTML=slots.map(s=>`<option value="${e(s)}"${s===d.slot_id?" selected":""}>${e(s)}</option>`).join("");
@@ -702,6 +718,13 @@ async function saveConfig(){
       allow_nets:document.getElementById("c-nets").value.split(",").map(s=>s.trim()).filter(Boolean),
       mdns_name:document.getElementById("c-mdnsname").value.trim()||"MeshDash",
       mdns_enabled:document.getElementById("c-mdnson").checked,
+      max_nodes:parseInt(document.getElementById("c-maxnodes").value)||0,
+      channel_allow:document.getElementById("c-challow").value.split(",").map(s=>s.trim()).filter(Boolean).map(Number),
+      channel_block:document.getElementById("c-chblock").value.split(",").map(s=>s.trim()).filter(Boolean).map(Number),
+      drop_portnums:document.getElementById("c-dropports").value.split(",").map(s=>s.trim()).filter(Boolean),
+      nodeinfo_min_interval:parseInt(document.getElementById("c-ni-int").value)||0,
+      position_min_interval:parseInt(document.getElementById("c-pos-int").value)||0,
+      telemetry_min_interval:parseInt(document.getElementById("c-tel-int").value)||0,
     })});
     st.style.color="var(--ok)";st.textContent="✓ Saved — proxy restarting…";
     setTimeout(()=>{doRefresh();st.textContent=""},2500);
