@@ -1,6 +1,7 @@
 from core.c2 import send_system_message
 import core.globals as g
 # Auto-extracted from meshtastic_dashboard.py
+import asyncio
 import logging
 from fastapi import APIRouter, Depends, status
 from core.routes.schemas import User
