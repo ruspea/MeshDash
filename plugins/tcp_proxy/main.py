@@ -401,16 +401,17 @@ async def _start_mdns(cfg: dict, endpoints: List[BrokerEndpoint]):
 
     # Display naming (what phone apps show): the Apple app renders
     # "<shortname>_<last4 of id>" from the TXT records, falling back to the
-    # instance name. So every endpoint publishes shortname="MeshDash" plus
-    # its real node id → "MeshDash_e924"; the merged feed publishes
-    # shortname="MeshDash_ALL" and NO id → "MeshDash_ALL".
+    # instance name. The shortname is the only label the app gives us, so it
+    # carries the slot identity: primary → "MeshDash_e924", extras →
+    # "MeshDash_MQTTRadio_8498" (slot label + node id), merged feed →
+    # "MeshDash_ALL" with NO id TXT.
     for ep in endpoints:
         if ep.kind == "all":
             shortname = "MeshDash_ALL"
             node_id   = None
             props     = {"shortname": shortname}
         else:
-            shortname = "MeshDash"
+            shortname = ep.label
             node_id   = _mdns_node_id(ep.slot())
             props     = {"shortname": shortname}
             if node_id != "!0000dash":
